@@ -216,3 +216,11 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# 51Degrees additions
+*.pyd
+assets/
+fiftyone_ipintelligence_onpremise/src/fiftyone_ipintelligence_onpremise/*.lib
+*.ipi
+*.ipi.gz
+head.gz

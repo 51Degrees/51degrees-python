@@ -1,0 +1,21 @@
+name: Monthly Copyright Update
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        default: false
+        type: boolean
+        description: Dry Run
+  schedule:
+    - cron: '0 0 1 * *'
+
+jobs:
+  Monthly_Copyright_Update:
+    uses: 51Degrees/common-ci/.github/workflows/monthly-copyright-update.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
