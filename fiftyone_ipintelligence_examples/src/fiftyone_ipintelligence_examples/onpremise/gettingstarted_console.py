@@ -32,9 +32,10 @@
 # 2. How to pass input data (evidence) to the Pipeline
 # 3. How to retrieve the results
 #
-# This example requires an enterprise IP intelligence data file (.ipi).
-# To obtain an enterprise data file for testing, please contact us:
-# https://51degrees.com/contact-us
+# This example uses a local IP intelligence data file (.ipi). The
+# ip-intelligence-data submodule provides a freely available data file;
+# a more complete data file can be supplied as the first command line
+# argument.
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -44,7 +45,7 @@ from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligenc
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_VALUES
-from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 
 # The properties displayed for each IP address. These mirror the .NET
 # getting started example. Properties that are not present in the data file
@@ -151,15 +152,15 @@ class GettingStartedConsole():
         if value is None:
             message.append(f"\t{name}: This property is not present in the data file.\n")
         elif value.has_value():
-            message.append(f"\t{name}: {value.value()}\n")
+            message.append(f"\t{name}: {ExampleUtils.format_value(value.value())}\n")
         else:
             message.append(f"\t{name}: {value.no_value_message()}\n")
 
 
 def main(argv):
-    # Use the supplied path for the data file or find the enterprise
-    # file in the project space.
-    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(ENTERPRISE_DATAFILE_NAME)
+    # Use the supplied path for the data file or find the data file in the
+    # project space.
+    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(ASN_DATAFILE_NAME)
 
     # Configure a logger to output to the console.
     logger = Logger(min_level="info")
@@ -170,9 +171,8 @@ def main(argv):
         logger.log("error",
             "Failed to find an IP intelligence data file. Make sure the "
             "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`. To obtain an enterprise "
-            "data file for testing, please contact us: "
-            "https://51degrees.com/contact-us")
+            "`git submodule update --recursive`, or supply the path to a "
+            "data file as the first command line argument.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

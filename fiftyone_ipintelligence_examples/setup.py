@@ -52,6 +52,11 @@ setuptools.setup(
         "flask",
         "ruamel.yaml"
     ],
+    extras_require={
+        # The mixed examples combine IP intelligence with device detection.
+        # Install with: pip install fiftyone_ipintelligence_examples[mixed]
+        "mixed": ["fiftyone_devicedetection"]
+    },
     license="EUPL-1.2",
     classifiers=[
         "Development Status :: 5 - Production/Stable",

@@ -43,14 +43,14 @@ from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_ipintelligence_shared.constants import Constants
 
-# IP addresses to look up in this example. The cloud service expects
-# the IP address under the "query.client-ip-51d" evidence key.
-# These values mirror the .NET examples' ExampleUtils.EvidenceValues.
+# IP addresses to look up in this example. The IP address is supplied under
+# the "query.client-ip" evidence key, which the cloud service treats as the
+# IP address to look up (matching the .NET examples).
 EVIDENCE_VALUES = [
-    { Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY: "116.154.188.222" },
-    { Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY: "1.3.32.31" },
-    { Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY: "45.236.48.61" },
-    { Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY: "2001:0db8:085a:0000:0000:8a2e:0370:7334" },
+    { Constants.EVIDENCE_QUERY_CLIENT_IP_KEY: "116.154.188.222" },
+    { Constants.EVIDENCE_QUERY_CLIENT_IP_KEY: "1.3.32.31" },
+    { Constants.EVIDENCE_QUERY_CLIENT_IP_KEY: "45.236.48.61" },
+    { Constants.EVIDENCE_QUERY_CLIENT_IP_KEY: "2001:0db8:085a:0000:0000:8a2e:0370:7334" },
 ]
 
 # The properties displayed for each IP address. These mirror the .NET
@@ -147,7 +147,7 @@ class GettingStartedConsole():
         if value is None:
             message.append(f"\t{name}: This property is not present in the result.\n")
         elif value.has_value():
-            message.append(f"\t{name}: {value.value()}\n")
+            message.append(f"\t{name}: {ExampleUtils.format_value(value.value())}\n")
         else:
             message.append(f"\t{name}: {value.no_value_message()}\n")
 

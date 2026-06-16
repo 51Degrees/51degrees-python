@@ -50,9 +50,37 @@ class ExampleUtils:
         except Exception:
             return "Property not found in data file"
         if value and value.has_value():
-            return str(value.value())
+            return ExampleUtils.format_value(value.value())
         else:
             return f"Unknown ({value.no_value_message()})"
+
+    @staticmethod
+    def format_value(value):
+
+        """!
+        Render a property value as a human readable string. Weighted value
+        properties (for example countrycodesgeographical) are returned as a
+        list of {value, weighting} dictionaries; these are formatted as the
+        value on its own when the weighting is 1, or "value @ weighting"
+        otherwise, matching the .NET examples.
+        """
+
+        if (isinstance(value, list) and len(value) > 0 and
+                isinstance(value[0], dict) and "value" in value[0]):
+            parts = []
+            for item in value:
+                # On-premise results carry a normalised "weighting" (0-1);
+                # cloud results carry a raw "rawweighting" (0-65535).
+                weighting = item.get("weighting")
+                if weighting is None and "rawweighting" in item:
+                    weighting = item["rawweighting"] / 65535.0
+                item_value = item.get("value")
+                if weighting is None or abs(weighting - 1.0) < 0.0001:
+                    parts.append(f"'{item_value}'")
+                else:
+                    parts.append(f"('{item_value}' @ {weighting:.4f})")
+            return ", ".join(parts)
+        return str(value)
 
     @staticmethod
     def get_value(ip_data, property):
@@ -144,12 +172,9 @@ class ExampleUtils:
                     f"This data file is more than "
                     f"{ExampleUtils.DATA_FILE_AGE_WARNING} days old. A more "
                     f"recent data file may be needed to correctly resolve "
-                    f"the latest IP addresses. The latest Lite data file is "
+                    f"the latest IP addresses. The latest data file is "
                     f"available from the ip-intelligence-data repository on "
-                    f"GitHub https://github.com/51Degrees/ip-intelligence-data. "
-                    f"Find out about the Enterprise data file, which "
-                    f"includes automatic daily updates, on our pricing page: "
-                    f"https://51degrees.com/pricing")
+                    f"GitHub https://github.com/51Degrees/ip-intelligence-data.")
 
             if product == "Lite":
                 logger.log("warning",

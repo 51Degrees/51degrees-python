@@ -64,7 +64,7 @@ class GetAllPropertiesConsole():
 
         data = pipeline.create_flowdata()
         data.evidence.add_from_dict(
-            {Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY: ip_address})
+            {Constants.EVIDENCE_QUERY_CLIENT_IP_KEY: ip_address})
         data.process()
 
         ip_data = data.ip

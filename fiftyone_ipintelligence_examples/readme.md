@@ -19,12 +19,15 @@ Obtain one from the [51Degrees Configurator](https://configure.51degrees.com/).
   every property returned by the cloud service.
 - `cloud/metadata_console.py` - list the properties and accepted evidence
   keys exposed by the cloud service.
+- `cloud/mixed_console.py` - combine device detection and IP intelligence
+  in a single cloud pipeline (requires the device detection package).
 - `cloud/gettingstarted_web/` - Flask web app using the cloud service.
 
 ```
 python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_console
 python -m fiftyone_ipintelligence_examples.cloud.getallproperties_console
 python -m fiftyone_ipintelligence_examples.cloud.metadata_console
+python -m fiftyone_ipintelligence_examples.cloud.mixed_console
 python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_web
 ```
 
@@ -36,11 +39,10 @@ file (`51Degrees-IPIV4AsnIpiV41.ipi`) that the examples fall back to; it
 only contains the ASN/network properties, so location and registration
 properties are reported as "not present in the data file".
 
-For the full set of properties, use an enterprise data file - to obtain
-one for testing please [contact us](https://51degrees.com/contact-us) - and
-supply its path as the first command line argument. (The on-premise engine
-must be built against an `ip-intelligence-cxx` revision targeting the 4.5
-format; see the repository PROGRESS.md.)
+For the full set of properties (location, registration, etc.), a more
+complete data file is required - to obtain one for testing please
+[contact us](https://51degrees.com/contact-us) - and supply its path as
+the first command line argument.
 
 - `onpremise/gettingstarted_console.py` - resolve IP addresses from the
   console using a local data file.
@@ -53,7 +55,10 @@ format; see the repository PROGRESS.md.)
 - `onpremise/compare_console.py` - compare the location returned for each
   IP address against a CSV of known-true locations.
 - `onpremise/datafileupdate_console.py` - demonstrate automatic data file
-  updates (requires an enterprise license key).
+  updates (requires a license key).
+- `onpremise/mixed_console.py` - combine device detection and IP
+  intelligence in a single on-premise pipeline (requires the device
+  detection package and a `.hash` data file).
 - `onpremise/gettingstarted_web/` - Flask web app using the on-premise
   engine.
 
@@ -64,10 +69,16 @@ python -m fiftyone_ipintelligence_examples.onpremise.offlineprocessing [data-fil
 python -m fiftyone_ipintelligence_examples.onpremise.performance_console [-d data-file] [-e evidence-file]
 python -m fiftyone_ipintelligence_examples.onpremise.compare_console [-d data-file] [-t truth-file]
 python -m fiftyone_ipintelligence_examples.onpremise.datafileupdate_console <license-key> [data-file]
+python -m fiftyone_ipintelligence_examples.onpremise.mixed_console [hash-file [ipi-file]]
 python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_web
 ```
 
-Examples that are not ported from the .NET examples: `Metrics-Console`
-(the on-premise engine's range enumeration API is not exposed through the
-Python wrapper) and the `Mixed` examples (which combine device detection
-and IP intelligence).
+The mixed examples combine device detection with IP intelligence and so
+require the device detection package, installed via the `mixed` extra:
+
+```
+pip install -e fiftyone_ipintelligence_examples[mixed]
+```
+
+The only .NET example not ported is `Metrics-Console`, as the on-premise
+engine's range enumeration API is not exposed through the Python wrapper.

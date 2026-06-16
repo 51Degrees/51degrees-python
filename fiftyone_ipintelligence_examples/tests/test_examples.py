@@ -26,23 +26,34 @@ import unittest
 from fiftyone_pipeline_core.logger import Logger
 
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
-from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
 from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_FILE_NAME
 
 # The tests run against the freely available data file committed to the
-# ip-intelligence-data submodule, so they must only rely on properties that
-# the free data file provides (i.e. no enterprise-only properties such as
-# Latitude, Longitude, Areas or AccuracyRadiusMin).
+# ip-intelligence-data submodule, so they only rely on properties that the
+# free data file provides (location properties such as Latitude, Longitude
+# and Areas are not present in it).
 data_file = ExampleUtils.find_file(ASN_DATAFILE_NAME)
 evidence_file = ExampleUtils.find_file(EVIDENCE_FILE_NAME)
 truth_file = ExampleUtils.find_file("geoip_comparison_evidence.csv")
 resource_key = ExampleUtils.get_resource_key()
 
-# The compare example is inherently about enterprise-only location
-# properties (latitude / longitude), so its test only runs when an
-# enterprise data file is explicitly available.
-enterprise_file = ExampleUtils.find_file(ENTERPRISE_DATAFILE_NAME)
+# The mixed examples combine IP intelligence with device detection, which is
+# an optional dependency. Their tests only run when it is installed.
+try:
+    import fiftyone_devicedetection_onpremise  # noqa: F401
+    import fiftyone_devicedetection_cloud  # noqa: F401
+    device_detection_available = True
+except ImportError:
+    device_detection_available = False
+
+# Look for any of the known device detection data file names, in the same
+# priority order as the .NET mixed example.
+hash_file = None
+for _hash_name in ["51Degrees-LiteV4.1.hash", "TAC-HashV41.hash"]:
+    hash_file = ExampleUtils.find_file(_hash_name)
+    if hash_file:
+        break
 
 
 class ExampleTests(unittest.TestCase):
@@ -111,15 +122,14 @@ class ExampleTests(unittest.TestCase):
         self.assertGreater(results["DetectionsPerSecond"], 0)
 
     @unittest.skipUnless(
-        bool(enterprise_file) and bool(truth_file),
-        "No enterprise data file or truth file available "
-        "(compare uses enterprise-only location properties)")
+        bool(data_file) and bool(truth_file),
+        "No data file or truth file available")
     def test_onpremise_compare_console(self):
         from fiftyone_ipintelligence_examples.onpremise.compare_console import CompareConsole
         import io
         output = io.StringIO()
         CompareConsole().run(
-            enterprise_file,
+            data_file,
             truth_file,
             Logger(min_level="error"),
             output,
@@ -146,6 +156,22 @@ class ExampleTests(unittest.TestCase):
     def test_cloud_getallproperties_console(self):
         from fiftyone_ipintelligence_examples.cloud.getallproperties_console import GetAllPropertiesConsole
         example = GetAllPropertiesConsole()
+        example.run(resource_key, Logger(min_level="error"), lambda x: None)
+
+    @unittest.skipUnless(
+        device_detection_available and bool(hash_file) and bool(data_file),
+        "device detection package or data file not available")
+    def test_onpremise_mixed_console(self):
+        from fiftyone_ipintelligence_examples.onpremise.mixed_console import MixedConsole
+        example = MixedConsole()
+        example.run(hash_file, data_file, Logger(min_level="error"), lambda x: None)
+
+    @unittest.skipUnless(
+        device_detection_available and bool(resource_key),
+        "device detection package or resource_key not available")
+    def test_cloud_mixed_console(self):
+        from fiftyone_ipintelligence_examples.cloud.mixed_console import MixedConsole
+        example = MixedConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
 
