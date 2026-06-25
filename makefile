@@ -1,4 +1,4 @@
-PACKAGES = fiftyone_ipintelligence_shared/ fiftyone_ipintelligence_cloud/ fiftyone_ipintelligence_onpremise/ fiftyone_ipintelligence/
+PACKAGES = fiftyone_ipintelligence_shared/ fiftyone_ipintelligence_cloud/ fiftyone_ipintelligence_onpremise/ fiftyone_ipintelligence_translation/ fiftyone_ipintelligence/
 
 all: install
 

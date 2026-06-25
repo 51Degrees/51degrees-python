@@ -25,7 +25,11 @@
 #
 # A simple Flask web application that resolves the IP address of the
 # visitor (or an IP supplied as the "client-ip" query parameter) using
-# the on-premise IP intelligence engine.
+# the on-premise IP intelligence engine, and renders a dropdown of
+# countries ordered with the most probable country first.
+#
+# The country names are localized using the visitor's Accept-Language
+# header. Append "&translation=fr_FR" to the url to force a language.
 #
 # Run with:
 # ```
@@ -36,6 +40,8 @@ from flask import Flask, request
 
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
+from fiftyone_ipintelligence_examples.onpremise.countries_pipeline import (
+    add_country_translation, build_country_options)
 from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 
 app = Flask(__name__)
@@ -45,17 +51,38 @@ pipeline = None
 
 def build_pipeline(data_file):
     global pipeline
-    pipeline = IpIntelligencePipelineBuilder(
+    builder = IpIntelligencePipelineBuilder(
         data_file_path = data_file,
         performance_profile = "LowMemory",
         usage_sharing = False,
         auto_update = False,
-        licence_keys = "").build()
+        licence_keys = "")
+    # Add the country code and countries translation engines on top of the
+    # on-premise IP Intelligence engine.
+    add_country_translation(builder)
+    pipeline = builder.build()
     return pipeline
 
 
 def get_value(ip_data, property):
     return ExampleUtils.get_human_readable(ip_data, property)
+
+
+def country_dropdown(translated):
+
+    # The geographical "All" lists are index-aligned: option i is
+    # (CountryCodesGeographicalAll[i], CountryNamesGeographicalAllTranslated[i]),
+    # most probable country first.
+    codes = translated.get("CountryCodesGeographicalAll")
+    names = translated.get("CountryNamesGeographicalAllTranslated")
+    if not codes.has_value() or not names.has_value():
+        return "<p>No country information available in this data file.</p>"
+    options = build_country_options(codes.value(), names.value())
+    return f"""
+    <select id="CountryNamesGeographicalAllTranslated"
+            name="CountryNamesGeographicalAllTranslated">
+{options}
+    </select>"""
 
 
 @app.route("/")
@@ -67,13 +94,23 @@ def index():
     # Use the IP address supplied as a query parameter, or fall back
     # to the address of the requester.
     client_ip = request.args.get("client-ip", request.remote_addr)
-
     flowdata.evidence.add("query.client-ip", client_ip)
+
+    # Supply the browser language so the country names are localized. The
+    # Accept-Language header is used by default, overridable with a
+    # "translation" query parameter.
+    accept_language = request.headers.get("Accept-Language")
+    if accept_language:
+        flowdata.evidence.add("header.accept-language", accept_language)
+    translation = request.args.get("translation")
+    if translation:
+        flowdata.evidence.add("query.translation", translation)
 
     # Process the flowdata
     flowdata.process()
 
     ip_data = flowdata.ip
+    translated = flowdata.get("countrynamestranslated")
 
     return f"""
     <h2>51Degrees IP Intelligence - Getting Started Web (On-Premise)</h2>
@@ -83,7 +120,11 @@ def index():
         <li>Registered Owner: {get_value(ip_data, "registeredowner")}</li>
         <li>Registered Country: {get_value(ip_data, "registeredcountry")}</li>
     </ul>
-    <p>Add ?client-ip=x.x.x.x to the url to lookup a different address.</p>
+    <h3>Country</h3>
+    <p>Most probable country first, then every other country alphabetically.</p>
+    {country_dropdown(translated)}
+    <p>Add ?client-ip=x.x.x.x to the url to lookup a different address, and
+    &amp;translation=fr_FR to choose a language.</p>
     """
 
 

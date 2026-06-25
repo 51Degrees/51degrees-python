@@ -5,7 +5,7 @@ param (
     [string]$Version
 )
 
-$packages = "fiftyone_ipintelligence_shared", "fiftyone_ipintelligence_cloud", "fiftyone_ipintelligence_onpremise", "fiftyone_ipintelligence"
+$packages = "fiftyone_ipintelligence_shared", "fiftyone_ipintelligence_cloud", "fiftyone_ipintelligence_onpremise", "fiftyone_ipintelligence_translation", "fiftyone_ipintelligence"
 ./python/build-package-pypi.ps1 -RepoName $RepoName -Version $Version -Packages $packages
 
 exit $LASTEXITCODE

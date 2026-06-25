@@ -18,4 +18,5 @@ Get-Location
 python -m pip install -e fiftyone_ipintelligence_shared/
 python -m pip install -e fiftyone_ipintelligence_cloud/
 python -m pip install -e fiftyone_ipintelligence_onpremise/
+python -m pip install -e fiftyone_ipintelligence_translation/
 python -m pip install -e fiftyone_ipintelligence/
