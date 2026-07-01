@@ -34,7 +34,7 @@ def read(file_name):
             os.path.join(os.path.dirname(__file__), file_name), encoding="utf-8"
         ) as f:
             return f.read().strip()
-    except:
+    except Exception:
         return "0.0.0"
 
 

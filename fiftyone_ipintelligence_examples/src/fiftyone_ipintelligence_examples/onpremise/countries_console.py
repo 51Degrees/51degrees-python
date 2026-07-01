@@ -132,6 +132,13 @@ class CountriesConsole():
 
 
 def main(argv):
+    # Localized country names are UTF-8; reconfigure stdout so they are not
+    # mangled on consoles with a non-UTF-8 default encoding (e.g. Windows
+    # cp1252). Guarded because reconfigure is only available on Python 3.7+
+    # text streams.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     data_file = (
         argv[0] if len(argv) > 0
         else ExampleUtils.find_file(ASN_DATAFILE_NAME))
