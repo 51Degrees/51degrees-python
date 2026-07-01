@@ -49,6 +49,7 @@ setuptools.setup(
     package_dir={"": "src"},
     install_requires=[
         "fiftyone_ipintelligence",
+        "fiftyone_ipintelligence_translation",
         "flask",
         "ruamel.yaml"
     ],

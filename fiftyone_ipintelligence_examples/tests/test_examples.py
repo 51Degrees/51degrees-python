@@ -86,6 +86,13 @@ class ExampleTests(unittest.TestCase):
 
     @unittest.skipUnless(
         bool(data_file), "No IP intelligence data file available")
+    def test_onpremise_countries_console(self):
+        from fiftyone_ipintelligence_examples.onpremise.countries_console import CountriesConsole
+        example = CountriesConsole()
+        example.run(data_file, Logger(min_level="error"), lambda x: None)
+
+    @unittest.skipUnless(
+        bool(data_file), "No IP intelligence data file available")
     def test_onpremise_metadata_console(self):
         from fiftyone_ipintelligence_examples.onpremise.metadata_console import MetadataConsole
         example = MetadataConsole()
