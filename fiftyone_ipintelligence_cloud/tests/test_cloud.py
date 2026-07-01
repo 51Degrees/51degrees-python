@@ -64,13 +64,12 @@ class IpIntelligenceCloudTests(unittest.TestCase):
         engine = pipeline.flow_elements_list["ip"]
 
         self.assertIn("RegisteredName", engine.properties)
-        self.assertIn("Mcc", engine.properties)
-        self.assertEqual(engine.properties["Mcc"]["type"], "WeightedString")
+        self.assertIn("RegisteredCountry", engine.properties)
 
     def test_process_returns_values(self):
         """!
-        Process an IP address and check values are available, including
-        weighted values and no-value reasons.
+        Process an IP address and check that freely available values are
+        returned.
         """
 
         pipeline = self.build_mocked_pipeline()
@@ -85,35 +84,31 @@ class IpIntelligenceCloudTests(unittest.TestCase):
         self.assertTrue(registered_name.has_value())
         self.assertEqual(registered_name.value(), "51 Degrees Mobile Experts Limited")
 
-        country_code = ip_data.get("countrycode")
-        self.assertTrue(country_code.has_value())
-        self.assertEqual(country_code.value(), "GB")
+        registered_country = ip_data.get("registeredcountry")
+        self.assertTrue(registered_country.has_value())
+        self.assertEqual(registered_country.value(), "GB")
 
-        is_eu = ip_data.get("iseu")
-        self.assertTrue(is_eu.has_value())
-        self.assertEqual(is_eu.value(), False)
-
-    def test_weighted_values(self):
+    def test_rawweighting_normalised_to_weighting(self):
         """!
-        Weighted properties are returned as lists of
-        {"value": ..., "weighting": ...} dictionaries.
+        The cloud sends weighted values with a raw 0-65535 "rawweighting"
+        field (the same field ip-intelligence-dotnet reads into RawWeighting).
+        The engine normalises it to a 0.0-1.0 "weighting" so the shape matches
+        the on-premise engine, and the raw field is not leaked to the consumer.
+        (Weighted properties are only available on a paid data tier, so this
+        normalisation is exercised as a unit test rather than through the free
+        cloud mock.)
         """
 
-        pipeline = self.build_mocked_pipeline()
+        normalised = IpIntelligenceCloud._normalise_weighting(
+            {"value": "234", "rawweighting": 52428})
+        self.assertEqual(normalised["value"], "234")
+        self.assertAlmostEqual(normalised["weighting"], 0.8)
+        self.assertNotIn("rawweighting", normalised)
 
-        flowdata = pipeline.create_flowdata()
-        flowdata.evidence.add("query.client-ip-51d", Constants.ipv4_address)
-        flowdata.process()
-
-        mcc = flowdata.ip.get("mcc")
-        self.assertTrue(mcc.has_value())
-
-        values = mcc.value()
-        self.assertEqual(len(values), 2)
-        self.assertEqual(values[0]["value"], "234")
-        self.assertAlmostEqual(values[0]["weighting"], 0.8)
-        total_weight = sum(item["weighting"] for item in values)
-        self.assertAlmostEqual(total_weight, 1.0)
+        # An entry that already uses "weighting" is left untouched.
+        passthrough = IpIntelligenceCloud._normalise_weighting(
+            {"value": "235", "weighting": 0.2})
+        self.assertEqual(passthrough, {"value": "235", "weighting": 0.2})
 
     def test_no_value_reason(self):
         """!

@@ -29,20 +29,13 @@ class Constants():
     ipv6_address = "2001:4860:4860::8888"
 
     # The JSON response segment for IP intelligence is keyed "ip"
-    # (same as ip-intelligence-dotnet's IpiCloudEngine.ElementDataKey).
+    # (same as ip-intelligence-dotnet's IpiCloudEngine.ElementDataKey). Only
+    # freely available network-registration properties are used here so the
+    # tests do not depend on a paid data tier.
     json_response = """{
         "ip": {
             "registeredname": "51 Degrees Mobile Experts Limited",
             "registeredcountry": "GB",
-            "countrycode": "GB",
-            "latitude": 51.4578,
-            "longitude": -0.9732,
-            "accuracyradiusmin": 25,
-            "iseu": false,
-            "mcc": [
-                { "value": "234", "weighting": 0.8 },
-                { "value": "235", "weighting": 0.2 }
-            ],
             "ip": null,
             "ipnullreason": "The results are empty. This is probably because we don't have this data in our database."
         },
@@ -58,12 +51,6 @@ class Constants():
                 'Properties': [
                     {'Name': 'RegisteredName', 'Type': 'String', 'Category': 'IP Metrics'},
                     {'Name': 'RegisteredCountry', 'Type': 'String', 'Category': 'IP Metrics'},
-                    {'Name': 'CountryCode', 'Type': 'String', 'Category': 'Geography'},
-                    {'Name': 'Latitude', 'Type': 'Single', 'Category': 'Geography'},
-                    {'Name': 'Longitude', 'Type': 'Single', 'Category': 'Geography'},
-                    {'Name': 'AccuracyRadiusMin', 'Type': 'Int32', 'Category': 'Geography'},
-                    {'Name': 'IsEu', 'Type': 'Boolean', 'Category': 'Geography'},
-                    {'Name': 'Mcc', 'Type': 'WeightedString', 'Category': 'Network'},
                     {'Name': 'Ip', 'Type': 'IpAddress', 'Category': 'IP Metrics'}
                 ]
             }
