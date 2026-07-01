@@ -394,6 +394,43 @@ class CountryTranslationGapTests(unittest.TestCase):
             mock_ip_element(["GB"], ["GB"])).get("countrynamestranslated")
         self.assertEqual("", none.get("sortingcultureused"))
 
+    def test_country_code_no_is_not_coerced_to_false(self):
+        # Regression: the ISO code "NO" (Norway) must survive YAML loading as
+        # the string "NO", not the boolean False. safe_load's YAML 1.1 typing
+        # turned it into False, so the code lists contained "False" and a
+        # weighted "NO" from the IP engine was dropped as an unknown code.
+        flowdata = _process(
+            mock_ip_element([], []),
+            {"header.accept-language": "fr_FR"})
+        result = flowdata.get("countrynamestranslated")
+        codes = result.get("CountryCodesGeographicalAll").value()
+        names = result.get("CountryNamesGeographicalAllTranslated").value()
+
+        self.assertIn("NO", codes)
+        self.assertNotIn("False", codes)
+        self.assertEqual("Norvège", names[codes.index("NO")])
+
+    def test_alphabetical_order_is_pinned(self):
+        # The alphabetical remainder is asserted against literal expected
+        # values rather than being re-checked with the engine's own comparer,
+        # so a change in collation is caught instead of silently absorbed.
+        flowdata = _process(
+            mock_ip_element([], []),
+            {"header.accept-language": "fr_FR"})
+        result = flowdata.get("countrynamestranslated")
+        codes = result.get("CountryCodesGeographicalAll").value()
+        names = result.get("CountryNamesGeographicalAllTranslated").value()
+
+        self.assertEqual(
+            ["AF", "ZA", "AX", "AL", "DZ", "DE",
+             "AO", "AI", "AQ", "AG", "SA", "AR"],
+            codes[:12])
+        self.assertEqual(
+            ["Afghanistan", "Afrique du Sud", "Åland", "Albanie",
+             "Algérie", "Allemagne", "Angola", "Anguilla", "Antarctique",
+             "Antigua-et-Barbuda", "Arabie saoudite", "Argentine"],
+            names[:12])
+
     def test_population_translated_names(self):
         flowdata = _process(
             mock_ip_element(["DE"], ["US", "CN"]),

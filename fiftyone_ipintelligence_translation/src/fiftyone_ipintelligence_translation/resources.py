@@ -122,5 +122,10 @@ def get_all_countries():
     if not resources:
         return []
     content = next(iter(resources.values()))
-    data = yaml.safe_load(content) or {}
+    # Load with BaseLoader so every scalar stays a string. safe_load applies
+    # YAML 1.1 implicit typing, which parses the ISO code "NO" (Norway) as the
+    # boolean False (and would coerce any similar code), corrupting the code
+    # lists. The .NET reference deserializes into Dictionary<string,string> and
+    # never hits this.
+    data = yaml.load(content, Loader=yaml.BaseLoader) or {}
     return [(str(code), str(name)) for code, name in data.items()]
