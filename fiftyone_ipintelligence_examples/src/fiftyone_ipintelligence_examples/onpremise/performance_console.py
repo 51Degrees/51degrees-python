@@ -33,10 +33,11 @@
 # more detail on performance options:
 # https://51degrees.com/documentation/_features__performance_options.html
 #
-# A large enterprise data file is used with the low memory performance
-# profile so that the (memory mapped) data file is shared rather than loaded
-# into memory for every worker. To obtain an enterprise data file for
-# testing, please contact us: https://51degrees.com/contact-us
+# The native engine holds the Python GIL for the duration of each lookup, so
+# threads cannot run lookups in parallel. Parallelism therefore uses worker
+# processes, each building its own pipeline. With the LowMemory profile the
+# memory mapped data file is shared between the processes by the operating
+# system, so a large enterprise data file is not duplicated per worker.
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -44,9 +45,9 @@
 
 import argparse
 import json
+import multiprocessing
 import sys
 import time
-from concurrent.futures import ThreadPoolExecutor
 from multiprocessing import cpu_count
 
 from ruamel.yaml import YAML
@@ -61,60 +62,109 @@ from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_FILE_NAME
 # work to a single component keeps the benchmark focused on lookup speed.
 PERFORMANCE_PROPERTY = "registeredcountry"
 
+# The number of records processed before timing starts, so that any lazy
+# initialisation is not included in the timed run.
+WARM_UP_RECORDS = 100
+
+
+def _build_pipeline(data_file, performance_profile, logger=None):
+    builder = IpIntelligencePipelineBuilder(
+        data_file_path = data_file,
+        performance_profile = performance_profile,
+        usage_sharing = False,
+        auto_update = False,
+        # Auto update is disabled, so the data file can be used in place.
+        # This avoids every worker process spilling its own temporary copy
+        # of a potentially very large file.
+        create_temp_data_copy = False,
+        licence_keys = "")
+    if logger is not None:
+        builder.add_logger(logger)
+    return builder.build()
+
+
+def _process_record(pipeline, record):
+    data = pipeline.create_flowdata()
+    data.evidence.add_from_dict(record)
+    data.process()
+    value = ExampleUtils.get_value(data.ip, PERFORMANCE_PROPERTY)
+    return value is not None and value.has_value()
+
+
+def _time_lookups(pipeline, records):
+
+    """!
+    Warm up, then time how long the pipeline takes to process the records.
+    Returns the elapsed seconds.
+    """
+
+    for record in records[:min(len(records), WARM_UP_RECORDS)]:
+        _process_record(pipeline, record)
+
+    start = time.time()
+    for record in records:
+        _process_record(pipeline, record)
+    return time.time() - start
+
+
+def _worker(data_file, performance_profile, records, queue):
+
+    """!
+    Worker process entry point. Builds its own pipeline (the engine cannot be
+    shared across processes), times its share of the records and reports the
+    count and elapsed seconds back to the parent.
+    """
+
+    pipeline = _build_pipeline(data_file, performance_profile)
+    elapsed = _time_lookups(pipeline, records)
+    queue.put((len(records), elapsed))
+
 
 class PerformanceConsole():
-    def run(self, data_file, evidence, logger, output, threads=None,
+    def run(self, data_file, evidence, logger, output, workers=None,
             performance_profile="MaxPerformance"):
 
         """!
-        Build an on-premise pipeline and time how long it takes to process
-        the supplied list of evidence records.
+        Time how long it takes to process the supplied list of evidence
+        records. With one worker the pipeline runs in this process; with
+        more, the records are split across worker processes that each build
+        their own pipeline, since the native lookup holds the GIL and
+        threads cannot run lookups in parallel.
         """
 
-        if threads is None:
-            threads = cpu_count()
-
-        # A benchmark normally uses the max performance profile, which loads
-        # the whole data file into memory for the fastest lookups. The
-        # enterprise IP intelligence data file is large (several GB), so a
-        # single shared in-memory copy is used and the worker threads share
-        # it. If memory is constrained, pass performance_profile="LowMemory"
-        # to use the (slower) memory mapped profile instead.
-        pipeline = IpIntelligencePipelineBuilder(
-            data_file_path = data_file,
-            performance_profile = performance_profile,
-            usage_sharing = False,
-            auto_update = False,
-            licence_keys = "").add_logger(logger).build()
-
-        ExampleUtils.check_data_file(pipeline, logger)
-
-        def process(record):
-            data = pipeline.create_flowdata()
-            data.evidence.add_from_dict(record)
-            data.process()
-            value = ExampleUtils.get_value(data.ip, PERFORMANCE_PROPERTY)
-            return value is not None and value.has_value()
-
-        # Warm up so that any lazy initialisation is not included in the
-        # timed run.
-        for record in evidence[:min(len(evidence), 100)]:
-            process(record)
+        if workers is None:
+            workers = cpu_count()
 
         count = len(evidence)
-        start = time.time()
-        if threads > 1:
-            with ThreadPoolExecutor(max_workers=threads) as executor:
-                list(executor.map(process, evidence))
+
+        if workers > 1:
+            # Round-robin split so every worker gets a near equal share.
+            chunks = [evidence[index::workers] for index in range(workers)]
+            queue = multiprocessing.Queue()
+            processes = [
+                multiprocessing.Process(
+                    target=_worker,
+                    args=(data_file, performance_profile, chunk, queue))
+                for chunk in chunks if chunk]
+            for process in processes:
+                process.start()
+            results = [queue.get() for _process in processes]
+            for process in processes:
+                process.join()
+            count = sum(records for records, _elapsed in results)
+            # The workers run concurrently, so the slowest one defines the
+            # wall time of the run.
+            elapsed = max(elapsed for _records, elapsed in results)
         else:
-            for record in evidence:
-                process(record)
-        elapsed = time.time() - start
+            pipeline = _build_pipeline(data_file, performance_profile, logger)
+            ExampleUtils.check_data_file(pipeline, logger)
+            elapsed = _time_lookups(pipeline, evidence)
 
         per_second = count / elapsed if elapsed > 0 else 0
         ms_per_lookup = (elapsed / count) * 1000 if count > 0 else 0
 
-        output(f"Processed {count} IP addresses using {threads} thread(s)")
+        output(f"Processed {count} IP addresses using {workers} worker "
+               f"process(es)")
         output(f"Total time: {elapsed:.3f} seconds")
         output(f"IP lookups per second: {per_second:.0f}")
         output(f"Time per IP lookup (ms): {ms_per_lookup:.4f}")
@@ -153,8 +203,8 @@ def main(argv):
         help="Optional path to write JSON format results to")
     ap.add_argument("-n", "--record_limit", type=int, default=5000,
         help="Maximum number of evidence records to process")
-    ap.add_argument("-t", "--threads", type=int, default=None,
-        help="Number of worker threads (defaults to the number of CPUs)")
+    ap.add_argument("-w", "--workers", type=int, default=None,
+        help="Number of worker processes (defaults to the number of CPUs)")
     ap.add_argument("-p", "--performance_profile", default="MaxPerformance",
         help="Performance profile: MaxPerformance (default) or LowMemory")
     args = ap.parse_args(argv)
@@ -168,7 +218,7 @@ def main(argv):
         evidence = load_evidence(evidence_file, args.record_limit)
         results = PerformanceConsole().run(
             data_file, evidence, logger, print,
-            threads=args.threads, performance_profile=args.performance_profile)
+            workers=args.workers, performance_profile=args.performance_profile)
         if args.json_output:
             with open(args.json_output, "w") as fout:
                 json.dump(results, fout)

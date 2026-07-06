@@ -124,7 +124,7 @@ class ExampleTests(unittest.TestCase):
             evidence,
             Logger(min_level="error"),
             lambda x: None,
-            threads=1,
+            workers=1,
             performance_profile="LowMemory")
         self.assertGreater(results["DetectionsPerSecond"], 0)
 
