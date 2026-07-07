@@ -1,0 +1,173 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+import os
+import unittest
+
+from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
+
+from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise import IpIntelligenceOnPremise
+
+from .constants import TestConstants
+
+data_file = TestConstants.get_data_file_path()
+
+
+@unittest.skipUnless(
+    os.path.isfile(data_file),
+    "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
+    "or set the IPINTELLIGENCEDATAFILE environment variable." % data_file)
+class IpIntelligenceOnPremiseTests(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.engine = IpIntelligenceOnPremise(
+            data_file_path=data_file,
+            licence_keys="")
+        cls.pipeline = PipelineBuilder() \
+            .add(cls.engine) \
+            .build()
+
+    def process(self, key, value):
+        flowdata = self.pipeline.create_flowdata()
+        flowdata.evidence.add(key, value)
+        flowdata.process()
+        return flowdata
+
+    def test_engine_init(self):
+        """!
+        The engine initialises with properties from the data file
+        and the synthetic echo properties.
+        """
+
+        self.assertEqual(self.engine.datakey, "ip")
+        self.assertIn("registeredname", self.engine.properties)
+        self.assertIn("registeredcountry", self.engine.properties)
+        # Echo properties
+        self.assertIn("ip", self.engine.properties)
+        self.assertIn("ipv6", self.engine.properties)
+
+    def test_evidence_key_filter(self):
+        """!
+        The evidence key filter contains the keys reported by the
+        native engine.
+        """
+
+        evidence_key_filter = self.engine.get_evidence_key_filter()
+        self.assertTrue(evidence_key_filter.filter_evidence_key("query.client-ip"))
+        self.assertTrue(evidence_key_filter.filter_evidence_key("server.client-ip"))
+        self.assertTrue(evidence_key_filter.filter_evidence_key("query.client-ip-51d"))
+        self.assertFalse(evidence_key_filter.filter_evidence_key("header.user-agent"))
+
+    def test_process_ipv4(self):
+        """!
+        Process an IPv4 address and check the network registration
+        properties have values.
+        """
+
+        flowdata = self.process("query.client-ip", TestConstants.IPV4_ADDRESS)
+
+        registered_name = flowdata.ip.get("registeredname")
+
+        # String properties hold a single value (dotnet parity, weighted
+        # properties such as Mcc are returned as lists of
+        # {"value", "weighting"} dictionaries).
+        self.assertTrue(registered_name.has_value())
+        self.assertIsInstance(registered_name.value(), str)
+        self.assertGreater(len(registered_name.value()), 0)
+
+    def test_registered_country(self):
+        """!
+        The registered country is returned as a country code string.
+        """
+
+        flowdata = self.process("query.client-ip", TestConstants.IPV4_ADDRESS)
+
+        registered_country = flowdata.ip.get("registeredcountry")
+        self.assertTrue(registered_country.has_value())
+        self.assertIsInstance(registered_country.value(), str)
+
+    def test_echo_ip(self):
+        """!
+        The IP address supplied in evidence is echoed back via the
+        synthetic Ip property; IpV6 has no value for IPv4 input.
+        """
+
+        flowdata = self.process("query.client-ip", TestConstants.IPV4_ADDRESS)
+
+        ip = flowdata.ip.get("ip")
+        self.assertTrue(ip.has_value())
+        self.assertEqual(ip.value(), TestConstants.IPV4_ADDRESS)
+
+        ipv6 = flowdata.ip.get("ipv6")
+        self.assertFalse(ipv6.has_value())
+
+    def test_process_ipv6(self):
+        """!
+        An IPv6 address can be processed and is echoed back.
+        """
+
+        flowdata = self.process("query.client-ip", TestConstants.IPV6_ADDRESS)
+
+        ipv6 = flowdata.ip.get("ipv6")
+        self.assertTrue(ipv6.has_value())
+
+    def test_missing_property(self):
+        """!
+        Accessing a property that does not exist raises an exception
+        from the missing property service.
+        """
+
+        flowdata = self.process("query.client-ip", TestConstants.IPV4_ADDRESS)
+
+        with self.assertRaises(Exception):
+            flowdata.ip.get("notaproperty")
+
+    def test_wrong_data_file_extension(self):
+        """!
+        The engine only accepts .ipi data files.
+        """
+
+        # Use a file that exists but has the wrong extension.
+        wrong_file = os.path.join(os.path.dirname(__file__), "constants.py")
+
+        with self.assertRaises(Exception) as context:
+            IpIntelligenceOnPremise(
+                data_file_path=wrong_file,
+                licence_keys="")
+
+        self.assertIn(".ipi", str(context.exception))
+
+    def test_missing_licence_key(self):
+        """!
+        The engine requires the licence key argument (an empty string
+        disables automatic updates).
+        """
+
+        with self.assertRaises(Exception) as context:
+            IpIntelligenceOnPremise(data_file_path=data_file)
+
+        self.assertIn("licence key is required", str(context.exception))
+
+
+if __name__ == "__main__":
+    unittest.main()

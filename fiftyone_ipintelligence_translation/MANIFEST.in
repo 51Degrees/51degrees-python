@@ -1,0 +1,3 @@
+include version.txt
+include readme.md
+recursive-include src/fiftyone_ipintelligence_translation/translations *.yml
