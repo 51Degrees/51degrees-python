@@ -20,6 +20,6 @@ jobs:
       token: ${{ secrets.ACCESS_TOKEN }}
       IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
       IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
-      TestResourceKey: ${{ secrets.SUPER_RESOURCE_KEY }}
+      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
       PypiToken: ${{ secrets.PYPI_TOKEN }}
       TestPypiToken: ${{ secrets.TEST_PYPI_TOKEN }}
