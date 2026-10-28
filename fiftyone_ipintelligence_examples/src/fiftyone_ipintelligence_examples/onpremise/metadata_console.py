@@ -50,11 +50,11 @@ class MetadataConsole():
         engine = pipeline.flow_elements_list["ip"]
 
         output("IP Intelligence properties:")
-        for key, property in engine.properties.items():
-            output(f"  {property['name']} ({property['type']}) - "
-                   f"category: {property['category']}")
-            if property.get("description"):
-                output(f"      {property['description']}")
+        for property_metadata in engine.properties.values():
+            output(f"  {property_metadata['name']} ({property_metadata['type']}) - "
+                   f"category: {property_metadata['category']}")
+            if property_metadata.get("description"):
+                output(f"      {property_metadata['description']}")
 
 
 def main(argv):

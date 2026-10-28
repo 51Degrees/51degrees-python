@@ -169,5 +169,53 @@ class IpIntelligenceOnPremiseTests(unittest.TestCase):
         self.assertIn("licence key is required", str(context.exception))
 
 
+class CommittedDataFileTests(unittest.TestCase):
+    """!
+    The native engine accepts exactly one data file format version, so the
+    ip-intelligence-cxx pin and the ip-intelligence-data pin must agree.
+    They once did not: the engine moved to format 4.6 while the data pin
+    still held the 4.5 ASN file. These tests open the ASN file committed to
+    the data submodule, which needs no download or secret, so pins that
+    disagree fail here on any machine.
+
+    They do not prove the engine reads the data files 51Degrees publishes.
+    That is IpIntelligenceOnPremiseTests above, against the Lite or
+    Enterprise file CI downloads; it skips when neither is present.
+    test_onpremise_datafile_loads in the examples package also opens the
+    ASN file, but it skips silently when the file is not found and it runs
+    after the examples build, so it is not relied on here.
+    """
+
+    def test_committed_data_file_present(self):
+        """!
+        The committed data file exists. If it does not, the
+        ip-intelligence-data submodule was not checked out, and the test
+        below would prove nothing.
+        """
+
+        self.assertTrue(
+            os.path.isfile(TestConstants.get_committed_data_file_path()),
+            "Run 'git submodule update --init --recursive'.")
+
+    def test_committed_data_file_opens(self):
+        """!
+        The engine opens the committed data file, so it reads that file's
+        format version, and returns its properties for an IPv4 address.
+        """
+
+        engine = IpIntelligenceOnPremise(
+            data_file_path=TestConstants.get_committed_data_file_path(),
+            licence_keys="")
+        pipeline = PipelineBuilder().add(engine).build()
+
+        self.assertIn("asnname", engine.properties)
+
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("query.client-ip", TestConstants.IPV4_ADDRESS)
+        flowdata.process()
+
+        self.assertTrue(flowdata.ip.get("asnname").has_value())
+
+
 if __name__ == "__main__":
     unittest.main()

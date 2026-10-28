@@ -41,7 +41,7 @@ EVIDENCE_VALUES = [
 # ip-intelligence-data repo), so the current name is used here.
 ENTERPRISE_DATAFILE_NAME = '51Degrees-IPIV4EnterpriseIpiV41.ipi'
 LITE_DATAFILE_NAME = '51Degrees-LiteIpiV41.ipi'
-# The ASN data file is the freely available 4.5-format data file committed
+# The ASN data file is the freely available data file committed
 # to the ip-intelligence-data submodule. It only contains the network
 # (ASN) properties, but is useful for testing the on-premise engine against
 # the current data format without an enterprise data file.

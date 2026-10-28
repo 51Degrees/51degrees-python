@@ -11,7 +11,12 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
     exit 0
 }
 
-$dependencies = "-r", "$RepoName/requirements.txt", "wheel", `
+# setuptools is listed because common-ci's build-project.ps1 builds the
+# on-premise extension in place with 'python setup.py', and Python 3.12 and
+# later no longer install setuptools with the interpreter. Without it that
+# build failed with "No module named 'setuptools'", the failure was not
+# checked, and pylint later failed instead for want of the extension.
+$dependencies = "-r", "$RepoName/requirements.txt", "wheel", "setuptools", `
                 "tox", "pylint", "unittest-xml-reporting", "coverage", "certifi", `
                 "requests", "cachetools", "chevron", "jsmin", "ruamel.yaml", `
                 "fiftyone_pipeline_cloudrequestengine", `

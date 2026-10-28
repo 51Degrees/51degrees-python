@@ -67,9 +67,10 @@ class MetadataConsole():
 
     def output_properties(self, engine, output):
         output("IP Intelligence properties:")
-        for property_name, property in engine.get_properties().items():
+        for property_name, property_metadata in engine.get_properties().items():
             output(f"\tProperty - {property_name} "
-                   f"[Category: {property.get('category')}] ({property.get('type')})")
+                   f"[Category: {property_metadata.get('category')}] "
+                   f"({property_metadata.get('type')})")
 
     def output_evidence_key_details(self, engine, output):
         evidence_key_filter = engine.get_evidence_key_filter()

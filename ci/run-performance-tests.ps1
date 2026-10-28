@@ -7,7 +7,6 @@ param (
 )
 
 # Performance tests are not yet implemented for ip-intelligence-python.
-# See PROGRESS.md - they should mirror the approach used by
-# device-detection-python's performance-tests once a stable data file
-# source is available in CI.
+# They should mirror the approach used by device-detection-python's
+# performance-tests once a stable data file source is available in CI.
 Write-Output "Skipping performance tests - not yet implemented for ip-intelligence-python"

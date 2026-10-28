@@ -33,7 +33,8 @@ python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_web
 
 ## On-premise examples
 
-Require a `.ipi` data file in the current (4.5) data format. The
+Require a `.ipi` data file in the format the engine reads (see
+[Data files](../readme.md#data-files)). The
 `ip-intelligence-data` submodule includes a freely available network-only
 file (`51Degrees-IPIV4AsnIpiV41.ipi`) that the examples fall back to; it
 only contains the ASN/network properties, so location and registration

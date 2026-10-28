@@ -48,18 +48,23 @@ git submodule update --init --recursive
 The on-premise engine requires a `.ipi` data file. The
 [ip-intelligence-data](https://github.com/51Degrees/ip-intelligence-data)
 submodule provides a freely available network-only data file
-(`51Degrees-IPIV4AsnIpiV41.ipi`) in the current 4.5 data format, which the
-tests use by default, along with the evidence files used for testing.
+(`51Degrees-IPIV4AsnIpiV41.ipi`), which the examples tests and
+`CommittedDataFileTests` use, along with the evidence files used for
+testing. The on-premise unit tests default to
+`assets/51Degrees-LiteIpiV41.ipi`.
 
 For the full set of properties (location, registration, etc.) an enterprise
 data file is required. To obtain one for testing, please
 [contact us](https://51degrees.com/contact-us). Supply its path as a command
 line argument to the examples, or place it within the project space.
 
-Note: the `ip-intelligence-cxx` submodule pin and the data file format
-version must match (the version check is exact-match). The current pin
-targets 4.5; the publicly hosted Lite file on Azure is still 4.4 and will
-not load against a 4.5 build. See PROGRESS.md for details.
+Note: the engine reads exactly one data file format version, set by
+`FIFTYONE_DEGREES_IPI_TARGET_VERSION_MAJOR` and `_MINOR` in the
+`ip-intelligence-cxx` submodule's `src/ipi.c`, and refuses any other as
+"an unsupported version". Move the `ip-intelligence-cxx` and
+`ip-intelligence-data` pins together. `CommittedDataFileTests` in
+[test_ipintelligence.py](fiftyone_ipintelligence_onpremise/tests/test_ipintelligence.py)
+fails when the two disagree.
 
 ## Folders
 

@@ -22,6 +22,8 @@
 
 import os
 
+from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
+
 
 class TestConstants:
 
@@ -39,3 +41,12 @@ class TestConstants:
         return os.path.join(
             os.path.dirname(__file__),
             "..", "..", "assets", "51Degrees-LiteIpiV41.ipi")
+
+    # The ASN data file committed to the repository's ip-intelligence-data
+    # submodule. Unlike the Lite and Enterprise files it needs no download
+    # or secret, so it is always present wherever the engine can be built.
+    @staticmethod
+    def get_committed_data_file_path():
+        return os.path.join(
+            os.path.dirname(__file__),
+            "..", "..", "ip-intelligence-data", ASN_DATAFILE_NAME)

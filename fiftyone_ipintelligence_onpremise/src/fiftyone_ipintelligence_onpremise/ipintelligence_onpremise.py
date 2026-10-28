@@ -138,8 +138,8 @@ class IpIntelligenceOnPremise(Engine):
                 restricted_properties_vector.append(restricted_property)
             # Add the metric properties to the restricted properties as they
             # are always available
-            for property in self.get_metric_properties():
-                restricted_properties.append(property)
+            for metric_property_name in self.get_metric_properties():
+                restricted_properties.append(metric_property_name)
             self.set_restricted_properties(restricted_properties)
 
         properties_list = RequiredPropertiesConfigSwig(restricted_properties_vector)
@@ -267,8 +267,8 @@ class IpIntelligenceOnPremise(Engine):
         self.properties = properties
 
         # Special properties
-        for key, property in self.get_metric_properties().items():
-            self.properties[key] = property
+        for metric_property_name, metric_property in self.get_metric_properties().items():
+            self.properties[metric_property_name] = metric_property
 
     def get_metric_properties(self):
 
@@ -380,5 +380,5 @@ class IpIntelligenceOnPremise(Engine):
 
         flow_data.set_element_data(data)
 
-    def get_component(self, property):
-        return self.engine.getMetaData().getComponentForProperty(property).getName()
+    def get_component(self, property_metadata):
+        return self.engine.getMetaData().getComponentForProperty(property_metadata).getName()

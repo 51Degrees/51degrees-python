@@ -98,9 +98,9 @@ class NoSuffixBuilder(build_ext):
 # FIFTYONE_DEGREES_REDUCED_FILE must also be defined to match the cxx
 # CMake build (option ReducedFile, ON by default). It changes on-disk
 # struct layouts (see common-cxx profile.h / value.h) for the reduced
-# data file format used by 4.5+ data files. The .NET and Java bindings
-# build the cxx via CMake and so inherit this define; the Python build
-# must set it explicitly or it reads 4.5 data files with the wrong
+# data file format used by 4.5 and later data files. The .NET and Java
+# bindings build the cxx via CMake and so inherit this define; the Python
+# build must set it explicitly or it reads the data file with the wrong
 # struct layout (empty results and crashes). All three native libraries
 # (wrapper, C++ and C) must be compiled with the same setting.
 define_macros = [

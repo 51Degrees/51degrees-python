@@ -61,7 +61,7 @@ class ExampleTests(unittest.TestCase):
     @unittest.skipUnless(
         bool(data_file), "No IP intelligence data file available")
     def test_onpremise_datafile_loads(self):
-        # Verify the freely available 4.5-format data file committed to the
+        # Verify the freely available data file committed to the
         # ip-intelligence-data submodule loads and processes correctly.
         from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
         pipeline = IpIntelligencePipelineBuilder(
