@@ -16,6 +16,12 @@ $packages = , "fiftyone_ipintelligence_examples"
 if (!$Keys.TestResourceKey) {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::No resource key was provided, so cloud integration tests will not run."
 }
+else {
+    # Says what that key is entitled to, so a run with no IP data is read
+    # as an entitlement gap rather than as broken code. Prints product
+    # names and tiers only, never the key.
+    ./ci/report-key-products.ps1 -ResourceKey $Keys.TestResourceKey
+}
 
 # nightly-publish-main workflow doesn't create the examples package, so
 # install-package.ps1 won't install it and its test dependencies won't get
