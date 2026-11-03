@@ -127,12 +127,7 @@ class ExampleUtils:
                     ".",
                     "assets",
                     "ip-intelligence-data",
-                    os.path.join(
-                        "fiftyone_ipintelligence_onpremise",
-                        "src",
-                        "fiftyone_ipintelligence_onpremise",
-                        "ip-intelligence-cxx",
-                        "ip-intelligence-data")]:
+                    os.path.join("cxx", "ip-intelligence-data")]:
                 candidate = os.path.join(str(root), sub_dir, file_name)
                 if os.path.isfile(candidate):
                     return candidate

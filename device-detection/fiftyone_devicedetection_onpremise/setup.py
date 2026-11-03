@@ -32,6 +32,7 @@ from Cython.Distutils import build_ext
 from glob import glob
 import os
 import io
+import shutil
 
 # Read a text file and return the content as a string.
 def read(file_name):
@@ -90,6 +91,37 @@ class NoSuffixBuilder(build_ext):
             return "./" + filename.replace(suffix, "") + ext
         else:
             return filename.replace(suffix, "") + ext
+
+
+def stage_native_source():
+
+    """Copy the native source this engine is built from into the package.
+
+    The source is kept once, in the cxx submodule at the root of
+    51degrees-python (51degrees-cxx), and a package can only build and ship
+    files inside its own folder, so the parts it needs are copied here and the
+    source distribution carries them. Building from a source distribution has
+    the copy already and no cxx folder above it, so nothing is copied then."""
+
+    here = os.path.dirname(os.path.abspath(__file__))
+    source = os.path.join(here, "..", "..", "cxx", "src")
+    dest = os.path.join(here, "src", "fiftyone_devicedetection_onpremise", "cxx", "src")
+    if os.path.isdir(source) == False:
+        if os.path.isdir(dest) == False:
+            raise RuntimeError(
+                "No native source: check out the cxx submodule at the root "
+                "of 51degrees-python (git submodule update --init cxx).")
+        return
+    # Device Detection needs common and its own folder only. Each package compiles
+    # its own copy of common, because IP Intelligence builds it with settings
+    # that change structure sizes.
+    for folder in ('common', 'dd'):
+        target = os.path.join(dest, folder)
+        shutil.rmtree(target, ignore_errors=True)
+        shutil.copytree(os.path.join(source, folder), target)
+
+
+stage_native_source()
 
 define_macros = []
 extra_compile_args = []
@@ -173,11 +205,11 @@ DeviceDetectionHashEngineModule = Extension('_DeviceDetectionHashEngineModule',
 cpplib = ('cpplib', {
         'sources': [
             # Common C++
-            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/common-cxx/*.cpp"),
+            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/common/*.cpp"),
             # Device Detection C++
-            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/*.cpp"),
+            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/dd/*.cpp"),
             # Hash C++
-            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/hash/*.cpp"),
+            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/dd/hash/*.cpp"),
             ],
         'cflags': extra_compile_args
     })
@@ -185,11 +217,11 @@ cpplib = ('cpplib', {
 clib = ('clib', {
         'sources': [
             # Common C
-            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/common-cxx/*.c"),
+            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/common/*.c"),
             # Device Detection C
-            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/*.c"),
+            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/dd/*.c"),
             # Hash C
-            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/hash/*.c"),
+            *glob("src/fiftyone_devicedetection_onpremise/cxx/src/dd/hash/*.c"),
         ],
         'cflags': cflags
     })

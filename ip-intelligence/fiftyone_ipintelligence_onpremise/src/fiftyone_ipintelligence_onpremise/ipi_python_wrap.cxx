@@ -3671,7 +3671,7 @@ namespace swig {
 }
 
 
-#include "ip-intelligence-cxx/src/EngineIpi.hpp"
+#include "cxx/src/ipi/EngineIpi.hpp"
 
 using namespace FiftyoneDegrees::Common;
 using namespace FiftyoneDegrees::IpIntelligence;
@@ -6166,6 +6166,16 @@ SWIGINTERN std::vector< unsigned char >::iterator std_vector_Sl_uint8_t_Sg__eras
 SWIGINTERN std::vector< unsigned char >::iterator std_vector_Sl_uint8_t_Sg__erase__SWIG_1(std::vector< uint8_t > *self,std::vector< unsigned char >::iterator first,std::vector< unsigned char >::iterator last){ return self->erase(first, last); }
 SWIGINTERN std::vector< unsigned char >::iterator std_vector_Sl_uint8_t_Sg__insert__SWIG_0(std::vector< uint8_t > *self,std::vector< unsigned char >::iterator pos,std::vector< unsigned char >::value_type const &x){ return self->insert(pos, x); }
 SWIGINTERN void std_vector_Sl_uint8_t_Sg__insert__SWIG_1(std::vector< uint8_t > *self,std::vector< unsigned char >::iterator pos,std::vector< unsigned char >::size_type n,std::vector< unsigned char >::value_type const &x){ self->insert(pos, n, x); }
+SWIGINTERN int std_vector_Sl_uint8_t_Sg__copyToArray(std::vector< uint8_t > *self,unsigned char copy[],int length){
+        if (copy == nullptr || length <= 0) {
+            return 0;
+        }
+        int count = length < (int)self->size() ? length : (int)self->size();
+        for (int i = 0; i < count; i++) {
+            copy[i] = (*self)[i];
+        }
+        return count;
+    }
 
 #if !defined(SWIG_NO_PYTHON_OLD_BUFFER_PROTOCOL)
 #if defined(Py_LIMITED_API) && Py_LIMITED_API<0x030b0000
@@ -6816,6 +6826,21 @@ SWIGINTERN std::vector< WeightedValue< double > >::iterator std_vector_Sl_Weight
 SWIGINTERN std::vector< WeightedValue< double > >::iterator std_vector_Sl_WeightedValue_Sl_double_Sg__Sg__erase__SWIG_1(std::vector< WeightedValue< double > > *self,std::vector< WeightedValue< double > >::iterator first,std::vector< WeightedValue< double > >::iterator last){ return self->erase(first, last); }
 SWIGINTERN std::vector< WeightedValue< double > >::iterator std_vector_Sl_WeightedValue_Sl_double_Sg__Sg__insert__SWIG_0(std::vector< WeightedValue< double > > *self,std::vector< WeightedValue< double > >::iterator pos,std::vector< WeightedValue< double > >::value_type const &x){ return self->insert(pos, x); }
 SWIGINTERN void std_vector_Sl_WeightedValue_Sl_double_Sg__Sg__insert__SWIG_1(std::vector< WeightedValue< double > > *self,std::vector< WeightedValue< double > >::iterator pos,std::vector< WeightedValue< double > >::size_type n,std::vector< WeightedValue< double > >::value_type const &x){ self->insert(pos, n, x); }
+SWIGINTERN int ResultsIpi_copyValueAsUTF8String(ResultsIpi *self,int requiredPropertyIndex,unsigned char copy[],int length){
+        Value<std::vector<uint8_t>> value =
+            self->getValueAsUTF8String(requiredPropertyIndex);
+        if (!value.hasValue()) {
+            return -1;
+        }
+        std::vector<uint8_t> bytes = value.getValue();
+        int required = (int)bytes.size();
+        if (copy != nullptr && length >= required) {
+            for (int i = 0; i < required; i++) {
+                copy[i] = bytes[i];
+            }
+        }
+        return required;
+    }
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13649,6 +13674,531 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictBool__SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  ResultsBase *arg1 = 0 ;
+  std::string *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 = SWIG_OLDOBJ ;
+  Value< bool > result;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ResultsBase, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ResultsBaseSwig_getValueAsStrictBool" "', argument " "1"" of type '" "ResultsBase *""'"); 
+  }
+  arg1 = reinterpret_cast< ResultsBase * >(argp1);
+  {
+    std::string *ptr = (std::string *)0;
+    res2 = SWIG_AsPtr_std_string(swig_obj[1], &ptr);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ResultsBaseSwig_getValueAsStrictBool" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "ResultsBaseSwig_getValueAsStrictBool" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    arg2 = ptr;
+  }
+  {
+    try {
+      result = (arg1)->getValueAsStrictBool((std::string const &)*arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new Value< bool >(result)), SWIGTYPE_p_ValueT_bool_t, SWIG_POINTER_OWN |  0 );
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictBool__SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  ResultsBase *arg1 = 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  Value< bool > result;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ResultsBase, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ResultsBaseSwig_getValueAsStrictBool" "', argument " "1"" of type '" "ResultsBase *""'"); 
+  }
+  arg1 = reinterpret_cast< ResultsBase * >(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "ResultsBaseSwig_getValueAsStrictBool" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = static_cast< int >(val2);
+  {
+    try {
+      result = (arg1)->getValueAsStrictBool(arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new Value< bool >(result)), SWIGTYPE_p_ValueT_bool_t, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictBool(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[3] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "ResultsBaseSwig_getValueAsStrictBool", 0, 2, argv))) SWIG_fail;
+  --argc;
+  if (argc == 2) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_ResultsBase, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_int(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        return _wrap_ResultsBaseSwig_getValueAsStrictBool__SWIG_1(self, argc, argv);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_ResultsBase, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      int res = SWIG_AsPtr_std_string(argv[1], (std::string**)(0));
+      _v = SWIG_CheckState(res);
+      if (_v) {
+        return _wrap_ResultsBaseSwig_getValueAsStrictBool__SWIG_0(self, argc, argv);
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'ResultsBaseSwig_getValueAsStrictBool'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    ResultsBase::getValueAsStrictBool(std::string const &)\n"
+    "    ResultsBase::getValueAsStrictBool(int)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictInteger__SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  ResultsBase *arg1 = 0 ;
+  std::string *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 = SWIG_OLDOBJ ;
+  Value< int > result;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ResultsBase, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ResultsBaseSwig_getValueAsStrictInteger" "', argument " "1"" of type '" "ResultsBase *""'"); 
+  }
+  arg1 = reinterpret_cast< ResultsBase * >(argp1);
+  {
+    std::string *ptr = (std::string *)0;
+    res2 = SWIG_AsPtr_std_string(swig_obj[1], &ptr);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ResultsBaseSwig_getValueAsStrictInteger" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "ResultsBaseSwig_getValueAsStrictInteger" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    arg2 = ptr;
+  }
+  {
+    try {
+      result = (arg1)->getValueAsStrictInteger((std::string const &)*arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new Value< int >(result)), SWIGTYPE_p_ValueT_int_t, SWIG_POINTER_OWN |  0 );
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictInteger__SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  ResultsBase *arg1 = 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  Value< int > result;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ResultsBase, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ResultsBaseSwig_getValueAsStrictInteger" "', argument " "1"" of type '" "ResultsBase *""'"); 
+  }
+  arg1 = reinterpret_cast< ResultsBase * >(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "ResultsBaseSwig_getValueAsStrictInteger" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = static_cast< int >(val2);
+  {
+    try {
+      result = (arg1)->getValueAsStrictInteger(arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new Value< int >(result)), SWIGTYPE_p_ValueT_int_t, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictInteger(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[3] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "ResultsBaseSwig_getValueAsStrictInteger", 0, 2, argv))) SWIG_fail;
+  --argc;
+  if (argc == 2) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_ResultsBase, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_int(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        return _wrap_ResultsBaseSwig_getValueAsStrictInteger__SWIG_1(self, argc, argv);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_ResultsBase, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      int res = SWIG_AsPtr_std_string(argv[1], (std::string**)(0));
+      _v = SWIG_CheckState(res);
+      if (_v) {
+        return _wrap_ResultsBaseSwig_getValueAsStrictInteger__SWIG_0(self, argc, argv);
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'ResultsBaseSwig_getValueAsStrictInteger'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    ResultsBase::getValueAsStrictInteger(std::string const &)\n"
+    "    ResultsBase::getValueAsStrictInteger(int)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictDouble__SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  ResultsBase *arg1 = 0 ;
+  std::string *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 = SWIG_OLDOBJ ;
+  Value< double > result;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ResultsBase, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ResultsBaseSwig_getValueAsStrictDouble" "', argument " "1"" of type '" "ResultsBase *""'"); 
+  }
+  arg1 = reinterpret_cast< ResultsBase * >(argp1);
+  {
+    std::string *ptr = (std::string *)0;
+    res2 = SWIG_AsPtr_std_string(swig_obj[1], &ptr);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "ResultsBaseSwig_getValueAsStrictDouble" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "ResultsBaseSwig_getValueAsStrictDouble" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    arg2 = ptr;
+  }
+  {
+    try {
+      result = (arg1)->getValueAsStrictDouble((std::string const &)*arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new Value< double >(result)), SWIGTYPE_p_ValueT_double_t, SWIG_POINTER_OWN |  0 );
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictDouble__SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  ResultsBase *arg1 = 0 ;
+  int arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  Value< double > result;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ResultsBase, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ResultsBaseSwig_getValueAsStrictDouble" "', argument " "1"" of type '" "ResultsBase *""'"); 
+  }
+  arg1 = reinterpret_cast< ResultsBase * >(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "ResultsBaseSwig_getValueAsStrictDouble" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = static_cast< int >(val2);
+  {
+    try {
+      result = (arg1)->getValueAsStrictDouble(arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new Value< double >(result)), SWIGTYPE_p_ValueT_double_t, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsBaseSwig_getValueAsStrictDouble(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[3] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "ResultsBaseSwig_getValueAsStrictDouble", 0, 2, argv))) SWIG_fail;
+  --argc;
+  if (argc == 2) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_ResultsBase, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_int(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        return _wrap_ResultsBaseSwig_getValueAsStrictDouble__SWIG_1(self, argc, argv);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_ResultsBase, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      int res = SWIG_AsPtr_std_string(argv[1], (std::string**)(0));
+      _v = SWIG_CheckState(res);
+      if (_v) {
+        return _wrap_ResultsBaseSwig_getValueAsStrictDouble__SWIG_0(self, argc, argv);
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'ResultsBaseSwig_getValueAsStrictDouble'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    ResultsBase::getValueAsStrictDouble(std::string const &)\n"
+    "    ResultsBase::getValueAsStrictDouble(int)\n");
+  return 0;
+}
+
+
 SWIGINTERN PyObject *ResultsBaseSwig_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *obj = NULL;
   if (!SWIG_Python_UnpackTuple(args, "swigregister", 1, 1, &obj)) return NULL;
@@ -18174,6 +18724,76 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_UTF8StringSwig_copyToArray(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint8_t > *arg1 = 0 ;
+  unsigned char *arg2 = (unsigned char *)0 ;
+  int arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  int result;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "UTF8StringSwig_copyToArray", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint8_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "UTF8StringSwig_copyToArray" "', argument " "1"" of type '" "std::vector< uint8_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint8_t > * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "UTF8StringSwig_copyToArray" "', argument " "2"" of type '" "unsigned char []""'"); 
+  } 
+  arg2 = reinterpret_cast< unsigned char * >(argp2);
+  ecode3 = SWIG_AsVal_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "UTF8StringSwig_copyToArray" "', argument " "3"" of type '" "int""'");
+  } 
+  arg3 = static_cast< int >(val3);
+  {
+    try {
+      result = (int)std_vector_Sl_uint8_t_Sg__copyToArray(arg1,arg2,arg3);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_delete_UTF8StringSwig(PyObject *self, PyObject *args) {
   PyObject *resultobj = 0;
   std::vector< uint8_t > *arg1 = 0 ;
@@ -21659,6 +22279,61 @@ SWIGINTERN PyObject *_wrap_EngineBaseSwig_getKeys(PyObject *self, PyObject *args
     }
   }
   resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_std__vectorT_std__string_t, 0 |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_EngineBaseSwig_getRequiredProperties(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  EngineBase *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  std::vector< std::string,std::allocator< std::string > > result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_EngineBase, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "EngineBaseSwig_getRequiredProperties" "', argument " "1"" of type '" "EngineBase *""'"); 
+  }
+  arg1 = reinterpret_cast< EngineBase * >(argp1);
+  {
+    try {
+      result = (arg1)->getRequiredProperties();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = swig::from(static_cast< std::vector< std::string,std::allocator< std::string > > >(result));
   return resultobj;
 fail:
   return NULL;
@@ -43429,6 +44104,139 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_ResultsIpiSwig_getTargetIpAddress(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  ResultsIpi *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  Value< IpAddress > result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ResultsIpi, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ResultsIpiSwig_getTargetIpAddress" "', argument " "1"" of type '" "ResultsIpi *""'"); 
+  }
+  arg1 = reinterpret_cast< ResultsIpi * >(argp1);
+  {
+    try {
+      result = (arg1)->getTargetIpAddress();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new Value< IpAddress >(result)), SWIGTYPE_p_ValueT_IpAddress_t, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ResultsIpiSwig_copyValueAsUTF8String(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  ResultsIpi *arg1 = 0 ;
+  int arg2 ;
+  unsigned char *arg3 = (unsigned char *)0 ;
+  int arg4 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  PyObject *swig_obj[4] ;
+  int result;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "ResultsIpiSwig_copyValueAsUTF8String", 4, 4, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ResultsIpi, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ResultsIpiSwig_copyValueAsUTF8String" "', argument " "1"" of type '" "ResultsIpi *""'"); 
+  }
+  arg1 = reinterpret_cast< ResultsIpi * >(argp1);
+  ecode2 = SWIG_AsVal_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "ResultsIpiSwig_copyValueAsUTF8String" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = static_cast< int >(val2);
+  res3 = SWIG_ConvertPtr(swig_obj[2], &argp3,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "ResultsIpiSwig_copyValueAsUTF8String" "', argument " "3"" of type '" "unsigned char []""'"); 
+  } 
+  arg3 = reinterpret_cast< unsigned char * >(argp3);
+  ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "ResultsIpiSwig_copyValueAsUTF8String" "', argument " "4"" of type '" "int""'");
+  } 
+  arg4 = static_cast< int >(val4);
+  {
+    try {
+      result = (int)ResultsIpi_copyValueAsUTF8String(arg1,arg2,arg3,arg4);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_int(static_cast< int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *ResultsIpiSwig_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *obj = NULL;
   if (!SWIG_Python_UnpackTuple(args, "swigregister", 1, 1, &obj)) return NULL;
@@ -46652,13 +47460,263 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_EngineIpiSwig_process__SWIG_3(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  EngineIpi *arg1 = 0 ;
+  EvidenceIpi *arg2 = 0 ;
+  int *arg3 = 0 ;
+  int arg4 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  ResultsIpi *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 4) || (nobjs > 4)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_EngineIpi, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "EngineIpiSwig_process" "', argument " "1"" of type '" "EngineIpi *""'"); 
+  }
+  arg1 = reinterpret_cast< EngineIpi * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_EvidenceIpi, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "EngineIpiSwig_process" "', argument " "2"" of type '" "EvidenceIpi *""'"); 
+  }
+  arg2 = reinterpret_cast< EvidenceIpi * >(argp2);
+  res3 = SWIG_ConvertPtr(swig_obj[2], &argp3,SWIGTYPE_p_int, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "EngineIpiSwig_process" "', argument " "3"" of type '" "int const *""'"); 
+  }
+  arg3 = reinterpret_cast< int * >(argp3);
+  ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "EngineIpiSwig_process" "', argument " "4"" of type '" "int""'");
+  } 
+  arg4 = static_cast< int >(val4);
+  {
+    try {
+      result = (ResultsIpi *)(arg1)->process(arg2,(int const *)arg3,arg4);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_ResultsIpi, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_EngineIpiSwig_process__SWIG_4(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  EngineIpi *arg1 = 0 ;
+  char *arg2 = 0 ;
+  int *arg3 = 0 ;
+  int arg4 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 ;
+  char *buf2 = 0 ;
+  int alloc2 = 0 ;
+  void *argp3 = 0 ;
+  int res3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  ResultsIpi *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 4) || (nobjs > 4)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_EngineIpi, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "EngineIpiSwig_process" "', argument " "1"" of type '" "EngineIpi *""'"); 
+  }
+  arg1 = reinterpret_cast< EngineIpi * >(argp1);
+  res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "EngineIpiSwig_process" "', argument " "2"" of type '" "char const *""'");
+  }
+  arg2 = reinterpret_cast< char * >(buf2);
+  res3 = SWIG_ConvertPtr(swig_obj[2], &argp3,SWIGTYPE_p_int, 0 |  0 );
+  if (!SWIG_IsOK(res3)) {
+    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "EngineIpiSwig_process" "', argument " "3"" of type '" "int const *""'"); 
+  }
+  arg3 = reinterpret_cast< int * >(argp3);
+  ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "EngineIpiSwig_process" "', argument " "4"" of type '" "int""'");
+  } 
+  arg4 = static_cast< int >(val4);
+  {
+    try {
+      result = (ResultsIpi *)(arg1)->process((char const *)arg2,(int const *)arg3,arg4);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_ResultsIpi, SWIG_POINTER_OWN |  0 );
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return resultobj;
+fail:
+  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_EngineIpiSwig_process__SWIG_5(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  EngineIpi *arg1 = 0 ;
+  unsigned char *arg2 = (unsigned char *)0 ;
+  long arg3 ;
+  fiftyoneDegreesIpType arg4 ;
+  int *arg5 = 0 ;
+  int arg6 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  long val3 ;
+  int ecode3 = 0 ;
+  int val4 ;
+  int ecode4 = 0 ;
+  void *argp5 = 0 ;
+  int res5 = 0 ;
+  int val6 ;
+  int ecode6 = 0 ;
+  ResultsIpi *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 6) || (nobjs > 6)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_EngineIpi, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "EngineIpiSwig_process" "', argument " "1"" of type '" "EngineIpi *""'"); 
+  }
+  arg1 = reinterpret_cast< EngineIpi * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_unsigned_char, 0 |  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "EngineIpiSwig_process" "', argument " "2"" of type '" "unsigned char []""'"); 
+  } 
+  arg2 = reinterpret_cast< unsigned char * >(argp2);
+  ecode3 = SWIG_AsVal_long(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "EngineIpiSwig_process" "', argument " "3"" of type '" "long""'");
+  } 
+  arg3 = static_cast< long >(val3);
+  ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "EngineIpiSwig_process" "', argument " "4"" of type '" "fiftyoneDegreesIpType""'");
+  } 
+  arg4 = static_cast< fiftyoneDegreesIpType >(val4);
+  res5 = SWIG_ConvertPtr(swig_obj[4], &argp5,SWIGTYPE_p_int, 0 |  0 );
+  if (!SWIG_IsOK(res5)) {
+    SWIG_exception_fail(SWIG_ArgError(res5), "in method '" "EngineIpiSwig_process" "', argument " "5"" of type '" "int const *""'"); 
+  }
+  arg5 = reinterpret_cast< int * >(argp5);
+  ecode6 = SWIG_AsVal_int(swig_obj[5], &val6);
+  if (!SWIG_IsOK(ecode6)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "EngineIpiSwig_process" "', argument " "6"" of type '" "int""'");
+  } 
+  arg6 = static_cast< int >(val6);
+  {
+    try {
+      result = (ResultsIpi *)(arg1)->process(arg2,arg3,arg4,(int const *)arg5,arg6);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_ResultsIpi, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_EngineIpiSwig_process(PyObject *self, PyObject *args) {
   Py_ssize_t argc;
-  PyObject *argv[5] = {
+  PyObject *argv[7] = {
     0
   };
   
-  if (!(argc = SWIG_Python_UnpackTuple(args, "EngineIpiSwig_process", 0, 4, argv))) SWIG_fail;
+  if (!(argc = SWIG_Python_UnpackTuple(args, "EngineIpiSwig_process", 0, 6, argv))) SWIG_fail;
   --argc;
   if (argc == 2) {
     int _v = 0;
@@ -46713,13 +47771,102 @@ SWIGINTERN PyObject *_wrap_EngineIpiSwig_process(PyObject *self, PyObject *args)
       }
     }
   }
+  if (argc == 4) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_EngineIpi, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      void *vptr = 0;
+      int res = SWIG_ConvertPtr(argv[1], &vptr, SWIGTYPE_p_EvidenceIpi, 0);
+      _v = SWIG_CheckState(res);
+      if (_v) {
+        void *vptr = 0;
+        int res = SWIG_ConvertPtr(argv[2], &vptr, SWIGTYPE_p_int, 0);
+        _v = SWIG_CheckState(res);
+        if (_v) {
+          {
+            int res = SWIG_AsVal_int(argv[3], NULL);
+            _v = SWIG_CheckState(res);
+          }
+          if (_v) {
+            return _wrap_EngineIpiSwig_process__SWIG_3(self, argc, argv);
+          }
+        }
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_EngineIpi, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      int res = SWIG_AsCharPtrAndSize(argv[1], 0, NULL, 0);
+      _v = SWIG_CheckState(res);
+      if (_v) {
+        void *vptr = 0;
+        int res = SWIG_ConvertPtr(argv[2], &vptr, SWIGTYPE_p_int, 0);
+        _v = SWIG_CheckState(res);
+        if (_v) {
+          {
+            int res = SWIG_AsVal_int(argv[3], NULL);
+            _v = SWIG_CheckState(res);
+          }
+          if (_v) {
+            return _wrap_EngineIpiSwig_process__SWIG_4(self, argc, argv);
+          }
+        }
+      }
+    }
+  }
+  if (argc == 6) {
+    int _v = 0;
+    void *vptr = 0;
+    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_EngineIpi, 0);
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      void *vptr = 0;
+      int res = SWIG_ConvertPtr(argv[1], &vptr, SWIGTYPE_p_unsigned_char, 0);
+      _v = SWIG_CheckState(res);
+      if (_v) {
+        {
+          int res = SWIG_AsVal_long(argv[2], NULL);
+          _v = SWIG_CheckState(res);
+        }
+        if (_v) {
+          {
+            int res = SWIG_AsVal_int(argv[3], NULL);
+            _v = SWIG_CheckState(res);
+          }
+          if (_v) {
+            void *vptr = 0;
+            int res = SWIG_ConvertPtr(argv[4], &vptr, SWIGTYPE_p_int, 0);
+            _v = SWIG_CheckState(res);
+            if (_v) {
+              {
+                int res = SWIG_AsVal_int(argv[5], NULL);
+                _v = SWIG_CheckState(res);
+              }
+              if (_v) {
+                return _wrap_EngineIpiSwig_process__SWIG_5(self, argc, argv);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
   
 fail:
   SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'EngineIpiSwig_process'.\n"
     "  Possible C/C++ prototypes are:\n"
     "    EngineIpi::process(EvidenceIpi *)\n"
     "    EngineIpi::process(char const *)\n"
-    "    EngineIpi::process(unsigned char [],long,fiftyoneDegreesIpType)\n");
+    "    EngineIpi::process(unsigned char [],long,fiftyoneDegreesIpType)\n"
+    "    EngineIpi::process(EvidenceIpi *,int const *,int)\n"
+    "    EngineIpi::process(char const *,int const *,int)\n"
+    "    EngineIpi::process(unsigned char [],long,fiftyoneDegreesIpType,int const *,int)\n");
   return 0;
 }
 
@@ -46988,6 +48135,9 @@ static PyMethodDef SwigMethods[] = {
 	 { "ResultsBaseSwig_getValueAsBool", _wrap_ResultsBaseSwig_getValueAsBool, METH_VARARGS, NULL},
 	 { "ResultsBaseSwig_getValueAsInteger", _wrap_ResultsBaseSwig_getValueAsInteger, METH_VARARGS, NULL},
 	 { "ResultsBaseSwig_getValueAsDouble", _wrap_ResultsBaseSwig_getValueAsDouble, METH_VARARGS, NULL},
+	 { "ResultsBaseSwig_getValueAsStrictBool", _wrap_ResultsBaseSwig_getValueAsStrictBool, METH_VARARGS, NULL},
+	 { "ResultsBaseSwig_getValueAsStrictInteger", _wrap_ResultsBaseSwig_getValueAsStrictInteger, METH_VARARGS, NULL},
+	 { "ResultsBaseSwig_getValueAsStrictDouble", _wrap_ResultsBaseSwig_getValueAsStrictDouble, METH_VARARGS, NULL},
 	 { "ResultsBaseSwig_swigregister", ResultsBaseSwig_swigregister, METH_O, NULL},
 	 { "Date_getYear", _wrap_Date_getYear, METH_O, NULL},
 	 { "Date_getMonth", _wrap_Date_getMonth, METH_O, NULL},
@@ -47049,6 +48199,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "UTF8StringSwig_insert", _wrap_UTF8StringSwig_insert, METH_VARARGS, NULL},
 	 { "UTF8StringSwig_reserve", _wrap_UTF8StringSwig_reserve, METH_VARARGS, NULL},
 	 { "UTF8StringSwig_capacity", _wrap_UTF8StringSwig_capacity, METH_O, NULL},
+	 { "UTF8StringSwig_copyToArray", _wrap_UTF8StringSwig_copyToArray, METH_VARARGS, NULL},
 	 { "delete_UTF8StringSwig", _wrap_delete_UTF8StringSwig, METH_O, NULL},
 	 { "UTF8StringSwig_swigregister", UTF8StringSwig_swigregister, METH_O, NULL},
 	 { "UTF8StringSwig_swiginit", UTF8StringSwig_swiginit, METH_VARARGS, NULL},
@@ -47115,6 +48266,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "EngineBaseSwig_getProduct", _wrap_EngineBaseSwig_getProduct, METH_O, NULL},
 	 { "EngineBaseSwig_getType", _wrap_EngineBaseSwig_getType, METH_O, NULL},
 	 { "EngineBaseSwig_getKeys", _wrap_EngineBaseSwig_getKeys, METH_O, NULL},
+	 { "EngineBaseSwig_getRequiredProperties", _wrap_EngineBaseSwig_getRequiredProperties, METH_O, NULL},
 	 { "EngineBaseSwig_getIsThreadSafe", _wrap_EngineBaseSwig_getIsThreadSafe, METH_O, NULL},
 	 { "EngineBaseSwig_swigregister", EngineBaseSwig_swigregister, METH_O, NULL},
 	 { "WeightedValueStringSwig_getValue", _wrap_WeightedValueStringSwig_getValue, METH_O, NULL},
@@ -47391,6 +48543,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "ResultsIpiSwig_getValuesAsWeightedIntegerList", _wrap_ResultsIpiSwig_getValuesAsWeightedIntegerList, METH_VARARGS, NULL},
 	 { "ResultsIpiSwig_getValuesAsWeightedDoubleList", _wrap_ResultsIpiSwig_getValuesAsWeightedDoubleList, METH_VARARGS, NULL},
 	 { "ResultsIpiSwig_getValueAsIpAddress", _wrap_ResultsIpiSwig_getValueAsIpAddress, METH_VARARGS, NULL},
+	 { "ResultsIpiSwig_getTargetIpAddress", _wrap_ResultsIpiSwig_getTargetIpAddress, METH_O, NULL},
+	 { "ResultsIpiSwig_copyValueAsUTF8String", _wrap_ResultsIpiSwig_copyValueAsUTF8String, METH_VARARGS, NULL},
 	 { "ResultsIpiSwig_swigregister", ResultsIpiSwig_swigregister, METH_O, NULL},
 	 { "delete_ConfigBaseSwig", _wrap_delete_ConfigBaseSwig, METH_O, NULL},
 	 { "ConfigBaseSwig_setUseUpperPrefixHeaders", _wrap_ConfigBaseSwig_setUseUpperPrefixHeaders, METH_VARARGS, NULL},

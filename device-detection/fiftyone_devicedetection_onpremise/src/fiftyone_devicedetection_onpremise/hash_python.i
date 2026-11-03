@@ -25,4 +25,4 @@
 %rename(refreshDataFromFile) refreshData(const char *fileName);
 %rename(refreshDataFromMemory) refreshData(unsigned char data[], long length);
 
-%include "cxx/src/hash/hash.i"
+%include "cxx/src/dd/hash/hash.i"

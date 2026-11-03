@@ -4,12 +4,9 @@
 [submodule "pipeline/owid-python"]
 	path = pipeline/owid-python
 	url = https://github.com/SWAN-community/owid-python.git
-[submodule "device-detection/fiftyone_devicedetection_onpremise/src/fiftyone_devicedetection_onpremise/cxx"]
-	path = device-detection/fiftyone_devicedetection_onpremise/src/fiftyone_devicedetection_onpremise/cxx
-	url = ../device-detection-cxx
-[submodule "ip-intelligence/fiftyone_ipintelligence_onpremise/src/fiftyone_ipintelligence_onpremise/ip-intelligence-cxx"]
-	path = ip-intelligence/fiftyone_ipintelligence_onpremise/src/fiftyone_ipintelligence_onpremise/ip-intelligence-cxx
-	url = ../ip-intelligence-cxx
 [submodule "ip-intelligence/ip-intelligence-data"]
 	path = ip-intelligence/ip-intelligence-data
 	url = ../ip-intelligence-data
+[submodule "cxx"]
+	path = cxx
+	url = ../51degrees-cxx

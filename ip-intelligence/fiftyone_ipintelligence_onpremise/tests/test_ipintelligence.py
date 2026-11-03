@@ -174,7 +174,7 @@ class IpIntelligenceOnPremiseTests(unittest.TestCase):
 class CommittedDataFileTests(unittest.TestCase):
     """!
     The native engine accepts exactly one data file format version, so the
-    ip-intelligence-cxx pin and the ip-intelligence-data pin must agree.
+    cxx (51degrees-cxx) pin and the ip-intelligence-data pin must agree.
     They once did not: the engine moved to format 4.6 while the data pin
     still held the 4.5 ASN file. These tests open the ASN file committed to
     the data submodule, which needs no download or secret, so pins that

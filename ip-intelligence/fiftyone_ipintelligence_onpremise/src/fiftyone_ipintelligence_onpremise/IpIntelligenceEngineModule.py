@@ -473,6 +473,15 @@ class ResultsBaseSwig(object):
     def getValueAsDouble(self, *args):
         return _IpIntelligenceEngineModule.ResultsBaseSwig_getValueAsDouble(self, *args)
 
+    def getValueAsStrictBool(self, *args):
+        return _IpIntelligenceEngineModule.ResultsBaseSwig_getValueAsStrictBool(self, *args)
+
+    def getValueAsStrictInteger(self, *args):
+        return _IpIntelligenceEngineModule.ResultsBaseSwig_getValueAsStrictInteger(self, *args)
+
+    def getValueAsStrictDouble(self, *args):
+        return _IpIntelligenceEngineModule.ResultsBaseSwig_getValueAsStrictDouble(self, *args)
+
 # Register ResultsBaseSwig in _IpIntelligenceEngineModule:
 _IpIntelligenceEngineModule.ResultsBaseSwig_swigregister(ResultsBaseSwig)
 class Date(object):
@@ -676,6 +685,9 @@ class UTF8StringSwig(object):
 
     def capacity(self):
         return _IpIntelligenceEngineModule.UTF8StringSwig_capacity(self)
+
+    def copyToArray(self, copy, length):
+        return _IpIntelligenceEngineModule.UTF8StringSwig_copyToArray(self, copy, length)
     __swig_destroy__ = _IpIntelligenceEngineModule.delete_UTF8StringSwig
 
 # Register UTF8StringSwig in _IpIntelligenceEngineModule:
@@ -895,6 +907,9 @@ class EngineBaseSwig(object):
 
     def getKeys(self):
         return _IpIntelligenceEngineModule.EngineBaseSwig_getKeys(self)
+
+    def getRequiredProperties(self):
+        return _IpIntelligenceEngineModule.EngineBaseSwig_getRequiredProperties(self)
 
     def getIsThreadSafe(self):
         return _IpIntelligenceEngineModule.EngineBaseSwig_getIsThreadSafe(self)
@@ -1734,6 +1749,12 @@ class ResultsIpiSwig(ResultsBaseSwig):
 
     def getValueAsIpAddress(self, *args):
         return _IpIntelligenceEngineModule.ResultsIpiSwig_getValueAsIpAddress(self, *args)
+
+    def getTargetIpAddress(self):
+        return _IpIntelligenceEngineModule.ResultsIpiSwig_getTargetIpAddress(self)
+
+    def copyValueAsUTF8String(self, requiredPropertyIndex, copy, length):
+        return _IpIntelligenceEngineModule.ResultsIpiSwig_copyValueAsUTF8String(self, requiredPropertyIndex, copy, length)
 
 # Register ResultsIpiSwig in _IpIntelligenceEngineModule:
 _IpIntelligenceEngineModule.ResultsIpiSwig_swigregister(ResultsIpiSwig)

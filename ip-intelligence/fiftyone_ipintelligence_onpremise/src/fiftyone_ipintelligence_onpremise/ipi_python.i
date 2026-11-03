@@ -26,4 +26,4 @@
 %rename(refreshDataFromFile) refreshData(const char *fileName);
 %rename(refreshDataFromMemory) refreshData(unsigned char data[], long length);
 
-%include "ip-intelligence-cxx/src/ipi.i"
+%include "cxx/src/ipi/ipi.i"
