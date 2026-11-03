@@ -45,7 +45,7 @@
 # - [flask](https://pypi.org/project/flask/)
 #
 # ## View
-# @include templates/index.html
+# @include onpremise/useragentclienthints_web/templates/index.html
 #
 # ## App
 
