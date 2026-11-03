@@ -1,5 +1,9 @@
 param (
-    [Parameter(Mandatory)][string]$RepoName,
+    # common-ci's prefetch_assets action calls this script directly, not
+    # through steps/run-script.ps1, and passes only the keys, so the name of
+    # this repository's folder is the default. It is relative to the
+    # common-ci checkout, which is where both callers run it from.
+    [string]$RepoName = (Split-Path -Leaf (Split-Path -Parent $PSScriptRoot)),
     [string]$DeviceDetection,
     [string]$DeviceDetectionUrl,
     [string]$CsvUrl,
