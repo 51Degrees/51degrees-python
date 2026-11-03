@@ -1,0 +1,55 @@
+name: Nightly Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        type: boolean
+        default: false
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  SubmoduleUpdate:
+    name: Nightly Submodule Update
+    uses: 51Degrees/common-ci/.github/workflows/nightly-submodule-update.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
+
+  PullRequests:
+    if: ${{ !cancelled() }}
+    needs: SubmoduleUpdate
+    name: Nightly Pull Requests
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      cache-assets: true
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
+      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
+      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
+      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+
+  Publish:
+    if: ${{ !cancelled() }}
+    needs: PullRequests
+    name: Nightly Publish
+    uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      cache-assets: true
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
+      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
+      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
+      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+      PypiToken: ${{ secrets.PYPI_TOKEN }}
+      TestPypiToken: ${{ secrets.TEST_PYPI_TOKEN }}
