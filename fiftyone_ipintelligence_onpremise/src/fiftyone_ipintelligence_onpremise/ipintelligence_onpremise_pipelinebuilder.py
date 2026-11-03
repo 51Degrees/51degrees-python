@@ -44,7 +44,7 @@ class IpIntelligenceOnPremisePipelineBuilder(PipelineBuilder):
         @type javascript_builder_settings: dict
         @param javascript_builder_settings: parameters for the pipeline's JavaScript builder to populate additional evidence from the clientside.
         @type cache: Cache
-        @param cache: An instance of the fiftyone.pipeline.engines.cache
+        @param cache: Not supported by the on-premise engine. Supplying one raises an exception
         class
 
         On Premise Engine Settings:
@@ -114,9 +114,6 @@ class IpIntelligenceOnPremisePipelineBuilder(PipelineBuilder):
 
         if usage_sharing:
             self.add(ShareUsage())
-
-        if "cache" in settings:
-            ip_engine.set_cache(settings["cache"])
 
         self.add(ip_engine)
 

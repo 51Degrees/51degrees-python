@@ -110,6 +110,9 @@ class IpIntelligenceOnPremise(Engine):
 
         super(IpIntelligenceOnPremise, self).__init__()
 
+        if cache is not None:
+            raise Exception(CACHE_NOT_SUPPORTED)
+
         self.datakey = "ip"
 
         if not data_file_path and not data:
@@ -301,6 +304,15 @@ class IpIntelligenceOnPremise(Engine):
 
         return BasicListEvidenceKeyFilter(self.evidence_keys_list)
 
+
+    def set_cache(self, cache):
+
+        """!
+        Not supported. Results read from native memory, which is not
+        safe to share between requests through a cache.
+        """
+
+        raise Exception(CACHE_NOT_SUPPORTED)
 
     def on_registration(self, pipeline):
 

@@ -24,3 +24,8 @@ IP_DESCRIPTION = ('The IPv4 address supplied as evidence, echoed back in '
                   'the results. Empty if no IPv4 address was in evidence.')
 IPV6_DESCRIPTION = ('The IPv6 address supplied as evidence, echoed back in '
                     'the results. Empty if no IPv6 address was in evidence.')
+
+CACHE_NOT_SUPPORTED = ('A results cache cannot be configured in the '
+                       'on-premise IP intelligence engine. Its results '
+                       'read from native memory, which is not safe to '
+                       'share between requests.')

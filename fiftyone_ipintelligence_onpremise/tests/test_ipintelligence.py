@@ -26,6 +26,8 @@ import unittest
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise import IpIntelligenceOnPremise
+from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise_pipelinebuilder import IpIntelligenceOnPremisePipelineBuilder
+from fiftyone_pipeline_engines.lru_cache import LRUEngineCache
 
 from .constants import TestConstants
 
@@ -219,3 +221,45 @@ class CommittedDataFileTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class IpIntelligenceCacheTests(unittest.TestCase):
+
+    def test_engine_refuses_cache_argument(self):
+        """!
+        Tests that the on-premise engine refuses a cache passed to its
+        constructor, because its results read from native memory that
+        cannot be shared between requests
+        """
+
+        with self.assertRaises(Exception) as context:
+            IpIntelligenceOnPremise(
+                data_file_path=data_file, licence_keys="",
+                cache=LRUEngineCache())
+
+        self.assertIn("results cache", str(context.exception))
+
+    def test_engine_refuses_set_cache(self):
+        """!
+        Tests that the on-premise engine refuses a cache set on it
+        """
+
+        engine = IpIntelligenceOnPremise(
+            data_file_path=data_file, licence_keys="")
+
+        with self.assertRaises(Exception) as context:
+            engine.set_cache(LRUEngineCache())
+
+        self.assertIn("results cache", str(context.exception))
+
+    def test_pipeline_builder_refuses_cache(self):
+        """!
+        Tests that the on-premise pipeline builder refuses a cache setting
+        """
+
+        with self.assertRaises(Exception) as context:
+            IpIntelligenceOnPremisePipelineBuilder(
+                data_file_path=data_file, licence_keys="",
+                cache=LRUEngineCache()).build()
+
+        self.assertIn("results cache", str(context.exception))
