@@ -31,7 +31,7 @@
 # Requesting fewer properties reduces processing time. If you do not specify
 # any properties then all properties are returned. See the documentation for
 # more detail on performance options:
-# https://51degrees.com/documentation/_features__performance_options.html
+# https://51degrees.com/documentation/_features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-performance_console.py&utm_term=header
 #
 # The native engine holds the Python GIL for the duration of each lookup, so
 # threads cannot run lookups in parallel. Parallelism therefore uses worker
@@ -228,7 +228,7 @@ def main(argv):
             "ip-intelligence-data submodule has been updated by running "
             "`git submodule update --recursive`. To obtain an enterprise "
             "data file for testing, please contact us: "
-            "https://51degrees.com/contact-us")
+            "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-performance_console.py&utm_term=main")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

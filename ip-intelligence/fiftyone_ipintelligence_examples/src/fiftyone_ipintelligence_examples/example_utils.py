@@ -176,7 +176,7 @@ class ExampleUtils:
                     "This example is using the 'Lite' data file. This is "
                     "used for illustration, and has limited properties. A "
                     "more complete data file can be obtained from "
-                    "https://51degrees.com/pricing")
+                    "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-example_utils.py&utm_term=check_data_file")
 
     @staticmethod
     def __get_env_variable(name):

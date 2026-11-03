@@ -1,13 +1,13 @@
 # 51Degrees IP Intelligence Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=repository&utm_content=readme_main&utm_campaign=python-open-source "Data rewards the curious") **Python IP Intelligence**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=repository&utm_content=documentation&utm_campaign=python-open-source "developer documentation")
+[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "developer documentation")
 
 ## Introduction
 
 This repository contains the IP intelligence engines for the Python
-implementation of the [51Degrees Pipeline API](https://51degrees.com/documentation/index.html).
+implementation of the [51Degrees Pipeline API](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=introduction).
 
 51Degrees IP Intelligence resolves an IP address to details about the
 network it belongs to (registered name, owner and country) and, with
@@ -20,8 +20,8 @@ design of this API.
 ## Dependencies
 
 For runtime dependencies, see our
-[dependencies](https://51degrees.com/documentation/_info__dependencies.html)
-page. The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html)
+[dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies)
+page. The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies)
 page shows the Python versions that we currently test against.
 
 ### Git submodules
@@ -55,7 +55,7 @@ testing. The on-premise unit tests default to
 
 For the full set of properties (location, registration, etc.) an enterprise
 data file is required. To obtain one for testing, please
-[contact us](https://51degrees.com/contact-us). Supply its path as a command
+[contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=data-files). Supply its path as a command
 line argument to the examples, or place it within the project space.
 
 Note: the engine reads exactly one data file format version, set by
