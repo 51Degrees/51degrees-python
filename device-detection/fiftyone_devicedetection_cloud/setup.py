@@ -42,7 +42,7 @@ setuptools.setup(
     author="51Degrees Engineering",
 	author_email="engineering@51degrees.com",
     url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-setup.py&utm_term=url",
-    description=("Device Detection and User-Agent parser for Python that detects the device, browser, operating system, and crawlers from the User-Agent and User-Agent Client Hints using the 51Degrees cloud service. An alternative to UAParser, DeviceAtlas, and WURFL."),
+    description=("Device Detection and User-Agent parser for Python that detects the device, browser, operating system, and crawlers from the User-Agent and User-Agent Client Hints using the 51Degrees cloud service. An alternative to UAParser.js, DeviceAtlas, and WURFL."),
     keywords=[
         "51degrees",
         "device-detection",
