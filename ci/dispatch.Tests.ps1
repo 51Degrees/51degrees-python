@@ -114,6 +114,24 @@ Describe 'Invoke-ProductStep' {
         Test-Path (Join-Path $script:Repo 'alpha' 'test-results') | Should -BeFalse
     }
 
+    It 'fetches assets when called without a repository name' {
+        # common-ci's prefetch_assets action runs ci/fetch-assets.ps1 directly
+        # with only the keys, from the common-ci checkout that holds this
+        # repository's folder. It once stopped asking for RepoName.
+        Copy-Item (Join-Path $PSScriptRoot 'fetch-assets.ps1'), `
+            (Join-Path $PSScriptRoot 'dispatch.ps1'), `
+            (Join-Path $PSScriptRoot 'packages.ps1') (Join-Path $script:Repo 'ci')
+        $inCommonCi = Join-Path $script:CommonCi (Split-Path -Leaf $script:Repo)
+        Move-Item $script:Repo $inCommonCi
+        $script:Repo = $inCommonCi
+        Set-ProductStep $script:Repo 'alpha' 'fetch-assets' `
+            'Set-Content (Join-Path $RepoName "ran.txt") ok'
+
+        & (Join-Path $script:Repo 'ci' 'fetch-assets.ps1')
+
+        Test-Path (Join-Path $script:Repo 'alpha' 'ran.txt') | Should -BeTrue
+    }
+
     It 'passes on only the options a product''s script declares' {
         # common-ci's run-script.ps1 drops what a script does not declare, so
         # a product without a Keys parameter is not broken by being given Keys.
