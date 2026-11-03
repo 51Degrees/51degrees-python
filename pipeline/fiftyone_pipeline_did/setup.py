@@ -45,7 +45,7 @@ setuptools.setup(
     description=("Strongly typed reader and cloud client for the 51Did (51Degrees Identifier) value returned by the 51Degrees Cloud service. Parses the OWID envelope in either base64 alphabet and exposes the Flags, License Id and match key plus the identifier type, and verifies a 51Did's signature offline or through the cloud and redeems a sealed creator context result on the server. Compare match keys, never envelopes."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',
-    python_requires=">=3.9",
+    python_requires=">=3.10",
     packages=["fiftyone_pipeline_did", "fiftyone_pipeline_did._owid"],
     package_dir={"": "src"},
     # The OWID source is carried inside this package as the private module
@@ -64,6 +64,12 @@ setuptools.setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
         "Operating System :: OS Independent",
         "Topic :: Software Development :: Libraries :: Python Modules"

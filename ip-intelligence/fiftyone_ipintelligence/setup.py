@@ -44,7 +44,7 @@ setuptools.setup(
     description=("51Degrees IP Intelligence resolves an IP address to detailed location, network and registration information. This package aggregates the cloud and on-premise IP intelligence engines for the 51Degrees Pipeline API."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     packages=["fiftyone_ipintelligence"],
     package_dir={"": "src"},
     install_requires=[
@@ -56,6 +56,12 @@ setuptools.setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
         "Operating System :: OS Independent",
         "Topic :: Software Development :: Libraries :: Python Modules"

@@ -7,7 +7,7 @@ name = "fiftyone_pipeline_examples"
 version = "0.0.0"
 description = "Examples of the 51Degrees Pipeline API, including device detection and IP intelligence from the 51Degrees cloud service."
 readme = "readme.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [{ name = "51Degrees Engineering", email = "engineering@51degrees.com" }]
 dependencies = [
     "fiftyone_pipeline_core",

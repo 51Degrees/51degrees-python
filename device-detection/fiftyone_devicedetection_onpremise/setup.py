@@ -235,7 +235,7 @@ setup(
     description = """This project contains 51Degrees Device Detection OnPremise engine that can be used with the 51Degrees Pipeline API. The Pipeline is a generic web request intelligence and data processing solution with the ability to add a range of 51Degrees and/or custom plug ins (Engines)""",
     long_description=read("readme.md"),
     long_description_content_type="text/markdown",
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     license="EUPL-1.2",
     libraries=[cpplib, clib],
     ext_package="fiftyone_devicedetection_onpremise",

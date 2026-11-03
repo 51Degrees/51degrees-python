@@ -44,7 +44,7 @@ setuptools.setup(
     description=("The 51Degrees Pipeline API is a generic web request intelligence and data processing solution with the ability to add a range of 51Degrees and/or custom plug ins (Engines). It includes a ShareUsage engine that sends usage data to 51Degrees in zipped batches."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',
-    python_requires=">=3.8",
+    python_requires=">=3.10",
     install_requires=[
           'fiftyone_pipeline_engines',
           'requests',
@@ -57,6 +57,12 @@ setuptools.setup(
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Programming Language :: Python",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "License :: OSI Approved :: European Union Public Licence 1.2 (EUPL 1.2)",
         "Operating System :: OS Independent",
         "Topic :: Software Development :: Libraries :: Python Modules"
