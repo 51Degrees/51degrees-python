@@ -32,7 +32,7 @@
 # 3. How to retrieve the results
 #
 # A resource key is required. You can obtain one from
-# https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=header
+# https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=top
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -172,9 +172,9 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees cloud "
             "service is accessed using a 'ResourceKey'. For more "
             "information see "
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=main. "
+            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. "
             "A resource key with the properties required by this example "
-            "can be created for free at https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=main. "
+            "can be created for free at https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. "
             "Once complete, populate the environment variable mentioned at "
             "the start of this message with the key.")
 

@@ -33,7 +33,7 @@
 #
 # ## License Key
 # In order to run this example you will need a 51Degrees Enterprise license,
-# which can be purchased from our pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=header.
+# which can be purchased from our pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=top.
 # Supply the license key as the first command line argument or in the
 # 'license_key' environment variable.
 #
