@@ -62,8 +62,8 @@ virtual environment and install the requirements, which install the
 Pipeline packages from this checkout.
 
 ```sh
-git clone --recurse-submodules https://github.com/51Degrees/pipeline-python.git
-cd pipeline-python/fiftyone_pipeline_cloudrequestengine/examples
+git clone --recurse-submodules https://github.com/51Degrees/51degrees-python.git
+cd 51degrees-python/pipeline/fiftyone_pipeline_cloudrequestengine/examples
 python -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
 ```
@@ -106,6 +106,6 @@ which can also be run by hand with `python -m tox -e py` from here.
 - [IP intelligence](https://51degrees.com/ip-intelligence?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-ip-intelligence)
 - [Resource keys](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-resource-keys)
 - [Pricing](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-pricing)
-- Pipeline API for Python: https://github.com/51Degrees/pipeline-python
-- Device detection for Python: https://github.com/51Degrees/device-detection-python
+- Pipeline API for Python: https://github.com/51Degrees/51degrees-python/tree/main/pipeline
+- Device detection for Python: https://github.com/51Degrees/51degrees-python/tree/main/device-detection
 - IP intelligence engine: https://github.com/51Degrees/51degrees-cxx

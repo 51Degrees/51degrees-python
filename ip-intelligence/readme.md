@@ -27,14 +27,14 @@ page shows the Python versions that we currently test against.
 ### Git submodules
 
 The on-premise engine wraps the native
-[ip-intelligence-cxx](https://github.com/51Degrees/ip-intelligence-cxx)
+[51degrees-cxx](https://github.com/51Degrees/51degrees-cxx/blob/main/docs/ipi/README.md)
 library, and the
 [ip-intelligence-data](https://github.com/51Degrees/ip-intelligence-data)
 repository (data and evidence files used for testing) is also included, both
 as git submodules. When cloning, use:
 
 ```
-git clone --recurse-submodules https://github.com/51Degrees/ip-intelligence-python.git
+git clone --recurse-submodules https://github.com/51Degrees/51degrees-python.git
 ```
 
 or if you have already cloned:

@@ -42,7 +42,7 @@
 # performance and predictive power using Performance Profile, Graph and Difference and Drift 
 # settings.
 # 
-# This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-python/blob/main/fiftyone_devicedetection_examples/fiftyone_devicedetection_examples/onpremise/offlineprocessing.py). 
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/onpremise/offlineprocessing.py). 
 # 
 # @include{doc} example-require-datafile.txt
 # 

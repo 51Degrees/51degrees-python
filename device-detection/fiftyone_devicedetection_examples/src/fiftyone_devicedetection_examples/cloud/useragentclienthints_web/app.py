@@ -30,7 +30,7 @@
 # setting the Accept-CH header in the response. Selecting the "Make second request"
 # button reloads the page so those additional headers are included as evidence.
 #
-# This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-python/blob/main/fiftyone_devicedetection_examples/fiftyone_devicedetection_examples/cloud/useragentclienthints_web/app.py).
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/cloud/useragentclienthints_web/app.py).
 #
 # @include{doc} example-require-resourcekey.txt
 #

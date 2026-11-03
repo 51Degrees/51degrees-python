@@ -25,7 +25,7 @@
 # @include{doc} example-usage-sharing-intro.txt
 #
 # Usage sharing is enabled by default if using some 51Degrees pipeline 
-# builders such as the [DeviceDetectionOnPremisePipelineBuilder](https://github.com/51Degrees/device-detection-python/blob/main/fiftyone_devicedetection_onpremise/src/fiftyone_devicedetection_onpremise/devicedetection_onpremise_pipelinebuilder.py).
+# builders such as the [DeviceDetectionOnPremisePipelineBuilder](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_onpremise/src/fiftyone_devicedetection_onpremise/devicedetection_onpremise_pipelinebuilder.py).
 # In this example, we show how to specifically add a usage sharing 
 # element to a Pipeline using configuration.
 #
@@ -42,7 +42,7 @@
 # For details of what each setting does, see the
 # [Share Usage reference](/documentation/4.5/_pipeline_api__features__usage_sharing.html) 
 #
-# This example is available in full on [GitHub](https://github.com/51Degrees/pipeline-python/blob/main/fiftyone_pipeline_engines_fiftyone/examples/usagesharing/usagesharing.py).
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_engines_fiftyone/examples/usagesharing/usagesharing.py).
 #
 # Expected output:
 # ```

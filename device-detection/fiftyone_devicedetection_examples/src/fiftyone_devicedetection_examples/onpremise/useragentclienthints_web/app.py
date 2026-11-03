@@ -36,7 +36,7 @@
 # SetHeaderBrowserAccept-CH, SetHeaderPlatformAccept-CH and SetHeaderHardwareAccept-CH
 # properties respectively.
 #
-# This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-python/blob/main/fiftyone_devicedetection_examples/fiftyone_devicedetection_examples/onpremise/useragentclienthints_web/app.py).
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/onpremise/useragentclienthints_web/app.py).
 #
 # @include{doc} example-require-datafile.txt
 #

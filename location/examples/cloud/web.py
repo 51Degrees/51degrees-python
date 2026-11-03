@@ -29,7 +29,7 @@
 # This JavaScript is then used to obtain the additional evidence from the client and pass it back to the server.
 # The Pipeline running on the server then processes this evidence to populate a new JSON result object that is returned to the client.
 #
-# This example is available in full on [GitHub](https://github.com/51Degrees/location-python/blob/main/examples/cloud/web.py)
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/location/examples/cloud/web.py)
 
 from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
 from fiftyone_pipeline_core.web import webevidence
