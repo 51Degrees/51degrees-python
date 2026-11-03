@@ -19,8 +19,10 @@ if (!$Keys.TestResourceKey) {
 else {
     # Says what that key is entitled to, so a run with no IP data is read
     # as an entitlement gap rather than as broken code. Prints product
-    # names and tiers only, never the key.
-    ./ci/report-key-products.ps1 -ResourceKey $Keys.TestResourceKey
+    # names and tiers only, never the key. Found through this script's own
+    # folder, because common-ci runs it from the common-ci checkout, where
+    # './ci/report-key-products.ps1' does not exist.
+    & (Join-Path $PSScriptRoot 'report-key-products.ps1') -ResourceKey $Keys.TestResourceKey
 }
 
 # nightly-publish-main workflow doesn't create the examples package, so
