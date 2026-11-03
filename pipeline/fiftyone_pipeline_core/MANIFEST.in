@@ -1,0 +1,3 @@
+include src/fiftyone_pipeline_core/js_templates/JavaScriptResource.mustache
+include version.txt
+include readme.md

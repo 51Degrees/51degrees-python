@@ -1,0 +1,114 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+"""Offline example for the 51Did (``FodId``) reader.
+
+The 51Degrees Cloud service issues real 51Dids. To keep this example
+self-contained and offline, it builds a sample 51Did in process - generate an
+ECDSA P-256 key pair, sign a canonical 38-byte payload - then parses it back
+and prints the payload fields. It also shows the headline use case: a
+51Did is re-issued fresh on every call (the envelope, hence the base64,
+changes), but the match key is stable. Compare match keys, never
+envelopes.
+"""
+
+from owid import Crypto, Creator
+
+from fiftyone_pipeline_did import FodId
+
+DOMAIN = "51degrees.com"
+
+# Only the cloud issues real 51Dids, so this example writes a sample
+# payload by hand and states the layout here rather than reading it
+# from the package, which does not publish it. The layout is
+# specified at
+# https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md
+SAMPLE_FLAGS = 0b0000_0011      # standard usage, payload version 0,
+                                # Probabilistic type
+SAMPLE_PAYLOAD_LENGTH = 38      # 1 flags byte, 4 licence id, 32 key,
+                                # 1 terms
+SAMPLE_MATCH_KEY_OFFSET = 5
+SAMPLE_MATCH_KEY_LENGTH = 32
+SAMPLE_TERMS_OFFSET = 37        # the Terms byte follows the match key
+SAMPLE_TERMS = 1                # index 1, the Model Terms for Marketing
+                                # version 2
+
+
+def sample_payload():
+    """A canonical 38-byte Probabilistic payload: the flags byte, License
+    Id 0x12345678 (little-endian), a 32-byte match key 0x20..0x3F and the
+    Terms byte."""
+    payload = bytearray(SAMPLE_PAYLOAD_LENGTH)
+    payload[0] = SAMPLE_FLAGS
+    payload[1:5] = bytes([0x78, 0x56, 0x34, 0x12])
+    for i in range(SAMPLE_MATCH_KEY_LENGTH):
+        payload[SAMPLE_MATCH_KEY_OFFSET + i] = 0x20 + i
+    payload[SAMPLE_TERMS_OFFSET] = SAMPLE_TERMS
+    return bytes(payload)
+
+
+def issue(creator, payload):
+    """Issues (signs) a 51Did over the payload and returns it as base64.
+
+    The creator is the only way a new envelope comes into being, because an
+    OWID is worth nothing unsigned, so the payload goes in and a signed
+    envelope comes out with no unsigned step in between."""
+    return creator.create(payload).as_base64()
+
+
+def run():
+    crypto = Crypto.new()
+    creator = Creator(DOMAIN, crypto)
+    payload = sample_payload()
+
+    fod_id = FodId.from_base64(issue(creator, payload))
+
+    print("51Did parsed from base64:")
+    print("  Domain    :", fod_id.domain)
+    print("  Type      :", fod_id.type.name)
+    print("  Usage     :", fod_id.usage.name)
+    print("  Id usage  :", fod_id.usage.id_usage)
+    print("  Indirect  :", fod_id.usage_is_indirect)
+    print("  LicenseId :", fod_id.license_id)
+    print("  Match key :", fod_id.match_key.hex())
+    # The address is answered and never fetched. What to do with the
+    # document is the receiver's decision.
+    print("  Terms     :", fod_id.terms)
+    print("  Verifies  :", fod_id.verify(crypto.public_key_pem()))
+
+    reissued = FodId.from_base64(issue(creator, payload))
+    same_envelope = fod_id.as_base64() == reissued.as_base64()
+    same_match_key = fod_id.match_key == reissued.match_key
+
+    print()
+    print("Same payload, re-issued:")
+    print("  Same envelope (base64) :", same_envelope)
+    print("  Same match key         :", same_match_key)
+
+    if same_envelope or not same_match_key:
+        raise AssertionError(
+            "Expected a different envelope but the same match key across "
+            "reissues.")
+
+
+if __name__ == "__main__":
+    run()
