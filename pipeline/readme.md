@@ -1,8 +1,8 @@
 # 51Degrees Pipeline API
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Data rewards the curious") **Python Pipeline**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Data rewards the curious") **Python Pipeline**
 
-[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Developer Documentation")
+[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Developer Documentation")
 
 ## Introduction
 This repository contains the components of the Python implementation of the 51Degrees Pipeline API.
@@ -23,8 +23,8 @@ The examples are described under Examples below. The `owid-python` folder is a g
 
 ## Dependencies
 
-For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=readme.md&utm_term=dependencies) page.
-The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=readme.md&utm_term=dependencies) page shows the Python versions that we currently test against. The software may run fine against other versions, but additional caution should be applied.
+For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page.
+The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows the Python versions that we currently test against. The software may run fine against other versions, but additional caution should be applied.
 
 ## Installation
 
@@ -56,7 +56,7 @@ The tests that call the 51Degrees cloud service read a resource key from the `re
 ## Examples
 
 There are several examples available that demonstrate how to make use of the Pipeline API in isolation. These are described in the table below.
-If you want examples that demonstrate how to use 51Degrees products such as device detection, then these are available in the corresponding [repository](https://github.com/51Degrees/device-detection-python) and on our [website](https://51degrees.com/documentation/_examples__device_detection__index.html?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=readme.md&utm_term=examples).
+If you want examples that demonstrate how to use 51Degrees products such as device detection, then these are available in the corresponding [repository](https://github.com/51Degrees/device-detection-python) and on our [website](https://51degrees.com/documentation/_examples__device_detection__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=examples).
 
 | Example                                                                     | Description                                                                                          |
 |-----------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|

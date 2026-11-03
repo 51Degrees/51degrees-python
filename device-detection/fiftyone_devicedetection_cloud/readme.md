@@ -1,8 +1,8 @@
 # 51Degrees Device Detection Engines - Cloud
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=51degrees-device-detection-engines-cloud "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=51degrees-device-detection-engines-cloud "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
 
-[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=51degrees-device-detection-engines-cloud "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=51degrees-device-detection-engines-cloud "View all available properties and values")
+[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=51degrees-device-detection-engines-cloud "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=51degrees-device-detection-engines-cloud "View all available properties and values")
 
 ## Introduction
 
@@ -12,7 +12,7 @@
 
 You can confirm this is working with the following micro-example.
 
-* Create a resource key for free with the 51Degrees [configurator](https://configure.51degrees.com/np5M4nlF?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=from-pypi). This defines the properties you want to access.
+* Create a resource key for free with the 51Degrees [configurator](https://configure.51degrees.com/np5M4nlF?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=from-pypi). This defines the properties you want to access.
 * On the 'implement' page of the configurator, copy the resource key and replace YOUR_RESOURCE_KEY in the example below. Save this as exampledd.py
 * Run the example with `python exampledd.py`
 * Feel free to try different user-agents and property values.
@@ -26,7 +26,7 @@ fd.process()
 print(fd.device.ismobile.value())
 ```
 
-For more in-depth examples, check out the [examples](https://51degrees.com/device-detection-python/examples.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=from-pypi) page in the documentation.
+For more in-depth examples, check out the [examples](https://51degrees.com/device-detection-python/examples.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-readme.md&utm_term=from-pypi) page in the documentation.
 
 ### From GitHub
 

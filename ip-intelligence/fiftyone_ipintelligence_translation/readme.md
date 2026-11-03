@@ -1,8 +1,8 @@
 # IP Intelligence Country Translation
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=ip-intelligence-python&utm_content=fiftyone_ipintelligence_translation-readme.md&utm_term=ip-intelligence-translation "Data rewards the curious") **Python IP Intelligence Country Translation**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_translation-readme.md&utm_term=ip-intelligence-country-translation "Data rewards the curious") **Python IP Intelligence Country Translation**
 
-[Developer Documentation](https://51degrees.com/documentation/index.html "Developer Documentation")
+[Developer Documentation](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_translation-readme.md&utm_term=ip-intelligence-country-translation "Developer Documentation")
 
 ## Introduction
 

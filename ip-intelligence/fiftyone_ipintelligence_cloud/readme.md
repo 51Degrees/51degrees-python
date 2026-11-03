@@ -1,17 +1,17 @@
 # 51Degrees IP Intelligence Engines - Cloud
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=repository&utm_content=readme_main&utm_campaign=python-open-source "Data rewards the curious") **Python IP Intelligence**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud-readme.md&utm_term=51degrees-ip-intelligence-engines-cloud "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=repository&utm_content=documentation&utm_campaign=python-open-source "developer documentation")
+[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud-readme.md&utm_term=51degrees-ip-intelligence-engines-cloud "developer documentation")
 
 ## Introduction
 
 This package uses the 51Degrees cloud service to resolve IP addresses to
 location, network and registration information using the
-[51Degrees Pipeline API](https://51degrees.com/documentation/index.html).
+[51Degrees Pipeline API](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud-readme.md&utm_term=introduction).
 
 To use the cloud service you will need a resource key. You can obtain one
-from the [51Degrees Configurator](https://configure.51degrees.com/).
+from the [51Degrees Configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud-readme.md&utm_term=introduction).
 
 ## Usage
 

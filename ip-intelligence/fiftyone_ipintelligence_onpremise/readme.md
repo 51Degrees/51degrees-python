@@ -1,14 +1,14 @@
 # 51Degrees IP Intelligence Engines - OnPremise
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=repository&utm_content=readme_main&utm_campaign=python-open-source "Data rewards the curious") **Python IP Intelligence**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_onpremise-readme.md&utm_term=51degrees-ip-intelligence-engines-onpremise "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=repository&utm_content=documentation&utm_campaign=python-open-source "developer documentation")
+[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_onpremise-readme.md&utm_term=51degrees-ip-intelligence-engines-onpremise "developer documentation")
 
 ## Introduction
 
 This package resolves IP addresses to location, network and registration
 information using a local `.ipi` data file and the
-[51Degrees Pipeline API](https://51degrees.com/documentation/index.html).
+[51Degrees Pipeline API](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_onpremise-readme.md&utm_term=introduction).
 
 The native [ip-intelligence-cxx](https://github.com/51Degrees/ip-intelligence-cxx)
 library is included as a git submodule and wrapped with SWIG.

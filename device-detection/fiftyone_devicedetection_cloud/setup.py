@@ -41,7 +41,7 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
 	author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_cloud-setup.py&utm_term=url",
+    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-setup.py&utm_term=url",
     description=("51Degrees Device Detection parses HTTP headers to return detailed hardware, operating system, browser, and crawler information for the devices used to access your website or service. This package retrieves device detection results by consuming the 51Degrees cloud service."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',

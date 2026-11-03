@@ -25,13 +25,13 @@ from fiftyone_pipeline_core.logger import Logger
 from fiftyone_devicedetection_cloud.devicedetection_cloud_pipelinebuilder import DeviceDetectionCloudPipelineBuilder
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 
-# This example is displayed at the end of the [Configurator](https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=top)
+# This example is displayed at the end of the [Configurator](https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=top)
 # process, which is used to create resource keys for use with the 51Degrees cloud service.
 # 
 # It shows how to call the cloud with the newly created key and how to access the values 
 # of the selected properties.
 #
-# See [Getting Started](https://51degrees.com/documentation/_examples__device_detection__getting_started__console__cloud.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=top)
+# See [Getting Started](https://51degrees.com/documentation/_examples__device_detection__getting_started__console__cloud.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=top)
 # for a fuller example.
 #
 # Required PyPi Dependencies:
@@ -96,10 +96,10 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees " +
             "cloud service is accessed using a 'ResourceKey'. " +
             "For more detail see " +
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this " +
             "example can be created for free at " +
-            "https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
+            "https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
             "Once complete, populate the environment variable " +
             "mentioned at the start of this message with the key.")
 

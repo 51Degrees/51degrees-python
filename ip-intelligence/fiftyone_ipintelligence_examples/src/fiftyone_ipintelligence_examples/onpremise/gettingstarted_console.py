@@ -75,14 +75,14 @@ class GettingStartedConsole():
         # In this example, we use the IpIntelligencePipelineBuilder
         # and configure it in code. For more information about
         # pipelines in general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html
+        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
         pipeline = IpIntelligencePipelineBuilder(
             data_file_path = data_file,
             # We use the low memory profile as its performance is
             # sufficient for this example. See the documentation for
             # more detail on this and other configuration options:
-            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html
-            # https://51degrees.com/documentation/_features__usage_sharing.html
+            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
+            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
             performance_profile = "LowMemory",
             # inhibit sharing usage for this example, usually this
             # should be set "true"
@@ -131,7 +131,7 @@ class GettingStartedConsole():
         ip_data = data.ip
 
         # Display the results of the lookup. See the property
-        # dictionary at https://51degrees.com/developers/property-dictionary
+        # dictionary at https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=analyseevidence
         # for details of all available properties.
         for name in OUTPUT_PROPERTIES:
             self.outputValue(ip_data, name, message)

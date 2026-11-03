@@ -50,7 +50,7 @@ class GettingStartedConsole():
 
         # In this example, we use the PipelineBuilder and configure it from a file.
         # For more information about builders in general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=run
+        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=run
 
         # Create the pipeline using the service provider and the configured options.
         pipeline = PipelineBuilder().add_logger(logger).build_from_configuration(config)
@@ -96,7 +96,7 @@ class GettingStartedConsole():
 
         # Display the results of the detection, which are called
         # device properties. See the property dictionary at
-        # https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=analyseevidence
+        # https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=analyseevidence
         # for details of all available properties.
         self.outputValue("Mobile Device", device.ismobile, message)
         self.outputValue("Platform Name", device.platformname, message)
@@ -174,9 +174,9 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees cloud " +
             "service is accessed using a 'ResourceKey'. For more information " +
             "see " +
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this example can be " +
-            "created for free at https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. " +
+            "created for free at https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. " +
             "Once complete, populate the config file or environment variable " +
             "mentioned at the start of this message with the key.")
     else:

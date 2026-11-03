@@ -1,8 +1,8 @@
 # 51Degrees Device Detection Engines - On-Premise
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_onpremise-readme.md&utm_term=51degrees-device-detection-engines-on-premise "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-readme.md&utm_term=51degrees-device-detection-engines-on-premise "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
 
-[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_onpremise-readme.md&utm_term=51degrees-device-detection-engines-on-premise "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_onpremise-readme.md&utm_term=51degrees-device-detection-engines-on-premise "View all available properties and values")
+[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-readme.md&utm_term=51degrees-device-detection-engines-on-premise "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-readme.md&utm_term=51degrees-device-detection-engines-on-premise "View all available properties and values")
 
 ## Introduction
 
@@ -56,7 +56,7 @@ fd.process()
 print(fd.device.ismobile.value())
 ```
 
-For more in-depth examples, check out the [examples](https://51degrees.com/device-detection-python/examples.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_onpremise-readme.md&utm_term=from-pypi) page in the documentation.
+For more in-depth examples, check out the [examples](https://51degrees.com/device-detection-python/examples.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-readme.md&utm_term=from-pypi) page in the documentation.
 
 ### From GitHub
 
