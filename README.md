@@ -10,13 +10,17 @@ It reads User-Agent and User-Agent Client Hints, HTTP request headers that carry
 
 ## Install
 
-Device Detection, cloud or on-premise, is on PyPI:
+Device Detection and IP Intelligence, cloud or on-premise, are on PyPI:
 
 ```
 python -m pip install fiftyone-devicedetection
 ```
 
-The table below lists the other packages. IP Intelligence is installed from source, as [its README](ip-intelligence/readme.md) explains. To build from source, see [Getting the code](#getting-the-code).
+```
+python -m pip install fiftyone-ipintelligence
+```
+
+The table below lists the other packages. To build from source, see [Getting the code](#getting-the-code).
 
 Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install). For cloud use, [create a Resource Key](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install).
 
