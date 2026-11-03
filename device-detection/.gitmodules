@@ -1,3 +1,0 @@
-[submodule "fiftyone_devicedetection_onpremise/fiftyone_devicedetection_onpremise/device-detection-cxx"]
-	path = fiftyone_devicedetection_onpremise/src/fiftyone_devicedetection_onpremise/cxx
-	url = ../device-detection-cxx

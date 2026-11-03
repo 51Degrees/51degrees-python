@@ -1,0 +1,15 @@
+name: Monthly Copyright Update
+
+# No schedule until the cut-over, as for the nightly pipeline, so that this
+# and the four repositories it replaces do not both open copyright pull
+# requests for the same files.
+on:
+  workflow_dispatch:
+
+jobs:
+  Monthly_Copyright_Update:
+    uses: 51Degrees/common-ci/.github/workflows/monthly-copyright-update.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
