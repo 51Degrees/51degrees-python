@@ -1,0 +1,137 @@
+{#
+    *********************************************************************
+    * This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+    * Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+    * Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+    *
+    * This Original Work is licensed under the European Union Public Licence (EUPL)
+    * v.1.2 and is subject to its terms as set out below.
+    *
+    * If a copy of the EUPL was not distributed with this file, You can obtain
+    * one at https://opensource.org/licenses/EUPL-1.2.
+    *
+    * The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+    * amended by the European Commission) shall be deemed incompatible for
+    * the purposes of the Work and the provisions of the compatibility
+    * clause in Article 5 of the EUPL shall not apply.
+    *
+    * If using the Work as, or as part of, a network application, by
+    * including the attribution notice(s) required under Article 5 of the EUPL
+    * in the end user terms of the application under an appropriate heading,
+    * such notice(s) shall fulfill the requirements of that article.
+    * ********************************************************************* #}
+<head>
+    <title>User-Agent Client Hints Example</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/examples-main.min.css') }}">
+</head>
+
+<div class="c-eg-page">
+    <h2 class="c-eg-page__title">User-Agent Client Hints example</h2>
+    <p class="c-eg-page__lead">
+        By default, the user-agent, sec-ch-ua and sec-ch-ua-mobile HTTP headers are sent. This means
+        that on the first request, the server can determine the browser from sec-ch-ua while other
+        details must be derived from the user-agent. If the server determines that the browser supports
+        client hints, then it may request additional client hints headers by setting the Accept-CH
+        header in the response.
+    </p>
+    <p class="c-eg-page__lead">
+        Select the <strong>Make second request</strong> button below to send another request to the
+        server. This time, any additional client hints headers that have been requested will be included
+        as evidence.
+    </p>
+
+    <div class="c-eg-button-row">
+        <button type="button" class="b-btn" onclick="redirect()">Make second request</button>
+    </div>
+
+    <div id="content">
+        <h3 class="c-eg-page__heading">Evidence values used</h3>
+        <p class="c-eg-legend">
+            Evidence was
+            <span class="c-eg-legend__swatch c-eg-legend__swatch--used">used</span>
+            /
+            <span class="c-eg-legend__swatch c-eg-legend__swatch--present">present</span>
+            for detection
+        </p>
+        <table class="c-eg-table">
+            <thead class="c-eg-table__head">
+                <tr class="c-eg-table__row">
+                    <th class="c-eg-table__cell">Key</th>
+                    <th class="c-eg-table__cell">Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, value in data.evidence.get_all().items() %}
+                    {% if "header.user-agent" in key or "header.sec-ch" in key %}
+                        {% if data.pipeline.get_element("cloud").get_evidence_key_filter().filter_evidence_key(key) %}
+                            <tr class="c-eg-table__row c-eg-table__row--used">
+                        {% else %}
+                            <tr class="c-eg-table__row c-eg-table__row--present">
+                        {% endif %}
+                            <td class="c-eg-table__cell c-eg-table__cell--key">{{ key }}</td>
+                            <td class="c-eg-table__cell">{{ value }}</td>
+                        </tr>
+                    {% endif %}
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div id="description"></div>
+
+        <h3 class="c-eg-page__heading">Detection results</h3>
+        <table class="c-eg-table">
+            <thead class="c-eg-table__head">
+                <tr class="c-eg-table__row">
+                    <th class="c-eg-table__cell">Key</th>
+                    <th class="c-eg-table__cell">Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Vendor:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "hardwarevendor") }}</td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Hardware Name:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "hardwarename") }}</td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Device Type:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "devicetype") }}</td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Vendor:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "platformvendor") }}</td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Name:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "platformname") }}</td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Platform Version:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "platformversion") }}</td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Vendor:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "browservendor") }}</td></tr>
+                <tr class="c-eg-table__row"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Name:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "browsername") }}</td></tr>
+                <tr class="c-eg-table__row c-eg-table__row--alt"><td class="c-eg-table__cell c-eg-table__cell--key">Browser Version:</td><td class="c-eg-table__cell">{{ utils.get_human_readable(data.device, "browserversion") }}</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="c-eg-message"><p class="c-eg-message__text">Want to try on-premise? <a href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-templates-index.html&utm_term=try-on-premise">Contact us</a> to discuss requirements.</p><a class="b-btn c-eg-message__cta" href="https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-templates-index.html&utm_term=try-on-premise">Contact us</a></div>
+</div>
+
+<script>
+    // This script runs when the "Make second request" button is clicked and a device
+    // detection request is sent to the server again with all the additional client hints
+    // that were requested in the previous response by the server.
+    // The following sequence is followed:
+    // 1. The user sends the first request to the web server for detection.
+    // 2. The web server returns the properties in the response based on the headers sent
+    //    in the request. Along with the properties, it also sends a new Accept-CH header in
+    //    the response indicating the additional evidence it needs. It builds the new
+    //    response header using SetHeader[Component name]Accept-CH properties where Component
+    //    Name is the name of the component for which properties are required.
+    // 3. When the "Make second request" button is clicked, the device detection request is
+    //    sent to the server again with all the additional client hints that were requested
+    //    in the previous response by the server.
+    // 4. The web server returns the properties based on the new User-Agent Client Hint
+    //    headers being used as evidence.
+
+    function redirect() {
+        sessionStorage.reloadAfterPageLoad = true;
+        window.location.reload(true);
+    }
+
+    window.onload = function () {
+        if (sessionStorage.reloadAfterPageLoad) {
+            document.getElementById('description').innerHTML = "<p class=\"c-eg-page__lead\">The information shown below is determined using <strong>User-Agent Client Hints</strong> that were sent in the request to obtain additional evidence. If no additional information appears then it may indicate an external problem such as <strong>User-Agent Client Hints</strong> being disabled in your browser.</p>";
+            sessionStorage.reloadAfterPageLoad = false;
+        }
+        else {
+            document.getElementById('description').innerHTML = "<p class=\"c-eg-page__lead\">The following values are determined by server-side device detection on the first request.</p>";
+        }
+    };
+</script>

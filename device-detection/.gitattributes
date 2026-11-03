@@ -1,0 +1,2 @@
+fiftyone_devicedetection/on_premise/build/**/*.so filter=lfs diff=lfs merge=lfs -text
+fiftyone_devicedetection/on_premise/build/**/*.pyd filter=lfs diff=lfs merge=lfs -text

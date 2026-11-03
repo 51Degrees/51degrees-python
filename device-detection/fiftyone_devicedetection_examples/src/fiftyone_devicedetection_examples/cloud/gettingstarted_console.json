@@ -1,0 +1,22 @@
+{
+    "PipelineOptions": {
+        "Elements": [
+            {
+                "elementName": "CloudRequestEngine",
+                "elementPath": "fiftyone_pipeline_cloudrequestengine.cloudrequestengine",
+                "elementParameters": {
+                    "settings": {
+                        // Obtain a resource key with the properties required to run this 
+                        // example for free: https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.json&utm_term=settings
+                        "resource_key": "!!ENTER_YOUR_RESOURCE_KEY_HERE!!",
+                        "cloud_request_origin": "51Degrees.example.com"
+                    }
+                }
+            },
+            {
+                "elementName": "DeviceDetectionCloud",
+                "elementPath": "fiftyone_devicedetection_cloud.devicedetection_cloud"
+            }
+        ]
+    }
+}
