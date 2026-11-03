@@ -106,7 +106,7 @@ class UserAgentClientHintsWeb():
         # requested. So set whatever headers are required by the browser in
         # order to return the evidence needed by the pipeline.
         # More info on this can be found at
-        # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=server
+        # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=server
         set_response_header(flowdata, response)
 
         # Generate the HTML
@@ -136,10 +136,10 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees " +
             "cloud service is accessed using a 'ResourceKey'. " +
             "For more detail see " +
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this " +
             "example can be created for free at " +
-            "https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=resource-key-required. " +
+            "https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=resource-key-required. " +
             "Once complete, populated the environment variable " +
             "mentioned at the start of this message with the key.")
 

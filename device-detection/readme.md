@@ -1,8 +1,8 @@
 # 51Degrees Device Detection Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
 
-[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "View all available properties and values")
+[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "View all available properties and values")
 
 ## Introduction
 
@@ -24,8 +24,8 @@ git submodule update --init --recursive
 
 ## Dependencies
 
-For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=dependencies) page.
-The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=dependencies) page shows 
+For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page.
+The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows 
 the Python versions that we currently test against. The software may run fine against other versions, 
 but additional caution should be applied.
 
@@ -35,17 +35,17 @@ The API can either use our cloud service to get its data or it can use a local (
 
 #### Cloud
 
-You will require a [resource key](https://51degrees.com/documentation/_info__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=cloud)
+You will require a [resource key](https://51degrees.com/documentation/_info__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud)
 to use the Cloud API. You can create resource keys using our 
-[configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=cloud), see our 
-[documentation](https://51degrees.com/documentation/_concepts__configurator.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=cloud) on how to use this.
+[configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud), see our 
+[documentation](https://51degrees.com/documentation/_concepts__configurator.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud) on how to use this.
 
 #### On-Premise
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
 This repository includes a free, 'lite' file in the 'device-detection-data' sub-module that has a 
 significantly reduced set of properties. To obtain a file with a more complete set of device 
-properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=readme.md&utm_term=on-premise). If you want to use the lite 
+properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=on-premise). If you want to use the lite 
 file, you will need to install [GitLFS](https://git-lfs.github.com/):
 
 ```

@@ -42,7 +42,7 @@ class OnPremiseMissingPropertyService(MissingPropertyService):
             + flow_element.datakey + " are "
             + ", ".join(list(flow_element.get_properties().keys()))
             + ". For more details on resource keys, see our explainer: "
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=pipeline-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-clouddata.py&utm_term=property-not-found")
+            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-clouddata.py&utm_term=property-not-found")
 
 class CloudData(AspectDataDictionary):
 

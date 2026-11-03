@@ -143,7 +143,7 @@ class ExampleUtils:
         return ("\tNo device profiles were returned. The current resource "
                 "key does not include the hardware properties this example "
                 "needs. See "
-                "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=no-profiles")
+                "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=no-profiles")
 
     @staticmethod
     def get_resource_key():
@@ -166,7 +166,7 @@ class ExampleUtils:
                 f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}' (the older name "
                 f"'{ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR}' is still "
                 "read). Create a resource key for free at "
-                "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=resource-key-required")
+                "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=resource-key-required")
 
     @staticmethod
     def get_data_file_path():
@@ -277,7 +277,7 @@ class ExampleUtils:
                 "https://github.com/51Degrees/device-detection-data. " +
                 "Find out about the Enterprise data file, which " +
                 "includes automatic updates, on our pricing page: " +
-                "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=data-file-age-warning")
+                "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=data-file-age-warning")
 
         if ExampleUtils.get_data_file_tier(engine) == "Lite":
             logger.log("warning",
@@ -285,4 +285,4 @@ class ExampleUtils:
                 "data file. This is used for illustration, and " +
                 "has limited accuracy and capabilities. Find " +
                 "out about the Enterprise data file on our " +
-                "pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=lite-data-file")
+                "pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=lite-data-file")

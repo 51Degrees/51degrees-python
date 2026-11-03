@@ -58,7 +58,7 @@
 # ```
 # 
 # Results can also be accessed in client-side code by using the `fod` object. See the 
-# [JavaScriptBuilderElementBuilder](https://51degrees.com/pipeline-python/4.3/classpipeline-python_1_1fiftyone__pipeline__core_1_1fiftyone__pipeline__core_1_1javascriptbuilde778a9036818b19ab55d981a40be4a4d7.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=top)
+# [JavaScriptBuilderElementBuilder](https://51degrees.com/pipeline-python/4.3/classpipeline-python_1_1fiftyone__pipeline__core_1_1fiftyone__pipeline__core_1_1javascriptbuilde778a9036818b19ab55d981a40be4a4d7.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=top)
 # for details on available settings such as changing the `fod` name.
 # ```{js}
 # window.onload = function () {
@@ -200,7 +200,7 @@ class GettingStartedWeb():
         # requested. So set whatever headers are required by the browser in
         # order to return the evidence needed by the pipeline.
         # More info on this can be found at
-        # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=server
+        # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=server
 
         set_response_header(flowdata, response)
 
@@ -230,10 +230,10 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees " +
             "cloud service is accessed using a 'ResourceKey'. " +
             "For more detail see " +
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this " +
             "example can be created for free at " +
-            "https://configure.51degrees.com/g3gMZdPY?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. " +
+            "https://configure.51degrees.com/g3gMZdPY?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. " +
             "Once complete, populated the environment variable " +
             "mentioned at the start of this message with the key.")
 

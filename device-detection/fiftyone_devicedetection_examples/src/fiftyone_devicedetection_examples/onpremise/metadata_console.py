@@ -60,15 +60,15 @@ class MetaDataConsole():
         # In this example, we use the DeviceDetectionPipelineBuilder
         # and configure it in code. For more information about
         # pipelines in general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
+        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
         pipeline = DeviceDetectionPipelineBuilder(
             data_file_path = data_file,
             # We use the low memory profile as its performance is
             # sufficient for this example. See the documentation for
             # more detail on this and other configuration options:
-            # https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
-            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
-            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
+            # https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
+            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
+            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
             performance_profile = "LowMemory",
             # inhibit sharing usage for this test, usually this
             # should be set "true"
@@ -118,7 +118,7 @@ def main(argv):
     # Note that the Lite data file is only used for illustration, and has
     # limited accuracy and capabilities.
     # Find out about the Enterprise data file on our pricing page:
-    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=main
+    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
     
     # Configure a logger to output to the console.

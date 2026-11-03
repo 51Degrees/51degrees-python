@@ -41,7 +41,7 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection-setup.py&utm_term=url",
+    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection-setup.py&utm_term=url",
     description=("51Degrees Device Detection parses HTTP headers to return detailed hardware, operating system, browser, and crawler information for the devices used to access your website or service. This is an alternative to popular UAParser, DeviceAtlas, and WURFL packages."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',

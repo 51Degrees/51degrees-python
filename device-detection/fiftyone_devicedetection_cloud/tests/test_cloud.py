@@ -40,7 +40,7 @@ MISSING_KEY_MESSAGE = (
     f"cannot run. Set the environment variable '{RESOURCE_KEY_ENV_VAR}' "
     f"(the older name '{LEGACY_RESOURCE_KEY_ENV_VAR}' is still read). "
     "Create a resource key for free at "
-    "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_cloud-tests-test_cloud.py&utm_term=resource-key-required")
+    "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-tests-test_cloud.py&utm_term=resource-key-required")
 
 
 def get_resource_key():

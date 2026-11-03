@@ -151,7 +151,7 @@ class DeviceDetectionOnPremise(Engine):
             self.data = data
 
         if not licence_keys and licence_keys != "":
-            raise Exception("licence key is required. A key can be obtained from the 51Degrees website: https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_onpremise-src-fiftyone_devicedetection_onpremise-devicedetection_onpremise.py&utm_term=licence-key-required. If you do not wish to use a key then you can specify an empty string, but this will cause automatic updates to be disabled.")
+            raise Exception("licence key is required. A key can be obtained from the 51Degrees website: https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-src-fiftyone_devicedetection_onpremise-devicedetection_onpremise.py&utm_term=licence-key-required. If you do not wish to use a key then you can specify an empty string, but this will cause automatic updates to be disabled.")
 
         #   Create SWIG wrapper vector for restricted properties and add
 
