@@ -41,7 +41,16 @@ setuptools.setup(
     author="51Degrees Engineering",
 	author_email="engineering@51degrees.com",
     url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-setup.py&utm_term=url",
-    description=("51Degrees IP Intelligence resolves an IP address to detailed location, network and registration information. This package aggregates the cloud and on-premise IP intelligence engines for the 51Degrees Pipeline API."),
+    description=("IP Intelligence and IP geolocation for Python that finds an IP address's likely location (country, region, town, and coordinates), connection type, and network, on-premise with a data file or in the cloud."),
+    keywords=[
+        "51degrees",
+        "ip-intelligence",
+        "ip-geolocation",
+        "geoip",
+        "ip-lookup",
+        "asn",
+        "ip-to-country"
+    ],
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',
     python_requires=">=3.10",

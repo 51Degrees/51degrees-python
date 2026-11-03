@@ -250,7 +250,16 @@ setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    description = """This project contains the 51Degrees IP Intelligence OnPremise engine that can be used with the 51Degrees Pipeline API. The Pipeline is a generic web request intelligence and data processing solution with the ability to add a range of 51Degrees and/or custom plug ins (Engines)""",
+    description = """IP Intelligence and IP geolocation for Python that finds an IP address's likely location (country, region, town, and coordinates), connection type, and network by reading a data file on your server.""",
+    keywords=[
+        "51degrees",
+        "ip-intelligence",
+        "ip-geolocation",
+        "geoip",
+        "ip-lookup",
+        "asn",
+        "ip-to-country"
+    ],
     long_description=read("readme.md"),
     long_description_content_type="text/markdown",
     python_requires=">=3.10",
