@@ -211,6 +211,24 @@ Describe 'Get-ReleasePlan' {
         ($plan | Where-Object Name -eq 'ipi').Version | Should -Be '4.5.0'
     }
 
+    It 'reads the tags whatever folder it runs from' {
+        # PowerShell expands a wildcard in a native command's argument into
+        # matching files, so a tag pattern run from a folder that holds a
+        # folder of the same name, as the repository root holds 'location',
+        # once found no tags.
+        $script:Repo = New-Repo $script:AllFiles $script:AllTags
+        $here = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
+        $null = New-Item -ItemType Directory -Force (Join-Path $here 'location')
+        $null = New-Item -ItemType File (Join-Path $here 'location' 'setup.py')
+        Push-Location $here
+        try {
+            (Get-ReleasedVersions $script:Repo 'location')[-1] | Should -Be ([version]'4.5.4')
+        } finally {
+            Pop-Location
+            Remove-Item -Recurse -Force $here
+        }
+    }
+
     It 'refuses a never-released package with no FirstVersion' {
         $graph = @(New-Package 'new' 'p' 'p/new')
         $script:Repo = New-Repo @('p/new/a.py') @()

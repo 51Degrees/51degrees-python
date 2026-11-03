@@ -151,7 +151,12 @@ function ConvertTo-VersionParts([string]$Text) {
 # reading the tags of fiftyone_ipintelligence_cloud.
 function Get-ReleasedVersions([string]$RepoPath, [string]$Name,
         [switch]$AtHead) {
-    $arguments = @('-C', $RepoPath, 'tag', '--list', "$Name/*")
+    # Tags are found by prefix, not with a 'name/*' pattern: PowerShell on
+    # Linux and macOS expands a '*' in an argument to a native command into
+    # matching files, so from a folder holding a 'location' folder git would
+    # be handed file names and find no tags.
+    $arguments = @('-C', $RepoPath, 'for-each-ref',
+        '--format=%(refname:strip=2)', "refs/tags/$Name/")
     if ($AtHead -eq $true) {
         $arguments += @('--points-at', 'HEAD')
     }
