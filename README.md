@@ -1,9 +1,33 @@
-# 51Degrees Python
+# 51Degrees Device Detection and IP Intelligence for Python
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-python "Data rewards the curious") **Python packages for the Pipeline API, Device Detection, IP Intelligence and Location**
+<img src=".github/images/logo.png" alt="51Degrees" title="Data rewards the curious" width="160">
 
-This repository holds the 51Degrees Python packages published to PyPI. Each
-product is in its own folder, which has its own README.
+**Python packages for the Pipeline API, Device Detection, IP Intelligence and Location**
+
+Our User-Agent parser for Python supports Device Detection, browser detection, mobile detection, and crawler detection on-premise or in the cloud. IP Intelligence adds IP geolocation, including IP to country data.
+
+It reads User-Agent and User-Agent Client Hints, HTTP request headers that carry browser and device information. For cloud bot detection, Human Confidence reports confidence that a person is viewing the page.
+
+## Install
+
+Device Detection and IP Intelligence, cloud or on-premise, are on PyPI:
+
+```
+python -m pip install fiftyone-devicedetection
+```
+
+```
+python -m pip install fiftyone-ipintelligence
+```
+
+The table below lists the other packages. To build from source, see [Getting the code](#getting-the-code).
+
+Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install). For cloud use, [create a Resource Key](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install).
+
+Created from `pipeline-python`, `device-detection-python`, and `location-python`, this repository continues their work.
+
+This repository holds the 51Degrees Python packages. Each product is in its
+own folder, which has its own README.
 
 | Product | Folder | PyPI packages |
 | --- | --- | --- |
@@ -40,13 +64,26 @@ it depends on, changes. A release is tagged `<package>/<version>`, for example
 
 ## History
 
-This repository brings together the `pipeline-python`,
-`device-detection-python`, `location-python` and `ip-intelligence-python`
-repositories, each in a folder named without the language: `pipeline`,
+| Earlier repository | What it held |
+| --- | --- |
+| [pipeline-python](https://github.com/51Degrees/pipeline-python) | The Pipeline API |
+| [device-detection-python](https://github.com/51Degrees/device-detection-python) | Device Detection |
+| [location-python](https://github.com/51Degrees/location-python) | Location |
+
+This repository brings together those repositories and the IP Intelligence
+packages, each in a folder named without the language: `pipeline`,
 `device-detection`, `location` and `ip-intelligence`. Their full history is included, with every commit keeping its original
 SHA, so `git log --follow` traces a file back through the move. The tags and
 releases of the original repositories stay with those repositories.
 
-## Licence
+## License
 
 [European Union Public Licence v1.2](LICENSE), which every package declares.
+
+## Find out more
+
+- [Device Detection](https://51degrees.com/device-detection?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=find-out-more)
+- [IP Intelligence](https://51degrees.com/ip-intelligence?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=find-out-more)
+- [Bots and humans](https://51degrees.com/bots-and-humans?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=find-out-more)
+- [Documentation](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=find-out-more)
+- https://github.com/51Degrees/51degrees-cxx
