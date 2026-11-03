@@ -131,6 +131,9 @@ class DeviceDetectionOnPremise(Engine):
 
         super(DeviceDetectionOnPremise, self).__init__()
 
+        if cache is not None:
+            raise Exception(CACHE_NOT_SUPPORTED)
+
         self.datakey = "device"
 
         if not data_file_path and not data:
@@ -376,6 +379,15 @@ class DeviceDetectionOnPremise(Engine):
 
         return BasicListEvidenceKeyFilter(self.evidence_keys_list)
 
+
+    def set_cache(self, cache):
+
+        """!
+        Not supported. Results read from native memory, which is not
+        safe to share between requests through a cache.
+        """
+
+        raise Exception(CACHE_NOT_SUPPORTED)
 
     def on_registration(self, pipeline):
 

@@ -36,3 +36,8 @@ ITERATIONS_DESCRIPTION = ('The number of iterations carried out in order to '
                           'find a match. This is the number of nodes in the '
                           'graph which have been visited.')
 METHOD_DESCRIPTION = 'The method used to determine the match result.'
+
+CACHE_NOT_SUPPORTED = ('A results cache cannot be configured in the '
+                       'on-premise device detection engine. Its results '
+                       'read from native memory, which is not safe to '
+                       'share between requests.')

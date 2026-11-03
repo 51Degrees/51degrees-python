@@ -34,6 +34,7 @@ from fiftyone_devicedetection_onpremise.devicedetection_onpremise import DeviceD
 from fiftyone_devicedetection_onpremise.devicedetection_datafile import DeviceDetectionDataFile
 
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
+from fiftyone_pipeline_engines.lru_cache import LRUEngineCache
 
 data_file = "src/fiftyone_devicedetection_onpremise/cxx/device-detection-data/51Degrees-LiteV4.1.hash"
 
@@ -663,3 +664,45 @@ class DeviceDetectionTests(unittest.TestCase):
                 results["unknown"] += 1
 
         return results
+
+
+class DeviceDetectionCacheTests(unittest.TestCase):
+
+    def test_engine_refuses_cache_argument(self):
+        """!
+        Tests that the on-premise engine refuses a cache passed to its
+        constructor, because its results read from native memory that
+        cannot be shared between requests
+        """
+
+        with self.assertRaises(Exception) as context:
+            DeviceDetectionOnPremise(
+                data_file_path=data_file, licence_keys="",
+                cache=LRUEngineCache())
+
+        self.assertIn("results cache", str(context.exception))
+
+    def test_engine_refuses_set_cache(self):
+        """!
+        Tests that the on-premise engine refuses a cache set on it
+        """
+
+        engine = DeviceDetectionOnPremise(
+            data_file_path=data_file, licence_keys="")
+
+        with self.assertRaises(Exception) as context:
+            engine.set_cache(LRUEngineCache())
+
+        self.assertIn("results cache", str(context.exception))
+
+    def test_pipeline_builder_refuses_cache(self):
+        """!
+        Tests that the on-premise pipeline builder refuses a cache setting
+        """
+
+        with self.assertRaises(Exception) as context:
+            DeviceDetectionOnPremisePipelineBuilder(
+                data_file_path=data_file, licence_keys="",
+                cache=LRUEngineCache()).build()
+
+        self.assertIn("results cache", str(context.exception))

@@ -59,7 +59,7 @@ class DeviceDetectionPipelineBuilder(PipelineBuilder):
             * enable_cookies - whether cookies should be enabled
             * minify: Whether to minify the JavaScript
         @type cache: Cache
-        @param cache: An instance of the fiftyone.pipeline.engines.cache
+        @param cache: An instance of the fiftyone.pipeline.engines.cache, for the cloud engine only. The on-premise engine raises an exception if one is supplied
         class
 
         Cloud Engine Settings:

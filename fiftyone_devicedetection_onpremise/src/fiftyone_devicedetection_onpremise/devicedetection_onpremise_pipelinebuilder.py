@@ -58,7 +58,7 @@ class DeviceDetectionOnPremisePipelineBuilder(PipelineBuilder):
             * enable_cookies - whether cookies should be enabled
             * minify: Whether to minify the JavaScript
         @type cache: Cache
-        @param cache: An instance of the fiftyone.pipeline.engines.cache
+        @param cache: Not supported by the on-premise engine. Supplying one raises an exception
         class
 
         Cloud Engine Settings:
@@ -144,9 +144,6 @@ class DeviceDetectionOnPremisePipelineBuilder(PipelineBuilder):
 
         if usage_sharing:
             self.add(ShareUsage())
-
-        if "cache" in settings:
-            device.set_cache(settings["cache"])
 
         self.add(device)
 
