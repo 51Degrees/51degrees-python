@@ -125,6 +125,10 @@ function Resolve-AffectedProducts($Packages, [string[]]$Changed) {
 # The products a pull request changes, or every product when the checkout is
 # not a pull request (a publish, or a run on main), as 51degrees-cxx does.
 function Get-AffectedProducts([string]$RepoPath) {
+    # merge-base fails where there is no origin/main, which is an answer here.
+    # Set for this function only, so a caller that stops on a failing native
+    # command, as publish-package.ps1 does, is not stopped by it.
+    $PSNativeCommandUseErrorActionPreference = $false
     $packages = Get-Packages $RepoPath
     $head = git -C $RepoPath rev-parse HEAD
     $base = git -C $RepoPath merge-base origin/main HEAD 2>$null
@@ -175,6 +179,11 @@ function Get-ReleasedVersions([string]$RepoPath, [string]$Name,
 # from packages.json. Packages that are not published, the examples, are never
 # in the plan; a change to them is tested but releases nothing.
 function Get-ReleasePlan([string]$RepoPath, $Packages = $null) {
+    # 'git diff --quiet' exits 1 to say a package changed. That is an answer,
+    # not a failure, but a caller that stops on a failing native command, as
+    # publish-package.ps1 does, stopped there and failed the publish. Set for
+    # this function only.
+    $PSNativeCommandUseErrorActionPreference = $false
     if ($null -eq $Packages) {
         $Packages = Get-Packages $RepoPath
     }
