@@ -42,7 +42,7 @@
 # ```{py}
 # flowdata.evidence.add_from_dict(webevidence(request))
 # ```
-
+#
 # The module can also handling setting response headers (e.g. Accept-CH for User-Agent 
 # Client Hints) and serving requests for client-side JavaScript and JSON resources.
 # ```{py}
@@ -70,7 +70,7 @@
 # ```
 #
 # ## View
-# @include templates/index.html
+# @include cloud/gettingstarted_web/templates/index.html
 #
 # ## App
 
