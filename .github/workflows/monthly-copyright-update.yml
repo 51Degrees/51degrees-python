@@ -1,10 +1,10 @@
 name: Monthly Copyright Update
 
-# No schedule until the cut-over, as for the nightly pipeline, so that this
-# and the four repositories it replaces do not both open copyright pull
-# requests for the same files.
 on:
   workflow_dispatch:
+  schedule:
+    # The copyright year only changes once a year, so this runs on 1 January.
+    - cron: '0 0 1 1 *'
 
 jobs:
   Monthly_Copyright_Update:

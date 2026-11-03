@@ -1,9 +1,5 @@
 name: Nightly Pipeline
 
-# No schedule yet. Until the four repositories this one replaces are frozen,
-# they still publish the same packages, and two repositories must never
-# publish the same package. The schedule is added in the cut-over, after their
-# nightly workflows are disabled.
 on:
   workflow_dispatch:
     inputs:
@@ -17,6 +13,10 @@ on:
       common-ci-ref:
         type: string
         default: ''
+  schedule:
+    # The 51degrees-cxx nightly starts at 00:35 and ends by about 02:35, so
+    # its release reaches this submodule update the same night.
+    - cron: '0 3 * * *'
 
 jobs:
   SubmoduleUpdate:
