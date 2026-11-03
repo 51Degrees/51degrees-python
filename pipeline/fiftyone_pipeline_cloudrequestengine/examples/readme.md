@@ -31,7 +31,7 @@ The examples call the cloud service with a resource key or a licence key.
 
 A resource key carries the list of properties it returns. Create one
 carrying device detection and IP intelligence properties for free with the
-[configurator](https://configure.51degrees.com?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=resource-key),
+[configurator](https://configure.51degrees.com?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=resource-key),
 and set the `_51DEGREES_RESOURCE_KEY` environment variable to it. The older
 name `resource_key` is also read. A resource key limited to particular
 domains only answers a request whose origin is one of them, so set
@@ -102,10 +102,10 @@ which can also be run by hand with `python -m tox -e py` from here.
 
 ## Find out more
 
-- [Device detection](https://51degrees.com/device-detection?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-device-detection)
-- [IP intelligence](https://51degrees.com/ip-intelligence?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-ip-intelligence)
-- [Resource keys](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-resource-keys)
-- [Pricing](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-pricing)
+- [Device detection](https://51degrees.com/device-detection?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-device-detection)
+- [IP intelligence](https://51degrees.com/ip-intelligence?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-ip-intelligence)
+- [Resource keys](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-resource-keys)
+- [Pricing](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-pricing)
 - Pipeline API for Python: https://github.com/51Degrees/pipeline-python
 - Device detection for Python: https://github.com/51Degrees/device-detection-python
 - IP intelligence engine: https://github.com/51Degrees/51degrees-cxx

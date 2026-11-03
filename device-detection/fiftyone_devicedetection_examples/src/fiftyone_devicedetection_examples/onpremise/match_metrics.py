@@ -31,9 +31,9 @@
 # process - reducing the number of components required to return the properties requested reduces
 # the overall time taken.
 # 
-# There is a [discussion](https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=top#DeviceDetection_Hash_DataSetProduction_Performance)
+# There is a [discussion](https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=top#DeviceDetection_Hash_DataSetProduction_Performance)
 # of metrics and controlling performance on our web site. See also the (performance options)
-# [https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=top]
+# [https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=top]
 # page.
 # # Location
 # This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-python/blob/main/fiftyone_devicedetection_examples/fiftyone_devicedetection_examples/onpremise/match_metrics.py].
@@ -77,12 +77,12 @@ class MatchMetricsConsole():
             # in the device ID value.
             #restricted_properties=["ismobile", "hardwarename", "browsername"],
             # If using the full on-premise data file this property will be
-            # present in the data file. See https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=run
+            # present in the data file. See https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=run
             # Only use the predictive graph to better handle variances
             # between the training data and the target User-Agent string.
             # For a more detailed description of the differences between
             # performance and predictive, see
-            # https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=run#DeviceDetection_Hash_DataSetProduction_Performance
+            # https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=run#DeviceDetection_Hash_DataSetProduction_Performance
             use_predictive_graph = True,
             use_performance_graph = False,
             # We want to show the matching evidence characters as part of this example, so we have to set
@@ -116,7 +116,7 @@ class MatchMetricsConsole():
 
 
         output("--- Listing all available properties, by component, by property name ---")
-        output("For a discussion of what the match properties mean, see: https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=match-properties-discussion#DeviceDetection_Hash_DataSetProduction_Performance\n")
+        output("For a discussion of what the match properties mean, see: https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=match-properties-discussion#DeviceDetection_Hash_DataSetProduction_Performance\n")
 
         # get the properties available from the DeviceDetection engine
         # which has the key "device". For the sake of illustration we will
@@ -178,7 +178,7 @@ def main(argv):
     # Note that the Lite data file is only used for illustration, and has
     # limited accuracy and capabilities.
     # Find out about the Enterprise data file on our pricing page:
-    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=main
+    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
     
     # Configure a logger to output to the console.

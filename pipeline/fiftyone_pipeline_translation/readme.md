@@ -1,8 +1,8 @@
 # Pipeline Translation
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=fiftyone_pipeline_translation-readme.md&utm_term=pipeline-translation "Data rewards the curious") **Python Pipeline Translation**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation-readme.md&utm_term=pipeline-translation "Data rewards the curious") **Python Pipeline Translation**
 
-[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=pipeline-python&utm_content=fiftyone_pipeline_translation-readme.md&utm_term=pipeline-translation "Developer Documentation")
+[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation-readme.md&utm_term=pipeline-translation "Developer Documentation")
 
 ## Introduction
 

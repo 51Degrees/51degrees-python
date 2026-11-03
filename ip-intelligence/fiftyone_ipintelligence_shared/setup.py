@@ -40,7 +40,7 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
 	author_email="engineering@51degrees.com",
-    url="https://51degrees.com/",
+    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_shared-setup.py&utm_term=url",
     description=("Shared code used by the cloud and on-premise variants of the 51Degrees IP Intelligence engines for the 51Degrees Pipeline API."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',

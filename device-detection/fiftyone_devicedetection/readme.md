@@ -1,8 +1,8 @@
 # 51Degrees Device Detection Engines - Device Detection
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection-readme.md&utm_term=51degrees-device-detection-engines-device-detection "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection-readme.md&utm_term=51degrees-device-detection-engines-device-detection "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
 
-[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection-readme.md&utm_term=51degrees-device-detection-engines-device-detection "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection-readme.md&utm_term=51degrees-device-detection-engines-device-detection "View all available properties and values")
+[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection-readme.md&utm_term=51degrees-device-detection-engines-device-detection "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection-readme.md&utm_term=51degrees-device-detection-engines-device-detection "View all available properties and values")
 
 ## Introduction
 

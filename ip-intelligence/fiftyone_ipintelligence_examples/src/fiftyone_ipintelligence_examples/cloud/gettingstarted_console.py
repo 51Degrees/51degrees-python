@@ -32,7 +32,7 @@
 # 3. How to retrieve the results
 #
 # A resource key is required. You can obtain one from
-# https://configure.51degrees.com/
+# https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=top
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -81,9 +81,9 @@ class GettingStartedConsole():
         # In this example, we use the IpIntelligencePipelineBuilder and
         # configure it in code. For more information about pipelines in
         # general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html
+        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=run
         settings = {
-            # Obtain a resource key from https://configure.51degrees.com
+            # Obtain a resource key from https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=run
             "resource_key": resource_key
         }
         if cloud_endpoint:
@@ -128,7 +128,7 @@ class GettingStartedConsole():
         ip_data = data.ip
 
         # Display the results of the lookup. See the property dictionary
-        # at https://51degrees.com/developers/property-dictionary for
+        # at https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=analyseevidence for
         # details of all available properties.
         for name in OUTPUT_PROPERTIES:
             self.outputValue(ip_data, name, message)
@@ -172,9 +172,9 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees cloud "
             "service is accessed using a 'ResourceKey'. For more "
             "information see "
-            "https://51degrees.com/documentation/_info__resource_keys.html. "
+            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. "
             "A resource key with the properties required by this example "
-            "can be created for free at https://configure.51degrees.com. "
+            "can be created for free at https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. "
             "Once complete, populate the environment variable mentioned at "
             "the start of this message with the key.")
 

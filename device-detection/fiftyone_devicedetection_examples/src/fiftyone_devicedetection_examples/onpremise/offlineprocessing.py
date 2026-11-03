@@ -73,15 +73,15 @@ class OfflineProcessing():
         # In this example, we use the DeviceDetectionPipelineBuilder
         # and configure it in code. For more information about
         # pipelines in general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
+        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
         pipeline = DeviceDetectionPipelineBuilder(
             data_file_path = data_file,
             # We use the low memory profile as its performance is
             # sufficient for this example. See the documentation for
             # more detail on this and other configuration options:
-            # https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
-            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
-            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
+            # https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
+            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
+            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
             performance_profile = "LowMemory",
             # inhibit sharing usage for this test, usually this
             # should be set "true"
@@ -92,7 +92,7 @@ class OfflineProcessing():
             # in order to help us improve detection of new devices/browsers/etc, then
             # this additional data will need to be collected and included as evidence
             # to the Pipeline. See
-            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run#Low_Level_Usage_Sharing
+            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run#Low_Level_Usage_Sharing
             # for more details on this.
             usage_sharing = False,
             # Inhibit auto-update of the data file for this example
@@ -190,7 +190,7 @@ def main(argv):
     # Note that the Lite data file is only used for illustration, and has
     # limited accuracy and capabilities.
     # Find out about the Enterprise data file on our pricing page:
-    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=device-detection-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=main
+    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
     # This file contains the 20,000 most commonly seen combinations of header values 
     # that are relevant to device detection. For example, User-Agent and UA-CH headers.

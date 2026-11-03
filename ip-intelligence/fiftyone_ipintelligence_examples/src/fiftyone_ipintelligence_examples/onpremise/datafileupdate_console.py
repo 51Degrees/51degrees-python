@@ -33,7 +33,7 @@
 #
 # ## License Key
 # In order to run this example you will need a 51Degrees Enterprise license,
-# which can be purchased from our pricing page: https://51degrees.com/pricing.
+# which can be purchased from our pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=top.
 # Supply the license key as the first command line argument or in the
 # 'license_key' environment variable.
 #
@@ -111,7 +111,7 @@ class DataFileUpdateConsole():
             logger.log("error",
                 "In order to run this example you will need a 51Degrees "
                 "Enterprise license, which can be obtained on a trial basis "
-                "or purchased from our pricing page https://51degrees.com/pricing. "
+                "or purchased from our pricing page https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=run. "
                 "You must supply the license key as an argument to this "
                 "program, or in an environment variable named "
                 f"'{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'")

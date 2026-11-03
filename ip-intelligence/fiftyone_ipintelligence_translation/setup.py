@@ -77,7 +77,7 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    url="https://51degrees.com/",
+    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_translation-setup.py&utm_term=url",
     description=("Country translation engines for 51Degrees on-premise IP Intelligence. Turns the weighted ISO country codes returned by the IP Intelligence engine into localized country names and complete ordered country lists."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',

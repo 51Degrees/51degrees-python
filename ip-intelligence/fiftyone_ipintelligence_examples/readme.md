@@ -1,8 +1,8 @@
 # 51Degrees IP Intelligence Engines - Examples
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=repository&utm_content=readme_main&utm_campaign=python-open-source "Data rewards the curious") **Python IP Intelligence**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=51degrees-ip-intelligence-engines-examples "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=repository&utm_content=documentation&utm_campaign=python-open-source "developer documentation")
+[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=51degrees-ip-intelligence-engines-examples "developer documentation")
 
 ## Introduction
 
@@ -11,7 +11,7 @@ Usage examples for the 51Degrees IP intelligence engines.
 ## Cloud examples
 
 Require a resource key in the `resource_key` environment variable.
-Obtain one from the [51Degrees Configurator](https://configure.51degrees.com/).
+Obtain one from the [51Degrees Configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=cloud-examples).
 
 - `cloud/gettingstarted_console.py` - resolve IP addresses using the
   cloud service from the console.
@@ -42,7 +42,7 @@ properties are reported as "not present in the data file".
 
 For the full set of properties (location, registration, etc.), a more
 complete data file is required - to obtain one for testing please
-[contact us](https://51degrees.com/contact-us) - and supply its path as
+[contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=on-premise-examples) - and supply its path as
 the first command line argument.
 
 - `onpremise/gettingstarted_console.py` - resolve IP addresses from the
