@@ -32,7 +32,7 @@
 # 2. How to pass a TAC as evidence to the Pipeline
 # 3. How to retrieve device details associated with the TAC
 #
-# This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-python/blob/version/4.5/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/cloud/taclookup_console.py).
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/cloud/taclookup_console.py).
 #
 # @include{doc} example-require-resourcekey.txt
 #

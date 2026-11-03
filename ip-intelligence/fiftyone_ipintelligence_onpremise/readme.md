@@ -10,7 +10,7 @@ This package resolves IP addresses to location, network and registration
 information using a local `.ipi` data file and the
 [51Degrees Pipeline API](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_onpremise-readme.md&utm_term=introduction).
 
-The native [ip-intelligence-cxx](https://github.com/51Degrees/ip-intelligence-cxx)
+The native [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx/blob/main/docs/ipi/README.md)
 library is included as a git submodule and wrapped with SWIG.
 
 ## Building
