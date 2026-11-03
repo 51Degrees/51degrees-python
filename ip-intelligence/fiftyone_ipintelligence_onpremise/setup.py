@@ -250,7 +250,7 @@ setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    description = """IP Intelligence and IP geolocation for Python that finds an IP address's likely location (country, region, town, and coordinates), connection type, and network by reading a data file on your server.""",
+    description = """IP Intelligence and IP geolocation for Python that finds an IP address's likely location (country, region, town, and coordinates), connection type, and network by reading a data file on your server. An alternative to MaxMind and IPinfo.""",
     keywords=[
         "51degrees",
         "ip-intelligence",
@@ -258,7 +258,9 @@ setup(
         "geoip",
         "ip-lookup",
         "asn",
-        "ip-to-country"
+        "ip-to-country",
+        "maxmind",
+        "ipinfo"
     ],
     long_description=read("readme.md"),
     long_description_content_type="text/markdown",

@@ -232,7 +232,7 @@ setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    description = """Device Detection and User-Agent parser for Python that detects the device, browser, operating system, and crawlers from the User-Agent and User-Agent Client Hints by reading a data file on your server.""",
+    description = """Device Detection and User-Agent parser for Python that detects the device, browser, operating system, and crawlers from the User-Agent and User-Agent Client Hints by reading a data file on your server. An alternative to UAParser, DeviceAtlas, and WURFL.""",
     keywords=[
         "51degrees",
         "device-detection",
@@ -241,7 +241,10 @@ setup(
         "client-hints",
         "browser-detection",
         "mobile-detection",
-        "crawler-detection"
+        "crawler-detection",
+        "wurfl",
+        "deviceatlas",
+        "uaparser"
     ],
     long_description=read("readme.md"),
     long_description_content_type="text/markdown",
