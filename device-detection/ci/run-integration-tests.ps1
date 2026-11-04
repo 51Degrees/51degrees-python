@@ -67,7 +67,12 @@ Push-Location $examplesDir
 try {
     python3 -m venv .virtualenv
     if ($LASTEXITCODE -ne 0) { throw "failed to create the examples virtual environment" }
-    & $py -m pip install -e .
+    # The pipeline packages come from this checkout rather than a package
+    # index, so the examples run with the pipeline code they are released with.
+    $pipeline = 'fiftyone_pipeline_core', 'fiftyone_pipeline_engines',
+        'fiftyone_pipeline_engines_fiftyone', 'fiftyone_pipeline_cloudrequestengine'
+    $local = $pipeline | ForEach-Object { '-e'; "../../pipeline/$_" }
+    & $py -m pip install -e . @local
     if ($LASTEXITCODE -ne 0) { throw "failed to install the examples package" }
 } finally { Pop-Location }
 
