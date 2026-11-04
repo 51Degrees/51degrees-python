@@ -29,3 +29,10 @@ CACHE_NOT_SUPPORTED = ('A results cache cannot be configured in the '
                        'on-premise IP intelligence engine. Its results '
                        'read from native memory, which is not safe to '
                        'share between requests.')
+
+ENGINE_CLOSED = ('The on-premise IP intelligence engine has been closed, '
+                 'so it cannot process evidence. Build a new pipeline.')
+
+RESULTS_CLOSED = ('These IP intelligence results have been closed, so '
+                  'their properties cannot be read. Read the values needed '
+                  'before closing the FlowData.')

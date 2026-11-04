@@ -150,6 +150,22 @@ class Engine(FlowElement):
                 pipeline.data_file_update_service = DataFileUpdateService(pipeline)
             pipeline.data_file_update_service.register_data_file(self.data_file)
 
+    def close(self):
+
+        """!
+
+        Stop the checks and updates of the engine's data file, whose timers
+        would otherwise keep the engine alive. Engines that hold native data
+        release it as well.
+
+        """
+
+        if self.data_file:
+            for pipeline in self.pipelines:
+                service = getattr(pipeline, "data_file_update_service", None)
+                if service is not None:
+                    service.unregister_data_file(self.data_file)
+
     def register_data_file(self, data_file):
 
         """!

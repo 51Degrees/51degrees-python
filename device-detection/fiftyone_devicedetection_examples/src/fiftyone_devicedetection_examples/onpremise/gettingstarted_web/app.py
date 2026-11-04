@@ -102,7 +102,10 @@ class GettingStartedWeb():
 
         # The port can be set with the PORT environment variable, as it can
         # for the cloud example, so the example can run next to other services.
-        GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5001)))
+        # The pipeline lives as long as the app, and is closed when the server
+        # stops, which releases the native data it holds.
+        with GettingStartedWeb.pipeline:
+            GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5001)))
 
     # First we make a JSON route that will be called from the client side and will return
     # a JSON encoded property database using any additional evidence provided by the client 
@@ -111,21 +114,23 @@ class GettingStartedWeb():
     @app.route('/json', methods=['POST'])
     def jsonroute():
 
-        # Create the flowdata object for the JSON route
-        flowdata = GettingStartedWeb.pipeline.create_flowdata()
+        # Create the flowdata object for the JSON route. It is closed when the
+        # route returns, which releases the results of the detection straight
+        # away rather than when the garbage collector next runs.
+        with GettingStartedWeb.pipeline.create_flowdata() as flowdata:
 
-        # Add any information from the request (headers, cookies and additional 
-        # client side provided information)
+            # Add any information from the request (headers, cookies and additional 
+            # client side provided information)
 
-        flowdata.evidence.add_from_dict(webevidence(request))
+            flowdata.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowdata
+            # Process the flowdata
 
-        flowdata.process()
+            flowdata.process()
 
-        # Return the JSON from the JSONBundler engine
+            # Return the JSON from the JSONBundler engine
 
-        return json.dumps(flowdata.jsonbundler.json)
+            return json.dumps(flowdata.jsonbundler.json)
 
     # Next we serve the client-side JavaScript from its own route. The other
     # Pipeline APIs ship a web integration that intercepts '/51Degrees.core.js'
@@ -136,26 +141,27 @@ class GettingStartedWeb():
     @app.route('/51Degrees.core.js')
     def core_js():
 
-        # Create the flowdata object for the JavaScript route
-        flowdata = GettingStartedWeb.pipeline.create_flowdata()
+        # Create the flowdata object for the JavaScript route. It is closed
+        # when the route returns.
+        with GettingStartedWeb.pipeline.create_flowdata() as flowdata:
 
-        # Add any information from the request (headers, cookies and additional
-        # client side provided information). Query parameters are included, so
-        # the per-request 'fod-js-enable-cookies' override is picked up here and
-        # applied by the JavaScriptBuilder engine.
+            # Add any information from the request (headers, cookies and additional
+            # client side provided information). Query parameters are included, so
+            # the per-request 'fod-js-enable-cookies' override is picked up here and
+            # applied by the JavaScriptBuilder engine.
 
-        flowdata.evidence.add_from_dict(webevidence(request))
+            flowdata.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowdata
+            # Process the flowdata
 
-        flowdata.process()
+            flowdata.process()
 
-        # Return the JavaScript from the JavaScriptBuilder engine
+            # Return the JavaScript from the JavaScriptBuilder engine
 
-        response = make_response(flowdata.javascriptbuilder.javascript)
-        response.headers["Content-Type"] = "application/x-javascript"
+            response = make_response(flowdata.javascriptbuilder.javascript)
+            response.headers["Content-Type"] = "application/x-javascript"
 
-        return response
+            return response
 
     # In the main route we dynamically update the screen's device property display
     # using the above JSON route
@@ -164,36 +170,37 @@ class GettingStartedWeb():
     @app.route('/')
     def server():
 
-        # Create the flowdata object for the JSON route
-        flowdata = GettingStartedWeb.pipeline.create_flowdata()
+        # Create the flowdata object for the page. It is closed when the route
+        # returns, once the page has been rendered from it.
+        with GettingStartedWeb.pipeline.create_flowdata() as flowdata:
 
-        # Add any information from the request (headers, cookies and additional 
-        # client side provided information)
+            # Add any information from the request (headers, cookies and additional 
+            # client side provided information)
 
-        flowdata.evidence.add_from_dict(webevidence(request))
+            flowdata.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowdata
+            # Process the flowdata
 
-        flowdata.process()
+            flowdata.process()
 
-        response = make_response()
+            response = make_response()
 
-        # Some browsers require that extra HTTP headers are explicitly
-        # requested. So set whatever headers are required by the browser in
-        # order to return the evidence needed by the pipeline.
-        # More info on this can be found at
-        # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=server
+            # Some browsers require that extra HTTP headers are explicitly
+            # requested. So set whatever headers are required by the browser in
+            # order to return the evidence needed by the pipeline.
+            # More info on this can be found at
+            # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=server
 
-        set_response_header(flowdata, response)
+            set_response_header(flowdata, response)
 
-        # Generate the HTML
-        response.set_data(render_template(
-            'index.html',
-            data=flowdata,
-            utils=ExampleUtils,
-            response=response))
+            # Generate the HTML
+            response.set_data(render_template(
+                'index.html',
+                data=flowdata,
+                utils=ExampleUtils,
+                response=response))
 
-        return response
+            return response
 
         
     # Typically, something like this will not be necessary.

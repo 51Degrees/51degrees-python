@@ -94,6 +94,34 @@ class FlowData:
 
         return self
 
+    def close(self):
+
+        """!
+        Release the native resources held by the element data in this
+        FlowData, such as the results of an on-premise engine, which keep
+        the engine's data in memory until they are released. Use a with
+        statement so that this happens as soon as the FlowData is finished
+        with, rather than when the garbage collector next runs.
+
+        Only element data with a close method of its own is closed, so
+        element data that needs no cleanup, such as an entry in a results
+        cache, is left alone. Values already read are unaffected.
+
+        """
+
+        for element_data in list(self.data.values()):
+            # Looked up on the class, because ElementData treats an
+            # attribute it does not have as the name of a property.
+            close = getattr(type(element_data), "close", None)
+            if callable(close):
+                close(element_data)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
+
     def get_from_element(self, flow_element):
 
         """!

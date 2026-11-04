@@ -285,6 +285,15 @@ installed the pipeline packages from PyPI. In CI the root
 `ci/setup-environment.ps1` installs them from `pipeline/` over those,
 so a pipeline change is tested with every product in the same run.
 
+A package's `setup.py` reads its version from a `version.txt`, which only
+`pipeline/fiftyone_pipeline_did` commits, so any other package installed from
+a checkout is 0.0.0. That is below the minimum versions of the pipeline
+packages that the on-premise and examples packages require, so
+`ci/write-package-versions.ps1` gives each published package the version this
+commit would release it at. The root `ci/setup-environment.ps1` runs it
+first. Run `pwsh ci/write-package-versions.ps1` before running those
+packages' tests from a checkout.
+
 ## Submodules
 
 The C/C++ engines are the `cxx` submodule, listed in the root `.gitmodules`.

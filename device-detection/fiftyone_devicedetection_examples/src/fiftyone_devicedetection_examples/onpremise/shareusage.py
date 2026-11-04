@@ -130,46 +130,51 @@ class ShareUsageExample():
         # Build a pipeline with only the ShareUsage element
         pipeline = PipelineBuilder().add(share_usage_element).build()
 
-        print("Pipeline built successfully with ShareUsage element")
+        # The pipeline is closed at the end of the with block, which waits
+        # for any usage data being sent and then stops the threads that send
+        # it.
+        with pipeline:
+            print("Pipeline built successfully with ShareUsage element")
 
-        # Load YAML evidence
-        yaml = YAML()
-        yaml_data = yaml.load_all(evidence_yaml)
+            # Load YAML evidence
+            yaml = YAML()
+            yaml_data = yaml.load_all(evidence_yaml)
 
-        # Process evidence records
-        count = 0
-        for evidence in yaml_data:
-            if count >= RECORDS_TO_PROCESS:
-                break
+            # Process evidence records
+            count = 0
+            for evidence in yaml_data:
+                if count >= RECORDS_TO_PROCESS:
+                    break
 
-            # Filter to only header.* entries
-            data = filter_evidence(
-                {k: str(v) for k, v in evidence.items()},
-                "header.")
+                # Filter to only header.* entries
+                data = filter_evidence(
+                    {k: str(v) for k, v in evidence.items()},
+                    "header.")
 
-            # Add a client IP address to the evidence for deduplication purposes
-            # (see class-level note). In a real web application, this would come
-            # from the request (e.g., REMOTE_ADDR or X-Forwarded-For header)
-            data[EVIDENCE_CLIENTIP_KEY] = generate_random_ip()
+                # Add a client IP address to the evidence for deduplication purposes
+                # (see class-level note). In a real web application, this would come
+                # from the request (e.g., REMOTE_ADDR or X-Forwarded-For header)
+                data[EVIDENCE_CLIENTIP_KEY] = generate_random_ip()
 
-            # Add the usage-from identifier so 51Degrees knows the source of this data.
-            # This appears as <header Name="usage-from">YourCompanyName</header> in the XML.
-            data[EVIDENCE_USAGE_FROM_KEY] = USAGE_FROM_VALUE
+                # Add the usage-from identifier so 51Degrees knows the source of this data.
+                # This appears as <header Name="usage-from">YourCompanyName</header> in the XML.
+                data[EVIDENCE_USAGE_FROM_KEY] = USAGE_FROM_VALUE
 
-            # Create flow data and process
-            flow_data = pipeline.create_flowdata()
-            flow_data.evidence.add_from_dict(data)
-            flow_data.process()
+                # Create flow data and process. The with statement closes it
+                # once it has been processed.
+                with pipeline.create_flowdata() as flow_data:
+                    flow_data.evidence.add_from_dict(data)
+                    flow_data.process()
 
-            count += 1
-            if count % 10 == 0:
-                print(f"Processed {count} records")
+                count += 1
+                if count % 10 == 0:
+                    print(f"Processed {count} records")
 
-        print(f"Finished processing {count} records")
-        print("Waiting for share usage to complete sending...")
+            print(f"Finished processing {count} records")
+            print("Waiting for share usage to complete sending...")
 
-        # Give the background thread time to send any remaining data
-        time.sleep(5)
+            # Give the background thread time to send any remaining data
+            time.sleep(5)
 
         print("Done!")
 

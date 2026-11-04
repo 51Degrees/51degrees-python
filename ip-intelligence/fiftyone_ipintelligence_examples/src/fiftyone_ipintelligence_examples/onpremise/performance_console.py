@@ -84,11 +84,13 @@ def _build_pipeline(data_file, performance_profile, logger=None):
 
 
 def _process_record(pipeline, record):
-    data = pipeline.create_flowdata()
-    data.evidence.add_from_dict(record)
-    data.process()
-    value = ExampleUtils.get_value(data.ip, PERFORMANCE_PROPERTY)
-    return value is not None and value.has_value()
+    # The FlowData is closed when the function returns, which releases the
+    # results of the lookup straight away.
+    with pipeline.create_flowdata() as data:
+        data.evidence.add_from_dict(record)
+        data.process()
+        value = ExampleUtils.get_value(data.ip, PERFORMANCE_PROPERTY)
+        return value is not None and value.has_value()
 
 
 def _time_lookups(pipeline, records):
@@ -115,8 +117,10 @@ def _worker(data_file, performance_profile, records, queue):
     count and elapsed seconds back to the parent.
     """
 
-    pipeline = _build_pipeline(data_file, performance_profile)
-    elapsed = _time_lookups(pipeline, records)
+    # The pipeline is closed at the end of the with block, which releases
+    # the native data it holds.
+    with _build_pipeline(data_file, performance_profile) as pipeline:
+        elapsed = _time_lookups(pipeline, records)
     queue.put((len(records), elapsed))
 
 
@@ -156,9 +160,10 @@ class PerformanceConsole():
             # wall time of the run.
             elapsed = max(elapsed for _records, elapsed in results)
         else:
-            pipeline = _build_pipeline(data_file, performance_profile, logger)
-            ExampleUtils.check_data_file(pipeline, logger)
-            elapsed = _time_lookups(pipeline, evidence)
+            with _build_pipeline(
+                    data_file, performance_profile, logger) as pipeline:
+                ExampleUtils.check_data_file(pipeline, logger)
+                elapsed = _time_lookups(pipeline, evidence)
 
         per_second = count / elapsed if elapsed > 0 else 0
         ms_per_lookup = (elapsed / count) * 1000 if count > 0 else 0

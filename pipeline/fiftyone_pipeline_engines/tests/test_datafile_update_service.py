@@ -73,9 +73,15 @@ class ScheduledCheck:
         self.pending = pending
         self.function = function
         self.args = args
+        self.cancelled = False
 
     def start(self):
         self.pending.append(self)
+
+    def cancel(self):
+        self.cancelled = True
+        if self in self.pending:
+            self.pending.remove(self)
 
 
 class FileSystemWatcherTests(unittest.TestCase):
@@ -148,6 +154,39 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.assertEqual("version 2", data_file.data)
         self.assertNotIn(
             UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, self.statuses)
+
+    # Unregistering, as closing the engine does, cancels the next check, and
+    # a check already running neither refreshes nor schedules another, so
+    # nothing is left holding the data file.
+    def testUnregisterStopsFileSystemWatcher(self):
+        data_file = StandInDataFile(self.path)
+        self.service.register_data_file(data_file)
+        check = self.pending[0]
+
+        self.service.unregister_data_file(data_file)
+        self.assertTrue(check.cancelled)
+        self.assertEqual(0, len(self.pending))
+
+        self.write("version 2")
+        check.function(*check.args)
+        self.assertEqual("version 1", data_file.data)
+        self.assertEqual(0, len(self.pending))
+
+    # Unregistering cancels the next automatic update, and an update that
+    # starts afterwards does nothing.
+    def testUnregisterStopsAutomaticUpdates(self):
+        data_file = StandInDataFile(self.path)
+        data_file.file_system_watcher = False
+        data_file.auto_update = True
+        data_file.polling_interval = 30
+        data_file.update_time_maximum_randomisation = 0
+        self.service.register_data_file(data_file)
+        check = self.pending[0]
+
+        self.service.unregister_data_file(data_file)
+        self.assertTrue(check.cancelled)
+        self.assertEqual(0, len(self.pending))
+        self.assertFalse(self.service.update_data_file(data_file))
 
 
 if __name__ == "__main__":

@@ -277,5 +277,12 @@ setup(
     py_modules=["fiftyone_ipintelligence_onpremise"],
     packages=["fiftyone_ipintelligence_onpremise"],
     package_dir={"": "src"},
-    install_requires=["fiftyone_ipintelligence_shared", "fiftyone_pipeline_engines_fiftyone"],
+    install_requires=[
+        "fiftyone_ipintelligence_shared",
+        "fiftyone_pipeline_engines_fiftyone",
+        # The first versions with close(), which releases the native memory
+        # this package holds.
+        "fiftyone_pipeline_core>=4.5.42",
+        "fiftyone_pipeline_engines>=4.5.42",
+    ],
 )

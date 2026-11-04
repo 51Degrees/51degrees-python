@@ -33,46 +33,49 @@ pipeline = DeviceDetectionOnPremisePipelineBuilder(
     performance_profile = 'MaxPerformance', 
     auto_update=False).build()
 
-# We create a FlowData object from the pipeline
-# this is used to add evidence to and then process
+# The pipeline is closed at the end of the with block, which releases the
+# native data it holds.
+with pipeline:
+    # We create a FlowData object from the pipeline
+    # this is used to add evidence to and then process. It is closed at the
+    # end of its with block, which releases the results of the detection.
+    with pipeline.create_flowdata() as flowdata1:
 
-flowdata1 = pipeline.create_flowdata()
+        # Here we add a User-Agent of an iphone as evidence
 
-# Here we add a User-Agent of an iphone as evidence
+        iphone_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114"
 
-iphone_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114"
+        flowdata1.evidence.add("header.user-agent", iphone_ua)
 
-flowdata1.evidence.add("header.user-agent", iphone_ua)
+        # Now we process the FlowData
 
-# Now we process the FlowData
+        flowdata1.process()
 
-flowdata1.process()
+        # To check whether the User-Agent is a mobile device we look at the ismobile property
+        # inside the Device Detection Engine
 
-# To check whether the User-Agent is a mobile device we look at the ismobile property
-# inside the Device Detection Engine
+        # first we check if this has a meaningful result
 
-# first we check if this has a meaningful result
+        print("Is User-Agent " + iphone_ua + " a mobile device?: ") 
+        if flowdata1.device.ismobile.has_value():
+            print(flowdata1.device.ismobile.value())
+        else:
+            # Output why the value isn't meaningful
+            print(flowdata1.device.ismobile.no_value_message())
 
-print("Is User-Agent " + iphone_ua + " a mobile device?: ") 
-if flowdata1.device.ismobile.has_value():
-    print(flowdata1.device.ismobile.value())
-else:
-    # Output why the value isn't meaningful
-    print(flowdata1.device.ismobile.no_value_message())
+    # Now we do the same with a new User-Agent, this time a corrupted one
 
-# Now we do the same with a new User-Agent, this time a corrupted one
+    badUA = "--"
 
-badUA = "--"
+    with pipeline.create_flowdata() as flowdata2:
 
-flowdata2 = pipeline.create_flowdata()
+        flowdata2.evidence.add("header.user-agent", badUA)
 
-flowdata2.evidence.add("header.user-agent", badUA)
+        flowdata2.process()
 
-flowdata2.process()
-
-print("Is User-Agent " + badUA + " a mobile device?: ") 
-if flowdata2.device.ismobile.has_value():
-    print(flowdata2.device.ismobile.value())
-else:
-    # Output why the value isn't meaningful
-    print(flowdata2.device.ismobile.no_value_message())
+        print("Is User-Agent " + badUA + " a mobile device?: ") 
+        if flowdata2.device.ismobile.has_value():
+            print(flowdata2.device.ismobile.value())
+        else:
+            # Output why the value isn't meaningful
+            print(flowdata2.device.ismobile.no_value_message())

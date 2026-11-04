@@ -88,83 +88,89 @@ class MatchMetricsConsole():
             # We want to show the matching evidence characters as part of this example, so we have to set
             # this flag to true.
             update_matched_useragent = True).add_logger(logger).build()
+
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            ExampleUtils.check_data_file(pipeline, logger)
+
+            # Closing the FlowData, which the with statement does at the end
+            # of the block, releases the results of the detection straight
+            # away, rather than when the garbage collector next runs.
+            with pipeline.create_flowdata() as data:
+
+                # Process a single evidence to retrieve the values
+                # associated with the user-agent and other evidence such as sec-ch-* for the
+                # selected properties.
+                data.evidence.add_from_dict(self.Evidence)
+                data.process()
+
+                device = data.device
+
+                output("--- Compare evidence with what was matched ---\n")
+                output("Evidence")
+                # output the evidence in reverse value length order
+                for entry in sorted(self.Evidence.items(), key=lambda item: len(item[1]), reverse=True):
+                    output(f"    {entry[0]}: {entry[1]}")
+                # Obtain the matched User-Agents: the matched substrings in the
+                # User-Agents are separated with underscores - output in forward length order.
+                output("Matches")
+                for entry in sorted(device.useragents.value(), key=lambda item: len(item)):
+                    output(f"    Matched User-Agent: {entry}")
+
+                output("")
+
+
+                output("--- Listing all available properties, by component, by property name ---")
+                output("For a discussion of what the match properties mean, see: https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=match-properties-discussion#DeviceDetection_Hash_DataSetProduction_Performance\n")
+
+                # get the properties available from the DeviceDetection engine
+                # which has the key "device". For the sake of illustration we will
+                # retrieve it indirectly.
+                hashEngineElementKey = pipeline.get_element("device").datakey
+
+                # retrieve the available properties from the hash engine. The properties
+                # available depends on
+                # a) the use of restricted_properties in the builder (see above)
+                # which controls which properties will be extracted, and also affects
+                # the performance of extraction
+                # b) the tier of data file being used. The Lite data file contains fewer
+                # than 20 of the >200 available properties
+                availableProperties = dict(pipeline.get_properties()[hashEngineElementKey])
         
-        ExampleUtils.check_data_file(pipeline, logger)
+                # create a Map keyed on the component name of the properties available
+                # components being hardware, browser, OS and Crawler.
+                def get_component(property):
+                    return property[1]["component"]
 
-        data = pipeline.create_flowdata()
-
-        # Process a single evidence to retrieve the values
-        # associated with the user-agent and other evidence such as sec-ch-* for the
-        # selected properties.
-        data.evidence.add_from_dict(self.Evidence)
-        data.process()
-
-        device = data.device
-
-        output("--- Compare evidence with what was matched ---\n")
-        output("Evidence")
-        # output the evidence in reverse value length order
-        for entry in sorted(self.Evidence.items(), key=lambda item: len(item[1]), reverse=True):
-            output(f"    {entry[0]}: {entry[1]}")
-        # Obtain the matched User-Agents: the matched substrings in the
-        # User-Agents are separated with underscores - output in forward length order.
-        output("Matches")
-        for entry in sorted(device.useragents.value(), key=lambda item: len(item)):
-            output(f"    Matched User-Agent: {entry}")
-
-        output("")
-
-
-        output("--- Listing all available properties, by component, by property name ---")
-        output("For a discussion of what the match properties mean, see: https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=match-properties-discussion#DeviceDetection_Hash_DataSetProduction_Performance\n")
-
-        # get the properties available from the DeviceDetection engine
-        # which has the key "device". For the sake of illustration we will
-        # retrieve it indirectly.
-        hashEngineElementKey = pipeline.get_element("device").datakey
-
-        # retrieve the available properties from the hash engine. The properties
-        # available depends on
-        # a) the use of restricted_properties in the builder (see above)
-        # which controls which properties will be extracted, and also affects
-        # the performance of extraction
-        # b) the tier of data file being used. The Lite data file contains fewer
-        # than 20 of the >200 available properties
-        availableProperties = dict(pipeline.get_properties()[hashEngineElementKey])
-        
-        # create a Map keyed on the component name of the properties available
-        # components being hardware, browser, OS and Crawler.
-        def get_component(property):
-            return property[1]["component"]
-
-        availableProperties = dict(sorted(availableProperties.items(),key=lambda item: get_component(item)))
-        categoryMap = groupby(availableProperties.items(), get_component)
-        # iterate the map created above
-        for component, properties in categoryMap:
-            output(component)
-            for propertyKey, property in properties:
-                propertyName = property["name"]
-                propertyDescription = property["description"]
+                availableProperties = dict(sorted(availableProperties.items(),key=lambda item: get_component(item)))
+                categoryMap = groupby(availableProperties.items(), get_component)
+                # iterate the map created above
+                for component, properties in categoryMap:
+                    output(component)
+                    for propertyKey, property in properties:
+                        propertyName = property["name"]
+                        propertyDescription = property["description"]
                 
-                # while we get the available properties and their metadata from the
-                # pipeline we get the values for the last detection from flowData
-                value = device[propertyKey]
+                        # while we get the available properties and their metadata from the
+                        # pipeline we get the values for the last detection from flowData
+                        value = device[propertyKey]
                 
-                # output property names, values and descriptions
-                # some property values are lists.
-                if value.has_value() and isinstance(value.value(), list):
-                    output(f"    {propertyName}: {len(value.value())} Values")
-                    for item in value.value():
-                        output(f"        : {item}")
+                        # output property names, values and descriptions
+                        # some property values are lists.
+                        if value.has_value() and isinstance(value.value(), list):
+                            output(f"    {propertyName}: {len(value.value())} Values")
+                            for item in value.value():
+                                output(f"        : {item}")
 
-                else:
-                    output(f"    {propertyName}: {value.value()}")
+                        else:
+                            output(f"    {propertyName}: {value.value()}")
 
-                if (show_descs == True):
-                    output(f"        {propertyDescription}")
+                        if (show_descs == True):
+                            output(f"        {propertyDescription}")
 
-        output()
-        logger.log("info", "Finished Match Metrics Example")
+            output()
+            logger.log("info", "Finished Match Metrics Example")
     
     # Evidence values from a windows 11 device using a browser
     # that supports User-Agent Client Hints.

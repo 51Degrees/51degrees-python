@@ -403,6 +403,20 @@ class DeviceDetectionOnPremise(Engine):
         super(DeviceDetectionOnPremise, self).on_registration(pipeline)
         self.init_engine()
 
+    def close(self):
+
+        """!
+
+        Stop the data file updates and release the native engine. Its data
+        is freed once no results read from it are still held, so close
+        every FlowData the engine processed as well. Closing the pipeline
+        closes the engine.
+
+        """
+
+        super(DeviceDetectionOnPremise, self).close()
+        self.engine = None
+
     def process_internal(self, flow_data):
 
         """!
@@ -413,6 +427,9 @@ class DeviceDetectionOnPremise(Engine):
         the core Pipeline library.
 
         """
+
+        if getattr(self, "engine", None) is None:
+            raise Exception(ENGINE_CLOSED)
 
         evidence = EvidenceDeviceDetectionSwig()
 
