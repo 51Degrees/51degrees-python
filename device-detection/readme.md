@@ -43,21 +43,24 @@ to use the Cloud API. You can create resource keys using our
 #### On-Premise
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
-This repository includes a free, 'lite' file in the 'device-detection-data' sub-module that has a 
-significantly reduced set of properties. To obtain a file with a more complete set of device 
-properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=on-premise). If you want to use the lite 
-file, you will need to install [GitLFS](https://git-lfs.github.com/):
+A free, 'lite' file is available, with a significantly reduced set of properties. To obtain a
+file with a more complete set of device properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=on-premise).
+
+The lite file is not stored in a repository. The [data](https://github.com/51Degrees/data)
+repository, which is the `cxx/data` submodule, links to it from
+`cxx/data/device-detection`. Download it from the root of this repository by running:
 
 ```
-sudo apt-get install git-lfs
-git lfs install
+sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
 ```
 
-Then, navigate to 'src/fiftyone_devicedetection_onpremise/cxx/device-detection-data' and execute:
+or, in PowerShell:
 
 ```
-git lfs pull
+./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash
 ```
+
+The examples run this for themselves when the file is missing.
 
 ## Folders
 

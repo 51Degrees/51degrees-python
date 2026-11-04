@@ -246,8 +246,9 @@ class GettingStartedWeb():
         if foundDataFile == False:
             raise Exception("Failed to find a device detection data file matching " +
                 f"'{dataFile}'. If using the lite file, then make sure the " +
-                "device-detection-data submodule has been updated by running " +
-                "`git submodule update --recursive`. Otherwise, ensure that the filename " +
+                "data submodule is there, by running " +
+                "`git submodule update --init --recursive`, and run this " +
+                "example again to download the file. Otherwise, ensure that the filename " +
                 "is correct in config.json, or set the environment variable " +
                 f"'{ExampleUtils.DATA_FILE_ENV_VAR}' to the path of the data file.")
 

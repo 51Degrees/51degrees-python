@@ -140,7 +140,6 @@
     "Name": "fiftyone_ipintelligence_onpremise",
     "Product": "ip-intelligence",
     "Path": "ip-intelligence/fiftyone_ipintelligence_onpremise",
-    "ExtraPaths": ["ip-intelligence/ip-intelligence-data"],
     "DependsOn": [
       "fiftyone_ipintelligence_shared",
       "fiftyone_pipeline_engines_fiftyone"
@@ -153,7 +152,6 @@
     "Name": "fiftyone_ipintelligence_translation",
     "Product": "ip-intelligence",
     "Path": "ip-intelligence/fiftyone_ipintelligence_translation",
-    "ExtraPaths": ["ip-intelligence/ip-intelligence-data"],
     "DependsOn": [
       "fiftyone_pipeline_core",
       "fiftyone_pipeline_translation"

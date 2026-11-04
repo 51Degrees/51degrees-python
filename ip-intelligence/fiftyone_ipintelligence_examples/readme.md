@@ -34,11 +34,12 @@ python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_web
 ## On-premise examples
 
 Require a `.ipi` data file in the format the engine reads (see
-[Data files](../readme.md#data-files)). The
-`ip-intelligence-data` submodule includes a freely available network-only
-file (`51Degrees-IPIV4AsnIpiV41.ipi`) that the examples fall back to; it
-only contains the ASN/network properties, so location and registration
-properties are reported as "not present in the data file".
+[Data files](../readme.md#data-files)). The data repository, at
+`cxx/data`, links to a freely available network-only file
+(`51Degrees-IPIV4AsnIpiV41.ipi`) that the examples fall back to, and an
+example downloads it when it is missing. It only contains the ASN/network
+properties, so location and registration properties are reported as "not
+present in the data file".
 
 For the full set of properties (location, registration, etc.), a more
 complete data file is required - to obtain one for testing please
@@ -50,7 +51,7 @@ the first command line argument.
 - `onpremise/metadata_console.py` - list the properties available from
   the data file.
 - `onpremise/offlineprocessing.py` - batch process the evidence file
-  from the ip-intelligence-data repository.
+  from the data repository.
 - `onpremise/performance_console.py` - benchmark the number of IP lookups
   performed per second.
 - `onpremise/compare_console.py` - compare the location returned for each

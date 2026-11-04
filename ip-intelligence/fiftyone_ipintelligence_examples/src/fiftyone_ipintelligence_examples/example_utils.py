@@ -22,6 +22,8 @@
 
 from datetime import datetime, timedelta
 import os
+import shlex
+import subprocess
 from pathlib import Path
 
 
@@ -42,6 +44,15 @@ class ExampleUtils:
     # The default environment variable used to get the data file path
     # to use when running examples.
     DATA_FILE_ENV_VAR = "IPINTELLIGENCEDATAFILE"
+
+    # The data repository's IP intelligence folder, from the root of a
+    # checkout of this repository. Each file the data repository links to
+    # belongs in this folder, beside its .link file.
+    DATA_FOLDER = os.path.join("cxx", "data", "ip-intelligence")
+
+    # Sent with each download, so the downloads these examples make can be
+    # counted.
+    DOWNLOAD_SOURCE = "examples-51degrees-python"
 
     @staticmethod
     def get_human_readable(ip_data, property):
@@ -112,8 +123,9 @@ class ExampleUtils:
         """!
         Find the specified file. First checks the data file environment
         variable, then searches up the directory tree from the current
-        working directory looking in 'assets' and 'ip-intelligence-data'
-        folders.
+        working directory looking in 'assets' and the data repository's
+        folder. A file the data repository links to is downloaded there
+        when it is missing.
         """
 
         env = os.environ.get(ExampleUtils.DATA_FILE_ENV_VAR)
@@ -123,15 +135,54 @@ class ExampleUtils:
         current = Path(os.getcwd()).resolve()
         roots = [current, *current.parents]
         for root in roots[:8]:
-            for sub_dir in [
-                    ".",
-                    "assets",
-                    "ip-intelligence-data",
-                    os.path.join("cxx", "ip-intelligence-data")]:
+            for sub_dir in [".", "assets", ExampleUtils.DATA_FOLDER]:
                 candidate = os.path.join(str(root), sub_dir, file_name)
                 if os.path.isfile(candidate):
                     return candidate
 
+        for root in roots[:8]:
+            candidate = os.path.join(
+                str(root), ExampleUtils.DATA_FOLDER, file_name)
+            if os.path.isfile(candidate + ".link"):
+                return ExampleUtils.__download(candidate)
+
+        return None
+
+    @staticmethod
+    def __download(path):
+
+        """!
+        Download a file the data repository links to, by running the data
+        repository's own script for that file, and return its path, or None
+        when it could not be downloaded. The data repository is the folder
+        above the one that holds the file's .link.
+        """
+
+        name = os.path.basename(path)
+        data = os.path.dirname(os.path.dirname(path))
+        if os.name == "nt":
+            command = [
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", os.path.join(data, "get-data-files.ps1"), name,
+                "-Source", ExampleUtils.DOWNLOAD_SOURCE]
+            text = subprocess.list2cmdline(command)
+        else:
+            command = [
+                "sh", os.path.join(data, "get-data-files.sh"),
+                "-s", ExampleUtils.DOWNLOAD_SOURCE, name]
+            text = shlex.join(command)
+
+        # Flushed first, because the script writes to the same output.
+        print(f"{name} is missing, so it is being downloaded by running\n"
+              f"{text}", flush=True)
+        try:
+            subprocess.run(command, check=False)
+        except OSError:
+            pass
+        if os.path.isfile(path):
+            return path
+        print(f"{name} could not be downloaded. Run this command to try "
+              f"again.\n{text}")
         return None
 
     @staticmethod
@@ -167,9 +218,10 @@ class ExampleUtils:
                     f"This data file is more than "
                     f"{ExampleUtils.DATA_FILE_AGE_WARNING} days old. A more "
                     f"recent data file may be needed to correctly resolve "
-                    f"the latest IP addresses. The latest data file is "
-                    f"available from the ip-intelligence-data repository on "
-                    f"GitHub https://github.com/51Degrees/ip-intelligence-data.")
+                    f"the latest IP addresses. Get the latest free data files "
+                    f"by running cxx/data/get-data-files.sh -u ip-intelligence, "
+                    f"or cxx/data/get-data-files.ps1 ip-intelligence -Update "
+                    f"on Windows.")
 
             if product == "Lite":
                 logger.log("warning",

@@ -211,8 +211,9 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find a device detection data file. Make sure the " +
-            "device-detection-data submodule has been updated by running " +
-            "`git submodule update --recursive`.")
+            "data submodule is there, by running " +
+            "`git submodule update --init --recursive`, and run this " +
+            "example again to download the file.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -32,10 +32,10 @@
 # 2. How to pass input data (evidence) to the Pipeline
 # 3. How to retrieve the results
 #
-# This example uses a local IP intelligence data file (.ipi). The
-# ip-intelligence-data submodule provides a freely available data file;
-# a more complete data file can be supplied as the first command line
-# argument.
+# This example uses a local IP intelligence data file (.ipi). The data
+# repository links to a freely available data file, which the example
+# downloads when it is missing. A more complete data file can be supplied
+# as the first command line argument.
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -170,8 +170,9 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find an IP intelligence data file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`, or supply the path to a "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`, and run this "
+            "example again to download the file, or supply the path to a "
             "data file as the first command line argument.")
 
 if __name__ == "__main__":
