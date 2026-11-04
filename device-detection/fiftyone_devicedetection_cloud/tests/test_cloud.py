@@ -121,7 +121,7 @@ class DeviceDetectionTests(unittest.TestCase):
         result = str(raised.exception)
         self.assertIn("notpresent", result)
         self.assertIn("['device']", result)
-        self.assertIn("https://51degrees.com/documentation/_info__resource_keys.html", result)
+        self.assertIn("https://51degrees.com/documentation/_services__cloud__resource_keys.html", result)
 
     def test_engine_init_performance(self):
         """!
@@ -172,7 +172,7 @@ class DeviceDetectionTests(unittest.TestCase):
         self.assertIn("notpresent", result)
         self.assertIn("device", result)
         self.assertIn(', '.join(pipeline.get_element("device").get_properties().keys()), result)
-        self.assertIn("https://51degrees.com/documentation/_info__resource_keys.html", result)
+        self.assertIn("https://51degrees.com/documentation/_services__cloud__resource_keys.html", result)
 
     def test_cloud_request_origin(self):
         """!
