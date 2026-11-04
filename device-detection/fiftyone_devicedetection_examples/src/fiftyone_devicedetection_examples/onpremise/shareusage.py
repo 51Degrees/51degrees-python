@@ -184,8 +184,9 @@ def main(argv):
             ShareUsageExample().run(input)
     else:
         print("ERROR: Failed to find the evidence file. Make sure the "
-            "device-detection-data submodule has been updated by running "
-            "`git submodule update --recursive`.")
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`, and run this "
+            "example again to download the file.")
 
 
 if __name__ == "__main__":

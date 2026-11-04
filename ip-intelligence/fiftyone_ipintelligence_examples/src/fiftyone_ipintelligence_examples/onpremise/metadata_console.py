@@ -66,9 +66,8 @@ def main(argv):
         MetadataConsole().run(data_file, logger, print)
     else:
         logger.log("error",
-            "Failed to find an IP intelligence data file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`. To obtain an enterprise "
+            "Failed to find an IP intelligence data file. Supply its path "
+            "as the first command line argument. To obtain an enterprise "
             "data file for testing, please contact us: "
             "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-metadata_console.py&utm_term=data-file-required")
 

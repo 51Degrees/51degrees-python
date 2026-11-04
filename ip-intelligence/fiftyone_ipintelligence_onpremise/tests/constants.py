@@ -42,11 +42,12 @@ class TestConstants:
             os.path.dirname(__file__),
             "..", "..", "assets", "51Degrees-LiteIpiV41.ipi")
 
-    # The ASN data file committed to the repository's ip-intelligence-data
-    # submodule. Unlike the Lite and Enterprise files it needs no download
-    # or secret, so it is always present wherever the engine can be built.
+    # The free ASN data file, which ci/fetch-assets.ps1 downloads with the
+    # data repository's script, beside its link in cxx/data/ip-intelligence.
+    # Unlike the Enterprise file it needs no secret.
     @staticmethod
-    def get_committed_data_file_path():
+    def get_asn_data_file_path():
         return os.path.join(
             os.path.dirname(__file__),
-            "..", "..", "ip-intelligence-data", ASN_DATAFILE_NAME)
+            "..", "..", "..", "cxx", "data", "ip-intelligence",
+            ASN_DATAFILE_NAME)

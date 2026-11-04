@@ -23,8 +23,8 @@
 ## @example onpremise/offlineprocessing.py
 # Provides an example of processing a YAML file containing evidence for
 # IP intelligence. There are 20,000 IP addresses in the supplied file of
-# evidence records ('evidence.yml' in the ip-intelligence-data
-# repository).
+# evidence records ('evidence.yml' in the data repository's
+# ip-intelligence folder).
 #
 # We create a pipeline using the on-premise engine, deserialize the
 # YAML evidence records, pass each entry to the pipeline and write the
@@ -120,8 +120,8 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find a data file or evidence file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`.")
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

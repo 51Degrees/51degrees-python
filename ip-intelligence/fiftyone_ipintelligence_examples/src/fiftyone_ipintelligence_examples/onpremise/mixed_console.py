@@ -48,8 +48,8 @@ from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise import IpIntelli
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 
-# Default name of the device detection data file (the lite file included in
-# the device-detection-data repository).
+# Default name of the device detection data file (the lite file the data
+# repository links to).
 HASH_DATAFILE_NAME = "51Degrees-LiteV4.1.hash"
 
 # Combined evidence: a User-Agent for device detection and an IP address for
@@ -199,14 +199,19 @@ def main(argv):
     else:
         if not device_file:
             logger.log("error",
-                "Failed to find a device detection data file. Make sure the "
-                "device-detection-data submodule has been updated, or supply "
-                "the path as the first command line argument.")
+                "Failed to find a device detection data file. Supply its "
+                "path as the first command line argument. Get the free Lite "
+                "file by running "
+                "cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash, or "
+                "cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash on "
+                "Windows, which saves it in cxx/data/device-detection.")
         if not ip_file:
             logger.log("error",
                 "Failed to find an IP intelligence data file. Make sure the "
-                "ip-intelligence-data submodule has been updated, or supply "
-                "the path as the second command line argument.")
+                "data submodule is there, by running "
+                "`git submodule update --init --recursive`, and run this "
+                "example again to download the file, or supply the path as "
+                "the second command line argument.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -150,8 +150,9 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find an IP intelligence data file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`, or supply the path to a "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`, and run this "
+            "example again to download the file, or supply the path to a "
             "data file as the first command line argument.")
 
 

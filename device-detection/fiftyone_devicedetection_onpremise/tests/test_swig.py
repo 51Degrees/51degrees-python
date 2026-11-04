@@ -28,7 +28,7 @@ from fiftyone_devicedetection_onpremise.devicedetection_onpremise import DeviceD
 from fiftyone_devicedetection_onpremise.swig_data import SwigData
 from fiftyone_devicedetection_shared.utils import *
 
-data_file = "../../cxx/device-detection-data/51Degrees-LiteV4.1.hash"
+data_file = "../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 
 # Create a simple pipeline to access the engine with and process it with flow data
 deviceDetectionOnPremiseEngine = DeviceDetectionOnPremise(

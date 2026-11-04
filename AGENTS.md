@@ -39,10 +39,20 @@ so a pipeline change is tested with every product in the same run.
 
 ## Submodules
 
-The C/C++ engines and the data files are submodules, listed in the root
-`.gitmodules` at their paths under each product folder. The IP Intelligence
-on-premise package must compile its own copy of the common C library with
-large data file support; the Device Detection one without it.
+The C/C++ engines are the `cxx` submodule, listed in the root `.gitmodules`.
+The data files come through cxx's own `data` submodule, at
+`cxx/data/device-detection` and `cxx/data/ip-intelligence`, where each free
+file is a `<file>.link` that `cxx/data/get-data-files.ps1` or
+`cxx/data/get-data-files.sh` downloads. Each product's `ci/fetch-assets.ps1`
+gets the files its tests need, and the examples' `example_utils.py` runs the
+script for a file that is missing. The IP Intelligence on-premise package must
+compile its own copy of the common C library with large data file support;
+the Device Detection one without it.
+
+A package's `ExtraPaths` in `ci/packages.json` cannot be a folder inside
+`cxx`, because git reports any change there as a change to `cxx` itself. A
+cxx update therefore releases no package, even when it brings new translations
+in `cxx/data/ip-intelligence`.
 
 ## History
 

@@ -28,12 +28,17 @@ python setup.py build_clib build_ext
 
 ## Data files
 
-The on-premise engine requires a `.ipi` data file. A Lite data file can be
-downloaded from
-[51Degrees](https://51ddatafiles.blob.core.windows.net/enterpriseipi/51Degrees-LiteIpiV41.ipi.gz),
-see also the [ip-intelligence-data](https://github.com/51Degrees/ip-intelligence-data)
-repository which is included as a nested submodule and contains evidence
-files for testing.
+The on-premise engine requires a `.ipi` data file. The free Lite data file,
+`51Degrees-LiteV41.ipi`, is linked from the
+[data](https://github.com/51Degrees/data) repository, which is included as
+the nested submodule `cxx/data` and contains evidence files for testing. From
+the root of a checkout of
+[51degrees-python](https://github.com/51Degrees/51degrees-python), download it
+by running `sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi`, or
+`./cxx/data/get-data-files.ps1 51Degrees-LiteV41.ipi` in PowerShell. Without a
+checkout, download it from
+https://distributor.51degrees.com/api/v2/free/ipi-lite-v41, which sends it
+gzip compressed.
 
 ## Usage
 
@@ -41,7 +46,7 @@ files for testing.
 from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise_pipelinebuilder import IpIntelligenceOnPremisePipelineBuilder
 
 pipeline = IpIntelligenceOnPremisePipelineBuilder(
-    data_file_path="51Degrees-LiteIpiV41.ipi",
+    data_file_path="51Degrees-LiteV41.ipi",
     licence_keys="",
     usage_sharing=False).build()
 

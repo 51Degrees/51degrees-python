@@ -29,10 +29,10 @@ from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_FILE_NAME
 
-# The tests run against the freely available data file committed to the
-# ip-intelligence-data submodule, so they only rely on properties that the
-# free data file provides (location properties such as Latitude, Longitude
-# and Areas are not present in it).
+# The tests run against the freely available ASN data file the data
+# repository links to, so they only rely on properties that the free data
+# file provides (location properties such as Latitude, Longitude and Areas
+# are not present in it).
 data_file = ExampleUtils.find_file(ASN_DATAFILE_NAME)
 evidence_file = ExampleUtils.find_file(EVIDENCE_FILE_NAME)
 truth_file = ExampleUtils.find_file("geoip_comparison_evidence.csv")
@@ -61,8 +61,8 @@ class ExampleTests(unittest.TestCase):
     @unittest.skipUnless(
         bool(data_file), "No IP intelligence data file available")
     def test_onpremise_datafile_loads(self):
-        # Verify the freely available data file committed to the
-        # ip-intelligence-data submodule loads and processes correctly.
+        # Verify the freely available ASN data file loads and processes
+        # correctly.
         from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
         pipeline = IpIntelligencePipelineBuilder(
             data_file_path=data_file,

@@ -38,12 +38,13 @@ EVIDENCE_VALUES = [
 # Note: the .NET examples' Constants.cs still uses the legacy name
 # "51Degrees-EnterpriseIpiV41.ipi", but the published enterprise/ASN data
 # files use the "IPIV4" infix (cf. 51Degrees-IPIV4AsnIpiV41.ipi in the
-# ip-intelligence-data repo), so the current name is used here.
+# data repository), so the current name is used here.
 ENTERPRISE_DATAFILE_NAME = '51Degrees-IPIV4EnterpriseIpiV41.ipi'
-LITE_DATAFILE_NAME = '51Degrees-LiteIpiV41.ipi'
-# The ASN data file is the freely available data file committed
-# to the ip-intelligence-data submodule. It only contains the network
-# (ASN) properties, but is useful for testing the on-premise engine against
-# the current data format without an enterprise data file.
+# The free Lite data file, named as the data repository links to it.
+LITE_DATAFILE_NAME = '51Degrees-LiteV41.ipi'
+# The ASN data file is a freely available data file the data repository
+# links to. It only contains the network (ASN) properties, but is useful for
+# testing the on-premise engine against the current data format without an
+# enterprise data file.
 ASN_DATAFILE_NAME = '51Degrees-IPIV4AsnIpiV41.ipi'
 EVIDENCE_FILE_NAME = 'evidence.yml'
