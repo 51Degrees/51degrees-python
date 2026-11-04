@@ -50,6 +50,8 @@ setuptools.setup(
     install_requires=[
         "fiftyone_ipintelligence",
         "fiftyone_ipintelligence_translation",
+        # The first version with close(), which the examples use.
+        "fiftyone_pipeline_core>=4.5.42",
         "flask",
         "ruamel.yaml"
     ],

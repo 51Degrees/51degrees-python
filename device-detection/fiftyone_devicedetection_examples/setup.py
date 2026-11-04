@@ -61,7 +61,9 @@ setuptools.setup(
     # named here so that is visible to anyone reading them.
     # fiftyone_devicedetection is still required because the on-premise
     # examples in this same package use the on-premise engine.
-    install_requires=["fiftyone_devicedetection_cloud", "fiftyone_devicedetection", "flask", "flask-unittest", "json5", "ruamel.yaml"],
+    # fiftyone_pipeline_core 4.5.42 is the first version with close(), which
+    # the examples use.
+    install_requires=["fiftyone_devicedetection_cloud", "fiftyone_devicedetection", "fiftyone_pipeline_core>=4.5.42", "flask", "flask-unittest", "json5", "ruamel.yaml"],
     license="EUPL-1.2",
     classifiers=[
         "Development Status :: 5 - Production/Stable",

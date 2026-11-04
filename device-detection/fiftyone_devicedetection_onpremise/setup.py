@@ -256,5 +256,12 @@ setup(
     py_modules=["fiftyone_devicedetection_onpremise"],
     packages=["fiftyone_devicedetection_onpremise"],
     package_dir={"": "src"},
-    install_requires=["fiftyone_devicedetection_shared", "fiftyone_pipeline_engines_fiftyone"],
+    install_requires=[
+        "fiftyone_devicedetection_shared",
+        "fiftyone_pipeline_engines_fiftyone",
+        # The first versions with close(), which releases the native memory
+        # this package holds.
+        "fiftyone_pipeline_core>=4.5.42",
+        "fiftyone_pipeline_engines>=4.5.42",
+    ],
 )
