@@ -27,6 +27,40 @@ from unittest import mock
 from fiftyone_pipeline_core import javascriptbuilder
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
+from .classes.memorylogger import MemoryLogger
+
+
+class _CapturedAll:
+    """Records the variables of every render and renders nothing."""
+
+    def __init__(self):
+        self.variables = []
+
+    def render(self, template, variables):
+        self.variables.append(dict(variables))
+        return ""
+
+
+def _render_with_hosts(hosts):
+    """Renders once for each host given, all through the same element, with
+    the host taken from the request's evidence. Returns the variables of
+    each render and the errors the pipeline logged."""
+
+    logger = MemoryLogger("error")
+    pipeline = PipelineBuilder({"javascript_builder_settings": {
+        "minify": False, "endpoint": "/json"}}).add_logger(logger).build()
+    captured = _CapturedAll()
+    with mock.patch.object(
+            javascriptbuilder.chevron, "render", captured.render):
+        for host in hosts:
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("header.host", host)
+            flowdata.process()
+    errors = [
+        entry["message"] for entry in logger.memory_log
+        if entry["level"] == "error"]
+    return captured.variables, errors
+
 
 class _Captured:
     """Records the variables of the last render and renders nothing."""
@@ -146,6 +180,56 @@ class JavaScriptBuilderVariablesTests(unittest.TestCase):
 
         self.assertEqual(
             "https://example.com/json?tenant=1", variables["_url"])
+
+    def test_refused_url_is_left_out_and_logged_once(self):
+        """A host the check refuses gives a script with no callback, and the
+        refusal is logged as an error the first time only, whatever the
+        requests in between."""
+
+        rendered, errors = _render_with_hosts(
+            ["exa mple.com", "exa mple.com", "example.com", "exa mple.com"])
+
+        for i, variables in enumerate(rendered):
+            if i == 2:
+                self.assertEqual(
+                    "https://example.com/json", variables["_url"])
+                self.assertTrue(variables["_updateEnabled"])
+            else:
+                self.assertNotIn("_url", variables)
+                self.assertFalse(variables["_updateEnabled"])
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn("'https://exa mple.com/json'", errors[0])
+
+    def test_refused_url_is_logged_on_one_line(self):
+        """The URL is quoted and escaped in the log, so a line break in it
+        cannot start a new log line."""
+
+        _, errors = _render_with_hosts(["a\nb.com\r\u2028"])
+
+        self.assertEqual(1, len(errors), errors)
+        for c in "\n\r\u2028":
+            self.assertNotIn(c, errors[0])
+        self.assertIn("a\\nb.com\\r\\u2028", errors[0])
+
+    def test_blank_host_gives_no_callback_and_is_not_logged(self):
+        """A host made only of whitespace is not set, so the script has no
+        callback and nothing is logged."""
+
+        rendered, errors = _render_with_hosts(["  "])
+
+        self.assertNotIn("_url", rendered[0])
+        self.assertFalse(rendered[0]["_updateEnabled"])
+        self.assertEqual([], errors)
+
+    def test_host_from_the_request_is_written_as_checked(self):
+        """A host from the request reaches the script as the check writes
+        it, in lower case and with anything that could end the string the
+        script holds it in percent-encoded."""
+
+        rendered, _ = _render_with_hosts(["EXAMPLE.com/');alert(1);//"])
+
+        self.assertEqual(
+            "https://example.com/%27);alert(1);//json", rendered[0]["_url"])
 
 
 if __name__ == "__main__":
