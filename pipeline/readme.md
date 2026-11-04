@@ -24,7 +24,7 @@ The examples are described under Examples below. The `owid-python` folder is a g
 ## Dependencies
 
 For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page.
-The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows the Python versions that we currently test against. The software may run fine against other versions, but additional caution should be applied.
+The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows the Python versions that we currently test against. The software may run fine against other versions, but additional caution should be applied.
 
 ## Installation
 
@@ -56,7 +56,7 @@ The tests that call the 51Degrees cloud service read a resource key from the `re
 ## Examples
 
 There are several examples available that demonstrate how to make use of the Pipeline API in isolation. These are described in the table below.
-If you want examples that demonstrate how to use 51Degrees products such as device detection, then these are available in the corresponding [folder](https://github.com/51Degrees/51degrees-python/tree/main/device-detection) and on our [website](https://51degrees.com/documentation/_examples__device_detection__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=examples).
+If you want examples that demonstrate how to use 51Degrees products such as device detection, then these are available in the corresponding [folder](https://github.com/51Degrees/51degrees-python/tree/main/device-detection) and on our [website](https://51degrees.com/documentation/_device_detection__examples__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=examples).
 
 | Example                                                                     | Description                                                                                          |
 |-----------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|

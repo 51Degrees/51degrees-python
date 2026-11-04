@@ -73,7 +73,7 @@ class CloudEngine(Engine):
         # key in use, a resource key or a licence key, so a section missing
         # from them means that key does not carry the product at all.
         if not self.datakey in pipeline.flow_elements_list["cloud"].flow_element_properties:
-            raise Exception("The key in use does not include access to any properties under the engine with key " + self.datakey +  " that was added to the pipeline. For more details on resource keys, see our explainer: https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=engine-properties-not-accessible " + "Available engine data keys are: " + str([e for e in pipeline.flow_elements_list["cloud"].flow_element_properties]))
+            raise Exception("The key in use does not include access to any properties under the engine with key " + self.datakey +  " that was added to the pipeline. For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=engine-properties-not-accessible " + "Available engine data keys are: " + str([e for e in pipeline.flow_elements_list["cloud"].flow_element_properties]))
 
         self.properties = pipeline.flow_elements_list["cloud"].flow_element_properties[self.datakey]
 
@@ -95,7 +95,7 @@ class CloudEngine(Engine):
 
         """
 
-        raise Exception("The key in use does not include access to any properties under " + element +  ". For more details on resource keys, see our explainer: https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=element-properties-not-accessible " + "Available element data keys are: " + str([e for e in flowdata.pipeline.flow_elements_display_list]))
+        raise Exception("The key in use does not include access to any properties under " + element +  ". For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=element-properties-not-accessible " + "Available element data keys are: " + str([e for e in flowdata.pipeline.flow_elements_display_list]))
 
 
     def process_internal(self, flowdata):

@@ -76,7 +76,7 @@ the on-premise engines and the data files.
 ## Supported Python versions
 
 The packages support Python 3.10 and later. The
-[tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=tested-versions)
+[tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=tested-versions)
 page lists the versions each release is tested against.
 
 ## Versions

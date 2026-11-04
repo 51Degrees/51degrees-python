@@ -2,7 +2,7 @@
 
 ![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "developer documentation")
 
 ## Introduction
 
@@ -21,7 +21,7 @@ design of this API.
 
 For runtime dependencies, see our
 [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies)
-page. The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies)
+page. The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies)
 page shows the Python versions that we currently test against.
 
 ### Git submodules

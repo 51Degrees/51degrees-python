@@ -713,3 +713,10 @@ is refreshed by common-ci's `update-example-assets` step.
   not a format limit.
 - **No creation of new 51Dids.** This is a parser; new 51Dids are issued by the
   51Degrees cloud / on-premise hashing engines.
+
+## Find out more
+
+- [51Did](https://51degrees.com/developers/51did?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did&utm_term=find-out-more-51did)
+- [51Did documentation](https://51degrees.com/documentation/_identifiers_51_did.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did&utm_term=find-out-more-documentation)
+- [51Did inspector](https://51degrees.com/developers/51did-inspector?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did&utm_term=find-out-more-51did-inspector)
+- https://github.com/51Degrees/51degrees-python

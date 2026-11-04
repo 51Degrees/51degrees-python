@@ -1,8 +1,8 @@
 # Cloud Request Engine
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-readme.md&utm_term=cloud-request-engine "Data rewards the curious") **Python Pipeline Cloud Request Engine**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=cloud-request-engine "Data rewards the curious") **Python Pipeline Cloud Request Engine**
 
-[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-readme.md&utm_term=cloud-request-engine "Developer Documentation")
+[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=cloud-request-engine "Developer Documentation")
 
 ## Introduction
 
@@ -16,7 +16,7 @@ The Pipeline is a generic web request intelligence and data processing solution 
 
 This package uses the `engines` class created by the `fiftyone-pipeline-engines`. It makes available:
 
-* A `Cloud Request Engine` which calls the 51Degrees cloud service to fetch properties and metadata about them based on a provided resource key. Get a resource key at https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-readme.md&utm_term=this-package-fiftyone_pipeline_cloudrequestengine
+* A `Cloud Request Engine` which calls the 51Degrees cloud service to fetch properties and metadata about them based on a provided resource key. Get a resource key at https://configure.51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=this-package-fiftyone_pipeline_cloudrequestengine
 * A `Cloud Engine` template which reads data from the Cloud Request Engine.
 
 ## Credentials
@@ -79,3 +79,11 @@ It is used by the cloud versions of the following 51Degrees engines:
 
 - [**fiftyone_devicedetection**](https://pypi.org/project/fiftyone-devicedetection/) - Get details about the devices accessing your web page
 - [**fiftyone_location**](https://pypi.org/project/fiftyone-location/) - Get postal address details from the location of devices accessing your web page
+
+## Find out more
+
+- [Build your own](https://51degrees.com/build-your-own?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-build-your-own)
+- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-documentation)
+- [Pipeline API examples](https://51degrees.com/documentation/_pipeline_api__examples__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-examples)
+- [Cloud service documentation](https://51degrees.com/documentation/_services__cloud__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-cloud-service)
+- https://github.com/51Degrees/51degrees-python
