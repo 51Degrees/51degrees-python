@@ -35,7 +35,7 @@
 # and [hash dataset options](/documentation/4.5/_device_detection__hash.html#DeviceDetection_Hash_DataSetProduction_Performance)
 # for more information about adjusting performance.
 # 
-# This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-python/blob/main/fiftyone_devicedetection_examples/fiftyone_devicedetection_examples/onpremise/performance.py). 
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/onpremise/performance.py). 
 # 
 # @include{doc} example-require-datafile.txt
 # 

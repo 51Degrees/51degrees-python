@@ -38,7 +38,7 @@ Generally, you will want to be installing one of the engines such as [device det
 
 ### From GitHub
 
-* Clone the repository with its submodules, `git clone --recurse-submodules https://github.com/51Degrees/pipeline-python.git`
+* Clone the repository with its submodules, `git clone --recurse-submodules https://github.com/51Degrees/51degrees-python.git`
 * Create and activate a Python virtual environment
 * Run `pwsh ./setup.ps1` in the root of the folder, which installs the modules from the working copy, apart from `fiftyone_pipeline_did`, together with flask
 
@@ -56,7 +56,7 @@ The tests that call the 51Degrees cloud service read a resource key from the `re
 ## Examples
 
 There are several examples available that demonstrate how to make use of the Pipeline API in isolation. These are described in the table below.
-If you want examples that demonstrate how to use 51Degrees products such as device detection, then these are available in the corresponding [repository](https://github.com/51Degrees/device-detection-python) and on our [website](https://51degrees.com/documentation/_examples__device_detection__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=examples).
+If you want examples that demonstrate how to use 51Degrees products such as device detection, then these are available in the corresponding [folder](https://github.com/51Degrees/51degrees-python/tree/main/device-detection) and on our [website](https://51degrees.com/documentation/_examples__device_detection__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=examples).
 
 | Example                                                                     | Description                                                                                          |
 |-----------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|

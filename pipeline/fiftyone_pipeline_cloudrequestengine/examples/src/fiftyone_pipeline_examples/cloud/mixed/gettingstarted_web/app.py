@@ -31,7 +31,7 @@
 # Each time the pipeline processes a request, one request to the cloud
 # service returns the results of every engine in it.
 #
-# This example is available in full on [GitHub](https://github.com/51Degrees/pipeline-python/blob/main/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_web/app.py).
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_web/app.py).
 #
 # To run this example you need a resource key or a licence key.
 #

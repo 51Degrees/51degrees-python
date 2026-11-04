@@ -25,7 +25,7 @@
 #
 # @include{doc} example-getting-started-web.txt
 # 
-# This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-python/blob/main/fiftyone_devicedetection_examples/fiftyone_devicedetection_examples/onpremise/gettingstarted_web/app.py). 
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/onpremise/gettingstarted_web/app.py). 
 # 
 # @include{doc} example-require-datafile.txt
 # 
@@ -42,7 +42,7 @@
 # ```{py}
 # flowdata.evidence.add_from_dict(webevidence(request))
 # ```
-
+#
 # The module can also handling setting response headers (e.g. Accept-CH for User-Agent 
 # Client Hints) and serving requests for client-side JavaScript and JSON resources.
 # ```{py}
@@ -70,7 +70,7 @@
 # ```
 #
 # ## View
-# @include templates/index.html
+# @include onpremise/gettingstarted_web/templates/index.html
 #
 # ## App
 

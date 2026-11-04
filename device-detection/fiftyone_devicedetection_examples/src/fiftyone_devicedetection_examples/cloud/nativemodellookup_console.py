@@ -29,7 +29,7 @@
 # [Android devices](https://developer.android.com/reference/android/os/Build#MODEL) and 
 # [iOS devices](https://gist.github.com/soapyigu/c99e1f45553070726f14c1bb0a54053b#file-machinename-swift)
 # 
-# This example is available in full on [GitHub](https://github.com/51Degrees/device-detection-python/blob/main/fiftyone_devicedetection_examples/fiftyone_devicedetection_examples/cloud/nativemodellookup_console.py). 
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/cloud/nativemodellookup_console.py). 
 # 
 # @include{doc} example-require-resourcekey.txt
 #

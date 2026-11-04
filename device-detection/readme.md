@@ -13,7 +13,7 @@ The Pipeline is a generic web request intelligence and data processing solution 
 This git repository uses submodules, to clone the git repository run:
 
 ```bash
-git clone --recurse-submodules https://github.com/51Degrees/device-detection-python.git
+git clone --recurse-submodules https://github.com/51Degrees/51degrees-python.git
 ```
 
 or if already cloned run the following to obtain all sub modules:

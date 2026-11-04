@@ -33,7 +33,7 @@
 # 3. How to read device and IP intelligence results from one set of flow
 #    data
 #
-# This example is available in full on [GitHub](https://github.com/51Degrees/pipeline-python/blob/main/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_console.py).
+# This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_console.py).
 #
 # To run this example you need a resource key or a licence key.
 #
@@ -170,9 +170,9 @@ class GettingStartedConsole():
         ("Pricing",
          "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_console.py&utm_term=find-out-more-pricing"),
         ("Pipeline API for Python",
-         "https://github.com/51Degrees/pipeline-python"),
+         "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
         ("Device detection for Python",
-         "https://github.com/51Degrees/device-detection-python"),
+         "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
         ("IP intelligence engine",
          "https://github.com/51Degrees/51degrees-cxx"),
     ]
