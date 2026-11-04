@@ -73,15 +73,15 @@ class OfflineProcessing():
         # In this example, we use the DeviceDetectionPipelineBuilder
         # and configure it in code. For more information about
         # pipelines in general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
+        # https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
         pipeline = DeviceDetectionPipelineBuilder(
             data_file_path = data_file,
             # We use the low memory profile as its performance is
             # sufficient for this example. See the documentation for
             # more detail on this and other configuration options:
             # https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
-            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
-            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
+            # https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
+            # https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run
             performance_profile = "LowMemory",
             # inhibit sharing usage for this test, usually this
             # should be set "true"
@@ -92,47 +92,50 @@ class OfflineProcessing():
             # in order to help us improve detection of new devices/browsers/etc, then
             # this additional data will need to be collected and included as evidence
             # to the Pipeline. See
-            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run#Low_Level_Usage_Sharing
+            # https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=run#Low_Level_Usage_Sharing
             # for more details on this.
             usage_sharing = False,
             # Inhibit auto-update of the data file for this example
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
 
-        records = 0
-        yaml = YAML()
-        # Replace tab characters as they are not valid in unquoted YAML values
-        # and some evidence files contain them in user-agent strings.
-        content = evidence_yaml.read().replace('\t', ' ')
-        yaml_data = yaml.load_all(content)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            records = 0
+            yaml = YAML()
+            # Replace tab characters as they are not valid in unquoted YAML values
+            # and some evidence files contain them in user-agent strings.
+            content = evidence_yaml.read().replace('\t', ' ')
+            yaml_data = yaml.load_all(content)
         
-        try:
-            # Keep going as long as we have more document records.
-            for evidence in yaml_data:
-                # Output progress.
-                records = records + 1
-                if (records % 100 == 0):
-                    logger.log("info", f"Processed {records} records")
+            try:
+                # Keep going as long as we have more document records.
+                for evidence in yaml_data:
+                    # Output progress.
+                    records = records + 1
+                    if (records % 100 == 0):
+                        logger.log("info", f"Processed {records} records")
 
-                # write the yaml document separator
-                print("---", file = output)
-                # Pass the record to the pipeline as evidence so that it can be analyzed
-                headers = {}
-                for key in evidence:
-                    # Convert to string - YAML may parse values like ?1 as booleans
-                    # Keys already have header. prefix in the YAML file
-                    headers[key] = str(evidence[key])
+                    # write the yaml document separator
+                    print("---", file = output)
+                    # Pass the record to the pipeline as evidence so that it can be analyzed
+                    headers = {}
+                    for key in evidence:
+                        # Convert to string - YAML may parse values like ?1 as booleans
+                        # Keys already have header. prefix in the YAML file
+                        headers[key] = str(evidence[key])
 
-                self.analyseEvidence(headers, pipeline, output, yaml)
-        except BaseException as err:
-            # We can't read the evidence values, so cant write them to the output. Will just
-            # have to skip this entry.
-            logger.log("error", err)
+                    self.analyseEvidence(headers, pipeline, output, yaml)
+            except BaseException as err:
+                # We can't read the evidence values, so cant write them to the output. Will just
+                # have to skip this entry.
+                logger.log("error", err)
 
-        # write the yaml document end marker
-        print("...", file = output)
+            # write the yaml document end marker
+            print("...", file = output)
 
-        ExampleUtils.check_data_file(pipeline, logger)
+            ExampleUtils.check_data_file(pipeline, logger)
 
     def analyseEvidence(self, evidence, pipeline, output, yaml):
         # FlowData is a data structure that is used to convey information required for
@@ -140,46 +143,50 @@ class OfflineProcessing():
         # Information required for detection is called "evidence" and usually consists
         # of a number of HTTP Header field values, in this case represented by a
         # dictionary of header name/value entries.
-        data = pipeline.create_flowdata()
-        # Add the evidence values to the flow data
-        data.evidence.add_from_dict(evidence)
-        # Process the flow data.
-        data.process()
+        # Closing the FlowData, which the with statement does at the end of
+        # the block, releases the results of the detection straight away.
+        # Without it each record's results would stay in memory until the
+        # garbage collector next runs.
+        with pipeline.create_flowdata() as data:
+            # Add the evidence values to the flow data
+            data.evidence.add_from_dict(evidence)
+            # Process the flow data.
+            data.process()
 
-        device = data.device
+            device = data.device
 
-        values = {}
-        # Add the evidence values to the output
-        for key in evidence:
-            values[key] = evidence[key]
-        # Now add the values that we want to store against the record.
-        values["device.ismobile"] = device.ismobile.value() if device.ismobile.has_value() else "Unknown"
-        values["device.platformname"] = ExampleUtils.get_human_readable(device, "platformname")
-        values["device.platformversion"] = ExampleUtils.get_human_readable(device, "platformversion")
-        values["device.browsername"] = ExampleUtils.get_human_readable(device, "browsername")
-        values["device.browserversion"] = ExampleUtils.get_human_readable(device, "browserversion")
-        values["device.tac"] = ExampleUtils.get_human_readable(device, "tac")
-        values["device.devicetype"] = ExampleUtils.get_human_readable(device, "devicetype")
-        values["device.hardwarevendor"] = ExampleUtils.get_human_readable(device, "hardwarevendor")
-        values["device.hardwarename"] = ExampleUtils.get_human_readable(device, "hardwarename")
-        values["device.hardwaremodel"] = ExampleUtils.get_human_readable(device, "hardwaremodel")
-        values["device.nativedevice"] = ExampleUtils.get_human_readable(device, "nativedevice")
-        values["device.nativename"] = ExampleUtils.get_human_readable(device, "nativename")
-        values["device.nativemodel"] = ExampleUtils.get_human_readable(device, "nativemodel")
-        # DeviceId is a unique identifier for the combination of hardware, operating
-        # system, browser and crawler that has been detected.
-        # Our device detection solution uses machine learning to find the optimal
-        # way to identify devices based on the real-world evidence values that we
-        # observe each day.
-        # As this changes over time, the result of detection can potentially change
-        # as well. By storing the device id, we can use this as a lookup in future
-        # rather than performing detection with the original evidence again.
-        # Do this by passing an evidence entry with:
-        # key = query.51D_ProfileIds
-        # value = [the device id]
-        # This is much faster and avoids the potential for getting a different 
-        # result.
-        values["device.deviceid"] = ExampleUtils.get_human_readable(device, "deviceid")
+            values = {}
+            # Add the evidence values to the output
+            for key in evidence:
+                values[key] = evidence[key]
+            # Now add the values that we want to store against the record.
+            values["device.ismobile"] = device.ismobile.value() if device.ismobile.has_value() else "Unknown"
+            values["device.platformname"] = ExampleUtils.get_human_readable(device, "platformname")
+            values["device.platformversion"] = ExampleUtils.get_human_readable(device, "platformversion")
+            values["device.browsername"] = ExampleUtils.get_human_readable(device, "browsername")
+            values["device.browserversion"] = ExampleUtils.get_human_readable(device, "browserversion")
+            values["device.tac"] = ExampleUtils.get_human_readable(device, "tac")
+            values["device.devicetype"] = ExampleUtils.get_human_readable(device, "devicetype")
+            values["device.hardwarevendor"] = ExampleUtils.get_human_readable(device, "hardwarevendor")
+            values["device.hardwarename"] = ExampleUtils.get_human_readable(device, "hardwarename")
+            values["device.hardwaremodel"] = ExampleUtils.get_human_readable(device, "hardwaremodel")
+            values["device.nativedevice"] = ExampleUtils.get_human_readable(device, "nativedevice")
+            values["device.nativename"] = ExampleUtils.get_human_readable(device, "nativename")
+            values["device.nativemodel"] = ExampleUtils.get_human_readable(device, "nativemodel")
+            # DeviceId is a unique identifier for the combination of hardware, operating
+            # system, browser and crawler that has been detected.
+            # Our device detection solution uses machine learning to find the optimal
+            # way to identify devices based on the real-world evidence values that we
+            # observe each day.
+            # As this changes over time, the result of detection can potentially change
+            # as well. By storing the device id, we can use this as a lookup in future
+            # rather than performing detection with the original evidence again.
+            # Do this by passing an evidence entry with:
+            # key = query.51D_ProfileIds
+            # value = [the device id]
+            # This is much faster and avoids the potential for getting a different 
+            # result.
+            values["device.deviceid"] = ExampleUtils.get_human_readable(device, "deviceid")
         yaml.dump(values, output)
 
 def main(argv):
@@ -211,8 +218,9 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find a device detection data file. Make sure the " +
-            "device-detection-data submodule has been updated by running " +
-            "`git submodule update --recursive`.")
+            "data submodule is there, by running " +
+            "`git submodule update --init --recursive`, and run this " +
+            "example again to download the file.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

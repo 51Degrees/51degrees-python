@@ -47,13 +47,36 @@ Clone with the submodules:
 git clone --recurse-submodules https://github.com/51Degrees/51degrees-python.git
 ```
 
+The data files the examples and tests use are not stored in a repository. The
+[data](https://github.com/51Degrees/data) repository, which is the `cxx/data`
+submodule, holds a `.link` file for each free one, where the file goes, and
+two scripts that download them. From the root of this repository, run
+
+```
+sh cxx/data/get-data-files.sh
+```
+
+or, in PowerShell,
+
+```
+./cxx/data/get-data-files.ps1
+```
+
+An example whose file is missing runs the script for that file itself.
+
+Git leaves the folder of a removed submodule on disk. A clone made before the
+data files moved to `cxx/data` still has an `ip-intelligence/ip-intelligence-data`
+folder, and keeps `cxx/device-detection-data` and `cxx/ip-intelligence-data`
+once cxx removes them. Delete those folders, so that nothing finds an old copy
+of a data file in them.
+
 Each product's README says what else it needs, such as a C/C++ compiler for
 the on-premise engines and the data files.
 
 ## Supported Python versions
 
 The packages support Python 3.10 and later. The
-[tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=tested-versions)
+[tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=tested-versions)
 page lists the versions each release is tested against.
 
 ## Versions

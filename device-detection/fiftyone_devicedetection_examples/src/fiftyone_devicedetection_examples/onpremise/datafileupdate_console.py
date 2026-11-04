@@ -53,9 +53,8 @@
 #
 # ## Lite Data File
 # Lite data files (free-to-use, limited capabilities, no license key required) are created roughly
-# once a month and cannot be updated using auto-update, they may be downloaded from
-# [Github](https://github.com/51Degrees/device-detection-data) and are included with
-# source distributions of this software.
+# once a month and cannot be updated using auto-update, they may be downloaded with the
+# scripts in the [data](https://github.com/51Degrees/data) repository on GitHub.
 #
 # # Update on Start-Up
 # You can configure the pipeline builder to download an Enterprise data file on start-up.
@@ -235,15 +234,18 @@ class DataFileUpdateConsole():
 				auto_update = False,
 				licence_keys = "").add_logger(logger).build()
 
-			# and output the results
-			ExampleUtils.check_data_file(pipeline, logger)
-			if (ExampleUtils.get_data_file_tier(pipeline.get_element("device")) == "Lite"):
-				logger.log("error",
-					"Will not download an 'Enterprise' data file over the top of "
-					"a 'Lite' data file, please supply another location.")
-				raise Exception("File supplied has wrong data tier")
-			logger.log("info", "Existing data file will be replaced with downloaded data file")
-			logger.log("info", f"Existing data file will be copied to {copy_data_file_name}")
+			# The pipeline is closed at the end of the with block, which
+			# releases the native data it holds before the file is replaced.
+			with pipeline:
+				# and output the results
+				ExampleUtils.check_data_file(pipeline, logger)
+				if (ExampleUtils.get_data_file_tier(pipeline.get_element("device")) == "Lite"):
+					logger.log("error",
+						"Will not download an 'Enterprise' data file over the top of "
+						"a 'Lite' data file, please supply another location.")
+					raise Exception("File supplied has wrong data tier")
+				logger.log("info", "Existing data file will be replaced with downloaded data file")
+				logger.log("info", f"Existing data file will be copied to {copy_data_file_name}")
 
 		# do we really want to do this
 		if (interactive):
@@ -296,41 +298,44 @@ class DataFileUpdateConsole():
 			data_update_product_type="V4Enterprise",
 			).add_logger(logger).build()
 
+		# The pipeline is closed at the end of the with block, which stops
+		# the automatic updates and the file system watcher, and releases
+		# the native data it holds.
+		with pipeline:
+			# thread blocks till update checking is complete - or if there is an
+			# exception we don't get this far
+			update_event.wait()
+			output(f"Update on start-up complete - status - {update_event.status}")
 
-		# thread blocks till update checking is complete - or if there is an
-		# exception we don't get this far
-		update_event.wait()
-		output(f"Update on start-up complete - status - {update_event.status}")
+			if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
 
-		if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
+				output("Modifying downloaded file to trigger reload - please wait for that"
+					" to complete")
 
-			output("Modifying downloaded file to trigger reload - please wait for that"
-				" to complete")
+				# wait for the dataUpdateService to notify us that it has updated
+				update_event.clear()
 
-			# wait for the dataUpdateService to notify us that it has updated
-			update_event.clear()
+				# it's the same file but changing the file metadata will trigger reload,
+				# demonstrating that if you download a new file and replace the
+				# existing one, then it will be loaded
+				now = datetime.now().timestamp()
+				try:
+					os.utime(data_file, (now, now))
+				except:
+					raise Exception("Could not modify file time, abandoning "
+						"example")
 
-			# it's the same file but changing the file metadata will trigger reload,
-			# demonstrating that if you download a new file and replace the
-			# existing one, then it will be loaded
-			now = datetime.now().timestamp()
-			try:
-				os.utime(data_file, (now, now))
-			except:
-				raise Exception("Could not modify file time, abandoning "
-					"example")
-
-			if update_event.wait(120):
-				output(f"Update on file modification complete, status: {update_event.status}")
+				if update_event.wait(120):
+					output(f"Update on file modification complete, status: {update_event.status}")
+				else:
+					output("Update on file modification timed out")
 			else:
-				output("Update on file modification timed out")
-		else:
-			logger.log("error", "Auto update was not successful, abandoning example")
-			error_message = f"Auto update failed: {update_event.status}"
-			if update_event.status == UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS:
-				output(error_message)
-			else:
-				raise Exception(error_message)
+				logger.log("error", "Auto update was not successful, abandoning example")
+				error_message = f"Auto update failed: {update_event.status}"
+				if update_event.status == UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS:
+					output(error_message)
+				else:
+					raise Exception(error_message)
 
 		output("Finished Example")
 

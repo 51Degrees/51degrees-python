@@ -41,7 +41,11 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-setup.py&utm_term=url",
+    project_urls={
+        "Homepage": "https://51degrees.com/device-detection?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples&utm_term=homepage",
+        "Documentation": "https://51degrees.com/documentation/_device_detection__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples&utm_term=documentation",
+        "Source": "https://github.com/51Degrees/51degrees-python",
+    },
     description=("The 51Degrees Pipeline API is a generic web request intelligence and data processing solution with the ability to add a range of 51Degrees and/or custom plug ins (Engines). "
     "This project contains examples of using 51Degrees Device Detection engines with the Pipeline API"),
     long_description=read("readme.md"),
@@ -61,7 +65,9 @@ setuptools.setup(
     # named here so that is visible to anyone reading them.
     # fiftyone_devicedetection is still required because the on-premise
     # examples in this same package use the on-premise engine.
-    install_requires=["fiftyone_devicedetection_cloud", "fiftyone_devicedetection", "flask", "flask-unittest", "json5", "ruamel.yaml"],
+    # fiftyone_pipeline_core 4.5.42 is the first version with close(), which
+    # the examples use.
+    install_requires=["fiftyone_devicedetection_cloud", "fiftyone_devicedetection", "fiftyone_pipeline_core>=4.5.42", "flask", "flask-unittest", "json5", "ruamel.yaml"],
     license="EUPL-1.2",
     classifiers=[
         "Development Status :: 5 - Production/Stable",

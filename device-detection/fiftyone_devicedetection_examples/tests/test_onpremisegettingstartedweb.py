@@ -39,6 +39,13 @@ class OnPremiseGettingStartedWebTests(flask_unittest.ClientTestCase):
     config = GettingStartedWeb.build_config()
     app = GettingStartedWeb().build(config, logger).app
 
+    # The example's pipeline lives as long as its app, so it is closed once
+    # the tests are finished with the app.
+    @classmethod
+    def tearDownClass(cls):
+        GettingStartedWeb.pipeline.close()
+        super().tearDownClass()
+
     def test_onpremise_getting_started_web(self, client):
         response = client.get('/')
         self.assertEqual(200, response.status_code)

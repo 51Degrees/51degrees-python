@@ -31,7 +31,7 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 # It shows how to call the cloud with the newly created key and how to access the values 
 # of the selected properties.
 #
-# See [Getting Started](https://51degrees.com/documentation/_examples__device_detection__getting_started__console__cloud.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=top)
+# See [Getting Started](https://51degrees.com/documentation/_device_detection__examples__getting_started__console__cloud.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=top)
 # for a fuller example.
 #
 # Required PyPi Dependencies:
@@ -96,7 +96,7 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees " +
             "cloud service is accessed using a 'ResourceKey'. " +
             "For more detail see " +
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this " +
             "example can be created for free at " +
             "https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +

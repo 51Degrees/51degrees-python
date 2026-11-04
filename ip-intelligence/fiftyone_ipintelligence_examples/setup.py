@@ -40,7 +40,11 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
 	author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-setup.py&utm_term=url",
+    project_urls={
+        "Homepage": "https://51degrees.com/ip-intelligence?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples&utm_term=homepage",
+        "Documentation": "https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples&utm_term=documentation",
+        "Source": "https://github.com/51Degrees/51degrees-python",
+    },
     description=("Examples for the 51Degrees IP intelligence engines."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',
@@ -50,6 +54,8 @@ setuptools.setup(
     install_requires=[
         "fiftyone_ipintelligence",
         "fiftyone_ipintelligence_translation",
+        # The first version with close(), which the examples use.
+        "fiftyone_pipeline_core>=4.5.42",
         "flask",
         "ruamel.yaml"
     ],

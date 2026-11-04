@@ -62,24 +62,26 @@ split_lists = None
 
 def process_user_agent(user_agent):
 
-    # First we create the flowdata using the global pipeline
-    flowdata = pipeline.create_flowdata()  # pylint: disable=used-before-assignment
+    # First we create the flowdata using the global pipeline. Closing it,
+    # which the with statement does when the function returns, releases the
+    # results of the detection straight away.
+    with pipeline.create_flowdata() as flowdata:  # pylint: disable=used-before-assignment
 
-    # Here we add the user agent as evidence
-    flowdata.evidence.add("header.user-agent", user_agent)
+        # Here we add the user agent as evidence
+        flowdata.evidence.add("header.user-agent", user_agent)
 
-    # We process the flowdata to get the results
-    flowdata.process()
+        # We process the flowdata to get the results
+        flowdata.process()
 
-    # To check whether the User-Agent is a mobile device we look at the ismobile
-    # property inside the Device Detection Engine
+        # To check whether the User-Agent is a mobile device we look at the ismobile
+        # property inside the Device Detection Engine
 
-    # first we check if this has a meaningful result
+        # first we check if this has a meaningful result
 
-    if flowdata.device.ismobile.has_value():
-        return flowdata.device.ismobile.value()
-    else:
-        return None
+        if flowdata.device.ismobile.has_value():
+            return flowdata.device.ismobile.value()
+        else:
+            return None
 
 def process_user_agent_list(data_file, user_agent_list, list_number, output, skip=False):
     global pipeline
@@ -92,23 +94,26 @@ def process_user_agent_list(data_file, user_agent_list, list_number, output, ski
         usage_sharing=False,
         auto_update=False).build()
 
-    results = {
-        "mobile": 0,
-        "notmobile": 0,
-        "unknown": 0
-    }
-    for user_agent in user_agent_list:
-        if skip:
-            break
-        result = process_user_agent(user_agent[0])
-        if(result == None):
-            results["unknown"] += 1
-        if(result == True):
-            results["mobile"] += 1
-        if(result == False):
-            results["notmobile"] += 1
+    # The pipeline is closed at the end of the with block, which releases
+    # the native data it holds.
+    with pipeline:
+        results = {
+            "mobile": 0,
+            "notmobile": 0,
+            "unknown": 0
+        }
+        for user_agent in user_agent_list:
+            if skip:
+                break
+            result = process_user_agent(user_agent[0])
+            if(result == None):
+                results["unknown"] += 1
+            if(result == True):
+                results["mobile"] += 1
+            if(result == False):
+                results["notmobile"] += 1
 
-    output.put(results, list_number)
+        output.put(results, list_number)
 
 # Run the process
 def run(data_file, skip = False):
@@ -145,7 +150,7 @@ def run(data_file, skip = False):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description='Run detection benchmark.')
     ap.add_argument('-d', '--data_file', default='', help='Path to data file')
-    ap.add_argument('-u', '--user_agents_file', default='../../cxx/device-detection-data/20000 User Agents.csv', help='Path to user agents evidence file')
+    ap.add_argument('-u', '--user_agents_file', default='../../cxx/data/device-detection/20000 User Agents.csv', help='Path to user agents evidence file')
     ap.add_argument('-j', '--json_output', default='', help='Output results in JSON format')
     args = ap.parse_args()
     if args.data_file == "":

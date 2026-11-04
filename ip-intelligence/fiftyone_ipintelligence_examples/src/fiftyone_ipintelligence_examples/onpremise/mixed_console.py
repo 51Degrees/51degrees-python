@@ -48,8 +48,8 @@ from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise import IpIntelli
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 
-# Default name of the device detection data file (the lite file included in
-# the device-detection-data repository).
+# Default name of the device detection data file (the lite file the data
+# repository links to).
 HASH_DATAFILE_NAME = "51Degrees-LiteV4.1.hash"
 
 # Combined evidence: a User-Agent for device detection and an IP address for
@@ -140,38 +140,43 @@ class MixedConsole():
             .add_logger(logger) \
             .build()
 
-        for evidence in COMBINED_EVIDENCE:
-            self.analyse_evidence(evidence, pipeline, output)
+        # The pipeline is closed at the end of the with block, which closes
+        # both engines and releases the native data they hold.
+        with pipeline:
+            for evidence in COMBINED_EVIDENCE:
+                self.analyse_evidence(evidence, pipeline, output)
 
     def analyse_evidence(self, evidence, pipeline, output):
 
-        data = pipeline.create_flowdata()
+        # The FlowData is closed at the end of the with block, which releases
+        # the results of both engines straight away.
+        with pipeline.create_flowdata() as data:
 
-        message = []
-        message.append("=" * 70 + "\n")
-        message.append("Input values:\n")
-        for key in evidence:
-            message.append(f"\t{key}: {evidence[key]}\n")
-        output("".join(message))
+            message = []
+            message.append("=" * 70 + "\n")
+            message.append("Input values:\n")
+            for key in evidence:
+                message.append(f"\t{key}: {evidence[key]}\n")
+            output("".join(message))
 
-        # Add the evidence values to the flow data and process it. Both
-        # engines run against the same flow data.
-        data.evidence.add_from_dict(evidence)
-        data.process()
+            # Add the evidence values to the flow data and process it. Both
+            # engines run against the same flow data.
+            data.evidence.add_from_dict(evidence)
+            data.process()
 
-        message = []
+            message = []
 
-        # Device detection results, keyed under "device".
-        message.append("Device Detection Results:\n")
-        for name in DEVICE_PROPERTIES:
-            self.outputValue(data.device, name, message)
+            # Device detection results, keyed under "device".
+            message.append("Device Detection Results:\n")
+            for name in DEVICE_PROPERTIES:
+                self.outputValue(data.device, name, message)
 
-        # IP intelligence results, keyed under "ip".
-        message.append("\nIP Intelligence Results:\n")
-        for name in IP_PROPERTIES:
-            self.outputValue(data.ip, name, message)
+            # IP intelligence results, keyed under "ip".
+            message.append("\nIP Intelligence Results:\n")
+            for name in IP_PROPERTIES:
+                self.outputValue(data.ip, name, message)
 
-        output("".join(message))
+            output("".join(message))
 
     def outputValue(self, aspect_data, name, message):
         # `get_value` returns None when the property is not present in the
@@ -199,14 +204,19 @@ def main(argv):
     else:
         if not device_file:
             logger.log("error",
-                "Failed to find a device detection data file. Make sure the "
-                "device-detection-data submodule has been updated, or supply "
-                "the path as the first command line argument.")
+                "Failed to find a device detection data file. Supply its "
+                "path as the first command line argument. Get the free Lite "
+                "file by running "
+                "cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash, or "
+                "cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash on "
+                "Windows, which saves it in cxx/data/device-detection.")
         if not ip_file:
             logger.log("error",
                 "Failed to find an IP intelligence data file. Make sure the "
-                "ip-intelligence-data submodule has been updated, or supply "
-                "the path as the second command line argument.")
+                "data submodule is there, by running "
+                "`git submodule update --init --recursive`, and run this "
+                "example again to download the file, or supply the path as "
+                "the second command line argument.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

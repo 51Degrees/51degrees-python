@@ -47,14 +47,17 @@ class MetadataConsole():
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
 
-        engine = pipeline.flow_elements_list["ip"]
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            engine = pipeline.flow_elements_list["ip"]
 
-        output("IP Intelligence properties:")
-        for property_metadata in engine.properties.values():
-            output(f"  {property_metadata['name']} ({property_metadata['type']}) - "
-                   f"category: {property_metadata['category']}")
-            if property_metadata.get("description"):
-                output(f"      {property_metadata['description']}")
+            output("IP Intelligence properties:")
+            for property_metadata in engine.properties.values():
+                output(f"  {property_metadata['name']} ({property_metadata['type']}) - "
+                       f"category: {property_metadata['category']}")
+                if property_metadata.get("description"):
+                    output(f"      {property_metadata['description']}")
 
 
 def main(argv):
@@ -66,9 +69,8 @@ def main(argv):
         MetadataConsole().run(data_file, logger, print)
     else:
         logger.log("error",
-            "Failed to find an IP intelligence data file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`. To obtain an enterprise "
+            "Failed to find an IP intelligence data file. Supply its path "
+            "as the first command line argument. To obtain an enterprise "
             "data file for testing, please contact us: "
             "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-metadata_console.py&utm_term=data-file-required")
 

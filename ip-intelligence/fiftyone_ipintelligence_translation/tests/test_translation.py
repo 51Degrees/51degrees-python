@@ -20,6 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import os
 import unittest
 
 import yaml
@@ -34,6 +35,7 @@ from fiftyone_ipintelligence_translation.country_code_translation_engine_builder
 from fiftyone_ipintelligence_translation.countries_translation_engine_builder import (
     CountriesTranslationEngineBuilder)
 from fiftyone_ipintelligence_translation.comparer import make_comparer
+from fiftyone_ipintelligence_translation import resources
 from fiftyone_ipintelligence_translation.resources import (
     get_all_countries, get_country_resources)
 
@@ -446,6 +448,19 @@ class CountryTranslationGapTests(unittest.TestCase):
         geo_codes = result.get("CountryCodesGeographicalAll").value()
         self.assertEqual("DE", geo_codes[0])
         self.assertNotEqual(geo_codes[0], pop_codes[0])
+
+
+class PackagedTranslationsTests(unittest.TestCase):
+
+    def test_translations_are_packaged(self):
+        # The tests run against the built package. A build that cannot find
+        # the data repository's Translations folder still succeeds, without
+        # the YAML files, and the other tests can still pass by reading the
+        # folder from the checkout, so this checks the package itself.
+        folder = resources._PACKAGED_TRANSLATIONS
+        names = os.listdir(folder) if os.path.isdir(folder) else []
+        self.assertIn("countrycodes.en_GB.yml", names)
+        self.assertIn("countries.de_DE.yml", names)
 
 
 if __name__ == "__main__":

@@ -155,7 +155,7 @@ class DataFileUpdateConsole():
         update_service.on_complete(lambda status, file: update_event.set(status))
 
         # Build the pipeline, configuring it for automatic updates.
-        IpIntelligencePipelineBuilder(
+        pipeline = IpIntelligencePipelineBuilder(
             # The file need not exist when using update on start-up, but its
             # directory must. Any file present is overwritten, so the engine
             # is configured to use a temporary copy.
@@ -175,35 +175,39 @@ class DataFileUpdateConsole():
             data_update_product_type = DATA_UPDATE_PRODUCT_TYPE,
             usage_sharing = False).add_logger(logger).build()
 
-        # Block until the start-up update check is complete.
-        update_event.wait()
-        output(f"Update on start-up complete - status - {update_event.status}")
+        # The pipeline is closed at the end of the with block, which stops the
+        # automatic updates and the file system watcher, and releases the
+        # native data it holds.
+        with pipeline:
+            # Block until the start-up update check is complete.
+            update_event.wait()
+            output(f"Update on start-up complete - status - {update_event.status}")
 
-        if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
-            output("Modifying downloaded file to trigger reload - please wait "
-                   "for that to complete")
-            update_event.clear()
+            if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
+                output("Modifying downloaded file to trigger reload - please wait "
+                       "for that to complete")
+                update_event.clear()
 
-            # Touching the file metadata triggers the filesystem watcher,
-            # demonstrating reload when a new file is dropped into place.
-            now = datetime.now().timestamp()
-            try:
-                os.utime(data_file, (now, now))
-            except OSError:
-                raise Exception("Could not modify file time, abandoning example")
+                # Touching the file metadata triggers the filesystem watcher,
+                # demonstrating reload when a new file is dropped into place.
+                now = datetime.now().timestamp()
+                try:
+                    os.utime(data_file, (now, now))
+                except OSError:
+                    raise Exception("Could not modify file time, abandoning example")
 
-            if update_event.wait(120):
-                output(f"Update on file modification complete, status: "
-                       f"{update_event.status}")
+                if update_event.wait(120):
+                    output(f"Update on file modification complete, status: "
+                           f"{update_event.status}")
+                else:
+                    output("Update on file modification timed out")
             else:
-                output("Update on file modification timed out")
-        else:
-            logger.log("error", "Auto update was not successful, abandoning example")
-            error_message = f"Auto update failed: {update_event.status}"
-            if update_event.status == UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS:
-                output(error_message)
-            else:
-                raise Exception(error_message)
+                logger.log("error", "Auto update was not successful, abandoning example")
+                error_message = f"Auto update failed: {update_event.status}"
+                if update_event.status == UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS:
+                    output(error_message)
+                else:
+                    raise Exception(error_message)
 
         output("Finished Example")
 

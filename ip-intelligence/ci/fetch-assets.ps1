@@ -29,6 +29,14 @@ foreach ($asset in $assets) {
     }
 }
 
+# The ASN file is not an asset, so the data repository's script downloads it
+# beside its link in cxx/data/ip-intelligence, where the tests look for it.
+$global:LASTEXITCODE = 0
+& "$PSScriptRoot/../../cxx/data/get-data-files.ps1" 51Degrees-IPIV4AsnIpiV41.ipi
+if ($LASTEXITCODE -ne 0) {
+    throw "The ASN data file was not downloaded"
+}
+
 # If the Enterprise file was downloaded, prefer it for tests by exposing
 # it through the environment variable used by the test suites.
 if ($IpIntelligenceUrl) {

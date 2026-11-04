@@ -1,13 +1,13 @@
 # 51Degrees IP Intelligence Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-readme.md&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious") **Python IP Intelligence**
+![51Degrees](https://51degrees.com/img/logo.png?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-readme.md&utm_term=51degrees-ip-intelligence-engines "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=51degrees-ip-intelligence-engines "developer documentation")
 
 ## Introduction
 
 This package aggregates the cloud and on-premise 51Degrees IP intelligence
-engines for the [51Degrees Pipeline API](https://51degrees.com/documentation/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-readme.md&utm_term=introduction)
+engines for the [51Degrees Pipeline API](https://51degrees.com/documentation/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=introduction)
 and provides the `IpIntelligencePipelineBuilder` which builds a pipeline with
 either engine depending on the settings provided:
 
@@ -34,3 +34,11 @@ flowdata.evidence.add("query.client-ip", "185.28.167.78")
 flowdata.process()
 print(flowdata.ip.registeredname.value())
 ```
+
+## Find out more
+
+- [IP Intelligence](https://51degrees.com/ip-intelligence?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=find-out-more-ip-intelligence)
+- [IP Intelligence documentation](https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=find-out-more-documentation)
+- [Getting started](https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=find-out-more-getting-started)
+- [Pricing](https://51degrees.com/pricing?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=find-out-more-pricing)
+- https://github.com/51Degrees/51degrees-python

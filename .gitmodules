@@ -4,9 +4,6 @@
 [submodule "pipeline/owid-python"]
 	path = pipeline/owid-python
 	url = https://github.com/SWAN-community/owid-python.git
-[submodule "ip-intelligence/ip-intelligence-data"]
-	path = ip-intelligence/ip-intelligence-data
-	url = ../ip-intelligence-data
 [submodule "cxx"]
 	path = cxx
 	url = ../51degrees-cxx

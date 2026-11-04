@@ -41,7 +41,11 @@ setuptools.setup(
 	version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=setup.py&utm_term=url",
+    project_urls={
+        "Homepage": "https://51degrees.com/geolocation?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=homepage",
+        "Documentation": "https://51degrees.com/documentation/_reverse_geocoding__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=documentation",
+        "Source": "https://github.com/51Degrees/51degrees-python",
+    },
     description=("51Degrees Geolocation performs reverse geocoding (using longitude and latitude information) to populate postal addresses."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',

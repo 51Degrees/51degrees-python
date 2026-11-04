@@ -40,7 +40,11 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
 	author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-setup.py&utm_term=url",
+    project_urls={
+        "Homepage": "https://51degrees.com/ip-intelligence?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=homepage",
+        "Documentation": "https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence&utm_term=documentation",
+        "Source": "https://github.com/51Degrees/51degrees-python",
+    },
     description=("IP Intelligence and IP geolocation for Python that finds an IP address's likely location (country, region, town, and coordinates), connection type, and network, on-premise with a data file or in the cloud. An alternative to MaxMind and IPinfo."),
     keywords=[
         "51degrees",

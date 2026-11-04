@@ -25,6 +25,8 @@ from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
 from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
 
+from .constants import RESULTS_CLOSED
+
 # Number of decimal places used when converting WKB geometry
 # properties (e.g. Areas) to their WKT string form.
 WKT_DECIMAL_PLACES = 16
@@ -70,6 +72,33 @@ class SwigData(AspectData):
         self.echo_ipv6 = echo_ipv6
 
         self.missing_property_service = OnPremiseMissingPropertyService()
+
+    def close(self):
+
+        """!
+        Release the native results, which keep the engine's data in memory
+        while they are held, even after the engine is closed. Values already
+        read are unaffected, and reading a property afterwards raises an
+        exception. Closing the FlowData closes its results.
+        """
+
+        self.swig_results = None
+
+    def get(self, key):
+
+        """!
+        Get a property value, once the results are known to be open
+        @type key: string
+        @param key: The key of the property to retrieve
+        @returns mixed
+        """
+
+        # Checked here, because AspectData.get turns an exception from
+        # get_internal into a missing property message.
+        if self.swig_results is None:
+            raise Exception(RESULTS_CLOSED)
+
+        return super(SwigData, self).get(key)
 
     @staticmethod
     def utf8_string_to_str(utf8_string):

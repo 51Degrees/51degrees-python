@@ -14,3 +14,7 @@ __pycache__/
 .venv/
 build/
 dist/
+
+# The version each package's setup.py reads, written by the publish and by
+# ci/write-package-versions.ps1.
+version.txt

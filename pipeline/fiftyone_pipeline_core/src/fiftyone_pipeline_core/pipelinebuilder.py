@@ -52,6 +52,9 @@ class PipelineBuilder(object):
         while processing is re-raised from flow_data.process(); if True, errors are stored on
         flow_data.errors and process() returns normally. Recommended True for web apps so a
         processing failure degrades gracefully instead of failing the request.
+        `auto_close_elements (Bool)` - Whether closing the pipeline closes its flow elements
+        (default true). Set to False when the elements are shared with another pipeline,
+        and close each element once every pipeline using it is finished with.
         @return: Returns a Pipeline Builder
 
         """
@@ -81,6 +84,11 @@ class PipelineBuilder(object):
             self.suppress_process_exceptions = settings["suppress_process_exceptions"]
         else:
             self.suppress_process_exceptions = False
+
+        if "auto_close_elements" in settings:
+            self.auto_close_elements = settings["auto_close_elements"]
+        else:
+            self.auto_close_elements = True
 
     def get_javascript_elements(self):
         """
@@ -148,7 +156,7 @@ class PipelineBuilder(object):
         self.flow_elements.extend(self.get_javascript_elements())
         self.flow_elements.extend(self.get_setheader_elements())
 
-        return Pipeline(self.flow_elements, logger=self.logger, suppress_process_exceptions=self.suppress_process_exceptions, data_file_update_service=self.data_file_update_service)
+        return Pipeline(self.flow_elements, logger=self.logger, suppress_process_exceptions=self.suppress_process_exceptions, data_file_update_service=self.data_file_update_service, auto_close_elements=self.auto_close_elements)
 
     def add_logger(self, logger):
         """
@@ -176,27 +184,46 @@ class PipelineBuilder(object):
         @rtype: Pipeline
         @return: Returns built pipeline
         
+        If an element fails to build, the elements already built are closed
+        and the error is raised.
+
         """
 
         flow_elements = []
 
-        for element in config["PipelineOptions"]["Elements"]:
-            flow_element = importlib.import_module(element["elementPath"]).__getattribute__(element["elementName"])
-            if("elementParameters" in element):
-                arguments  = self._map_properties_names(
-                    {
-                        "verify_md5": "data_update_verify_md5",
-                        "data_file_update_base_url": "data_update_url"
-                    },
-                    element["elementParameters"],
-                )
+        try:
+            for element in config["PipelineOptions"]["Elements"]:
+                flow_element = importlib.import_module(element["elementPath"]).__getattribute__(element["elementName"])
+                if("elementParameters" in element):
+                    arguments  = self._map_properties_names(
+                        {
+                            "verify_md5": "data_update_verify_md5",
+                            "data_file_update_base_url": "data_update_url"
+                        },
+                        element["elementParameters"],
+                    )
 
-                flow_element = flow_element(**arguments)
-            else:
-                flow_element = flow_element()
-            flow_elements.append(flow_element)
+                    flow_element = flow_element(**arguments)
+                else:
+                    flow_element = flow_element()
+                flow_elements.append(flow_element)
 
-        return Pipeline(flow_elements, suppress_process_exceptions=self._get_suppress_process_exceptions(config))
+            return Pipeline(flow_elements, suppress_process_exceptions=self._get_suppress_process_exceptions(config), auto_close_elements=self.auto_close_elements)
+        except BaseException:
+            # A failure to close is logged rather than raised, so the caller
+            # sees the error that stopped the build.
+            for flow_element in flow_elements:
+                close = getattr(flow_element, "close", None)
+                if close is None:
+                    continue
+                try:
+                    close()
+                except Exception as e:
+                    self.logger.log(
+                        "error",
+                        "Could not close {} after the pipeline failed to "
+                        "build: {}".format(type(flow_element).__name__, e))
+            raise
 
     def _get_suppress_process_exceptions(self, config):
         """

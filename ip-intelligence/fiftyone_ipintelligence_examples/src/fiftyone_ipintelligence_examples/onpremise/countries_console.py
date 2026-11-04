@@ -71,42 +71,47 @@ class CountriesConsole():
         add_country_translation(builder)
         pipeline = builder.add_logger(logger).build()
 
-        ExampleUtils.check_data_file(pipeline, logger)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            ExampleUtils.check_data_file(pipeline, logger)
 
-        for values in EVIDENCE_VALUES:
-            self.analyseEvidence(values, pipeline, output)
+            for values in EVIDENCE_VALUES:
+                self.analyseEvidence(values, pipeline, output)
 
     def analyseEvidence(self, evidence, pipeline, output):
 
-        data = pipeline.create_flowdata()
+        # The FlowData is closed at the end of the with block, which releases
+        # the results of the lookup straight away.
+        with pipeline.create_flowdata() as data:
 
-        message = []
-        message.append("Input values:\n")
-        for key in evidence:
-            message.append(f"\t{key}: {evidence[key]}\n")
-        if TRANSLATION:
-            message.append(f"\tquery.translation: {TRANSLATION}\n")
-        output("".join(message))
+            message = []
+            message.append("Input values:\n")
+            for key in evidence:
+                message.append(f"\t{key}: {evidence[key]}\n")
+            if TRANSLATION:
+                message.append(f"\tquery.translation: {TRANSLATION}\n")
+            output("".join(message))
 
-        # Add the IP address evidence, and the language to translate to.
-        data.evidence.add_from_dict(evidence)
-        if TRANSLATION:
-            data.evidence.add("query.translation", TRANSLATION)
+            # Add the IP address evidence, and the language to translate to.
+            data.evidence.add_from_dict(evidence)
+            if TRANSLATION:
+                data.evidence.add("query.translation", TRANSLATION)
 
-        data.process()
+            data.process()
 
-        translated = data.get("countrynamestranslated")
+            translated = data.get("countrynamestranslated")
 
-        message = []
-        message.append("Results:\n")
-        self.outputList(
-            translated, "CountryCodesGeographicalAll",
-            "Geographical countries (most probable first)", message)
-        self.outputList(
-            translated, "CountryCodesPopulationAll",
-            "Population countries (most probable first)", message)
-        self.outputDropdown(translated, message)
-        output("".join(message))
+            message = []
+            message.append("Results:\n")
+            self.outputList(
+                translated, "CountryCodesGeographicalAll",
+                "Geographical countries (most probable first)", message)
+            self.outputList(
+                translated, "CountryCodesPopulationAll",
+                "Population countries (most probable first)", message)
+            self.outputDropdown(translated, message)
+            output("".join(message))
 
     def outputList(self, translated, property_name, label, message):
         value = translated.get(property_name)
@@ -150,8 +155,9 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find an IP intelligence data file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`, or supply the path to a "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`, and run this "
+            "example again to download the file, or supply the path to a "
             "data file as the first command line argument.")
 
 

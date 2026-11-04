@@ -77,6 +77,17 @@ class FlowElement(object):
 
         pass
 
+    def close(self):
+
+        """!
+        Release the resources the element holds. The pipeline calls this
+        when it is closed. This element holds none, and elements that hold
+        native data or threads override it.
+
+        """
+
+        pass
+
     def get_evidence_key_filter(self):
 
         """!
