@@ -18,6 +18,9 @@ env:
   CXX_NEW: 1bec7b570575e2e180b52435599bef9b03e35ad8
   DD: device-detection/fiftyone_devicedetection_onpremise
   IPI: ip-intelligence/fiftyone_ipintelligence_onpremise
+  # The %module names in cxx's hash.i and ipi.i.
+  DD_MODULE: DeviceDetectionHashEngineModule
+  IPI_MODULE: IpIntelligenceEngineModule
 
 defaults:
   run:
@@ -60,7 +63,8 @@ jobs:
       - name: Write the generation script
         run: |
           set -euo pipefail
-          # generate <package folder> <interface> <wrapper> <cxx folder> <out>
+          # generate <package folder> <interface> <wrapper> <cxx folder>
+          #          <module> <out>
           # Stages common and the product's folder of cxx/src beside the
           # interface, as setup.py does, runs SWIG there and copies the
           # wrapper and the Python module to <out>.
@@ -70,7 +74,8 @@ jobs:
           interface=$2
           wrapper=$3
           product=$4
-          out=$5
+          module=$5
+          out=$6
           work="$RUNNER_TEMP/work-$(basename "$1")"
           rm -rf "$work"
           cp -R "$GITHUB_WORKSPACE/$src" "$work"
@@ -78,9 +83,6 @@ jobs:
           mkdir -p "$work/cxx/src"
           cp -R "$GITHUB_WORKSPACE/cxx/src/common" "$work/cxx/src/common"
           cp -R "$GITHUB_WORKSPACE/cxx/src/$product" "$work/cxx/src/$product"
-          module=$(grep -h '^%module' "$work/cxx/src/$product"/*.i \
-            "$work/cxx/src/$product"/*/*.i 2>/dev/null | head -1 \
-            | sed 's/%module *"\{0,1\}\([A-Za-z]*\).*/\1/')
           cd "$work"
           set -x
           "$SWIG_BIN" -c++ -python -outdir . -o "$wrapper" "$interface"
@@ -96,11 +98,11 @@ jobs:
         run: |
           set -euo pipefail
           identical=true
-          for spec in "$DD hash_python.i hash_python_wrap.cxx dd" \
-                      "$IPI ipi_python.i ipi_python_wrap.cxx ipi"; do
+          for spec in "$DD hash_python.i hash_python_wrap.cxx dd $DD_MODULE" \
+                      "$IPI ipi_python.i ipi_python_wrap.cxx ipi $IPI_MODULE"; do
             set -- $spec
             out="$RUNNER_TEMP/artifact/old-$(basename "$1")"
-            bash "$RUNNER_TEMP/generate.sh" "$1" "$2" "$3" "$4" "$out"
+            bash "$RUNNER_TEMP/generate.sh" "$1" "$2" "$3" "$4" "$5" "$out"
             module=$(cat "$out/module.txt")
             src="$1/src/$(basename "$1")"
             for f in "$3" "$module.py"; do
@@ -123,11 +125,11 @@ jobs:
           git -C cxx fetch --depth 1 origin "$CXX_NEW"
           git -C cxx checkout --detach "$CXX_NEW"
           test "$(git -C cxx rev-parse HEAD)" = "$CXX_NEW"
-          for spec in "$DD hash_python.i hash_python_wrap.cxx dd" \
-                      "$IPI ipi_python.i ipi_python_wrap.cxx ipi"; do
+          for spec in "$DD hash_python.i hash_python_wrap.cxx dd $DD_MODULE" \
+                      "$IPI ipi_python.i ipi_python_wrap.cxx ipi $IPI_MODULE"; do
             set -- $spec
             out="$RUNNER_TEMP/artifact/new-$(basename "$1")"
-            bash "$RUNNER_TEMP/generate.sh" "$1" "$2" "$3" "$4" "$out"
+            bash "$RUNNER_TEMP/generate.sh" "$1" "$2" "$3" "$4" "$5" "$out"
             module=$(cat "$out/module.txt")
             cp "$out/$3" "$out/$module.py" "$1/src/$(basename "$1")/"
           done
