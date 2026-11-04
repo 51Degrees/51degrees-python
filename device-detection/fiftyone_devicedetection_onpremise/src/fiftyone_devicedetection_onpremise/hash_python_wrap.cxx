@@ -3486,19 +3486,21 @@ SWIG_Python_NonDynamicSetAttr(PyObject *obj, PyObject *name, PyObject *value) {
 #define SWIGTYPE_p_std__allocatorT_std__pairT_std__string_const_std__string_t_t swig_types[43]
 #define SWIGTYPE_p_std__allocatorT_std__string_t swig_types[44]
 #define SWIGTYPE_p_std__allocatorT_unsigned_char_t swig_types[45]
-#define SWIGTYPE_p_std__invalid_argument swig_types[46]
-#define SWIGTYPE_p_std__lessT_std__string_t swig_types[47]
-#define SWIGTYPE_p_std__mapT_std__string_std__string_t swig_types[48]
-#define SWIGTYPE_p_std__vectorT_std__string_t swig_types[49]
-#define SWIGTYPE_p_std__vectorT_uint8_t_t swig_types[50]
-#define SWIGTYPE_p_swig__SwigPyIterator swig_types[51]
-#define SWIGTYPE_p_unsigned_char swig_types[52]
-#define SWIGTYPE_p_unsigned_int swig_types[53]
-#define SWIGTYPE_p_unsigned_long_long swig_types[54]
-#define SWIGTYPE_p_unsigned_short swig_types[55]
-#define SWIGTYPE_p_value_type swig_types[56]
-static swig_type_info *swig_types[58];
-static swig_module_info swig_module = {swig_types, 57, 0, 0, 0, 0};
+#define SWIGTYPE_p_std__allocatorT_unsigned_int_t swig_types[46]
+#define SWIGTYPE_p_std__invalid_argument swig_types[47]
+#define SWIGTYPE_p_std__lessT_std__string_t swig_types[48]
+#define SWIGTYPE_p_std__mapT_std__string_std__string_t swig_types[49]
+#define SWIGTYPE_p_std__vectorT_std__string_t swig_types[50]
+#define SWIGTYPE_p_std__vectorT_uint32_t_t swig_types[51]
+#define SWIGTYPE_p_std__vectorT_uint8_t_t swig_types[52]
+#define SWIGTYPE_p_swig__SwigPyIterator swig_types[53]
+#define SWIGTYPE_p_unsigned_char swig_types[54]
+#define SWIGTYPE_p_unsigned_int swig_types[55]
+#define SWIGTYPE_p_unsigned_long_long swig_types[56]
+#define SWIGTYPE_p_unsigned_short swig_types[57]
+#define SWIGTYPE_p_value_type swig_types[58]
+static swig_type_info *swig_types[60];
+static swig_module_info swig_module = {swig_types, 59, 0, 0, 0, 0};
 #define SWIG_TypeQuery(name) SWIG_TypeQueryModule(&swig_module, &swig_module, name)
 #define SWIG_MangledTypeQuery(name) SWIG_MangledTypeQueryModule(&swig_module, &swig_module, name)
 
@@ -5961,6 +5963,9 @@ SWIGINTERN std::vector< std::string >::iterator std_vector_Sl_std_string_Sg__era
 SWIGINTERN std::vector< std::string >::iterator std_vector_Sl_std_string_Sg__insert__SWIG_0(std::vector< std::string > *self,std::vector< std::string >::iterator pos,std::vector< std::string >::value_type const &x){ return self->insert(pos, x); }
 SWIGINTERN void std_vector_Sl_std_string_Sg__insert__SWIG_1(std::vector< std::string > *self,std::vector< std::string >::iterator pos,std::vector< std::string >::size_type n,std::vector< std::string >::value_type const &x){ self->insert(pos, n, x); }
 
+#include <stdint.h>		// Use the C99 official header
+
+
 
 
 
@@ -6002,9 +6007,6 @@ SWIGINTERNINLINE PyObject*
 {
   return PyInt_FromSize_t((size_t) value);
 }
-
-
-#include <stdint.h>		// Use the C99 official header
 
 
 SWIGINTERN int
@@ -6218,6 +6220,127 @@ SWIG_AsVal_unsigned_SS_short (PyObject * obj, unsigned short *val)
   return res;
 }
 
+
+namespace swig {
+  template <> struct traits< unsigned int > {
+    typedef value_category category;
+    static const char* type_name() { return"unsigned int"; }
+  };
+  template <>  struct traits_asval< unsigned int > {
+    typedef unsigned int value_type;
+    static int asval(PyObject *obj, value_type *val) {
+      return SWIG_AsVal_unsigned_SS_int (obj, val);
+    }
+  };
+  template <>  struct traits_from< unsigned int > {
+    typedef unsigned int value_type;
+    static PyObject *from(const value_type& val) {
+      return SWIG_From_unsigned_SS_int  (val);
+    }
+  };
+}
+
+
+      namespace swig {
+	template <>  struct traits<std::vector< unsigned int, std::allocator< unsigned int > > > {
+	  typedef pointer_category category;
+	  static const char* type_name() {
+	    return "std::vector<" "unsigned int" "," "std::allocator< unsigned int >" " >";
+	  }
+	};
+      }
+    
+SWIGINTERN swig::SwigPyIterator *std_vector_Sl_uint32_t_Sg__iterator(std::vector< uint32_t > *self,PyObject **PYTHON_SELF){
+      return swig::make_output_iterator(self->begin(), self->begin(), self->end(), *PYTHON_SELF);
+    }
+SWIGINTERN bool std_vector_Sl_uint32_t_Sg____nonzero__(std::vector< uint32_t > const *self){
+      return !(self->empty());
+    }
+SWIGINTERN bool std_vector_Sl_uint32_t_Sg____bool__(std::vector< uint32_t > const *self){
+      return !(self->empty());
+    }
+SWIGINTERN std::vector< unsigned int >::size_type std_vector_Sl_uint32_t_Sg____len__(std::vector< uint32_t > const *self){
+      return self->size();
+    }
+SWIGINTERN std::vector< unsigned int,std::allocator< unsigned int > > *std_vector_Sl_uint32_t_Sg____getslice__(std::vector< uint32_t > *self,std::vector< unsigned int >::difference_type i,std::vector< unsigned int >::difference_type j){
+      return swig::getslice(self, i, j, 1);
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg____setslice____SWIG_0(std::vector< uint32_t > *self,std::vector< unsigned int >::difference_type i,std::vector< unsigned int >::difference_type j){
+      swig::setslice(self, i, j, 1, std::vector< unsigned int,std::allocator< unsigned int > >());
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg____setslice____SWIG_1(std::vector< uint32_t > *self,std::vector< unsigned int >::difference_type i,std::vector< unsigned int >::difference_type j,std::vector< unsigned int,std::allocator< unsigned int > > const &v){
+      swig::setslice(self, i, j, 1, v);
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg____delslice__(std::vector< uint32_t > *self,std::vector< unsigned int >::difference_type i,std::vector< unsigned int >::difference_type j){
+      swig::delslice(self, i, j, 1);
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg____delitem____SWIG_0(std::vector< uint32_t > *self,std::vector< unsigned int >::difference_type i){
+      swig::erase(self, swig::getpos(self, i));
+    }
+SWIGINTERN std::vector< unsigned int,std::allocator< unsigned int > > *std_vector_Sl_uint32_t_Sg____getitem____SWIG_0(std::vector< uint32_t > *self,SWIGPY_SLICEOBJECT *slice){
+      Py_ssize_t i, j, step;
+      if( !PySlice_Check(slice) ) {
+        SWIG_Error(SWIG_TypeError, "Slice object expected.");
+        return NULL;
+      }
+      PySlice_GetIndices(slice, (Py_ssize_t)self->size(), &i, &j, &step);
+      std::vector< unsigned int,std::allocator< unsigned int > >::difference_type id = i;
+      std::vector< unsigned int,std::allocator< unsigned int > >::difference_type jd = j;
+      return swig::getslice(self, id, jd, step);
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg____setitem____SWIG_0(std::vector< uint32_t > *self,SWIGPY_SLICEOBJECT *slice,std::vector< unsigned int,std::allocator< unsigned int > > const &v){
+      Py_ssize_t i, j, step;
+      if( !PySlice_Check(slice) ) {
+        SWIG_Error(SWIG_TypeError, "Slice object expected.");
+        return;
+      }
+      PySlice_GetIndices(slice, (Py_ssize_t)self->size(), &i, &j, &step);
+      std::vector< unsigned int,std::allocator< unsigned int > >::difference_type id = i;
+      std::vector< unsigned int,std::allocator< unsigned int > >::difference_type jd = j;
+      swig::setslice(self, id, jd, step, v);
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg____setitem____SWIG_1(std::vector< uint32_t > *self,SWIGPY_SLICEOBJECT *slice){
+      Py_ssize_t i, j, step;
+      if( !PySlice_Check(slice) ) {
+        SWIG_Error(SWIG_TypeError, "Slice object expected.");
+        return;
+      }
+      PySlice_GetIndices(slice, (Py_ssize_t)self->size(), &i, &j, &step);
+      std::vector< unsigned int,std::allocator< unsigned int > >::difference_type id = i;
+      std::vector< unsigned int,std::allocator< unsigned int > >::difference_type jd = j;
+      swig::delslice(self, id, jd, step);
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg____delitem____SWIG_1(std::vector< uint32_t > *self,SWIGPY_SLICEOBJECT *slice){
+      Py_ssize_t i, j, step;
+      if( !PySlice_Check(slice) ) {
+        SWIG_Error(SWIG_TypeError, "Slice object expected.");
+        return;
+      }
+      PySlice_GetIndices(slice, (Py_ssize_t)self->size(), &i, &j, &step);
+      std::vector< unsigned int,std::allocator< unsigned int > >::difference_type id = i;
+      std::vector< unsigned int,std::allocator< unsigned int > >::difference_type jd = j;
+      swig::delslice(self, id, jd, step);
+    }
+SWIGINTERN std::vector< unsigned int >::value_type const &std_vector_Sl_uint32_t_Sg____getitem____SWIG_1(std::vector< uint32_t > const *self,std::vector< unsigned int >::difference_type i){
+      return *(swig::cgetpos(self, i));
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg____setitem____SWIG_2(std::vector< uint32_t > *self,std::vector< unsigned int >::difference_type i,std::vector< unsigned int >::value_type const &x){
+      *(swig::getpos(self,i)) = x;
+    }
+SWIGINTERN std::vector< unsigned int >::value_type std_vector_Sl_uint32_t_Sg__pop(std::vector< uint32_t > *self){
+      if (self->size() == 0)
+	throw std::out_of_range("pop from empty container");
+      std::vector< unsigned int,std::allocator< unsigned int > >::value_type x = self->back();
+      self->pop_back();
+      return x;
+    }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg__append(std::vector< uint32_t > *self,std::vector< unsigned int >::value_type const &x){
+      self->push_back(x);
+    }
+SWIGINTERN std::vector< unsigned int >::iterator std_vector_Sl_uint32_t_Sg__erase__SWIG_0(std::vector< uint32_t > *self,std::vector< unsigned int >::iterator pos){ return self->erase(pos); }
+SWIGINTERN std::vector< unsigned int >::iterator std_vector_Sl_uint32_t_Sg__erase__SWIG_1(std::vector< uint32_t > *self,std::vector< unsigned int >::iterator first,std::vector< unsigned int >::iterator last){ return self->erase(first, last); }
+SWIGINTERN std::vector< unsigned int >::iterator std_vector_Sl_uint32_t_Sg__insert__SWIG_0(std::vector< uint32_t > *self,std::vector< unsigned int >::iterator pos,std::vector< unsigned int >::value_type const &x){ return self->insert(pos, x); }
+SWIGINTERN void std_vector_Sl_uint32_t_Sg__insert__SWIG_1(std::vector< uint32_t > *self,std::vector< unsigned int >::iterator pos,std::vector< unsigned int >::size_type n,std::vector< unsigned int >::value_type const &x){ self->insert(pos, n, x); }
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -25527,6 +25650,130 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_ConfigHashSwig_setPropertyValueIndex(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  ConfigHash *arg1 = 0 ;
+  bool arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  bool val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "ConfigHashSwig_setPropertyValueIndex", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ConfigHash, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ConfigHashSwig_setPropertyValueIndex" "', argument " "1"" of type '" "ConfigHash *""'"); 
+  }
+  arg1 = reinterpret_cast< ConfigHash * >(argp1);
+  ecode2 = SWIG_AsVal_bool(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "ConfigHashSwig_setPropertyValueIndex" "', argument " "2"" of type '" "bool""'");
+  } 
+  arg2 = static_cast< bool >(val2);
+  {
+    try {
+      (arg1)->setPropertyValueIndex(arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ConfigHashSwig_setIndexedProperties(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  ConfigHash *arg1 = 0 ;
+  std::vector< std::string,std::allocator< std::string > > arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[2] ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "ConfigHashSwig_setIndexedProperties", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ConfigHash, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ConfigHashSwig_setIndexedProperties" "', argument " "1"" of type '" "ConfigHash *""'"); 
+  }
+  arg1 = reinterpret_cast< ConfigHash * >(argp1);
+  {
+    std::vector< std::string,std::allocator< std::string > > *ptr = (std::vector< std::string,std::allocator< std::string > > *)0;
+    int res = swig::asptr(swig_obj[1], &ptr);
+    if (!SWIG_IsOK(res) || !ptr) {
+      SWIG_exception_fail(SWIG_ArgError((ptr ? res : SWIG_TypeError)), "in method '" "ConfigHashSwig_setIndexedProperties" "', argument " "2"" of type '" "std::vector< std::string,std::allocator< std::string > >""'"); 
+    }
+    arg2 = *ptr;
+    if (SWIG_IsNewObj(res)) delete ptr;
+  }
+  {
+    try {
+      (arg1)->setIndexedProperties(SWIG_STD_MOVE(arg2));;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_ConfigHashSwig_getStrings(PyObject *self, PyObject *args) {
   PyObject *resultobj = 0;
   ConfigHash *arg1 = 0 ;
@@ -26187,6 +26434,116 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_ConfigHashSwig_getPropertyValueIndex(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  ConfigHash *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  bool result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ConfigHash, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ConfigHashSwig_getPropertyValueIndex" "', argument " "1"" of type '" "ConfigHash *""'"); 
+  }
+  arg1 = reinterpret_cast< ConfigHash * >(argp1);
+  {
+    try {
+      result = (bool)(arg1)->getPropertyValueIndex();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_bool(static_cast< bool >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_ConfigHashSwig_getIndexedProperties(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  ConfigHash *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  std::vector< std::string,std::allocator< std::string > > result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_ConfigHash, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "ConfigHashSwig_getIndexedProperties" "', argument " "1"" of type '" "ConfigHash *""'"); 
+  }
+  arg1 = reinterpret_cast< ConfigHash * >(argp1);
+  {
+    try {
+      result = (arg1)->getIndexedProperties();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = swig::from(static_cast< std::vector< std::string,std::allocator< std::string > > >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_delete_ConfigHashSwig(PyObject *self, PyObject *args) {
   PyObject *resultobj = 0;
   ConfigHash *arg1 = 0 ;
@@ -26249,6 +26606,3245 @@ SWIGINTERN PyObject *ConfigHashSwig_swigregister(PyObject *SWIGUNUSEDPARM(self),
 }
 
 SWIGINTERN PyObject *ConfigHashSwig_swiginit(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  return SWIG_Python_InitShadowInstance(args);
+}
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_iterator(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  PyObject **arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  swig::SwigPyIterator *result = 0 ;
+  
+  arg2 = &swig_obj[0];
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_iterator" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (swig::SwigPyIterator *)std_vector_Sl_uint32_t_Sg__iterator(arg1,arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  if (!result) SWIG_fail;
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_swig__SwigPyIterator, SWIG_POINTER_OWN);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___nonzero__(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  bool result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___nonzero__" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (bool)std_vector_Sl_uint32_t_Sg____nonzero__((std::vector< unsigned int > const *)arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_bool(static_cast< bool >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___bool__(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  bool result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___bool__" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (bool)std_vector_Sl_uint32_t_Sg____bool__((std::vector< unsigned int > const *)arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_bool(static_cast< bool >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___len__(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  std::vector< unsigned int >::size_type result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___len__" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = std_vector_Sl_uint32_t_Sg____len__((std::vector< unsigned int > const *)arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_size_t(static_cast< size_t >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___getslice__(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::difference_type arg2 ;
+  std::vector< unsigned int >::difference_type arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  ptrdiff_t val2 ;
+  int ecode2 = 0 ;
+  ptrdiff_t val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  std::vector< unsigned int,std::allocator< unsigned int > > *result = 0 ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "VectorUInt32Swig___getslice__", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___getslice__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_ptrdiff_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig___getslice__" "', argument " "2"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::difference_type >(val2);
+  ecode3 = SWIG_AsVal_ptrdiff_t(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig___getslice__" "', argument " "3"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg3 = static_cast< std::vector< unsigned int >::difference_type >(val3);
+  {
+    try {
+      try {
+        result = (std::vector< unsigned int,std::allocator< unsigned int > > *)std_vector_Sl_uint32_t_Sg____getslice__(arg1,SWIG_STD_MOVE(arg2),SWIG_STD_MOVE(arg3));
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_std__vectorT_uint32_t_t, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___setslice____SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::difference_type arg2 ;
+  std::vector< unsigned int >::difference_type arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  ptrdiff_t val2 ;
+  int ecode2 = 0 ;
+  ptrdiff_t val3 ;
+  int ecode3 = 0 ;
+  
+  (void)self;
+  if ((nobjs < 3) || (nobjs > 3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___setslice__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_ptrdiff_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig___setslice__" "', argument " "2"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::difference_type >(val2);
+  ecode3 = SWIG_AsVal_ptrdiff_t(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig___setslice__" "', argument " "3"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg3 = static_cast< std::vector< unsigned int >::difference_type >(val3);
+  {
+    try {
+      try {
+        std_vector_Sl_uint32_t_Sg____setslice____SWIG_0(arg1,SWIG_STD_MOVE(arg2),SWIG_STD_MOVE(arg3));
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___setslice____SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::difference_type arg2 ;
+  std::vector< unsigned int >::difference_type arg3 ;
+  std::vector< unsigned int,std::allocator< unsigned int > > *arg4 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  ptrdiff_t val2 ;
+  int ecode2 = 0 ;
+  ptrdiff_t val3 ;
+  int ecode3 = 0 ;
+  int res4 = SWIG_OLDOBJ ;
+  
+  (void)self;
+  if ((nobjs < 4) || (nobjs > 4)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___setslice__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_ptrdiff_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig___setslice__" "', argument " "2"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::difference_type >(val2);
+  ecode3 = SWIG_AsVal_ptrdiff_t(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig___setslice__" "', argument " "3"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg3 = static_cast< std::vector< unsigned int >::difference_type >(val3);
+  {
+    std::vector< unsigned int,std::allocator< unsigned int > > *ptr = (std::vector< unsigned int,std::allocator< unsigned int > > *)0;
+    res4 = swig::asptr(swig_obj[3], &ptr);
+    if (!SWIG_IsOK(res4)) {
+      SWIG_exception_fail(SWIG_ArgError(res4), "in method '" "VectorUInt32Swig___setslice__" "', argument " "4"" of type '" "std::vector< unsigned int,std::allocator< unsigned int > > const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "VectorUInt32Swig___setslice__" "', argument " "4"" of type '" "std::vector< unsigned int,std::allocator< unsigned int > > const &""'"); 
+    }
+    arg4 = ptr;
+  }
+  {
+    try {
+      try {
+        std_vector_Sl_uint32_t_Sg____setslice____SWIG_1(arg1,SWIG_STD_MOVE(arg2),SWIG_STD_MOVE(arg3),(std::vector< unsigned int,std::allocator< unsigned int > > const &)*arg4);
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  if (SWIG_IsNewObj(res4)) delete arg4;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res4)) delete arg4;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___setslice__(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[5] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "VectorUInt32Swig___setslice__", 0, 4, argv))) SWIG_fail;
+  --argc;
+  if (argc == 3) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_ptrdiff_t(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        {
+          int res = SWIG_AsVal_ptrdiff_t(argv[2], NULL);
+          _v = SWIG_CheckState(res);
+        }
+        if (_v) {
+          return _wrap_VectorUInt32Swig___setslice____SWIG_0(self, argc, argv);
+        }
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_ptrdiff_t(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        {
+          int res = SWIG_AsVal_ptrdiff_t(argv[2], NULL);
+          _v = SWIG_CheckState(res);
+        }
+        if (_v) {
+          int res = swig::asptr(argv[3], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+          _v = SWIG_CheckState(res);
+          if (_v) {
+            return _wrap_VectorUInt32Swig___setslice____SWIG_1(self, argc, argv);
+          }
+        }
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'VectorUInt32Swig___setslice__'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    std::vector< uint32_t >::__setslice__(std::vector< unsigned int >::difference_type,std::vector< unsigned int >::difference_type)\n"
+    "    std::vector< uint32_t >::__setslice__(std::vector< unsigned int >::difference_type,std::vector< unsigned int >::difference_type,std::vector< unsigned int,std::allocator< unsigned int > > const &)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___delslice__(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::difference_type arg2 ;
+  std::vector< unsigned int >::difference_type arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  ptrdiff_t val2 ;
+  int ecode2 = 0 ;
+  ptrdiff_t val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "VectorUInt32Swig___delslice__", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___delslice__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_ptrdiff_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig___delslice__" "', argument " "2"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::difference_type >(val2);
+  ecode3 = SWIG_AsVal_ptrdiff_t(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig___delslice__" "', argument " "3"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg3 = static_cast< std::vector< unsigned int >::difference_type >(val3);
+  {
+    try {
+      try {
+        std_vector_Sl_uint32_t_Sg____delslice__(arg1,SWIG_STD_MOVE(arg2),SWIG_STD_MOVE(arg3));
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___delitem____SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::difference_type arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  ptrdiff_t val2 ;
+  int ecode2 = 0 ;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___delitem__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_ptrdiff_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig___delitem__" "', argument " "2"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::difference_type >(val2);
+  {
+    try {
+      try {
+        std_vector_Sl_uint32_t_Sg____delitem____SWIG_0(arg1,SWIG_STD_MOVE(arg2));
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___getitem____SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  SWIGPY_SLICEOBJECT *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  std::vector< unsigned int,std::allocator< unsigned int > > *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___getitem__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    if (!PySlice_Check(swig_obj[1])) {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig___getitem__" "', argument " "2"" of type '" "SWIGPY_SLICEOBJECT *""'");
+    }
+    arg2 = (SWIGPY_SLICEOBJECT *) swig_obj[1];
+  }
+  {
+    try {
+      try {
+        result = (std::vector< unsigned int,std::allocator< unsigned int > > *)std_vector_Sl_uint32_t_Sg____getitem____SWIG_0(arg1,arg2);
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_std__vectorT_uint32_t_t, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___setitem____SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  SWIGPY_SLICEOBJECT *arg2 = 0 ;
+  std::vector< unsigned int,std::allocator< unsigned int > > *arg3 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res3 = SWIG_OLDOBJ ;
+  
+  (void)self;
+  if ((nobjs < 3) || (nobjs > 3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___setitem__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    if (!PySlice_Check(swig_obj[1])) {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig___setitem__" "', argument " "2"" of type '" "SWIGPY_SLICEOBJECT *""'");
+    }
+    arg2 = (SWIGPY_SLICEOBJECT *) swig_obj[1];
+  }
+  {
+    std::vector< unsigned int,std::allocator< unsigned int > > *ptr = (std::vector< unsigned int,std::allocator< unsigned int > > *)0;
+    res3 = swig::asptr(swig_obj[2], &ptr);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "VectorUInt32Swig___setitem__" "', argument " "3"" of type '" "std::vector< unsigned int,std::allocator< unsigned int > > const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "VectorUInt32Swig___setitem__" "', argument " "3"" of type '" "std::vector< unsigned int,std::allocator< unsigned int > > const &""'"); 
+    }
+    arg3 = ptr;
+  }
+  {
+    try {
+      try {
+        std_vector_Sl_uint32_t_Sg____setitem____SWIG_0(arg1,arg2,(std::vector< unsigned int,std::allocator< unsigned int > > const &)*arg3);
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  if (SWIG_IsNewObj(res3)) delete arg3;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res3)) delete arg3;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___setitem____SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  SWIGPY_SLICEOBJECT *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___setitem__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    if (!PySlice_Check(swig_obj[1])) {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig___setitem__" "', argument " "2"" of type '" "SWIGPY_SLICEOBJECT *""'");
+    }
+    arg2 = (SWIGPY_SLICEOBJECT *) swig_obj[1];
+  }
+  {
+    try {
+      try {
+        std_vector_Sl_uint32_t_Sg____setitem____SWIG_1(arg1,arg2);
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___delitem____SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  SWIGPY_SLICEOBJECT *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___delitem__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    if (!PySlice_Check(swig_obj[1])) {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig___delitem__" "', argument " "2"" of type '" "SWIGPY_SLICEOBJECT *""'");
+    }
+    arg2 = (SWIGPY_SLICEOBJECT *) swig_obj[1];
+  }
+  {
+    try {
+      try {
+        std_vector_Sl_uint32_t_Sg____delitem____SWIG_1(arg1,arg2);
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      } catch(std::invalid_argument &_e) {
+        SWIG_exception_fail(SWIG_ValueError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___delitem__(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[3] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "VectorUInt32Swig___delitem__", 0, 2, argv))) SWIG_fail;
+  --argc;
+  if (argc == 2) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        _v = PySlice_Check(argv[1]);
+      }
+      if (_v) {
+        return _wrap_VectorUInt32Swig___delitem____SWIG_1(self, argc, argv);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_ptrdiff_t(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        return _wrap_VectorUInt32Swig___delitem____SWIG_0(self, argc, argv);
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'VectorUInt32Swig___delitem__'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    std::vector< uint32_t >::__delitem__(std::vector< unsigned int >::difference_type)\n"
+    "    std::vector< uint32_t >::__delitem__(SWIGPY_SLICEOBJECT *)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___getitem____SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::difference_type arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  ptrdiff_t val2 ;
+  int ecode2 = 0 ;
+  std::vector< unsigned int >::value_type *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___getitem__" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_ptrdiff_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig___getitem__" "', argument " "2"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::difference_type >(val2);
+  {
+    try {
+      try {
+        result = (std::vector< unsigned int >::value_type *) &std_vector_Sl_uint32_t_Sg____getitem____SWIG_1((std::vector< unsigned int > const *)arg1,SWIG_STD_MOVE(arg2));
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(*result));
+  if (!swig::container_owner<swig::traits<std::vector< unsigned int >::value_type>::category>::back_reference(resultobj, swig_obj[0]) && PyErr_Occurred()) {
+    SWIG_fail;
+  }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___getitem__(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[3] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "VectorUInt32Swig___getitem__", 0, 2, argv))) SWIG_fail;
+  --argc;
+  if (argc == 2) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        _v = PySlice_Check(argv[1]);
+      }
+      if (_v) {
+        return _wrap_VectorUInt32Swig___getitem____SWIG_0(self, argc, argv);
+      }
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_ptrdiff_t(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        return _wrap_VectorUInt32Swig___getitem____SWIG_1(self, argc, argv);
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'VectorUInt32Swig___getitem__'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    std::vector< uint32_t >::__getitem__(SWIGPY_SLICEOBJECT *)\n"
+    "    std::vector< uint32_t >::__getitem__(std::vector< unsigned int >::difference_type) const\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___setitem____SWIG_2(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::difference_type arg2 ;
+  std::vector< unsigned int >::value_type *arg3 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  ptrdiff_t val2 ;
+  int ecode2 = 0 ;
+  std::vector< unsigned int >::value_type temp3 ;
+  unsigned int val3 ;
+  int ecode3 = 0 ;
+  
+  (void)self;
+  if ((nobjs < 3) || (nobjs > 3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig___setitem__" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_ptrdiff_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig___setitem__" "', argument " "2"" of type '" "std::vector< unsigned int >::difference_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::difference_type >(val2);
+  ecode3 = SWIG_AsVal_unsigned_SS_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig___setitem__" "', argument " "3"" of type '" "std::vector< unsigned int >::value_type""'");
+  } 
+  temp3 = static_cast< std::vector< unsigned int >::value_type >(val3);
+  arg3 = &temp3;
+  {
+    try {
+      try {
+        std_vector_Sl_uint32_t_Sg____setitem____SWIG_2(arg1,SWIG_STD_MOVE(arg2),(unsigned int const &)*arg3);
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig___setitem__(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[4] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "VectorUInt32Swig___setitem__", 0, 3, argv))) SWIG_fail;
+  --argc;
+  if (argc == 2) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        _v = PySlice_Check(argv[1]);
+      }
+      if (_v) {
+        return _wrap_VectorUInt32Swig___setitem____SWIG_1(self, argc, argv);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        _v = PySlice_Check(argv[1]);
+      }
+      if (_v) {
+        int res = swig::asptr(argv[2], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+        _v = SWIG_CheckState(res);
+        if (_v) {
+          return _wrap_VectorUInt32Swig___setitem____SWIG_0(self, argc, argv);
+        }
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_ptrdiff_t(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        {
+          int res = SWIG_AsVal_unsigned_SS_int(argv[2], NULL);
+          _v = SWIG_CheckState(res);
+        }
+        if (_v) {
+          return _wrap_VectorUInt32Swig___setitem____SWIG_2(self, argc, argv);
+        }
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'VectorUInt32Swig___setitem__'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    std::vector< uint32_t >::__setitem__(SWIGPY_SLICEOBJECT *,std::vector< unsigned int,std::allocator< unsigned int > > const &)\n"
+    "    std::vector< uint32_t >::__setitem__(SWIGPY_SLICEOBJECT *)\n"
+    "    std::vector< uint32_t >::__setitem__(std::vector< unsigned int >::difference_type,std::vector< unsigned int >::value_type const &)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_pop(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  std::vector< unsigned int >::value_type result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_pop" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      try {
+        result = (std::vector< unsigned int >::value_type)std_vector_Sl_uint32_t_Sg__pop(arg1);
+      } catch(std::out_of_range &_e) {
+        SWIG_exception_fail(SWIG_IndexError, (&_e)->what());
+      };
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_append(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::value_type *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  std::vector< unsigned int >::value_type temp2 ;
+  unsigned int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "VectorUInt32Swig_append", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_append" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_unsigned_SS_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig_append" "', argument " "2"" of type '" "std::vector< unsigned int >::value_type""'");
+  } 
+  temp2 = static_cast< std::vector< unsigned int >::value_type >(val2);
+  arg2 = &temp2;
+  {
+    try {
+      std_vector_Sl_uint32_t_Sg__append(arg1,(unsigned int const &)*arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_VectorUInt32Swig__SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **SWIGUNUSEDPARM(swig_obj)) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 0) || (nobjs > 0)) SWIG_fail;
+  {
+    try {
+      result = (std::vector< uint32_t > *)new std::vector< uint32_t >();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_std__vectorT_uint32_t_t, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_VectorUInt32Swig__SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  int res1 = SWIG_OLDOBJ ;
+  std::vector< uint32_t > *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 1) || (nobjs > 1)) SWIG_fail;
+  {
+    std::vector< unsigned int,std::allocator< unsigned int > > *ptr = (std::vector< unsigned int,std::allocator< unsigned int > > *)0;
+    res1 = swig::asptr(swig_obj[0], &ptr);
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "new_VectorUInt32Swig" "', argument " "1"" of type '" "std::vector< uint32_t > const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "new_VectorUInt32Swig" "', argument " "1"" of type '" "std::vector< uint32_t > const &""'"); 
+    }
+    arg1 = ptr;
+  }
+  {
+    try {
+      result = (std::vector< uint32_t > *)new std::vector< uint32_t >((std::vector< uint32_t > const &)*arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_std__vectorT_uint32_t_t, SWIG_POINTER_NEW |  0 );
+  if (SWIG_IsNewObj(res1)) delete arg1;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res1)) delete arg1;
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_empty(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  bool result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_empty" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (bool)((std::vector< uint32_t > const *)arg1)->empty();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_bool(static_cast< bool >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_size(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  std::vector< unsigned int >::size_type result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_size" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = ((std::vector< uint32_t > const *)arg1)->size();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_size_t(static_cast< size_t >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_swap(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< uint32_t > *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  void *argp2 = 0 ;
+  int res2 = 0 ;
+  PyObject *swig_obj[2] ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "VectorUInt32Swig_swap", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_swap" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2, SWIGTYPE_p_std__vectorT_uint32_t_t,  0 );
+  if (!SWIG_IsOK(res2)) {
+    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "VectorUInt32Swig_swap" "', argument " "2"" of type '" "std::vector< uint32_t > &""'"); 
+  }
+  if (!argp2) {
+    SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "VectorUInt32Swig_swap" "', argument " "2"" of type '" "std::vector< uint32_t > &""'"); 
+  }
+  arg2 = reinterpret_cast< std::vector< uint32_t > * >(argp2);
+  {
+    try {
+      (arg1)->swap(*arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_begin(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_begin" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (arg1)->begin();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(swig::make_output_iterator(static_cast< const std::vector< unsigned int >::iterator & >(result)),
+    swig::SwigPyIterator::descriptor(),SWIG_POINTER_OWN);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_end(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_end" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (arg1)->end();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(swig::make_output_iterator(static_cast< const std::vector< unsigned int >::iterator & >(result)),
+    swig::SwigPyIterator::descriptor(),SWIG_POINTER_OWN);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_rbegin(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  SwigValueWrapper< std::vector< unsigned int >::reverse_iterator > result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_rbegin" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (arg1)->rbegin();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(swig::make_output_iterator(static_cast< const std::vector< unsigned int >::reverse_iterator & >(result)),
+    swig::SwigPyIterator::descriptor(),SWIG_POINTER_OWN);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_rend(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  SwigValueWrapper< std::vector< unsigned int >::reverse_iterator > result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_rend" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (arg1)->rend();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(swig::make_output_iterator(static_cast< const std::vector< unsigned int >::reverse_iterator & >(result)),
+    swig::SwigPyIterator::descriptor(),SWIG_POINTER_OWN);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_clear(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_clear" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      (arg1)->clear();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_get_allocator(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  SwigValueWrapper< std::allocator< unsigned int > > result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_get_allocator" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = ((std::vector< uint32_t > const *)arg1)->get_allocator();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new std::vector< unsigned int >::allocator_type(result)), SWIGTYPE_p_std__allocatorT_unsigned_int_t, SWIG_POINTER_OWN |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_VectorUInt32Swig__SWIG_2(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< unsigned int >::size_type arg1 ;
+  size_t val1 ;
+  int ecode1 = 0 ;
+  std::vector< uint32_t > *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 1) || (nobjs > 1)) SWIG_fail;
+  ecode1 = SWIG_AsVal_size_t(swig_obj[0], &val1);
+  if (!SWIG_IsOK(ecode1)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode1), "in method '" "new_VectorUInt32Swig" "', argument " "1"" of type '" "std::vector< unsigned int >::size_type""'");
+  } 
+  arg1 = static_cast< std::vector< unsigned int >::size_type >(val1);
+  {
+    try {
+      result = (std::vector< uint32_t > *)new std::vector< uint32_t >(SWIG_STD_MOVE(arg1));;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_std__vectorT_uint32_t_t, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_pop_back(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_pop_back" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      (arg1)->pop_back();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_resize__SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::size_type arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  size_t val2 ;
+  int ecode2 = 0 ;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_resize" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_size_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig_resize" "', argument " "2"" of type '" "std::vector< unsigned int >::size_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::size_type >(val2);
+  {
+    try {
+      (arg1)->resize(SWIG_STD_MOVE(arg2));;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_erase__SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  swig::SwigPyIterator *iter2 = 0 ;
+  int res2 ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > result;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_erase" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], SWIG_as_voidptrptr(&iter2), swig::SwigPyIterator::descriptor(), 0);
+  if (!SWIG_IsOK(res2) || !iter2) {
+    SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_erase" "', argument " "2"" of type '" "std::vector< unsigned int >::iterator""'");
+  } else {
+    swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *iter_t = dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter2);
+    if (iter_t) {
+      arg2 = iter_t->get_current();
+    } else {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_erase" "', argument " "2"" of type '" "std::vector< unsigned int >::iterator""'");
+    }
+  }
+  {
+    try {
+      result = std_vector_Sl_uint32_t_Sg__erase__SWIG_0(arg1,SWIG_STD_MOVE(arg2));;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(swig::make_output_iterator(static_cast< const std::vector< unsigned int >::iterator & >(result)),
+    swig::SwigPyIterator::descriptor(),SWIG_POINTER_OWN);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_erase__SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > arg2 ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > arg3 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  swig::SwigPyIterator *iter2 = 0 ;
+  int res2 ;
+  swig::SwigPyIterator *iter3 = 0 ;
+  int res3 ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > result;
+  
+  (void)self;
+  if ((nobjs < 3) || (nobjs > 3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_erase" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], SWIG_as_voidptrptr(&iter2), swig::SwigPyIterator::descriptor(), 0);
+  if (!SWIG_IsOK(res2) || !iter2) {
+    SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_erase" "', argument " "2"" of type '" "std::vector< unsigned int >::iterator""'");
+  } else {
+    swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *iter_t = dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter2);
+    if (iter_t) {
+      arg2 = iter_t->get_current();
+    } else {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_erase" "', argument " "2"" of type '" "std::vector< unsigned int >::iterator""'");
+    }
+  }
+  res3 = SWIG_ConvertPtr(swig_obj[2], SWIG_as_voidptrptr(&iter3), swig::SwigPyIterator::descriptor(), 0);
+  if (!SWIG_IsOK(res3) || !iter3) {
+    SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_erase" "', argument " "3"" of type '" "std::vector< unsigned int >::iterator""'");
+  } else {
+    swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *iter_t = dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter3);
+    if (iter_t) {
+      arg3 = iter_t->get_current();
+    } else {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_erase" "', argument " "3"" of type '" "std::vector< unsigned int >::iterator""'");
+    }
+  }
+  {
+    try {
+      result = std_vector_Sl_uint32_t_Sg__erase__SWIG_1(arg1,SWIG_STD_MOVE(arg2),SWIG_STD_MOVE(arg3));;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(swig::make_output_iterator(static_cast< const std::vector< unsigned int >::iterator & >(result)),
+    swig::SwigPyIterator::descriptor(),SWIG_POINTER_OWN);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_erase(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[4] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "VectorUInt32Swig_erase", 0, 3, argv))) SWIG_fail;
+  --argc;
+  if (argc == 2) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      swig::SwigPyIterator *iter = 0;
+      int res = SWIG_ConvertPtr(argv[1], SWIG_as_voidptrptr(&iter), swig::SwigPyIterator::descriptor(), 0);
+      _v = (SWIG_IsOK(res) && iter && (dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter) != 0));
+      if (_v) {
+        return _wrap_VectorUInt32Swig_erase__SWIG_0(self, argc, argv);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      swig::SwigPyIterator *iter = 0;
+      int res = SWIG_ConvertPtr(argv[1], SWIG_as_voidptrptr(&iter), swig::SwigPyIterator::descriptor(), 0);
+      _v = (SWIG_IsOK(res) && iter && (dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter) != 0));
+      if (_v) {
+        swig::SwigPyIterator *iter = 0;
+        int res = SWIG_ConvertPtr(argv[2], SWIG_as_voidptrptr(&iter), swig::SwigPyIterator::descriptor(), 0);
+        _v = (SWIG_IsOK(res) && iter && (dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter) != 0));
+        if (_v) {
+          return _wrap_VectorUInt32Swig_erase__SWIG_1(self, argc, argv);
+        }
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'VectorUInt32Swig_erase'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    std::vector< uint32_t >::erase(std::vector< unsigned int >::iterator)\n"
+    "    std::vector< uint32_t >::erase(std::vector< unsigned int >::iterator,std::vector< unsigned int >::iterator)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_VectorUInt32Swig__SWIG_3(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< unsigned int >::size_type arg1 ;
+  std::vector< unsigned int >::value_type *arg2 = 0 ;
+  size_t val1 ;
+  int ecode1 = 0 ;
+  std::vector< unsigned int >::value_type temp2 ;
+  unsigned int val2 ;
+  int ecode2 = 0 ;
+  std::vector< uint32_t > *result = 0 ;
+  
+  (void)self;
+  if ((nobjs < 2) || (nobjs > 2)) SWIG_fail;
+  ecode1 = SWIG_AsVal_size_t(swig_obj[0], &val1);
+  if (!SWIG_IsOK(ecode1)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode1), "in method '" "new_VectorUInt32Swig" "', argument " "1"" of type '" "std::vector< unsigned int >::size_type""'");
+  } 
+  arg1 = static_cast< std::vector< unsigned int >::size_type >(val1);
+  ecode2 = SWIG_AsVal_unsigned_SS_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "new_VectorUInt32Swig" "', argument " "2"" of type '" "std::vector< unsigned int >::value_type""'");
+  } 
+  temp2 = static_cast< std::vector< unsigned int >::value_type >(val2);
+  arg2 = &temp2;
+  {
+    try {
+      result = (std::vector< uint32_t > *)new std::vector< uint32_t >(SWIG_STD_MOVE(arg1),(std::vector< unsigned int >::value_type const &)*arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_std__vectorT_uint32_t_t, SWIG_POINTER_NEW |  0 );
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_new_VectorUInt32Swig(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[3] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "new_VectorUInt32Swig", 0, 2, argv))) SWIG_fail;
+  --argc;
+  if (argc == 0) {
+    return _wrap_new_VectorUInt32Swig__SWIG_0(self, argc, argv);
+  }
+  if (argc == 1) {
+    int _v = 0;
+    {
+      int res = SWIG_AsVal_size_t(argv[0], NULL);
+      _v = SWIG_CheckState(res);
+    }
+    if (_v) {
+      return _wrap_new_VectorUInt32Swig__SWIG_2(self, argc, argv);
+    }
+  }
+  if (argc == 1) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      return _wrap_new_VectorUInt32Swig__SWIG_1(self, argc, argv);
+    }
+  }
+  if (argc == 2) {
+    int _v = 0;
+    {
+      int res = SWIG_AsVal_size_t(argv[0], NULL);
+      _v = SWIG_CheckState(res);
+    }
+    if (_v) {
+      {
+        int res = SWIG_AsVal_unsigned_SS_int(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        return _wrap_new_VectorUInt32Swig__SWIG_3(self, argc, argv);
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'new_VectorUInt32Swig'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    std::vector< uint32_t >::vector()\n"
+    "    std::vector< uint32_t >::vector(std::vector< uint32_t > const &)\n"
+    "    std::vector< uint32_t >::vector(std::vector< unsigned int >::size_type)\n"
+    "    std::vector< uint32_t >::vector(std::vector< unsigned int >::size_type,std::vector< unsigned int >::value_type const &)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_push_back(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::value_type *arg2 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  std::vector< unsigned int >::value_type temp2 ;
+  unsigned int val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "VectorUInt32Swig_push_back", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_push_back" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_unsigned_SS_int(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig_push_back" "', argument " "2"" of type '" "std::vector< unsigned int >::value_type""'");
+  } 
+  temp2 = static_cast< std::vector< unsigned int >::value_type >(val2);
+  arg2 = &temp2;
+  {
+    try {
+      (arg1)->push_back((std::vector< unsigned int >::value_type const &)*arg2);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_front(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  std::vector< unsigned int >::value_type *result = 0 ;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_front" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (std::vector< unsigned int >::value_type *) &((std::vector< uint32_t > const *)arg1)->front();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(*result));
+  if (!swig::container_owner<swig::traits<std::vector< unsigned int >::value_type>::category>::back_reference(resultobj, swig_obj[0]) && PyErr_Occurred()) {
+    SWIG_fail;
+  }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_back(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  std::vector< unsigned int >::value_type *result = 0 ;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_back" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = (std::vector< unsigned int >::value_type *) &((std::vector< uint32_t > const *)arg1)->back();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_unsigned_SS_int(static_cast< unsigned int >(*result));
+  if (!swig::container_owner<swig::traits<std::vector< unsigned int >::value_type>::category>::back_reference(resultobj, swig_obj[0]) && PyErr_Occurred()) {
+    SWIG_fail;
+  }
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_assign(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::size_type arg2 ;
+  std::vector< unsigned int >::value_type *arg3 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  size_t val2 ;
+  int ecode2 = 0 ;
+  std::vector< unsigned int >::value_type temp3 ;
+  unsigned int val3 ;
+  int ecode3 = 0 ;
+  PyObject *swig_obj[3] ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "VectorUInt32Swig_assign", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_assign" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_size_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig_assign" "', argument " "2"" of type '" "std::vector< unsigned int >::size_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::size_type >(val2);
+  ecode3 = SWIG_AsVal_unsigned_SS_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig_assign" "', argument " "3"" of type '" "std::vector< unsigned int >::value_type""'");
+  } 
+  temp3 = static_cast< std::vector< unsigned int >::value_type >(val3);
+  arg3 = &temp3;
+  {
+    try {
+      (arg1)->assign(SWIG_STD_MOVE(arg2),(std::vector< unsigned int >::value_type const &)*arg3);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_resize__SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::size_type arg2 ;
+  std::vector< unsigned int >::value_type *arg3 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  size_t val2 ;
+  int ecode2 = 0 ;
+  std::vector< unsigned int >::value_type temp3 ;
+  unsigned int val3 ;
+  int ecode3 = 0 ;
+  
+  (void)self;
+  if ((nobjs < 3) || (nobjs > 3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_resize" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_size_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig_resize" "', argument " "2"" of type '" "std::vector< unsigned int >::size_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::size_type >(val2);
+  ecode3 = SWIG_AsVal_unsigned_SS_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig_resize" "', argument " "3"" of type '" "std::vector< unsigned int >::value_type""'");
+  } 
+  temp3 = static_cast< std::vector< unsigned int >::value_type >(val3);
+  arg3 = &temp3;
+  {
+    try {
+      (arg1)->resize(SWIG_STD_MOVE(arg2),(std::vector< unsigned int >::value_type const &)*arg3);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_resize(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[4] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "VectorUInt32Swig_resize", 0, 3, argv))) SWIG_fail;
+  --argc;
+  if (argc == 2) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_size_t(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        return _wrap_VectorUInt32Swig_resize__SWIG_0(self, argc, argv);
+      }
+    }
+  }
+  if (argc == 3) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      {
+        int res = SWIG_AsVal_size_t(argv[1], NULL);
+        _v = SWIG_CheckState(res);
+      }
+      if (_v) {
+        {
+          int res = SWIG_AsVal_unsigned_SS_int(argv[2], NULL);
+          _v = SWIG_CheckState(res);
+        }
+        if (_v) {
+          return _wrap_VectorUInt32Swig_resize__SWIG_1(self, argc, argv);
+        }
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'VectorUInt32Swig_resize'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    std::vector< uint32_t >::resize(std::vector< unsigned int >::size_type)\n"
+    "    std::vector< uint32_t >::resize(std::vector< unsigned int >::size_type,std::vector< unsigned int >::value_type const &)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_insert__SWIG_0(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > arg2 ;
+  std::vector< unsigned int >::value_type *arg3 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  swig::SwigPyIterator *iter2 = 0 ;
+  int res2 ;
+  std::vector< unsigned int >::value_type temp3 ;
+  unsigned int val3 ;
+  int ecode3 = 0 ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > result;
+  
+  (void)self;
+  if ((nobjs < 3) || (nobjs > 3)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_insert" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], SWIG_as_voidptrptr(&iter2), swig::SwigPyIterator::descriptor(), 0);
+  if (!SWIG_IsOK(res2) || !iter2) {
+    SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_insert" "', argument " "2"" of type '" "std::vector< unsigned int >::iterator""'");
+  } else {
+    swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *iter_t = dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter2);
+    if (iter_t) {
+      arg2 = iter_t->get_current();
+    } else {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_insert" "', argument " "2"" of type '" "std::vector< unsigned int >::iterator""'");
+    }
+  }
+  ecode3 = SWIG_AsVal_unsigned_SS_int(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig_insert" "', argument " "3"" of type '" "std::vector< unsigned int >::value_type""'");
+  } 
+  temp3 = static_cast< std::vector< unsigned int >::value_type >(val3);
+  arg3 = &temp3;
+  {
+    try {
+      result = std_vector_Sl_uint32_t_Sg__insert__SWIG_0(arg1,SWIG_STD_MOVE(arg2),(unsigned int const &)*arg3);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj(swig::make_output_iterator(static_cast< const std::vector< unsigned int >::iterator & >(result)),
+    swig::SwigPyIterator::descriptor(),SWIG_POINTER_OWN);
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_insert__SWIG_1(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  SwigValueWrapper< std::vector< unsigned int >::iterator > arg2 ;
+  std::vector< unsigned int >::size_type arg3 ;
+  std::vector< unsigned int >::value_type *arg4 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  swig::SwigPyIterator *iter2 = 0 ;
+  int res2 ;
+  size_t val3 ;
+  int ecode3 = 0 ;
+  std::vector< unsigned int >::value_type temp4 ;
+  unsigned int val4 ;
+  int ecode4 = 0 ;
+  
+  (void)self;
+  if ((nobjs < 4) || (nobjs > 4)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_insert" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  res2 = SWIG_ConvertPtr(swig_obj[1], SWIG_as_voidptrptr(&iter2), swig::SwigPyIterator::descriptor(), 0);
+  if (!SWIG_IsOK(res2) || !iter2) {
+    SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_insert" "', argument " "2"" of type '" "std::vector< unsigned int >::iterator""'");
+  } else {
+    swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *iter_t = dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter2);
+    if (iter_t) {
+      arg2 = iter_t->get_current();
+    } else {
+      SWIG_exception_fail(SWIG_ArgError(SWIG_TypeError), "in method '" "VectorUInt32Swig_insert" "', argument " "2"" of type '" "std::vector< unsigned int >::iterator""'");
+    }
+  }
+  ecode3 = SWIG_AsVal_size_t(swig_obj[2], &val3);
+  if (!SWIG_IsOK(ecode3)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode3), "in method '" "VectorUInt32Swig_insert" "', argument " "3"" of type '" "std::vector< unsigned int >::size_type""'");
+  } 
+  arg3 = static_cast< std::vector< unsigned int >::size_type >(val3);
+  ecode4 = SWIG_AsVal_unsigned_SS_int(swig_obj[3], &val4);
+  if (!SWIG_IsOK(ecode4)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "VectorUInt32Swig_insert" "', argument " "4"" of type '" "std::vector< unsigned int >::value_type""'");
+  } 
+  temp4 = static_cast< std::vector< unsigned int >::value_type >(val4);
+  arg4 = &temp4;
+  {
+    try {
+      std_vector_Sl_uint32_t_Sg__insert__SWIG_1(arg1,SWIG_STD_MOVE(arg2),SWIG_STD_MOVE(arg3),(unsigned int const &)*arg4);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_insert(PyObject *self, PyObject *args) {
+  Py_ssize_t argc;
+  PyObject *argv[5] = {
+    0
+  };
+  
+  if (!(argc = SWIG_Python_UnpackTuple(args, "VectorUInt32Swig_insert", 0, 4, argv))) SWIG_fail;
+  --argc;
+  if (argc == 3) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      swig::SwigPyIterator *iter = 0;
+      int res = SWIG_ConvertPtr(argv[1], SWIG_as_voidptrptr(&iter), swig::SwigPyIterator::descriptor(), 0);
+      _v = (SWIG_IsOK(res) && iter && (dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter) != 0));
+      if (_v) {
+        {
+          int res = SWIG_AsVal_unsigned_SS_int(argv[2], NULL);
+          _v = SWIG_CheckState(res);
+        }
+        if (_v) {
+          return _wrap_VectorUInt32Swig_insert__SWIG_0(self, argc, argv);
+        }
+      }
+    }
+  }
+  if (argc == 4) {
+    int _v = 0;
+    int res = swig::asptr(argv[0], (std::vector< unsigned int,std::allocator< unsigned int > >**)(0));
+    _v = SWIG_CheckState(res);
+    if (_v) {
+      swig::SwigPyIterator *iter = 0;
+      int res = SWIG_ConvertPtr(argv[1], SWIG_as_voidptrptr(&iter), swig::SwigPyIterator::descriptor(), 0);
+      _v = (SWIG_IsOK(res) && iter && (dynamic_cast<swig::SwigPyIterator_T<std::vector< unsigned int >::iterator > *>(iter) != 0));
+      if (_v) {
+        {
+          int res = SWIG_AsVal_size_t(argv[2], NULL);
+          _v = SWIG_CheckState(res);
+        }
+        if (_v) {
+          {
+            int res = SWIG_AsVal_unsigned_SS_int(argv[3], NULL);
+            _v = SWIG_CheckState(res);
+          }
+          if (_v) {
+            return _wrap_VectorUInt32Swig_insert__SWIG_1(self, argc, argv);
+          }
+        }
+      }
+    }
+  }
+  
+fail:
+  SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'VectorUInt32Swig_insert'.\n"
+    "  Possible C/C++ prototypes are:\n"
+    "    std::vector< uint32_t >::insert(std::vector< unsigned int >::iterator,std::vector< unsigned int >::value_type const &)\n"
+    "    std::vector< uint32_t >::insert(std::vector< unsigned int >::iterator,std::vector< unsigned int >::size_type,std::vector< unsigned int >::value_type const &)\n");
+  return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_reserve(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  std::vector< unsigned int >::size_type arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  size_t val2 ;
+  int ecode2 = 0 ;
+  PyObject *swig_obj[2] ;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "VectorUInt32Swig_reserve", 2, 2, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_reserve" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  ecode2 = SWIG_AsVal_size_t(swig_obj[1], &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "VectorUInt32Swig_reserve" "', argument " "2"" of type '" "std::vector< unsigned int >::size_type""'");
+  } 
+  arg2 = static_cast< std::vector< unsigned int >::size_type >(val2);
+  {
+    try {
+      (arg1)->reserve(SWIG_STD_MOVE(arg2));;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_VectorUInt32Swig_capacity(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  std::vector< unsigned int >::size_type result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "VectorUInt32Swig_capacity" "', argument " "1"" of type '" "std::vector< uint32_t > const *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      result = ((std::vector< uint32_t > const *)arg1)->capacity();;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_From_size_t(static_cast< size_t >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_delete_VectorUInt32Swig(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::vector< uint32_t > *arg1 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject *swig_obj[1] ;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_std__vectorT_uint32_t_t, SWIG_POINTER_DISOWN |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "delete_VectorUInt32Swig" "', argument " "1"" of type '" "std::vector< uint32_t > *""'"); 
+  }
+  arg1 = reinterpret_cast< std::vector< uint32_t > * >(argp1);
+  {
+    try {
+      delete arg1;;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *VectorUInt32Swig_swigregister(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *obj = NULL;
+  if (!SWIG_Python_UnpackTuple(args, "swigregister", 1, 1, &obj)) return NULL;
+  SWIG_TypeNewClientData(SWIGTYPE_p_std__vectorT_uint32_t_t, SWIG_NewClientData(obj));
+  return SWIG_Py_Void();
+}
+
+SWIGINTERN PyObject *VectorUInt32Swig_swiginit(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   return SWIG_Python_InitShadowInstance(args);
 }
 
@@ -27030,170 +30626,13 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_EngineHashSwig_process__SWIG_2(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
-  PyObject *resultobj = 0;
-  EngineHash *arg1 = 0 ;
-  EvidenceDeviceDetection *arg2 = 0 ;
-  int *arg3 = 0 ;
-  int arg4 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  void *argp2 = 0 ;
-  int res2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
-  int val4 ;
-  int ecode4 = 0 ;
-  ResultsHash *result = 0 ;
-  
-  (void)self;
-  if ((nobjs < 4) || (nobjs > 4)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_EngineHash, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "EngineHashSwig_process" "', argument " "1"" of type '" "EngineHash *""'"); 
-  }
-  arg1 = reinterpret_cast< EngineHash * >(argp1);
-  res2 = SWIG_ConvertPtr(swig_obj[1], &argp2,SWIGTYPE_p_EvidenceDeviceDetection, 0 |  0 );
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "EngineHashSwig_process" "', argument " "2"" of type '" "EvidenceDeviceDetection *""'"); 
-  }
-  arg2 = reinterpret_cast< EvidenceDeviceDetection * >(argp2);
-  res3 = SWIG_ConvertPtr(swig_obj[2], &argp3,SWIGTYPE_p_int, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "EngineHashSwig_process" "', argument " "3"" of type '" "int const *""'"); 
-  }
-  arg3 = reinterpret_cast< int * >(argp3);
-  ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
-  if (!SWIG_IsOK(ecode4)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "EngineHashSwig_process" "', argument " "4"" of type '" "int""'");
-  } 
-  arg4 = static_cast< int >(val4);
-  {
-    try {
-      result = (ResultsHash *)(arg1)->process(arg2,(int const *)arg3,arg4);;
-    }
-    catch(FatalException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(NotImplementedException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(InvalidPropertyException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(EvidenceException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(TooManyValuesException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(NoValuesAvailableException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }	
-    catch(StatusCodeException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(runtime_error& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(invalid_argument& e) {
-      SWIG_exception(SWIG_ValueError, e.what());
-    }
-  }
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_ResultsHash, SWIG_POINTER_OWN |  0 );
-  return resultobj;
-fail:
-  return NULL;
-}
-
-
-SWIGINTERN PyObject *_wrap_EngineHashSwig_process__SWIG_3(PyObject *self, Py_ssize_t nobjs, PyObject **swig_obj) {
-  PyObject *resultobj = 0;
-  EngineHash *arg1 = 0 ;
-  char *arg2 = 0 ;
-  int *arg3 = 0 ;
-  int arg4 ;
-  void *argp1 = 0 ;
-  int res1 = 0 ;
-  int res2 ;
-  char *buf2 = 0 ;
-  int alloc2 = 0 ;
-  void *argp3 = 0 ;
-  int res3 = 0 ;
-  int val4 ;
-  int ecode4 = 0 ;
-  ResultsHash *result = 0 ;
-  
-  (void)self;
-  if ((nobjs < 4) || (nobjs > 4)) SWIG_fail;
-  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_EngineHash, 0 |  0 );
-  if (!SWIG_IsOK(res1)) {
-    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "EngineHashSwig_process" "', argument " "1"" of type '" "EngineHash *""'"); 
-  }
-  arg1 = reinterpret_cast< EngineHash * >(argp1);
-  res2 = SWIG_AsCharPtrAndSize(swig_obj[1], &buf2, NULL, &alloc2);
-  if (!SWIG_IsOK(res2)) {
-    SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "EngineHashSwig_process" "', argument " "2"" of type '" "char const *""'");
-  }
-  arg2 = reinterpret_cast< char * >(buf2);
-  res3 = SWIG_ConvertPtr(swig_obj[2], &argp3,SWIGTYPE_p_int, 0 |  0 );
-  if (!SWIG_IsOK(res3)) {
-    SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "EngineHashSwig_process" "', argument " "3"" of type '" "int const *""'"); 
-  }
-  arg3 = reinterpret_cast< int * >(argp3);
-  ecode4 = SWIG_AsVal_int(swig_obj[3], &val4);
-  if (!SWIG_IsOK(ecode4)) {
-    SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "EngineHashSwig_process" "', argument " "4"" of type '" "int""'");
-  } 
-  arg4 = static_cast< int >(val4);
-  {
-    try {
-      result = (ResultsHash *)(arg1)->process((char const *)arg2,(int const *)arg3,arg4);;
-    }
-    catch(FatalException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(NotImplementedException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(InvalidPropertyException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(EvidenceException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(TooManyValuesException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(NoValuesAvailableException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }	
-    catch(StatusCodeException& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(runtime_error& e) {
-      SWIG_exception(SWIG_RuntimeError, e.what());
-    }
-    catch(invalid_argument& e) {
-      SWIG_exception(SWIG_ValueError, e.what());
-    }
-  }
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_ResultsHash, SWIG_POINTER_OWN |  0 );
-  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
-  return resultobj;
-fail:
-  if (alloc2 == SWIG_NEWOBJ) delete[] buf2;
-  return NULL;
-}
-
-
 SWIGINTERN PyObject *_wrap_EngineHashSwig_process(PyObject *self, PyObject *args) {
   Py_ssize_t argc;
-  PyObject *argv[5] = {
+  PyObject *argv[3] = {
     0
   };
   
-  if (!(argc = SWIG_Python_UnpackTuple(args, "EngineHashSwig_process", 0, 4, argv))) SWIG_fail;
+  if (!(argc = SWIG_Python_UnpackTuple(args, "EngineHashSwig_process", 0, 2, argv))) SWIG_fail;
   --argc;
   if (argc == 2) {
     int _v = 0;
@@ -27222,64 +30661,97 @@ SWIGINTERN PyObject *_wrap_EngineHashSwig_process(PyObject *self, PyObject *args
       }
     }
   }
-  if (argc == 4) {
-    int _v = 0;
-    void *vptr = 0;
-    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_EngineHash, 0);
-    _v = SWIG_CheckState(res);
-    if (_v) {
-      void *vptr = 0;
-      int res = SWIG_ConvertPtr(argv[1], &vptr, SWIGTYPE_p_EvidenceDeviceDetection, 0);
-      _v = SWIG_CheckState(res);
-      if (_v) {
-        void *vptr = 0;
-        int res = SWIG_ConvertPtr(argv[2], &vptr, SWIGTYPE_p_int, 0);
-        _v = SWIG_CheckState(res);
-        if (_v) {
-          {
-            int res = SWIG_AsVal_int(argv[3], NULL);
-            _v = SWIG_CheckState(res);
-          }
-          if (_v) {
-            return _wrap_EngineHashSwig_process__SWIG_2(self, argc, argv);
-          }
-        }
-      }
-    }
-  }
-  if (argc == 4) {
-    int _v = 0;
-    void *vptr = 0;
-    int res = SWIG_ConvertPtr(argv[0], &vptr, SWIGTYPE_p_EngineHash, 0);
-    _v = SWIG_CheckState(res);
-    if (_v) {
-      int res = SWIG_AsCharPtrAndSize(argv[1], 0, NULL, 0);
-      _v = SWIG_CheckState(res);
-      if (_v) {
-        void *vptr = 0;
-        int res = SWIG_ConvertPtr(argv[2], &vptr, SWIGTYPE_p_int, 0);
-        _v = SWIG_CheckState(res);
-        if (_v) {
-          {
-            int res = SWIG_AsVal_int(argv[3], NULL);
-            _v = SWIG_CheckState(res);
-          }
-          if (_v) {
-            return _wrap_EngineHashSwig_process__SWIG_3(self, argc, argv);
-          }
-        }
-      }
-    }
-  }
   
 fail:
   SWIG_Python_RaiseOrModifyTypeError("Wrong number or type of arguments for overloaded function 'EngineHashSwig_process'.\n"
     "  Possible C/C++ prototypes are:\n"
     "    EngineHash::process(EvidenceDeviceDetection *)\n"
-    "    EngineHash::process(char const *)\n"
-    "    EngineHash::process(EvidenceDeviceDetection *,int const *,int)\n"
-    "    EngineHash::process(char const *,int const *,int)\n");
+    "    EngineHash::process(char const *)\n");
   return 0;
+}
+
+
+SWIGINTERN PyObject *_wrap_EngineHashSwig_getProfileIdsForPropertyValue(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  EngineHash *arg1 = 0 ;
+  std::string *arg2 = 0 ;
+  std::string *arg3 = 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  int res2 = SWIG_OLDOBJ ;
+  int res3 = SWIG_OLDOBJ ;
+  PyObject *swig_obj[3] ;
+  std::vector< uint32_t,std::allocator< uint32_t > > result;
+  
+  (void)self;
+  if (!SWIG_Python_UnpackTuple(args, "EngineHashSwig_getProfileIdsForPropertyValue", 3, 3, swig_obj)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(swig_obj[0], &argp1,SWIGTYPE_p_EngineHash, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "EngineHashSwig_getProfileIdsForPropertyValue" "', argument " "1"" of type '" "EngineHash *""'"); 
+  }
+  arg1 = reinterpret_cast< EngineHash * >(argp1);
+  {
+    std::string *ptr = (std::string *)0;
+    res2 = SWIG_AsPtr_std_string(swig_obj[1], &ptr);
+    if (!SWIG_IsOK(res2)) {
+      SWIG_exception_fail(SWIG_ArgError(res2), "in method '" "EngineHashSwig_getProfileIdsForPropertyValue" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "EngineHashSwig_getProfileIdsForPropertyValue" "', argument " "2"" of type '" "std::string const &""'"); 
+    }
+    arg2 = ptr;
+  }
+  {
+    std::string *ptr = (std::string *)0;
+    res3 = SWIG_AsPtr_std_string(swig_obj[2], &ptr);
+    if (!SWIG_IsOK(res3)) {
+      SWIG_exception_fail(SWIG_ArgError(res3), "in method '" "EngineHashSwig_getProfileIdsForPropertyValue" "', argument " "3"" of type '" "std::string const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "EngineHashSwig_getProfileIdsForPropertyValue" "', argument " "3"" of type '" "std::string const &""'"); 
+    }
+    arg3 = ptr;
+  }
+  {
+    try {
+      result = (arg1)->getProfileIdsForPropertyValue((std::string const &)*arg2,(std::string const &)*arg3);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = swig::from(static_cast< std::vector< unsigned int,std::allocator< unsigned int > > >(result));
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  if (SWIG_IsNewObj(res3)) delete arg3;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res2)) delete arg2;
+  if (SWIG_IsNewObj(res3)) delete arg3;
+  return NULL;
 }
 
 
@@ -28577,6 +32049,8 @@ static PyMethodDef SwigMethods[] = {
 	 { "ConfigHashSwig_setUsePerformanceGraph", _wrap_ConfigHashSwig_setUsePerformanceGraph, METH_VARARGS, NULL},
 	 { "ConfigHashSwig_setUsePredictiveGraph", _wrap_ConfigHashSwig_setUsePredictiveGraph, METH_VARARGS, NULL},
 	 { "ConfigHashSwig_setTraceRoute", _wrap_ConfigHashSwig_setTraceRoute, METH_VARARGS, NULL},
+	 { "ConfigHashSwig_setPropertyValueIndex", _wrap_ConfigHashSwig_setPropertyValueIndex, METH_VARARGS, NULL},
+	 { "ConfigHashSwig_setIndexedProperties", _wrap_ConfigHashSwig_setIndexedProperties, METH_VARARGS, NULL},
 	 { "ConfigHashSwig_getStrings", _wrap_ConfigHashSwig_getStrings, METH_O, NULL},
 	 { "ConfigHashSwig_getProperties", _wrap_ConfigHashSwig_getProperties, METH_O, NULL},
 	 { "ConfigHashSwig_getValues", _wrap_ConfigHashSwig_getValues, METH_O, NULL},
@@ -28589,9 +32063,46 @@ static PyMethodDef SwigMethods[] = {
 	 { "ConfigHashSwig_getUsePredictiveGraph", _wrap_ConfigHashSwig_getUsePredictiveGraph, METH_O, NULL},
 	 { "ConfigHashSwig_getConcurrency", _wrap_ConfigHashSwig_getConcurrency, METH_O, NULL},
 	 { "ConfigHashSwig_getTraceRoute", _wrap_ConfigHashSwig_getTraceRoute, METH_O, NULL},
+	 { "ConfigHashSwig_getPropertyValueIndex", _wrap_ConfigHashSwig_getPropertyValueIndex, METH_O, NULL},
+	 { "ConfigHashSwig_getIndexedProperties", _wrap_ConfigHashSwig_getIndexedProperties, METH_O, NULL},
 	 { "delete_ConfigHashSwig", _wrap_delete_ConfigHashSwig, METH_O, NULL},
 	 { "ConfigHashSwig_swigregister", ConfigHashSwig_swigregister, METH_O, NULL},
 	 { "ConfigHashSwig_swiginit", ConfigHashSwig_swiginit, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_iterator", _wrap_VectorUInt32Swig_iterator, METH_O, NULL},
+	 { "VectorUInt32Swig___nonzero__", _wrap_VectorUInt32Swig___nonzero__, METH_O, NULL},
+	 { "VectorUInt32Swig___bool__", _wrap_VectorUInt32Swig___bool__, METH_O, NULL},
+	 { "VectorUInt32Swig___len__", _wrap_VectorUInt32Swig___len__, METH_O, NULL},
+	 { "VectorUInt32Swig___getslice__", _wrap_VectorUInt32Swig___getslice__, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig___setslice__", _wrap_VectorUInt32Swig___setslice__, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig___delslice__", _wrap_VectorUInt32Swig___delslice__, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig___delitem__", _wrap_VectorUInt32Swig___delitem__, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig___getitem__", _wrap_VectorUInt32Swig___getitem__, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig___setitem__", _wrap_VectorUInt32Swig___setitem__, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_pop", _wrap_VectorUInt32Swig_pop, METH_O, NULL},
+	 { "VectorUInt32Swig_append", _wrap_VectorUInt32Swig_append, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_empty", _wrap_VectorUInt32Swig_empty, METH_O, NULL},
+	 { "VectorUInt32Swig_size", _wrap_VectorUInt32Swig_size, METH_O, NULL},
+	 { "VectorUInt32Swig_swap", _wrap_VectorUInt32Swig_swap, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_begin", _wrap_VectorUInt32Swig_begin, METH_O, NULL},
+	 { "VectorUInt32Swig_end", _wrap_VectorUInt32Swig_end, METH_O, NULL},
+	 { "VectorUInt32Swig_rbegin", _wrap_VectorUInt32Swig_rbegin, METH_O, NULL},
+	 { "VectorUInt32Swig_rend", _wrap_VectorUInt32Swig_rend, METH_O, NULL},
+	 { "VectorUInt32Swig_clear", _wrap_VectorUInt32Swig_clear, METH_O, NULL},
+	 { "VectorUInt32Swig_get_allocator", _wrap_VectorUInt32Swig_get_allocator, METH_O, NULL},
+	 { "VectorUInt32Swig_pop_back", _wrap_VectorUInt32Swig_pop_back, METH_O, NULL},
+	 { "VectorUInt32Swig_erase", _wrap_VectorUInt32Swig_erase, METH_VARARGS, NULL},
+	 { "new_VectorUInt32Swig", _wrap_new_VectorUInt32Swig, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_push_back", _wrap_VectorUInt32Swig_push_back, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_front", _wrap_VectorUInt32Swig_front, METH_O, NULL},
+	 { "VectorUInt32Swig_back", _wrap_VectorUInt32Swig_back, METH_O, NULL},
+	 { "VectorUInt32Swig_assign", _wrap_VectorUInt32Swig_assign, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_resize", _wrap_VectorUInt32Swig_resize, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_insert", _wrap_VectorUInt32Swig_insert, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_reserve", _wrap_VectorUInt32Swig_reserve, METH_VARARGS, NULL},
+	 { "VectorUInt32Swig_capacity", _wrap_VectorUInt32Swig_capacity, METH_O, NULL},
+	 { "delete_VectorUInt32Swig", _wrap_delete_VectorUInt32Swig, METH_O, NULL},
+	 { "VectorUInt32Swig_swigregister", VectorUInt32Swig_swigregister, METH_O, NULL},
+	 { "VectorUInt32Swig_swiginit", VectorUInt32Swig_swiginit, METH_VARARGS, NULL},
 	 { "new_EngineHashSwig", _wrap_new_EngineHashSwig, METH_VARARGS, NULL},
 	 { "EngineHashSwig_getPublishedTime", _wrap_EngineHashSwig_getPublishedTime, METH_O, NULL},
 	 { "EngineHashSwig_getUpdateAvailableTime", _wrap_EngineHashSwig_getUpdateAvailableTime, METH_O, NULL},
@@ -28601,6 +32112,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "EngineHashSwig_refreshDataFromFile", _wrap_EngineHashSwig_refreshDataFromFile, METH_VARARGS, NULL},
 	 { "EngineHashSwig_refreshDataFromMemory", _wrap_EngineHashSwig_refreshDataFromMemory, METH_VARARGS, NULL},
 	 { "EngineHashSwig_process", _wrap_EngineHashSwig_process, METH_VARARGS, NULL},
+	 { "EngineHashSwig_getProfileIdsForPropertyValue", _wrap_EngineHashSwig_getProfileIdsForPropertyValue, METH_VARARGS, NULL},
 	 { "EngineHashSwig_processBase", _wrap_EngineHashSwig_processBase, METH_VARARGS, NULL},
 	 { "EngineHashSwig_processDeviceDetection", _wrap_EngineHashSwig_processDeviceDetection, METH_VARARGS, NULL},
 	 { "delete_EngineHashSwig", _wrap_delete_EngineHashSwig, METH_O, NULL},
@@ -28706,10 +32218,12 @@ static swig_type_info _swigt__p_size_type = {"_p_size_type", "size_type *", 0, 0
 static swig_type_info _swigt__p_std__allocatorT_std__pairT_std__string_const_std__string_t_t = {"_p_std__allocatorT_std__pairT_std__string_const_std__string_t_t", "std::map< std::string,std::string >::allocator_type *|std::allocator< std::pair< std::string const,std::string > > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__allocatorT_std__string_t = {"_p_std__allocatorT_std__string_t", "std::vector< std::string >::allocator_type *|std::allocator< std::string > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__allocatorT_unsigned_char_t = {"_p_std__allocatorT_unsigned_char_t", "std::vector< unsigned char >::allocator_type *|std::allocator< unsigned char > *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__allocatorT_unsigned_int_t = {"_p_std__allocatorT_unsigned_int_t", "std::vector< unsigned int >::allocator_type *|std::allocator< unsigned int > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__invalid_argument = {"_p_std__invalid_argument", "std::invalid_argument *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__lessT_std__string_t = {"_p_std__lessT_std__string_t", "std::less< std::string > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__mapT_std__string_std__string_t = {"_p_std__mapT_std__string_std__string_t", "std::map< std::string,std::string,std::less< std::string >,std::allocator< std::pair< std::string const,std::string > > > *|std::map< std::string,std::string > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__vectorT_std__string_t = {"_p_std__vectorT_std__string_t", "std::vector< std::string,std::allocator< std::string > > *|std::vector< std::string > *", 0, 0, (void*)0, 0};
+static swig_type_info _swigt__p_std__vectorT_uint32_t_t = {"_p_std__vectorT_uint32_t_t", "std::vector< uint32_t > *|std::vector< unsigned int,std::allocator< unsigned int > > *|std::vector< unsigned int > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_std__vectorT_uint8_t_t = {"_p_std__vectorT_uint8_t_t", "std::vector< uint8_t > *|std::vector< unsigned char,std::allocator< unsigned char > > *|std::vector< unsigned char > *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_swig__SwigPyIterator = {"_p_swig__SwigPyIterator", "swig::SwigPyIterator *", 0, 0, (void*)0, 0};
 static swig_type_info _swigt__p_unsigned_char = {"_p_unsigned_char", "uint8_t *|uint_fast8_t *|uint_least8_t *|unsigned char *", 0, 0, (void*)0, 0};
@@ -28765,10 +32279,12 @@ static swig_type_info *swig_type_initial[] = {
   &_swigt__p_std__allocatorT_std__pairT_std__string_const_std__string_t_t,
   &_swigt__p_std__allocatorT_std__string_t,
   &_swigt__p_std__allocatorT_unsigned_char_t,
+  &_swigt__p_std__allocatorT_unsigned_int_t,
   &_swigt__p_std__invalid_argument,
   &_swigt__p_std__lessT_std__string_t,
   &_swigt__p_std__mapT_std__string_std__string_t,
   &_swigt__p_std__vectorT_std__string_t,
+  &_swigt__p_std__vectorT_uint32_t_t,
   &_swigt__p_std__vectorT_uint8_t_t,
   &_swigt__p_swig__SwigPyIterator,
   &_swigt__p_unsigned_char,
@@ -28824,10 +32340,12 @@ static swig_cast_info _swigc__p_size_type[] = {  {&_swigt__p_size_type, 0, 0, 0}
 static swig_cast_info _swigc__p_std__allocatorT_std__pairT_std__string_const_std__string_t_t[] = {  {&_swigt__p_std__allocatorT_std__pairT_std__string_const_std__string_t_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__allocatorT_std__string_t[] = {  {&_swigt__p_std__allocatorT_std__string_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__allocatorT_unsigned_char_t[] = {  {&_swigt__p_std__allocatorT_unsigned_char_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__allocatorT_unsigned_int_t[] = {  {&_swigt__p_std__allocatorT_unsigned_int_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__invalid_argument[] = {  {&_swigt__p_std__invalid_argument, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__lessT_std__string_t[] = {  {&_swigt__p_std__lessT_std__string_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__mapT_std__string_std__string_t[] = {  {&_swigt__p_std__mapT_std__string_std__string_t, 0, 0, 0},  {&_swigt__p_EvidenceBase, _p_EvidenceBaseTo_p_std__mapT_std__string_std__string_t, 0, 0},  {&_swigt__p_EvidenceDeviceDetection, _p_EvidenceDeviceDetectionTo_p_std__mapT_std__string_std__string_t, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorT_std__string_t[] = {  {&_swigt__p_std__vectorT_std__string_t, 0, 0, 0},{0, 0, 0, 0}};
+static swig_cast_info _swigc__p_std__vectorT_uint32_t_t[] = {  {&_swigt__p_std__vectorT_uint32_t_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_std__vectorT_uint8_t_t[] = {  {&_swigt__p_std__vectorT_uint8_t_t, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_swig__SwigPyIterator[] = {  {&_swigt__p_swig__SwigPyIterator, 0, 0, 0},{0, 0, 0, 0}};
 static swig_cast_info _swigc__p_unsigned_char[] = {  {&_swigt__p_unsigned_char, 0, 0, 0},{0, 0, 0, 0}};
@@ -28883,10 +32401,12 @@ static swig_cast_info *swig_cast_initial[] = {
   _swigc__p_std__allocatorT_std__pairT_std__string_const_std__string_t_t,
   _swigc__p_std__allocatorT_std__string_t,
   _swigc__p_std__allocatorT_unsigned_char_t,
+  _swigc__p_std__allocatorT_unsigned_int_t,
   _swigc__p_std__invalid_argument,
   _swigc__p_std__lessT_std__string_t,
   _swigc__p_std__mapT_std__string_std__string_t,
   _swigc__p_std__vectorT_std__string_t,
+  _swigc__p_std__vectorT_uint32_t_t,
   _swigc__p_std__vectorT_uint8_t_t,
   _swigc__p_swig__SwigPyIterator,
   _swigc__p_unsigned_char,
