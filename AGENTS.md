@@ -10,10 +10,10 @@ layout and how to get the code are in the [README](README.md).
 
 Device Detection's on-premise `gettingstarted_console` is the quickest
 example to show, because its data file is about 35 MB. IP Intelligence's
-on-premise `gettingstarted_console` runs with no download at all, on the Asn
-data file committed to its data submodule, and shows registration values once
-it is given the Lite file, which is a download of about 230 MB. Run each
-command from the repository root unless the step says otherwise.
+on-premise `gettingstarted_console` runs on the free Asn data file, which is
+about 6 MB, and shows registration values once it is given the Lite file,
+which is a download of about 230 MB. Run each command from the repository root
+unless the step says otherwise.
 
 The on-premise engines are C and C++ code that is compiled when the package is
 installed. PyPI has only source distributions of
@@ -24,8 +24,7 @@ READMEs do.
 
 ### Prerequisites
 
-- Git, and [Git LFS](https://git-lfs.github.com/) for the Device Detection
-  data file.
+- Git.
 - Python 3.10 or later, as the README says. CI tests 3.10 to 3.14 on Ubuntu,
   Windows and macOS (`ci/options.json`).
 - A C11 and C++17 compiler. On Windows that is Visual Studio 2019 or later, or
@@ -33,11 +32,12 @@ READMEs do.
   with Platform Toolset `v142` and Windows SDK `10.0.18362.0` or later. On
   Linux the Device Detection README gives
   `sudo apt-get install g++ make libatomic1`.
-- For the IP Intelligence Lite file, PowerShell 7 (`pwsh`) on any system, or
-  `curl`, `gunzip` and `md5sum` (`md5` on macOS) for the shell script on Linux
-  and macOS.
-- Network access to GitHub, and to PyPI for the packages the examples depend
-  on.
+- For the data files, `curl`, `gzip` and `md5sum` (`md5` on macOS) on Linux
+  and macOS, where the examples download with the shell script, and Windows
+  PowerShell 5.1 or PowerShell 7 on Windows, where they use the PowerShell
+  script.
+- Network access to GitHub, to PyPI for the packages the examples depend on,
+  and to `distributor.51degrees.com` for the data files.
 
 Clone the repository with its submodules.
 
@@ -54,79 +54,38 @@ git submodule update --init --recursive
 
 ### Data files
 
-The examples use free data files, which need no licence key. Two layouts
-exist. Read the "Getting the code" section of `README.md` in your checkout to
-find out which one applies.
+The examples use the free data files, which need no licence key. They are not
+stored in this repository. The `cxx` submodule holds the
+[data](https://github.com/51Degrees/data) repository as `cxx/data`, which has a
+link to each file, and a script downloads them into `cxx/data/device-detection`
+and `cxx/data/ip-intelligence`.
 
-- **The section gives no command for the data files.** This is the layout on
-  `rc` and `main` today. The Device Detection files are in
-  `cxx/device-detection-data`. The IP Intelligence files are in this
-  repository's own `ip-intelligence/ip-intelligence-data` submodule, and in
-  `cxx/ip-intelligence-data`, both at the same commit. Follow
-  "Without cxx/data".
-- **The section gives `sh cxx/data/get-data-files.sh`.** The draft pull request
-  [#28](https://github.com/51Degrees/51degrees-python/pull/28) moves the
-  examples and tests to the [data](https://github.com/51Degrees/data)
-  repository, which cxx carries as `cxx/data`, and removes
-  `ip-intelligence/ip-intelligence-data`. Once it is merged, follow
-  "With cxx/data".
-
-Go by the README rather than by whether `cxx/data` exists, because the folder
-can arrive with a newer `cxx` before the examples here read it.
-
-#### Without cxx/data
-
-The Device Detection Lite file is stored with Git LFS. Install Git LFS, for
-example with `sudo apt-get install git-lfs` on Ubuntu, then pull the file in
-its submodule. The Device Detection README names an older path for this
-folder, `src/fiftyone_devicedetection_onpremise/cxx/device-detection-data`,
-which no longer exists.
-
-```
-git lfs install
-cd cxx/device-detection-data
-git lfs pull
-cd ../..
-```
-
-The IP Intelligence Asn file, `51Degrees-IPIV4AsnIpiV41.ipi`, is committed, so
-it needs no download. A script in the IP Intelligence data submodule downloads
-the Lite file. Run it from inside that folder, because it saves the file in
-the folder it runs from.
-
-```
-cd ip-intelligence/ip-intelligence-data
-pwsh ./get-lite-file-from-azure.ps1
-cd ../..
-```
-
-On Linux and macOS, `./get-lite-file-from-azure.sh` in the same folder does
-the same. Either script also downloads the Asn file over the committed copy,
-so `git status` then shows the submodule as modified, which is expected.
-
-#### With cxx/data
+On Linux and macOS, run the shell script.
 
 ```
 sh cxx/data/get-data-files.sh
 ```
 
-In PowerShell, run `./cxx/data/get-data-files.ps1` instead. Either script
-downloads every free file into `cxx/data/device-detection` and
-`cxx/data/ip-intelligence`, the Asn file included, and keeps a file that is
-already there. In this layout an example whose file is missing runs the
-script for that file itself.
+On Windows, run the PowerShell script. Windows PowerShell can refuse to run a
+script file under the policy Windows sets by default, so run it the way the
+examples do.
+
+```
+powershell -NoProfile -ExecutionPolicy Bypass -File cxx/data/get-data-files.ps1
+```
+
+Where PowerShell 7 is installed, `pwsh cxx/data/get-data-files.ps1` does the
+same on any system. Either script downloads every free file, the Asn file
+included, and keeps a file that is already there. To download one file, give
+its name, as in `sh cxx/data/get-data-files.sh 51Degrees-LiteV41.ipi`. An
+example run with no argument downloads the file it needs itself, when the file
+is missing.
 
 #### Check the files
 
-- `cxx/device-detection-data/51Degrees-LiteV4.1.hash` is more than 10 MB. A
-  file of about 130 bytes that starts with
-  `version https://git-lfs.github.com/spec/v1` is a Git LFS pointer, which
-  means Git LFS has not pulled the file.
-- `ip-intelligence/ip-intelligence-data/51Degrees-LiteV41.ipi`, if you
-  downloaded it, is more than 100 MB.
-
-With `cxx/data`, the files are in `cxx/data/device-detection` and
-`cxx/data/ip-intelligence`.
+- `cxx/data/device-detection/51Degrees-LiteV4.1.hash` is more than 10 MB.
+- `cxx/data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi` is more than 1 MB.
+- `cxx/data/ip-intelligence/51Degrees-LiteV41.ipi` is more than 100 MB.
 
 ### Build
 
@@ -180,32 +139,37 @@ come from PyPI. CI installs the ones in `pipeline/` over them
 
 ### Run
 
-Give the Device Detection example its data file as the first argument. Without
-one it searches the folder it runs in, every folder below it and then each
-folder above it, and gives up after 5 seconds (`find_file` in
-`device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py`),
-which a search of the whole repository can take.
+Run the Device Detection example from the repository root with no argument.
+It looks for `cxx/data/device-detection/51Degrees-LiteV4.1.hash` in the folder
+it runs in and each folder above it, and runs the download script when the
+file is missing, with Windows PowerShell on Windows and `sh` on Linux and
+macOS (`find_file` in
+`device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py`).
 
 ```
-python -m fiftyone_devicedetection_examples.onpremise.gettingstarted_console cxx/device-detection-data/51Degrees-LiteV4.1.hash
+python -m fiftyone_devicedetection_examples.onpremise.gettingstarted_console
 ```
 
-The IP Intelligence example takes a data file as its first argument too, as
-its README says. Without one it looks for the Asn file in `.`, `assets`,
-`ip-intelligence-data` and `cxx/ip-intelligence-data` below the folder it runs
-in and each of the seven folders above it, so from the repository root it
-finds `cxx/ip-intelligence-data/51Degrees-IPIV4AsnIpiV41.ipi`.
+The IP Intelligence example with no argument looks for the Asn file in the
+folder it runs in and in its `assets` and `cxx/data/ip-intelligence` folders,
+then does the same in each of the seven folders above it, and downloads the
+file into `cxx/data/ip-intelligence` when it is missing. To see registration
+values, download the Lite file first, as "Data files" says, and give its path
+as the first argument.
 
 ```
 python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console
-python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console ip-intelligence/ip-intelligence-data/51Degrees-LiteV41.ipi
+python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console cxx/data/ip-intelligence/51Degrees-LiteV41.ipi
 ```
 
-With `cxx/data`, the paths are
-`cxx/data/device-detection/51Degrees-LiteV4.1.hash` and
-`cxx/data/ip-intelligence/51Degrees-LiteV41.ipi`.
+Either example uses a path given as the first argument as it is, so a file
+named that way is never downloaded.
 
 ### Correct output
+
+When an example downloads its data file, it first prints
+`<file> is missing, so it is being downloaded by running` and, on the next
+line, the command, then the script's `Downloading` and `Saved` lines.
 
 The pipeline logger writes through Python's `logging`, so its lines go to
 standard error, each as `INFO:root:` or `WARNING:root:` followed by a
@@ -258,12 +222,16 @@ example logs an error that names the variable and the configurator.
 
 ### Pitfalls
 
-- **A Git LFS pointer instead of the data file.** The engine cannot load it,
-  so the Device Detection example stops before it prints any results. Check
+- **A data file that is not there.** `cxx/data` holds a `.link` for each file
+  rather than the file. An example run with no argument downloads a missing
+  file, so it needs the network and the tools under "Prerequisites". Check
   the file sizes as above.
-- **The search for the data file.** Without an argument the Device Detection
-  example can give up after 5 seconds and log `Failed to find a device
-  detection data file`, so give it the path.
+- **Running outside the repository, or without the submodules.** The Device
+  Detection example then finds no `cxx/data`, searches for up to 5 seconds
+  and, when it finds nothing, logs `Failed to find a device detection data
+  file` with the advice to run `git submodule update --init --recursive`. Run
+  it from the repository root, in a clone made with Git, because a zip
+  download of the repository has no submodules.
 - **No compiler, or no `setuptools`.** `python setup.py build_clib build_ext`
   and the on-premise installs compile C and C++, and on Python 3.12 and later
   `python setup.py` stops with `No module named 'setuptools'` until it is
@@ -277,15 +245,11 @@ example logs an error that names the variable and the configurator.
   which that README does with `Set-ExecutionPolicy -Scope CurrentUser Bypass`.
 - **Pipenv.** The Device Detection README suggests `pipenv install`, but there
   is no `Pipfile` in the repository. Use the virtual environment above.
-- **Windows line endings.** Git for Windows usually checks files out with
-  `core.autocrlf=true`, and `ip-intelligence/ip-intelligence-data` has no
-  `.gitattributes`, so its shell script gets Windows line endings and the
-  shell cannot run it. Use the PowerShell script on Windows.
 - **What CI does not test.** CI runs the examples' tests, which call each
-  example's code rather than its `main`. The Device Detection tests find the
-  Lite file that `device-detection/ci/fetch-assets.ps1` links into the
-  examples package, and the IP Intelligence example tests use the Asn file and
-  throw their output away.
+  example's code rather than its `main`. The Device Detection tests use the
+  Lite file that `device-detection/ci/fetch-assets.ps1` links in from CI's
+  assets, and the IP Intelligence example tests use the Asn file and throw
+  their output away.
 
 ## Products keep their own CI scripts
 
