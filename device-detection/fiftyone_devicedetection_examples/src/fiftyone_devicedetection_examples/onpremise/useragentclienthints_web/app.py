@@ -73,7 +73,10 @@ class UserAgentClientHintsWeb():
         return self
 
     def run(self):
-        UserAgentClientHintsWeb.app.run(port=5001)
+        # The pipeline lives as long as the app, and is closed when the server
+        # stops, which releases the native data it holds.
+        with UserAgentClientHintsWeb.pipeline:
+            UserAgentClientHintsWeb.app.run(port=5001)
 
     # The main route performs device detection and renders the results. On the
     # second request, any additional client hints headers requested via the
@@ -83,33 +86,35 @@ class UserAgentClientHintsWeb():
     @app.route('/')
     def server():
 
-        # Create the flowdata object for the device detection
-        flowdata = UserAgentClientHintsWeb.pipeline.create_flowdata()
+        # Create the flowdata object for the device detection. It is closed
+        # when the route returns, once the page has been rendered from it,
+        # which releases the results of the detection straight away.
+        with UserAgentClientHintsWeb.pipeline.create_flowdata() as flowdata:
 
-        # Add any information from the request (headers, cookies and any other
-        # additional information)
-        flowdata.evidence.add_from_dict(webevidence(request))
+            # Add any information from the request (headers, cookies and any other
+            # additional information)
+            flowdata.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowdata
-        flowdata.process()
+            # Process the flowdata
+            flowdata.process()
 
-        response = make_response()
+            response = make_response()
 
-        # Some browsers require that extra HTTP headers are explicitly
-        # requested. So set whatever headers are required by the browser in
-        # order to return the evidence needed by the pipeline.
-        # More info on this can be found at
-        # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-useragentclienthints_web-app.py&utm_term=server
-        set_response_header(flowdata, response)
+            # Some browsers require that extra HTTP headers are explicitly
+            # requested. So set whatever headers are required by the browser in
+            # order to return the evidence needed by the pipeline.
+            # More info on this can be found at
+            # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-useragentclienthints_web-app.py&utm_term=server
+            set_response_header(flowdata, response)
 
-        # Generate the HTML
-        response.set_data(render_template(
-            'index.html',
-            data=flowdata,
-            utils=ExampleUtils,
-            response=response))
+            # Generate the HTML
+            response.set_data(render_template(
+                'index.html',
+                data=flowdata,
+                utils=ExampleUtils,
+                response=response))
 
-        return response
+            return response
 
     # Typically, something like this will not be necessary.
     # The device detection API will accept an absolute or relative path for the data file.

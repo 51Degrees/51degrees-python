@@ -96,65 +96,70 @@ class CompareConsole():
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
 
-        ExampleUtils.check_data_file(pipeline, logger)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            ExampleUtils.check_data_file(pipeline, logger)
 
-        writer = csv.DictWriter(output, fieldnames=OUTPUT_FIELDS)
-        writer.writeheader()
+            writer = csv.DictWriter(output, fieldnames=OUTPUT_FIELDS)
+            writer.writeheader()
 
-        processed = 0
-        found = 0
-        with open(truth_file, "r", newline="", encoding="utf-8") as fin:
-            for truth in csv.DictReader(fin):
-                if processed >= record_limit:
-                    break
-                processed += 1
-                result = self.compare(pipeline, truth)
-                if result["Found"]:
-                    found += 1
-                writer.writerow(result)
+            processed = 0
+            found = 0
+            with open(truth_file, "r", newline="", encoding="utf-8") as fin:
+                for truth in csv.DictReader(fin):
+                    if processed >= record_limit:
+                        break
+                    processed += 1
+                    result = self.compare(pipeline, truth)
+                    if result["Found"]:
+                        found += 1
+                    writer.writerow(result)
 
-        logger.log("info",
-            f"Compared {processed} records; {found} resolved to a location")
+            logger.log("info",
+                f"Compared {processed} records; {found} resolved to a location")
 
     def compare(self, pipeline, truth):
 
-        data = pipeline.create_flowdata()
-        data.evidence.add_from_dict({"query.client-ip": truth["Ip"]})
-        data.process()
-        ip_data = data.ip
+        # The FlowData is closed when the method returns, which releases the
+        # results of the lookup straight away.
+        with pipeline.create_flowdata() as data:
+            data.evidence.add_from_dict({"query.client-ip": truth["Ip"]})
+            data.process()
+            ip_data = data.ip
 
-        row = {
-            "DateTimeUtc": truth.get("DateTimeUtc", ""),
-            "Ip": truth.get("Ip", ""),
-            "AddressFamily": truth.get("AddressFamily", ""),
-            "TruthLatitude": truth.get("Latitude", ""),
-            "TruthLongitude": truth.get("Longitude", ""),
-            "TruthCountry": truth.get("Country", ""),
-            "ResultLatitude": "",
-            "ResultLongitude": "",
-            "ResultCountry": ExampleUtils.get_human_readable(ip_data, "country"),
-            "Confidence": ExampleUtils.get_human_readable(ip_data, "locationconfidence"),
-            "Found": False,
-            "DistanceKms": "",
-        }
+            row = {
+                "DateTimeUtc": truth.get("DateTimeUtc", ""),
+                "Ip": truth.get("Ip", ""),
+                "AddressFamily": truth.get("AddressFamily", ""),
+                "TruthLatitude": truth.get("Latitude", ""),
+                "TruthLongitude": truth.get("Longitude", ""),
+                "TruthCountry": truth.get("Country", ""),
+                "ResultLatitude": "",
+                "ResultLongitude": "",
+                "ResultCountry": ExampleUtils.get_human_readable(ip_data, "country"),
+                "Confidence": ExampleUtils.get_human_readable(ip_data, "locationconfidence"),
+                "Found": False,
+                "DistanceKms": "",
+            }
 
-        latitude = ExampleUtils.get_value(ip_data, "latitude")
-        longitude = ExampleUtils.get_value(ip_data, "longitude")
-        if latitude is not None and latitude.has_value() and \
-                longitude is not None and longitude.has_value():
-            row["ResultLatitude"] = latitude.value()
-            row["ResultLongitude"] = longitude.value()
-            row["Found"] = True
-            try:
-                row["DistanceKms"] = round(haversine_km(
-                    float(truth["Latitude"]), float(truth["Longitude"]),
-                    float(latitude.value()), float(longitude.value())), 3)
-            except (ValueError, TypeError):
-                # The truth record did not provide a usable latitude or
-                # longitude, so the distance cannot be calculated.
-                row["DistanceKms"] = ""
+            latitude = ExampleUtils.get_value(ip_data, "latitude")
+            longitude = ExampleUtils.get_value(ip_data, "longitude")
+            if latitude is not None and latitude.has_value() and \
+                    longitude is not None and longitude.has_value():
+                row["ResultLatitude"] = latitude.value()
+                row["ResultLongitude"] = longitude.value()
+                row["Found"] = True
+                try:
+                    row["DistanceKms"] = round(haversine_km(
+                        float(truth["Latitude"]), float(truth["Longitude"]),
+                        float(latitude.value()), float(longitude.value())), 3)
+                except (ValueError, TypeError):
+                    # The truth record did not provide a usable latitude or
+                    # longitude, so the distance cannot be calculated.
+                    row["DistanceKms"] = ""
 
-        return row
+            return row
 
 
 def main(argv):

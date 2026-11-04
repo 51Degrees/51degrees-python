@@ -140,38 +140,43 @@ class MixedConsole():
             .add_logger(logger) \
             .build()
 
-        for evidence in COMBINED_EVIDENCE:
-            self.analyse_evidence(evidence, pipeline, output)
+        # The pipeline is closed at the end of the with block, which closes
+        # both engines and releases the native data they hold.
+        with pipeline:
+            for evidence in COMBINED_EVIDENCE:
+                self.analyse_evidence(evidence, pipeline, output)
 
     def analyse_evidence(self, evidence, pipeline, output):
 
-        data = pipeline.create_flowdata()
+        # The FlowData is closed at the end of the with block, which releases
+        # the results of both engines straight away.
+        with pipeline.create_flowdata() as data:
 
-        message = []
-        message.append("=" * 70 + "\n")
-        message.append("Input values:\n")
-        for key in evidence:
-            message.append(f"\t{key}: {evidence[key]}\n")
-        output("".join(message))
+            message = []
+            message.append("=" * 70 + "\n")
+            message.append("Input values:\n")
+            for key in evidence:
+                message.append(f"\t{key}: {evidence[key]}\n")
+            output("".join(message))
 
-        # Add the evidence values to the flow data and process it. Both
-        # engines run against the same flow data.
-        data.evidence.add_from_dict(evidence)
-        data.process()
+            # Add the evidence values to the flow data and process it. Both
+            # engines run against the same flow data.
+            data.evidence.add_from_dict(evidence)
+            data.process()
 
-        message = []
+            message = []
 
-        # Device detection results, keyed under "device".
-        message.append("Device Detection Results:\n")
-        for name in DEVICE_PROPERTIES:
-            self.outputValue(data.device, name, message)
+            # Device detection results, keyed under "device".
+            message.append("Device Detection Results:\n")
+            for name in DEVICE_PROPERTIES:
+                self.outputValue(data.device, name, message)
 
-        # IP intelligence results, keyed under "ip".
-        message.append("\nIP Intelligence Results:\n")
-        for name in IP_PROPERTIES:
-            self.outputValue(data.ip, name, message)
+            # IP intelligence results, keyed under "ip".
+            message.append("\nIP Intelligence Results:\n")
+            for name in IP_PROPERTIES:
+                self.outputValue(data.ip, name, message)
 
-        output("".join(message))
+            output("".join(message))
 
     def outputValue(self, aspect_data, name, message):
         # `get_value` returns None when the property is not present in the

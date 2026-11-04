@@ -68,11 +68,16 @@ class GettingStartedConsole():
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
 
-        ExampleUtils.check_data_file(pipeline, logger)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds. An application normally builds
+        # one pipeline when it starts, uses it for every detection, and
+        # closes it when it stops.
+        with pipeline:
+            ExampleUtils.check_data_file(pipeline, logger)
 
-        # carry out some sample detections
-        for values in EVIDENCE_VALUES:
-            self.analyseEvidence(values, pipeline, output)
+            # carry out some sample detections
+            for values in EVIDENCE_VALUES:
+                self.analyseEvidence(values, pipeline, output)
 
     def analyseEvidence(self, evidence, pipeline, output):
 
@@ -83,42 +88,45 @@ class GettingStartedConsole():
         # and usually consists of a number of HTTP Header field
         # values, in this case represented by a dictionary of header
         # name/value entries.
-        data = pipeline.create_flowdata()
+        # Closing the FlowData, which the with statement does at the end of
+        # the block, releases the results of the detection straight away,
+        # rather than when the garbage collector next runs.
+        with pipeline.create_flowdata() as data:
         
-        message = []
+            message = []
 
-        # List the evidence
-        message.append("Input values:\n")
-        for key in evidence:
-            message.append(f"\t{key}: {evidence[key]}\n")
+            # List the evidence
+            message.append("Input values:\n")
+            for key in evidence:
+                message.append(f"\t{key}: {evidence[key]}\n")
         
-        output("".join(message))
+            output("".join(message))
 
-        # Add the evidence values to the flow data
-        data.evidence.add_from_dict(evidence)
+            # Add the evidence values to the flow data
+            data.evidence.add_from_dict(evidence)
 
-        # Process the flow data.
-        data.process()
+            # Process the flow data.
+            data.process()
 
-        message = []
-        message.append("Results:\n")
+            message = []
+            message.append("Results:\n")
 
-        # Now that it's been processed, the flow data will have
-        # been populated with the result. In this case, we want
-        # information about the device, which we can get by
-        # asking for a result matching named "device"
-        device = data.device
+            # Now that it's been processed, the flow data will have
+            # been populated with the result. In this case, we want
+            # information about the device, which we can get by
+            # asking for a result matching named "device"
+            device = data.device
 
-        # Display the results of the detection, which are called
-        # device properties. See the property dictionary at
-        # https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=analyseevidence
-        # for details of all available properties.
-        self.outputValue("Mobile Device", device.ismobile, message)
-        self.outputValue("Platform Name", device.platformname, message)
-        self.outputValue("Platform Version", device.platformversion, message)
-        self.outputValue("Browser Name", device.browsername, message)
-        self.outputValue("Browser Version", device.browserversion, message)
-        output("".join(message))
+            # Display the results of the detection, which are called
+            # device properties. See the property dictionary at
+            # https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=analyseevidence
+            # for details of all available properties.
+            self.outputValue("Mobile Device", device.ismobile, message)
+            self.outputValue("Platform Name", device.platformname, message)
+            self.outputValue("Platform Version", device.platformversion, message)
+            self.outputValue("Browser Name", device.browsername, message)
+            self.outputValue("Browser Version", device.browserversion, message)
+            output("".join(message))
 
     def outputValue(self, name, value, message):
         # Individual result values have a wrapper called

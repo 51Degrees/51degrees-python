@@ -91,11 +91,16 @@ class GettingStartedConsole():
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
 
-        ExampleUtils.check_data_file(pipeline, logger)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds. An application normally builds
+        # one pipeline when it starts, uses it for every lookup, and closes
+        # it when it stops.
+        with pipeline:
+            ExampleUtils.check_data_file(pipeline, logger)
 
-        # carry out some sample lookups
-        for values in EVIDENCE_VALUES:
-            self.analyseEvidence(values, pipeline, output)
+            # carry out some sample lookups
+            for values in EVIDENCE_VALUES:
+                self.analyseEvidence(values, pipeline, output)
 
     def analyseEvidence(self, evidence, pipeline, output):
 
@@ -104,38 +109,41 @@ class GettingStartedConsole():
         # through the pipeline.
         # Information required is called "evidence", in this case an
         # IP address supplied under the "query.client-ip" key.
-        data = pipeline.create_flowdata()
+        # Closing the FlowData, which the with statement does at the end of
+        # the block, releases the results of the lookup straight away,
+        # rather than when the garbage collector next runs.
+        with pipeline.create_flowdata() as data:
 
-        message = []
+            message = []
 
-        # List the evidence
-        message.append("Input values:\n")
-        for key in evidence:
-            message.append(f"\t{key}: {evidence[key]}\n")
+            # List the evidence
+            message.append("Input values:\n")
+            for key in evidence:
+                message.append(f"\t{key}: {evidence[key]}\n")
 
-        output("".join(message))
+            output("".join(message))
 
-        # Add the evidence values to the flow data
-        data.evidence.add_from_dict(evidence)
+            # Add the evidence values to the flow data
+            data.evidence.add_from_dict(evidence)
 
-        # Process the flow data.
-        data.process()
+            # Process the flow data.
+            data.process()
 
-        message = []
-        message.append("Results:\n")
+            message = []
+            message.append("Results:\n")
 
-        # Now that it's been processed, the flow data will have
-        # been populated with the result. In this case, we want
-        # information about the IP address, which we can get by
-        # asking for a result matching the key "ip"
-        ip_data = data.ip
+            # Now that it's been processed, the flow data will have
+            # been populated with the result. In this case, we want
+            # information about the IP address, which we can get by
+            # asking for a result matching the key "ip"
+            ip_data = data.ip
 
-        # Display the results of the lookup. See the property
-        # dictionary at https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=analyseevidence
-        # for details of all available properties.
-        for name in OUTPUT_PROPERTIES:
-            self.outputValue(ip_data, name, message)
-        output("".join(message))
+            # Display the results of the lookup. See the property
+            # dictionary at https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=analyseevidence
+            # for details of all available properties.
+            for name in OUTPUT_PROPERTIES:
+                self.outputValue(ip_data, name, message)
+            output("".join(message))
 
     def outputValue(self, ip_data, name, message):
         # Individual result values have a wrapper called

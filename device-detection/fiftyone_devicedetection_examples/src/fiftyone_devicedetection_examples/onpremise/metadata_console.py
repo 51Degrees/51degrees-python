@@ -76,10 +76,14 @@ class MetaDataConsole():
             # Inhibit auto-update of the data file for this example
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
-        self.outputProperties(pipeline.get_element("device"), output)
-        self.outputEvidenceKeyDetails(pipeline.get_element("device"), output)
 
-        ExampleUtils.check_data_file(pipeline, logger)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            self.outputProperties(pipeline.get_element("device"), output)
+            self.outputEvidenceKeyDetails(pipeline.get_element("device"), output)
+
+            ExampleUtils.check_data_file(pipeline, logger)
 
 
     def outputEvidenceKeyDetails(self, engine, output):

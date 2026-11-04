@@ -70,7 +70,9 @@ class ExampleTests(unittest.TestCase):
             usage_sharing=False,
             auto_update=False,
             licence_keys="").build()
+        self.addCleanup(pipeline.close)
         data = pipeline.create_flowdata()
+        self.addCleanup(data.close)
         data.evidence.add_from_dict({"query.client-ip": "8.8.8.8"})
         data.process()
         # The supplied IP address is echoed back in the results.

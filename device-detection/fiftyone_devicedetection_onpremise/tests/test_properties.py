@@ -42,6 +42,10 @@ pipeline = PipelineBuilder() \
             .add(deviceDetectionOnPremiseEngine) \
             .build()
 
+# Releases the native engine once every test in the module has run.
+def tearDownModule():
+    pipeline.close()
+
 class PropertyTests(unittest.TestCase):
     def test_available_properties(self):
 
@@ -50,6 +54,7 @@ class PropertyTests(unittest.TestCase):
         """
 
         flowData = pipeline.create_flowdata()
+        self.addCleanup(flowData.close)
         flowData.evidence.add("header.user-agent", mobile_ua)
         flowData.process()
         device = flowData.device
@@ -75,6 +80,7 @@ class PropertyTests(unittest.TestCase):
         """
 
         flowData = pipeline.create_flowdata()
+        self.addCleanup(flowData.close)
         flowData.evidence.add("header.user-agent", mobile_ua)
         flowData.process()
 
@@ -110,6 +116,7 @@ class PropertyTests(unittest.TestCase):
         """
 
         flowData = pipeline.create_flowdata()
+        self.addCleanup(flowData.close)
         flowData.evidence.add("header.user-agent", mobile_ua)
         flowData.process()
         device = flowData.device

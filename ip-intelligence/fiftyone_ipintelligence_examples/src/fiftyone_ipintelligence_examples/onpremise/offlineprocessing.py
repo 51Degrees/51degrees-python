@@ -65,41 +65,47 @@ class OfflineProcessing():
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
 
-        ExampleUtils.check_data_file(pipeline, logger)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            ExampleUtils.check_data_file(pipeline, logger)
 
-        records = 0
-        with open(evidence_yaml, "r") as fin:
-            for evidence in yaml.load_all(fin):
-                if records >= RECORD_LIMIT:
-                    break
+            records = 0
+            with open(evidence_yaml, "r") as fin:
+                for evidence in yaml.load_all(fin):
+                    if records >= RECORD_LIMIT:
+                        break
 
-                # write the yaml document separator
-                output("---")
-                self.analyse_evidence(evidence, pipeline, output, yaml)
-                records += 1
+                    # write the yaml document separator
+                    output("---")
+                    self.analyse_evidence(evidence, pipeline, output, yaml)
+                    records += 1
 
-        # write the yaml document end marker
-        output("...")
-        logger.log("info", f"Processed {records} evidence records")
+            # write the yaml document end marker
+            output("...")
+            logger.log("info", f"Processed {records} evidence records")
 
     def analyse_evidence(self, evidence, pipeline, output, yaml):
 
-        data = pipeline.create_flowdata()
+        # The FlowData is closed at the end of the with block, once the
+        # values needed have been read, which releases the results of the
+        # lookup straight away.
+        with pipeline.create_flowdata() as data:
 
-        # Add the evidence values to the flow data. The YAML loader
-        # returns a dict subclass so convert to a plain dict first.
-        data.evidence.add_from_dict(dict(evidence))
+            # Add the evidence values to the flow data. The YAML loader
+            # returns a dict subclass so convert to a plain dict first.
+            data.evidence.add_from_dict(dict(evidence))
 
-        # Process the flow data.
-        data.process()
+            # Process the flow data.
+            data.process()
 
-        ip_data = data.ip
+            ip_data = data.ip
 
-        result = dict(evidence)
+            result = dict(evidence)
 
-        # Add the values that we want to store against the record.
-        result["ip.registeredname"] = ExampleUtils.get_human_readable(ip_data, "registeredname")
-        result["ip.registeredcountry"] = ExampleUtils.get_human_readable(ip_data, "registeredcountry")
+            # Add the values that we want to store against the record.
+            result["ip.registeredname"] = ExampleUtils.get_human_readable(ip_data, "registeredname")
+            result["ip.registeredcountry"] = ExampleUtils.get_human_readable(ip_data, "registeredcountry")
 
         buffer = io.BytesIO()
         yaml.dump(result, buffer)

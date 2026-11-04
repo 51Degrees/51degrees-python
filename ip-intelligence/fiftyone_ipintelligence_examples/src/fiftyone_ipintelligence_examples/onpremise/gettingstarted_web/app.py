@@ -88,44 +88,46 @@ def country_dropdown(translated):
 @app.route("/")
 def index():
 
-    # Create the flowdata object for this request.
-    flowdata = pipeline.create_flowdata()
+    # Create the flowdata object for this request. It is closed when the
+    # route returns, once the page has been built from it, which releases
+    # the results of the lookup straight away.
+    with pipeline.create_flowdata() as flowdata:
 
-    # Use the IP address supplied as a query parameter, or fall back
-    # to the address of the requester.
-    client_ip = request.args.get("client-ip", request.remote_addr)
-    flowdata.evidence.add("query.client-ip", client_ip)
+        # Use the IP address supplied as a query parameter, or fall back
+        # to the address of the requester.
+        client_ip = request.args.get("client-ip", request.remote_addr)
+        flowdata.evidence.add("query.client-ip", client_ip)
 
-    # Supply the browser language so the country names are localized. The
-    # Accept-Language header is used by default, overridable with a
-    # "translation" query parameter.
-    accept_language = request.headers.get("Accept-Language")
-    if accept_language:
-        flowdata.evidence.add("header.accept-language", accept_language)
-    translation = request.args.get("translation")
-    if translation:
-        flowdata.evidence.add("query.translation", translation)
+        # Supply the browser language so the country names are localized. The
+        # Accept-Language header is used by default, overridable with a
+        # "translation" query parameter.
+        accept_language = request.headers.get("Accept-Language")
+        if accept_language:
+            flowdata.evidence.add("header.accept-language", accept_language)
+        translation = request.args.get("translation")
+        if translation:
+            flowdata.evidence.add("query.translation", translation)
 
-    # Process the flowdata
-    flowdata.process()
+        # Process the flowdata
+        flowdata.process()
 
-    ip_data = flowdata.ip
-    translated = flowdata.get("countrynamestranslated")
+        ip_data = flowdata.ip
+        translated = flowdata.get("countrynamestranslated")
 
-    return f"""
-    <h2>51Degrees IP Intelligence - Getting Started Web (On-Premise)</h2>
-    <p>IP address: {client_ip}</p>
-    <ul>
-        <li>Registered Name: {get_value(ip_data, "registeredname")}</li>
-        <li>Registered Owner: {get_value(ip_data, "registeredowner")}</li>
-        <li>Registered Country: {get_value(ip_data, "registeredcountry")}</li>
-    </ul>
-    <h3>Country</h3>
-    <p>Most probable country first, then every other country alphabetically.</p>
-    {country_dropdown(translated)}
-    <p>Add ?client-ip=x.x.x.x to the url to lookup a different address, and
-    &amp;translation=fr_FR to choose a language.</p>
-    """
+        return f"""
+        <h2>51Degrees IP Intelligence - Getting Started Web (On-Premise)</h2>
+        <p>IP address: {client_ip}</p>
+        <ul>
+            <li>Registered Name: {get_value(ip_data, "registeredname")}</li>
+            <li>Registered Owner: {get_value(ip_data, "registeredowner")}</li>
+            <li>Registered Country: {get_value(ip_data, "registeredcountry")}</li>
+        </ul>
+        <h3>Country</h3>
+        <p>Most probable country first, then every other country alphabetically.</p>
+        {country_dropdown(translated)}
+        <p>Add ?client-ip=x.x.x.x to the url to lookup a different address, and
+        &amp;translation=fr_FR to choose a language.</p>
+        """
 
 
 def main(data_file = None):
@@ -136,8 +138,10 @@ def main(data_file = None):
             "Failed to find an IP intelligence data file. Download the "
             "Lite file from https://51ddatafiles.blob.core.windows.net/"
             "enterpriseipi/51Degrees-LiteIpiV41.ipi.gz")
-    build_pipeline(data_file)
-    app.run(debug=False)
+    # The pipeline lives as long as the app, and is closed when the server
+    # stops, which releases the native data it holds.
+    with build_pipeline(data_file):
+        app.run(debug=False)
 
 
 if __name__ == "__main__":

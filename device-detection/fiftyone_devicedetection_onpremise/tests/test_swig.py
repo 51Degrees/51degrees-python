@@ -39,6 +39,10 @@ pipeline = PipelineBuilder() \
             .add(deviceDetectionOnPremiseEngine) \
             .build()
 
+# Releases the native engine once every test in the module has run.
+def tearDownModule():
+    pipeline.close()
+
 class SwigTests(unittest.TestCase):
 
     # Mock the native code parts so we are only testing the wrapper.

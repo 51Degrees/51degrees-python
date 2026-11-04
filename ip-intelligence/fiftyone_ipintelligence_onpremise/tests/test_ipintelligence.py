@@ -49,8 +49,13 @@ class IpIntelligenceOnPremiseTests(unittest.TestCase):
             .add(cls.engine) \
             .build()
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.pipeline.close()
+
     def process(self, key, value):
         flowdata = self.pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
         flowdata.evidence.add(key, value)
         flowdata.process()
         return flowdata
@@ -133,6 +138,24 @@ class IpIntelligenceOnPremiseTests(unittest.TestCase):
         ipv6 = flowdata.ip.get("ipv6")
         self.assertTrue(ipv6.has_value())
 
+    def test_flowdata_close_releases_results(self):
+        """!
+        Closing the FlowData releases its native results, and reading a
+        property afterwards raises an exception.
+        """
+
+        with self.pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add(
+                "query.client-ip", TestConstants.IPV4_ADDRESS)
+            flowdata.process()
+            registered_name = flowdata.ip.get("registeredname")
+
+        self.assertTrue(registered_name.has_value())
+        self.assertIsNone(flowdata.ip.swig_results)
+        with self.assertRaises(Exception) as context:
+            flowdata.ip.get("registeredname")
+        self.assertIn("closed", str(context.exception))
+
     def test_missing_property(self):
         """!
         Accessing a property that does not exist raises an exception
@@ -209,10 +232,12 @@ class CommittedDataFileTests(unittest.TestCase):
             data_file_path=TestConstants.get_committed_data_file_path(),
             licence_keys="")
         pipeline = PipelineBuilder().add(engine).build()
+        self.addCleanup(pipeline.close)
 
         self.assertIn("asnname", engine.properties)
 
         flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
         flowdata.evidence.add("query.client-ip", TestConstants.IPV4_ADDRESS)
         flowdata.process()
 
@@ -263,3 +288,31 @@ class IpIntelligenceCacheTests(unittest.TestCase):
                 cache=LRUEngineCache()).build()
 
         self.assertIn("results cache", str(context.exception))
+
+
+@unittest.skipUnless(
+    os.path.isfile(data_file),
+    "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
+    "or set the IPINTELLIGENCEDATAFILE environment variable." % data_file)
+class IpIntelligenceCloseTests(unittest.TestCase):
+
+    def test_pipeline_close_releases_engine(self):
+        """!
+        Closing the pipeline releases the native engine, and processing
+        afterwards raises an exception.
+        """
+
+        engine = IpIntelligenceOnPremise(
+            data_file_path=data_file,
+            licence_keys="")
+        pipeline = PipelineBuilder().add(engine).build()
+
+        pipeline.close()
+
+        self.assertIsNone(engine.engine)
+        flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
+        flowdata.evidence.add("query.client-ip", TestConstants.IPV4_ADDRESS)
+        with self.assertRaises(Exception) as context:
+            flowdata.process()
+        self.assertIn("closed", str(context.exception))
