@@ -77,6 +77,27 @@ class FailingElement(FlowElement):
         raise Exception("close failed")
 
 
+class RecordedElement(FlowElement):
+    """Records each instance that is closed, for a test whose pipeline
+    failed to build and so cannot be reached."""
+
+    closed = []
+
+    def __init__(self):
+        super(RecordedElement, self).__init__()
+        self.datakey = "recorded"
+
+    def close(self):
+        RecordedElement.closed.append(self)
+
+
+class BrokenElement(FlowElement):
+    """Fails to build."""
+
+    def __init__(self):
+        raise ValueError("element failed to build")
+
+
 def build(*elements, **settings):
     settings["add_javascript_builder"] = False
     settings["use_setheader_properties"] = False
@@ -138,6 +159,23 @@ class CloseTests(unittest.TestCase):
             pipeline.close()
         self.assertEqual("close failed", str(context.exception))
         self.assertEqual(1, element.closes)
+
+    # When an element in a configuration fails to build, the elements built
+    # before it are closed, and the error that stopped the build is raised.
+    def test_failed_configuration_closes_built_elements(self):
+        RecordedElement.closed = []
+        config = {
+            "PipelineOptions": {
+                "Elements": [
+                    {"elementName": "RecordedElement", "elementPath": __name__},
+                    {"elementName": "BrokenElement", "elementPath": __name__}
+                ]
+            }
+        }
+        with self.assertRaises(ValueError) as context:
+            PipelineBuilder().build_from_configuration(config)
+        self.assertEqual("element failed to build", str(context.exception))
+        self.assertEqual(1, len(RecordedElement.closed))
 
 
 if __name__ == "__main__":
