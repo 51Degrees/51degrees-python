@@ -1138,6 +1138,12 @@ class ConfigHashSwig(ConfigDeviceDetectionSwig):
     def setTraceRoute(self, trace):
         return _DeviceDetectionHashEngineModule.ConfigHashSwig_setTraceRoute(self, trace)
 
+    def setPropertyValueIndex(self, index):
+        return _DeviceDetectionHashEngineModule.ConfigHashSwig_setPropertyValueIndex(self, index)
+
+    def setIndexedProperties(self, names):
+        return _DeviceDetectionHashEngineModule.ConfigHashSwig_setIndexedProperties(self, names)
+
     def getStrings(self):
         return _DeviceDetectionHashEngineModule.ConfigHashSwig_getStrings(self)
 
@@ -1173,10 +1179,121 @@ class ConfigHashSwig(ConfigDeviceDetectionSwig):
 
     def getTraceRoute(self):
         return _DeviceDetectionHashEngineModule.ConfigHashSwig_getTraceRoute(self)
+
+    def getPropertyValueIndex(self):
+        return _DeviceDetectionHashEngineModule.ConfigHashSwig_getPropertyValueIndex(self)
+
+    def getIndexedProperties(self):
+        return _DeviceDetectionHashEngineModule.ConfigHashSwig_getIndexedProperties(self)
     __swig_destroy__ = _DeviceDetectionHashEngineModule.delete_ConfigHashSwig
 
 # Register ConfigHashSwig in _DeviceDetectionHashEngineModule:
 _DeviceDetectionHashEngineModule.ConfigHashSwig_swigregister(ConfigHashSwig)
+class VectorUInt32Swig(object):
+    thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
+    __repr__ = _swig_repr
+
+    def iterator(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_iterator(self)
+    def __iter__(self):
+        return self.iterator()
+
+    def __nonzero__(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___nonzero__(self)
+
+    def __bool__(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___bool__(self)
+
+    def __len__(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___len__(self)
+
+    def __getslice__(self, i, j):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___getslice__(self, i, j)
+
+    def __setslice__(self, *args):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___setslice__(self, *args)
+
+    def __delslice__(self, i, j):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___delslice__(self, i, j)
+
+    def __delitem__(self, *args):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___delitem__(self, *args)
+
+    def __getitem__(self, *args):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___getitem__(self, *args)
+
+    def __setitem__(self, *args):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig___setitem__(self, *args)
+
+    def pop(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_pop(self)
+
+    def append(self, x):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_append(self, x)
+
+    def empty(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_empty(self)
+
+    def size(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_size(self)
+
+    def swap(self, v):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_swap(self, v)
+
+    def begin(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_begin(self)
+
+    def end(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_end(self)
+
+    def rbegin(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_rbegin(self)
+
+    def rend(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_rend(self)
+
+    def clear(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_clear(self)
+
+    def get_allocator(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_get_allocator(self)
+
+    def pop_back(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_pop_back(self)
+
+    def erase(self, *args):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_erase(self, *args)
+
+    def __init__(self, *args):
+        _DeviceDetectionHashEngineModule.VectorUInt32Swig_swiginit(self, _DeviceDetectionHashEngineModule.new_VectorUInt32Swig(*args))
+
+    def push_back(self, x):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_push_back(self, x)
+
+    def front(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_front(self)
+
+    def back(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_back(self)
+
+    def assign(self, n, x):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_assign(self, n, x)
+
+    def resize(self, *args):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_resize(self, *args)
+
+    def insert(self, *args):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_insert(self, *args)
+
+    def reserve(self, n):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_reserve(self, n)
+
+    def capacity(self):
+        return _DeviceDetectionHashEngineModule.VectorUInt32Swig_capacity(self)
+    __swig_destroy__ = _DeviceDetectionHashEngineModule.delete_VectorUInt32Swig
+
+# Register VectorUInt32Swig in _DeviceDetectionHashEngineModule:
+_DeviceDetectionHashEngineModule.VectorUInt32Swig_swigregister(VectorUInt32Swig)
 class EngineHashSwig(EngineDeviceDetectionSwig):
     thisown = property(lambda x: x.this.own(), lambda x, v: x.this.own(v), doc="The membership flag")
     __repr__ = _swig_repr
@@ -1207,6 +1324,9 @@ class EngineHashSwig(EngineDeviceDetectionSwig):
 
     def process(self, *args):
         return _DeviceDetectionHashEngineModule.EngineHashSwig_process(self, *args)
+
+    def getProfileIdsForPropertyValue(self, propertyName, valueName):
+        return _DeviceDetectionHashEngineModule.EngineHashSwig_getProfileIdsForPropertyValue(self, propertyName, valueName)
 
     def processBase(self, evidence):
         return _DeviceDetectionHashEngineModule.EngineHashSwig_processBase(self, evidence)
