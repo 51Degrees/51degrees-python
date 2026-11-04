@@ -153,8 +153,9 @@ class UserAgentClientHintsWeb():
         if foundDataFile == False:
             raise Exception("Failed to find a device detection data file matching " +
                 f"'{dataFile}'. If using the lite file, then make sure the " +
-                "device-detection-data submodule has been updated by running " +
-                "`git submodule update --recursive`. Otherwise, ensure that the filename " +
+                "data submodule is there, by running " +
+                "`git submodule update --init --recursive`, and run this " +
+                "example again to download the file. Otherwise, ensure that the filename " +
                 "is correct in config.json.")
 
         return config

@@ -11,7 +11,8 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
     exit 0
 }
 
-$deviceDetectionData = "$PSScriptRoot/../../cxx/device-detection-data"
+$data = "$PSScriptRoot/../../cxx/data"
+$deviceDetectionData = "$data/device-detection"
 
 $assets = '51Degrees-LiteV4.1.hash', '20000 Evidence Records.yml', '20000 User Agents.csv'
 if ($DeviceDetection) {
@@ -28,4 +29,13 @@ foreach ($asset in $assets) {
         '51Degrees-LiteV4.1.hash' {New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/$_" -Path "$deviceDetectionData/$_", "$PSScriptRoot/../fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/onpremise/gettingstarted_web/$_"}
         default {New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/$_" -Path "$deviceDetectionData/$_"}
     }
+}
+
+# Downloads any other file the data repository links to in the folder. The
+# script keeps a file that is already there, so the assets linked in above
+# are not downloaded again.
+$global:LASTEXITCODE = 0
+& "$data/get-data-files.ps1" device-detection
+if ($LASTEXITCODE -ne 0) {
+    throw "Not every data file in $deviceDetectionData was downloaded"
 }

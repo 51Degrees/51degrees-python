@@ -43,7 +43,11 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation-setup.py&utm_term=url",
+    project_urls={
+        "Homepage": "https://51degrees.com/build-your-own?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation&utm_term=homepage",
+        "Documentation": "https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation&utm_term=documentation",
+        "Source": "https://github.com/51Degrees/51degrees-python",
+    },
     description=("This package adds a generic translation flow element to the fiftyone-pipeline, which translates values from a source element into another language using YAML translation files."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',

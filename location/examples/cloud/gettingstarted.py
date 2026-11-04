@@ -77,4 +77,4 @@ else:
     if flow_data.location.country.has_value():
         print(flow_data.location.country.value())
     else:
-        print(flow_data.location.no_value_message())
+        print(flow_data.location.country.no_value_message())

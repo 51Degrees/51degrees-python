@@ -25,7 +25,7 @@
 #
 # This example measures the performance of the on-premise IP intelligence
 # engine. It processes the IP addresses from the evidence file supplied in
-# the ip-intelligence-data repository and reports the number of IP lookups
+# the data repository and reports the number of IP lookups
 # performed per second.
 #
 # Requesting fewer properties reduces processing time. If you do not specify
@@ -230,8 +230,8 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find a data file or evidence file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`. To obtain an enterprise "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`. To obtain an enterprise "
             "data file for testing, please contact us: "
             "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-performance_console.py&utm_term=data-file-required")
 

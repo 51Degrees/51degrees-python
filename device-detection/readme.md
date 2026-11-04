@@ -25,7 +25,7 @@ git submodule update --init --recursive
 ## Dependencies
 
 For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page.
-The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows 
+The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows 
 the Python versions that we currently test against. The software may run fine against other versions, 
 but additional caution should be applied.
 
@@ -35,29 +35,32 @@ The API can either use our cloud service to get its data or it can use a local (
 
 #### Cloud
 
-You will require a [resource key](https://51degrees.com/documentation/_info__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud)
+You will require a [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud)
 to use the Cloud API. You can create resource keys using our 
 [configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud), see our 
-[documentation](https://51degrees.com/documentation/_concepts__configurator.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud) on how to use this.
+[documentation](https://51degrees.com/documentation/_services__configurator.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud) on how to use this.
 
 #### On-Premise
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
-This repository includes a free, 'lite' file in the 'device-detection-data' sub-module that has a 
-significantly reduced set of properties. To obtain a file with a more complete set of device 
-properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=on-premise). If you want to use the lite 
-file, you will need to install [GitLFS](https://git-lfs.github.com/):
+A free, 'lite' file is available, with a significantly reduced set of properties. To obtain a
+file with a more complete set of device properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=on-premise).
+
+The lite file is not stored in a repository. The [data](https://github.com/51Degrees/data)
+repository, which is the `cxx/data` submodule, links to it from
+`cxx/data/device-detection`. Download it from the root of this repository by running:
 
 ```
-sudo apt-get install git-lfs
-git lfs install
+sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
 ```
 
-Then, navigate to 'src/fiftyone_devicedetection_onpremise/cxx/device-detection-data' and execute:
+or, in PowerShell:
 
 ```
-git lfs pull
+./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash
 ```
+
+The examples run this for themselves when the file is missing.
 
 ## Folders
 

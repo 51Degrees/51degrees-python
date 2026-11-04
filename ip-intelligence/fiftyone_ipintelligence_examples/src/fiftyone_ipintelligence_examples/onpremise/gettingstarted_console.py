@@ -32,10 +32,10 @@
 # 2. How to pass input data (evidence) to the Pipeline
 # 3. How to retrieve the results
 #
-# This example uses a local IP intelligence data file (.ipi). The
-# ip-intelligence-data submodule provides a freely available data file;
-# a more complete data file can be supplied as the first command line
-# argument.
+# This example uses a local IP intelligence data file (.ipi). The data
+# repository links to a freely available data file, which the example
+# downloads when it is missing. A more complete data file can be supplied
+# as the first command line argument.
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -75,14 +75,14 @@ class GettingStartedConsole():
         # In this example, we use the IpIntelligencePipelineBuilder
         # and configure it in code. For more information about
         # pipelines in general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
+        # https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
         pipeline = IpIntelligencePipelineBuilder(
             data_file_path = data_file,
             # We use the low memory profile as its performance is
             # sufficient for this example. See the documentation for
             # more detail on this and other configuration options:
-            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
-            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
+            # https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
+            # https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
             performance_profile = "LowMemory",
             # inhibit sharing usage for this example, usually this
             # should be set "true"
@@ -178,8 +178,9 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find an IP intelligence data file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`, or supply the path to a "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`, and run this "
+            "example again to download the file, or supply the path to a "
             "data file as the first command line argument.")
 
 if __name__ == "__main__":

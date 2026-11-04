@@ -40,14 +40,17 @@ def read(file_name):
 
 def stage_translations():
 
-    """Copy the translation YAML files shipped in the ip-intelligence-data
-    submodule into the package so they are included in the built distribution.
-    This mirrors how the .NET project embeds the same files as resources. If the
-    submodule is not present the package falls back to reading it at run time,
-    so any failure here is ignored."""
+    """Copy the translation YAML files from the data repository, the
+    cxx/data submodule, into the package so they are included in the built
+    distribution. This mirrors how the .NET project embeds the same files as
+    resources. A build from a source distribution has no cxx folder, but its
+    package already holds the files, so a missing folder is skipped. Any
+    failure here is ignored, and a package run from a source checkout reads
+    the folder at run time instead."""
 
     here = os.path.dirname(os.path.abspath(__file__))
-    source = os.path.join(here, "..", "ip-intelligence-data", "Translations")
+    source = os.path.join(
+        here, "..", "..", "cxx", "data", "ip-intelligence", "Translations")
     dest = os.path.join(
         here, "src", "fiftyone_ipintelligence_translation", "translations")
     if not os.path.isdir(source):
@@ -77,7 +80,11 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_translation-setup.py&utm_term=url",
+    project_urls={
+        "Homepage": "https://51degrees.com/ip-intelligence?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_translation&utm_term=homepage",
+        "Documentation": "https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_translation&utm_term=documentation",
+        "Source": "https://github.com/51Degrees/51degrees-python",
+    },
     description=("Country translation engines for 51Degrees on-premise IP Intelligence. Turns the weighted ISO country codes returned by the IP Intelligence engine into localized country names and complete ordered country lists."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',

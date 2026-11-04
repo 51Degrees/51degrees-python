@@ -135,9 +135,11 @@ def main(data_file = None):
         data_file = ExampleUtils.find_file(LITE_DATAFILE_NAME)
     if not data_file:
         raise Exception(
-            "Failed to find an IP intelligence data file. Download the "
-            "Lite file from https://51ddatafiles.blob.core.windows.net/"
-            "enterpriseipi/51Degrees-LiteIpiV41.ipi.gz")
+            "Failed to find an IP intelligence data file. Make sure the "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`, and run this "
+            "example again to download the file, or supply the path to a "
+            "data file as the first command line argument.")
     # The pipeline lives as long as the app, and is closed when the server
     # stops, which releases the native data it holds.
     with build_pipeline(data_file):

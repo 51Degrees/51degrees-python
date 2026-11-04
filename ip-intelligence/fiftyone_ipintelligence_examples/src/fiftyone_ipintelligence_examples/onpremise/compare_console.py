@@ -30,8 +30,8 @@
 # an IP-to-location service compare to real world information, especially
 # when evaluating different solutions.
 #
-# The input CSV (geoip_comparison_evidence.csv in the ip-intelligence-data
-# repository) provides these fields:
+# The input CSV (geoip_comparison_evidence.csv in the data repository's
+# ip-intelligence folder) provides these fields:
 #   DateTimeUtc, Latitude, Longitude, Ip, AddressFamily, Continent, Country
 #
 # For each record the engine is used to obtain the latitude and longitude
@@ -56,7 +56,7 @@ from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
 
-# Name of the truth CSV file in the ip-intelligence-data repository.
+# Name of the truth CSV file in the data repository.
 GEOIP_COMPARISON_EVIDENCE_FILE_NAME = "geoip_comparison_evidence.csv"
 
 # Mean radius of the earth in kilometres, used for the distance calculation.
@@ -189,8 +189,8 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find a data file or truth file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`. To obtain an enterprise "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`. To obtain an enterprise "
             "data file for testing, please contact us: "
             "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-compare_console.py&utm_term=data-file-required")
 

@@ -23,6 +23,8 @@
 from datetime import datetime, timedelta
 from threading import Event, Thread
 import os
+import shlex
+import subprocess
 from pathlib import Path
 
 
@@ -50,6 +52,15 @@ class ExampleUtils:
     # device detection data file from, when one is given, in place of the
     # file named in its configuration.
     DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"
+
+    # The data repository's device detection folder, from the root of a
+    # checkout of this repository. Each file the data repository links to
+    # belongs in this folder, beside its .link file.
+    DATA_FOLDER = os.path.join("cxx", "data", "device-detection")
+
+    # Sent with each download, so the downloads these examples make can be
+    # counted.
+    DOWNLOAD_SOURCE = "examples-51degrees-python"
 
     @staticmethod
     def get_resource_key_from_config(config):
@@ -183,12 +194,29 @@ class ExampleUtils:
         else:
             return ""
 
-    # Find the specified filename within the specified directory.
-    # If no directory is specified, the working directory is used.
-    # If the file cannot be found, the algorithm will move to the
-    # parent directory and repeat the process.
+    # Find the specified file. A path to a file that exists is returned as
+    # it is. Next, the data repository's folder is checked in the working
+    # directory and in each directory above it, and a file the data
+    # repository links to is downloaded there when it is missing. Otherwise
+    # the working directory is searched for a file with the same name, then
+    # each parent directory in turn. None is returned when nothing is found.
     @staticmethod
     def find_file(file_name):
+        path = Path(file_name).absolute()
+        if path.is_file():
+            return str(path.resolve())
+
+        # The data repository's copy is preferred to a file with the same
+        # name elsewhere in the tree, which may be out of date or a Git LFS
+        # pointer.
+        current = Path(os.getcwd()).absolute()
+        for root in [current, *current.parents]:
+            candidate = root / ExampleUtils.DATA_FOLDER / path.name
+            if candidate.is_file():
+                return str(candidate)
+            if candidate.with_name(candidate.name + ".link").is_file():
+                return ExampleUtils.__download(str(candidate))
+
         stop_event = Event()
         result = [None]
         # Start the file system search as a separate task.
@@ -235,6 +263,39 @@ class ExampleUtils:
         if search_dir.parent != search_dir and not stop_event.is_set():
             ExampleUtils.__find_file(file_name, stop_event, result, search_dir.parent)
 
+    # Download a file the data repository links to, by running the data
+    # repository's own script for that file, and return its path, or None
+    # when it could not be downloaded. The data repository is the folder
+    # above the one that holds the file's .link.
+    @staticmethod
+    def __download(path):
+        name = os.path.basename(path)
+        data = os.path.dirname(os.path.dirname(path))
+        if os.name == "nt":
+            command = [
+                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", os.path.join(data, "get-data-files.ps1"), name,
+                "-Source", ExampleUtils.DOWNLOAD_SOURCE]
+            text = subprocess.list2cmdline(command)
+        else:
+            command = [
+                "sh", os.path.join(data, "get-data-files.sh"),
+                "-s", ExampleUtils.DOWNLOAD_SOURCE, name]
+            text = shlex.join(command)
+
+        # Flushed first, because the script writes to the same output.
+        print(f"{name} is missing, so it is being downloaded by running\n"
+              f"{text}", flush=True)
+        try:
+            subprocess.run(command, check=False)
+        except OSError:
+            pass
+        if os.path.isfile(path):
+            return path
+        print(f"{name} could not be downloaded. Run this command to try "
+              f"again.\n{text}")
+        return None
+
     @staticmethod
     def get_data_file_date(engine):
         date = engine.engine.getPublishedTime()
@@ -272,9 +333,10 @@ class ExampleUtils:
                 f"that is more than '{ExampleUtils.DATA_FILE_AGE_WARNING}' days " +
                 "old. A more recent data file may be needed to " +
                 "correctly detect the latest devices, browsers, " +
-                "etc. The latest lite data file is available from " +
-                "the device-detection-data repository on GitHub " +
-                "https://github.com/51Degrees/device-detection-data. " +
+                "etc. Get the latest lite data file by running " +
+                "cxx/data/get-data-files.sh -u 51Degrees-LiteV4.1.hash, " +
+                "or cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash " +
+                "-Update on Windows. " +
                 "Find out about the Enterprise data file, which " +
                 "includes automatic updates, on our pricing page: " +
                 "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=data-file-age-warning")
