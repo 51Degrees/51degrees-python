@@ -90,6 +90,10 @@ class DataFileUpdateService():
         @param data_file: Datafile to update
         """
 
+        # A data file whose engine has been closed is not updated.
+        if not self.__is_registered(data_file):
+            return False
+
         # exit if already updating
 
         if data_file.updating:
@@ -230,6 +234,9 @@ class DataFileUpdateService():
         @param data_file: Datafile to check updates for
         """
 
+        if not self.__is_registered(data_file):
+            return
+
         if data_file.update_on_start and not data_file.updated_on_start and not run_after_error:
             self.update_data_file(data_file)
 
@@ -241,6 +248,7 @@ class DataFileUpdateService():
             t = threading.Timer(interval, self.async_update_data_file, args=[data_file])
             t.daemon = True
             t.name = "AutoUpdate - Scheduled"
+            data_file.update_timer = t
             t.start()
 
     def register_pipeline(self, pipeline):
@@ -265,6 +273,26 @@ class DataFileUpdateService():
             data_file.last_changed_time = os.stat(data_file.path).st_mtime
             self.track_local_data_file_changes(data_file)    
 
+    def unregister_data_file(self, data_file):
+        """!
+        Stop the checks and updates of a datafile, for example when its
+        engine is closed. Checks already scheduled are cancelled, and a
+        check already running schedules no other, so nothing is left
+        holding the data file or its engine.
+        @type data_file: DataFile
+        @param data_file: Datafile to stop checking
+        """
+
+        data_file.registered = False
+        for name in ("update_timer", "watcher_timer"):
+            timer = getattr(data_file, name, None)
+            if timer is not None:
+                timer.cancel()
+
+    def __is_registered(self, data_file):
+        # A data file checked without being registered first is checked as
+        # before. Only one that has been unregistered is left alone.
+        return getattr(data_file, "registered", True)
 
     def track_local_data_file_changes(self, data_file):
         """!
@@ -272,10 +300,12 @@ class DataFileUpdateService():
         the file system watcher. A refresh that fails is logged, and
         reported with AUTO_UPDATE_REFRESH_FAILED as on the update route.
         The next check is scheduled whatever happens, so that a later file
-        is still picked up.
+        is still picked up, until the data file is unregistered.
         @type data_file: DataFile
         @param data_file: Datafile to check updates for
         """
+        if not self.__is_registered(data_file):
+            return
         try:
             changed_time = os.stat(data_file.path).st_mtime
         except OSError:
@@ -296,13 +326,15 @@ class DataFileUpdateService():
                 "' failed. " + str(e))
             self.__emit(UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, data_file)
         finally:
-            t = threading.Timer(
-                self.FILE_SYSTEM_WATCHER_INTERVAL_SECONDS,
-                self.track_local_data_file_changes,
-                args=[data_file])
-            t.daemon = True
-            t.name = "AutoUpdate - FileWatcher"
-            t.start()
+            if self.__is_registered(data_file):
+                t = threading.Timer(
+                    self.FILE_SYSTEM_WATCHER_INTERVAL_SECONDS,
+                    self.track_local_data_file_changes,
+                    args=[data_file])
+                t.daemon = True
+                t.name = "AutoUpdate - FileWatcher"
+                data_file.watcher_timer = t
+                t.start()
 
     def on_complete(self, on_complete_method):
         self.on_complete_methods.append(on_complete_method)

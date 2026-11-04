@@ -52,6 +52,9 @@ class PipelineBuilder(object):
         while processing is re-raised from flow_data.process(); if True, errors are stored on
         flow_data.errors and process() returns normally. Recommended True for web apps so a
         processing failure degrades gracefully instead of failing the request.
+        `auto_close_elements (Bool)` - Whether closing the pipeline closes its flow elements
+        (default true). Set to False when the elements are shared with another pipeline,
+        and close each element once every pipeline using it is finished with.
         @return: Returns a Pipeline Builder
 
         """
@@ -81,6 +84,11 @@ class PipelineBuilder(object):
             self.suppress_process_exceptions = settings["suppress_process_exceptions"]
         else:
             self.suppress_process_exceptions = False
+
+        if "auto_close_elements" in settings:
+            self.auto_close_elements = settings["auto_close_elements"]
+        else:
+            self.auto_close_elements = True
 
     def get_javascript_elements(self):
         """
@@ -148,7 +156,7 @@ class PipelineBuilder(object):
         self.flow_elements.extend(self.get_javascript_elements())
         self.flow_elements.extend(self.get_setheader_elements())
 
-        return Pipeline(self.flow_elements, logger=self.logger, suppress_process_exceptions=self.suppress_process_exceptions, data_file_update_service=self.data_file_update_service)
+        return Pipeline(self.flow_elements, logger=self.logger, suppress_process_exceptions=self.suppress_process_exceptions, data_file_update_service=self.data_file_update_service, auto_close_elements=self.auto_close_elements)
 
     def add_logger(self, logger):
         """
@@ -196,7 +204,7 @@ class PipelineBuilder(object):
                 flow_element = flow_element()
             flow_elements.append(flow_element)
 
-        return Pipeline(flow_elements, suppress_process_exceptions=self._get_suppress_process_exceptions(config))
+        return Pipeline(flow_elements, suppress_process_exceptions=self._get_suppress_process_exceptions(config), auto_close_elements=self.auto_close_elements)
 
     def _get_suppress_process_exceptions(self, config):
         """

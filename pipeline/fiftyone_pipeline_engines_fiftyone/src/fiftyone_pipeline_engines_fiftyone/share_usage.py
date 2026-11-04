@@ -122,6 +122,17 @@ class ShareUsage(Engine):
     def __del__(self):
         self.thread_pool.shutdown(wait=True)
 
+    def close(self):
+
+        """!
+        Wait for any usage data already being sent, then stop the threads
+        that send it. The pipeline calls this when it is closed.
+
+        """
+
+        super(ShareUsage, self).close()
+        self.thread_pool.shutdown(wait=True)
+
     def get_constant_xml(self):
         if self.constant_xml is None:
             coreVersion = version("fiftyone_pipeline_core")
