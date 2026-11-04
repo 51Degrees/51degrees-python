@@ -38,6 +38,7 @@ from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
 from .elementdata_dictionary import ElementDataDictionary
 from .constants import Constants
+from .callback_url import callback_url
 
 
 # Evidence keys the rendered script is not configured with. Both are
@@ -295,6 +296,10 @@ class JavascriptBuilderElement(FlowElement):
 
         self.exclude_from_messages = True
 
+        # Set once a callback URL that is not valid has been logged, because
+        # a misconfigured element would otherwise log on every request.
+        self._invalid_url_logged = False
+
         # Load template file contents into memory
 
         template = Path(__file__).absolute().parent / "js_templates" / "JavaScriptResource.mustache"
@@ -413,27 +418,24 @@ class JavascriptBuilderElement(FlowElement):
         variables["_parameters"] = json.dumps(
             variables["_parameters"], separators=(",", ":"))
 
-        if variables["_host"] and variables["_protocol"] and variables["_endpoint"]:
+        # The callback URL is the protocol, the host and the endpoint, as in
+        # the .NET builder, and callback_url checks it. No query values are
+        # added to it, because they reach the callback in the request body
+        # through the parameters above, and the script appends the session
+        # id and the sequence itself.
+        url = callback_url(
+            variables["_protocol"], variables["_host"], variables["_endpoint"])
+        if url is not None and not url.valid and not self._invalid_url_logged:
+            self._invalid_url_logged = True
+            self._log(
+                "error",
+                "The generated URL " + repr(url.url) + " is not valid, so "
+                "the JavaScript has no callback URL. Check the JavaScript "
+                "builder's protocol, host and endpoint, and the protocol and "
+                "host evidence. This is reported once.")
 
-            # The callback URL is the protocol, the host and the endpoint,
-            # with exactly one slash between the host and the endpoint, as
-            # in the .NET builder. No query values are added to it. They
-            # reach the callback in the request body through the parameters
-            # above, and the script appends the session id and the sequence
-            # itself. Adding every evidence value here, as this builder used
-            # to, sent those two twice and, because the evidence reaching
-            # this element is not narrowed to query values, also wrote the
-            # end user's User-Agent, IP address and host headers into the
-            # served script's URL.
-            host = variables["_host"]
-            endpoint = variables["_endpoint"]
-            if not endpoint.startswith("/") and not host.endswith("/"):
-                endpoint = "/" + endpoint
-            elif endpoint.startswith("/") and host.endswith("/"):
-                endpoint = endpoint[1:]
-
-            variables["_url"] = variables["_protocol"] + "://" + host + endpoint
-
+        if url is not None and url.valid:
+            variables["_url"] = url.url
             variables["_updateEnabled"] = True
         else:
             variables["_updateEnabled"] = False
