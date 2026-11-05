@@ -1,5 +1,7 @@
 # fiftyone_pipeline_did
 
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious")
+
 Strongly typed Python reader and cloud client for the 51Did (51Degrees
 Identifier) returned by the 51Degrees Cloud service. Mirrors the .NET
 `FiftyOne.Did` package.

@@ -1,8 +1,8 @@
 # Pipeline Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_engines&utm_term=pipeline-engines "Data rewards the curious") **Python Pipeline Engines**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python Pipeline Engines**
 
-[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_engines&utm_term=pipeline-engines "Developer Documentation")
+[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_engines&utm_term=pipeline-engines "Developer Documentation")
 
 ## Introduction
 

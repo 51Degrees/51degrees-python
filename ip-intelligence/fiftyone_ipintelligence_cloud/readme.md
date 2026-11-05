@@ -1,6 +1,6 @@
 # 51Degrees IP Intelligence Engines - Cloud
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=51degrees-ip-intelligence-engines-cloud "Data rewards the curious") **Python IP Intelligence**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python IP Intelligence**
 
 [Developer Documentation](https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=51degrees-ip-intelligence-engines-cloud "developer documentation")
 

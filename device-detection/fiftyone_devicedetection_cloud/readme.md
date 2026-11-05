@@ -1,8 +1,8 @@
 # 51Degrees Device Detection Engines - Cloud
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=51degrees-device-detection-engines-cloud "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **v4 Device Detection Python**
 
-[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=51degrees-device-detection-engines-cloud "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=51degrees-device-detection-engines-cloud "View all available properties and values")
+[Developer Documentation](https://51degrees.com/documentation/_device_detection__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=51degrees-device-detection-engines-cloud "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=51degrees-device-detection-engines-cloud "View all available properties and values")
 
 ## Introduction
 
