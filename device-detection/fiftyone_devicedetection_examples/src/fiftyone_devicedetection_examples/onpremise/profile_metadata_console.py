@@ -61,6 +61,11 @@ def stderr_print(*args, **kwargs):
     print(*args, **kwargs, file=sys.stderr, flush=True)
 
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-profile_metadata_console.py&utm_term=enterprise-data-file"
+
+
 class ProfileMetadataConsole():
     # Properties we want to extract from each hardware profile
     # Note: TAC, HardwareName, NativeName, NativeModel are multi-value properties (string[])
@@ -199,9 +204,13 @@ def main(argv):
     if data_file is not None:
         ProfileMetadataConsole().run(data_file, output_file, logger, output_func, limit)
     else:
-        logger.log("error",
-            "Failed to find a device detection data file. " +
-            "Please provide the path to a TAC-HashV41.hash file as the first argument.")
+        # Only the Enterprise data file has the properties the example lists,
+        # so without one it says so and where to ask for one, and stops.
+        print("Listing the hardware profiles needs the TAC, HardwareVendor "
+              "and HardwareName properties, which only the Enterprise data "
+              "file has. Give the path to an Enterprise data file as the "
+              "first command line argument, or contact us for a copy at "
+              f"{CONTACT_US}")
 
 
 if __name__ == "__main__":

@@ -52,6 +52,10 @@ TARGET_COLUMNS = ["ProfileId", "HardwareVendor", "HardwareModel", "HardwareName"
 # Columns whose values are pipe-delimited lists
 MULTI_VALUE_COLUMNS = ["TAC", "HardwareName", "NativeName", "NativeModel"]
 
+# Where to ask for a copy of the hardware profile export, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-csv_profile_metadata.py&utm_term=enterprise-data-file"
+
 
 def flush_print(*args, **kwargs):
     print(*args, **kwargs, flush=True)
@@ -116,9 +120,12 @@ def main(argv):
     if csv_file is not None:
         run(csv_file, output_file, output_func, limit)
     else:
-        logger.log("error",
-            "Failed to find the CSV data file. "
-            "Please provide the path to 51Degrees-Tac-HardwarePlatform.csv as the first argument.")
+        # The export is not one of the free data files, so the example says
+        # what it needs and where to ask for it, and stops.
+        print(f"Listing the hardware profiles needs the {CSV_FILE_NAME} "
+              "export, which is not one of the free data files. Give its "
+              "path as the first command line argument, or contact us for a "
+              f"copy at {CONTACT_US}")
 
 
 if __name__ == "__main__":
