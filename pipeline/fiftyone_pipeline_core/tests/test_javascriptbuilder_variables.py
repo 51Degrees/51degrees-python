@@ -24,6 +24,8 @@ import json
 import unittest
 from unittest import mock
 
+from parameterized import parameterized
+
 from fiftyone_pipeline_core import javascriptbuilder
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
@@ -211,6 +213,33 @@ class JavaScriptBuilderVariablesTests(unittest.TestCase):
             self.assertNotIn(c, errors[0])
         self.assertIn("a\\nb.com\\r\\u2028", errors[0])
 
+    def test_refused_protocol_from_the_request_is_left_out_and_logged_once(
+            self):
+        """A protocol from the request that is neither http nor https gives
+        a script with no callback, and is logged once like any other URL
+        that is not valid."""
+
+        logger = MemoryLogger("error")
+        pipeline = PipelineBuilder({"javascript_builder_settings": {
+            "minify": False, "endpoint": "/json"}}).add_logger(logger).build()
+        captured = _CapturedAll()
+        with mock.patch.object(
+                javascriptbuilder.chevron, "render", captured.render):
+            for _ in range(2):
+                flowdata = pipeline.create_flowdata()
+                flowdata.evidence.add("header.host", "example.com")
+                flowdata.evidence.add("header.protocol", "ftp")
+                flowdata.process()
+        errors = [
+            entry["message"] for entry in logger.memory_log
+            if entry["level"] == "error"]
+
+        for variables in captured.variables:
+            self.assertNotIn("_url", variables)
+            self.assertFalse(variables["_updateEnabled"])
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn("'ftp://example.com/json'", errors[0])
+
     def test_blank_host_gives_no_callback_and_is_not_logged(self):
         """A host made only of whitespace is not set, so the script has no
         callback and nothing is logged."""
@@ -230,6 +259,26 @@ class JavaScriptBuilderVariablesTests(unittest.TestCase):
 
         self.assertEqual(
             "https://example.com/%27);alert(1);//json", rendered[0]["_url"])
+
+
+class JavaScriptBuilderProtocolSettingTests(unittest.TestCase):
+
+    @parameterized.expand([
+        ("ftp",), ("ws",), ("javascript",), ("https ",), ("http\u017f",),
+    ])
+    def test_invalid_configured_protocol_is_refused(self, protocol):
+        """A protocol in the settings is used for every request, so one the
+        script cannot send its request with is refused when the builder is
+        created."""
+
+        with self.assertRaises(ValueError):
+            javascriptbuilder.JavascriptBuilderElement({"protocol": protocol})
+
+    @parameterized.expand([("http",), ("https",), ("HTTPS",)])
+    def test_valid_configured_protocol_is_accepted(self, protocol):
+        element = javascriptbuilder.JavascriptBuilderElement(
+            {"protocol": protocol})
+        self.assertEqual(protocol, element.settings["_protocol"])
 
 
 if __name__ == "__main__":

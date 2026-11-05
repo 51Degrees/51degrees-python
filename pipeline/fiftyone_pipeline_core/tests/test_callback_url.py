@@ -137,19 +137,90 @@ class CallbackUrlTests(unittest.TestCase):
     def test_refuses_the_host(self, host):
         self.assertFalse(_url("https", host).valid, repr(host))
 
+    @parameterized.expand([
+        ("[fe80::1%25]",),
+        ("[fe80::1%25'+alert(1)+']",),
+        ("[fe80::1%eth0]",),
+        ("[fe80::1%25eth%0]",),
+        ("[::1]x",),
+        ("[::1]80",),
+        ("[::1]:80x",),
+        ("[::1]]",),
+    ])
+    def test_refuses_the_zone_or_the_text_after_the_bracket(self, host):
+        """Inside the brackets only an IPv6 address, optionally followed by
+        '%25' and a zone of unreserved characters, and after them only a
+        port. The zone check is what keeps a quote out of the script for a
+        bracketed host."""
+
+        self.assertFalse(_url("https", host).valid, repr(host))
+
+    def test_accepts_a_zone_followed_by_a_port(self):
+        self.assertEqual(
+            _valid("https://[fe80::1%25eth0]:8080/51dpipeline/json"),
+            _url("https", "[fe80::1%25eth0]:8080"))
+
+    def test_checks_the_port_by_its_value(self):
+        """A port goes by its value, so leading zeros are allowed, and a
+        port too long to read is refused rather than read as small enough."""
+
+        self.assertEqual(
+            _valid("https://example.com:00080/51dpipeline/json"),
+            _url("https", "example.com:00080"))
+        self.assertEqual(
+            _valid("https://example.com:0065535/51dpipeline/json"),
+            _url("https", "example.com:0065535"))
+        for host in [
+                "example.com:0065536",
+                "example.com:123456",
+                "example.com:4294967296",
+                "example.com:99999999999999999999"]:
+            self.assertFalse(_url("https", host).valid, host)
+
+    def test_encodes_the_characters_rule_8_lists(self):
+        """Each character rule 8 lists, in the user information, after the
+        host and in the endpoint, and a '%' without two hexadecimal digits
+        after it, even at the end."""
+
+        self.assertEqual(
+            _valid("https://u%22%5E%60%7B%7C%7D@example.com/%22%5E%60%7B%7C%7D"
+                   "/j%22%5E%60%7B%7C%7D"),
+            callback_url(
+                "https", 'u"^`{|}@example.com/"^`{|}', '/j"^`{|}'))
+        self.assertEqual(
+            _valid("https://example.com/a%25/51dpipeline/json"),
+            _url("https", "example.com/a%"))
+        self.assertEqual(
+            _valid("https://example.com/a%254/51dpipeline/json"),
+            _url("https", "example.com/a%4"))
+        self.assertEqual(
+            _valid("https://example.com/a%41/51dpipeline/json"),
+            _url("https", "example.com/a%41"))
+        self.assertEqual(
+            _valid("https://example.com/json%25"),
+            callback_url("https", "example.com", "/json%"))
+
     def test_the_invalid_url_is_the_one_built(self):
         self.assertEqual(
             CallbackUrl(False, "https://exa mple.com/51dpipeline/json"),
             _url("https", "exa mple.com"))
 
     def test_checks_the_scheme(self):
-        for protocol in ["https", "http", "ftp", "h+t-p.s"]:
+        """Only http and https, ignoring the case of ASCII letters only, so
+        a letter outside ASCII that a case-insensitive comparison can match
+        to an ASCII one, such as the long s, is refused."""
+
+        for protocol in ["https", "http", "HtTp"]:
             self.assertTrue(_url(protocol, "example.com").valid, protocol)
         self.assertEqual(
             _valid("https://example.com/51dpipeline/json"),
             _url("HTTPS", "example.com"))
-        for protocol in ["1http", "h t", "x');alert(1);//", "a://b"]:
-            self.assertFalse(_url(protocol, "example.com").valid, protocol)
+        for protocol in [
+                "ftp", "h+t-p.s", "ws", "javascript", "httpx", "https ",
+                "1http", "h t", "x');alert(1);//", "a://b", "http\u017f",
+                "HTTP\u017f"]:
+            self.assertFalse(
+                _url(protocol, "example.com").valid, repr(protocol))
 
     @parameterized.expand([
         ("example.com/');alert(1);//",),

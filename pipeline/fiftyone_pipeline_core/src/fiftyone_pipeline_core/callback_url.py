@@ -24,9 +24,10 @@
 The callback URL the client script posts to for updated JSON. The protocol
 and host usually come from the request, and the script holds the URL in a
 single-quoted string, so the URL is checked before it is written into the
-script. A URL that is not valid is refused. In the user information, in
-anything after the host and port, and in the endpoint, the characters a URL
-cannot hold or that could end the string or the script are percent-encoded.
+script. A URL that is not valid, including one whose protocol is not http or
+https, is refused. In the user information, in anything after the host and
+port, and in the endpoint, the characters a URL cannot hold or that could end
+the string or the script are percent-encoded.
 
 See https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/javascript-builder.md#callback-url
 """
@@ -58,9 +59,13 @@ BLANK_PATTERN = re.compile(
     r"[\t-\r \u0085\u00a0\u1680\u2000-\u200a"
     r"\u2028\u2029\u202f\u205f\u3000]*")
 
-# A scheme as RFC 3986 section 3.1 defines one, being a letter followed by
-# letters, digits, '+', '-' and '.'.
-SCHEME_PATTERN = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*")
+# The schemes the script can send its request with. It uses the URL only with
+# fetch and XMLHttpRequest, which reach a server with no other scheme.
+SCHEMES = ("http", "https")
+
+# Lower-cases the ASCII letters A to Z and nothing else.
+_ASCII_LOWER = str.maketrans(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 # Where the authority ends, which is at the first '/', '?' or '#' of the
 # host.
@@ -105,6 +110,37 @@ def is_blank(text):
             or BLANK_PATTERN.fullmatch(text) is not None)
 
 
+def ascii_lower(text):
+
+    """!
+    The text with the ASCII letters A to Z in lower case and every other
+    character as it is, so that no letter outside ASCII can stand in for an
+    ASCII one, as str.casefold would let the long s stand in for "s".
+
+    @type text: str
+    @param text: The text
+    @rtype: str
+    @return: The text with A to Z in lower case
+    """
+
+    return text.translate(_ASCII_LOWER)
+
+
+def is_scheme(protocol):
+
+    """!
+    Whether the protocol is http or https, ignoring the case of its ASCII
+    letters only.
+
+    @type protocol: str
+    @param protocol: The protocol
+    @rtype: bool
+    @return: True if the protocol is http or https
+    """
+
+    return ascii_lower(protocol) in SCHEMES
+
+
 def callback_url(protocol, host, endpoint):
 
     """!
@@ -114,7 +150,7 @@ def callback_url(protocol, host, endpoint):
     the rest as given, apart from the percent-encoding.
 
     @type protocol: str
-    @param protocol: The protocol, such as https
+    @param protocol: The protocol, http or https in any case
     @type host: str
     @param host: The host, which can start with user information and end
     with a port, a path, a query or a fragment
@@ -134,7 +170,7 @@ def callback_url(protocol, host, endpoint):
     elif host_has_slash and endpoint_has_slash:
         endpoint = endpoint[1:]
     built = protocol + "://" + host + endpoint
-    if SCHEME_PATTERN.fullmatch(protocol) is None:
+    if not is_scheme(protocol):
         return CallbackUrl(False, built)
     match = AUTHORITY_END_PATTERN.search(host)
     end = len(host) if match is None else match.start()
@@ -143,7 +179,7 @@ def callback_url(protocol, host, endpoint):
         return CallbackUrl(False, built)
     return CallbackUrl(
         True,
-        protocol.lower() + "://" + authority
+        ascii_lower(protocol) + "://" + authority
         + _encoded(host[end:]) + _encoded(endpoint))
 
 
