@@ -33,23 +33,32 @@ python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_web
 
 ## On-premise examples
 
-Require a `.ipi` data file in the format the engine reads (see
+Use a `.ipi` data file in the format the engine reads (see
 [Data files](../readme.md#data-files)). The data repository, at
-`cxx/data`, links to a freely available network-only file
-(`51Degrees-IPIV4AsnIpiV41.ipi`) that the examples fall back to, and an
-example downloads it when it is missing. It only contains the ASN/network
-properties, so location and registration properties are reported as "not
-present in the data file".
+`cxx/data`, links to the two free data files, and an example downloads the
+one it uses the first time it is missing, so the examples run from a fresh
+clone with no settings. The free Lite data file (`51Degrees-LiteV41.ipi`)
+has the registration properties, such as RegisteredName and
+RegisteredCountry, and most examples use it. The free ASN data file
+(`51Degrees-IPIV4AsnIpiV41.ipi`) has the ASN properties and is far smaller,
+so the performance and data file update examples use it.
 
-For the full set of properties (location, registration, etc.), a more
-complete data file is required - to obtain one for testing please
-[contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=on-premise-examples) - and supply its path as
-the first command line argument.
+The location, range and connection properties are only in the Enterprise
+data file. An example run on a free data file shows each property it lacks
+as needing the Enterprise data file, and gives a link to
+[contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=on-premise-examples) about a copy.
+The countries and comparison examples need those properties throughout, so
+on a free data file they say which they need and stop. Supply the path to
+an Enterprise data file as the first command line argument, or with `-d`,
+to see every property.
 
 - `onpremise/gettingstarted_console.py` - resolve IP addresses from the
   console using a local data file.
 - `onpremise/metadata_console.py` - list the properties available from
   the data file.
+- `onpremise/countries_console.py` - list the countries an IP address is
+  most likely in, with their names translated (needs the Enterprise data
+  file).
 - `onpremise/offlineprocessing.py` - batch process the evidence file
   from the data repository.
 - `onpremise/performance_console.py` - benchmark the number of IP lookups
@@ -57,7 +66,7 @@ the first command line argument.
 - `onpremise/compare_console.py` - compare the location returned for each
   IP address against a CSV of known-true locations.
 - `onpremise/datafileupdate_console.py` - demonstrate automatic data file
-  updates (requires a license key).
+  updates (needs a licence key, and without one says where to ask for one).
 - `onpremise/mixed_console.py` - combine device detection and IP
   intelligence in a single on-premise pipeline (requires the device
   detection package and a `.hash` data file).
@@ -67,10 +76,11 @@ the first command line argument.
 ```
 python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console [data-file]
 python -m fiftyone_ipintelligence_examples.onpremise.metadata_console [data-file]
+python -m fiftyone_ipintelligence_examples.onpremise.countries_console [data-file]
 python -m fiftyone_ipintelligence_examples.onpremise.offlineprocessing [data-file [evidence-file]]
 python -m fiftyone_ipintelligence_examples.onpremise.performance_console [-d data-file] [-e evidence-file]
 python -m fiftyone_ipintelligence_examples.onpremise.compare_console [-d data-file] [-t truth-file]
-python -m fiftyone_ipintelligence_examples.onpremise.datafileupdate_console <license-key> [data-file]
+python -m fiftyone_ipintelligence_examples.onpremise.datafileupdate_console [license-key [data-file]]
 python -m fiftyone_ipintelligence_examples.onpremise.mixed_console [hash-file [ipi-file]]
 python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_web
 ```

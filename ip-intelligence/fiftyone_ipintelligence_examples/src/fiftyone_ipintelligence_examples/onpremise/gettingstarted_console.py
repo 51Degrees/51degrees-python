@@ -32,10 +32,12 @@
 # 2. How to pass input data (evidence) to the Pipeline
 # 3. How to retrieve the results
 #
-# This example uses a local IP intelligence data file (.ipi). The data
-# repository links to a freely available data file, which the example
-# downloads when it is missing. A more complete data file can be supplied
-# as the first command line argument.
+# By default the example uses the free Lite IP intelligence data file, which
+# it downloads when it is missing. The Lite data file has the registration
+# properties, and the example shows each property only the Enterprise data
+# file has as needing it. An Enterprise data file can be supplied as the first
+# command line argument. Contact us for a copy:
+# https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=header
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -45,12 +47,15 @@ from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligenc
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_VALUES
-from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=enterprise-data-file"
 
 # The properties displayed for each IP address. These mirror the .NET
-# getting started example. Properties that are not present in the data file
-# being used (for example the network-only ASN data file) are reported as
-# such rather than causing an error.
+# getting started example. A property the data file in use does not have is
+# shown as needing the Enterprise data file.
 OUTPUT_PROPERTIES = [
     "RegisteredName",
     "RegisteredOwner",
@@ -99,8 +104,12 @@ class GettingStartedConsole():
             ExampleUtils.check_data_file(pipeline, logger)
 
             # carry out some sample lookups
+            needs_enterprise = False
             for values in EVIDENCE_VALUES:
-                self.analyseEvidence(values, pipeline, output)
+                needs_enterprise |= self.analyseEvidence(
+                    values, pipeline, output)
+            if needs_enterprise:
+                output("\n" + ExampleUtils.get_enterprise_note(CONTACT_US))
 
     def analyseEvidence(self, evidence, pipeline, output):
 
@@ -141,11 +150,16 @@ class GettingStartedConsole():
             # Display the results of the lookup. See the property
             # dictionary at https://51degrees.com/developers/property-dictionary?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=analyseevidence
             # for details of all available properties.
+            # The engine says which properties its data file has.
+            engine = pipeline.flow_elements_list["ip"]
+            needs_enterprise = False
             for name in OUTPUT_PROPERTIES:
-                self.outputValue(ip_data, name, message)
+                needs_enterprise |= self.outputValue(
+                    engine, ip_data, name, message)
             output("".join(message))
+            return needs_enterprise
 
-    def outputValue(self, ip_data, name, message):
+    def outputValue(self, engine, ip_data, name, message):
         # Individual result values have a wrapper called
         # `AspectPropertyValue`. This functions similarly to
         # a null-able type.
@@ -153,22 +167,23 @@ class GettingStartedConsole():
         # `value` method will throw an exception.
         # `AspectPropertyValue` also includes the `no_value_message`
         # method, which describes why the value has not been set.
-        # `get_value` returns None when the property is not present in the
-        # data file at all (for example the network-only ASN data file),
-        # rather than raising.
-        value = ExampleUtils.get_value(ip_data, name.lower())
-        if value is None:
-            message.append(f"\t{name}: This property is not present in the data file.\n")
-        elif value.has_value():
+        # A property the data file does not have needs the Enterprise data
+        # file, and its value is not read.
+        if not ExampleUtils.has_property(engine, name):
+            message.append(f"\t{name}: {ExampleUtils.NEEDS_ENTERPRISE}\n")
+            return True
+        value = ip_data.get(name.lower())
+        if value.has_value():
             message.append(f"\t{name}: {ExampleUtils.format_value(value.value())}\n")
         else:
             message.append(f"\t{name}: {value.no_value_message()}\n")
+        return False
 
 
 def main(argv):
     # Use the supplied path for the data file or find the data file in the
     # project space.
-    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(ASN_DATAFILE_NAME)
+    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
 
     # Configure a logger to output to the console.
     logger = Logger(min_level="info")
