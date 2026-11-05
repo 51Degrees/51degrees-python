@@ -1,8 +1,8 @@
 # 51Degrees IP Intelligence Engines - Cloud
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=51degrees-ip-intelligence-engines-cloud "Data rewards the curious") **Python IP Intelligence**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=51degrees-ip-intelligence-engines-cloud "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=51degrees-ip-intelligence-engines-cloud "developer documentation")
 
 ## Introduction
 
@@ -38,7 +38,7 @@ print(flowdata.ip.registeredname.value())
 ## Find out more
 
 - [IP Intelligence](https://51degrees.com/ip-intelligence?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=find-out-more-ip-intelligence)
-- [IP Intelligence documentation](https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=find-out-more-documentation)
+- [IP Intelligence documentation](https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=find-out-more-documentation)
 - [Getting started](https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=find-out-more-getting-started)
 - [Pricing](https://51degrees.com/pricing?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=find-out-more-pricing)
 - https://github.com/51Degrees/51degrees-python

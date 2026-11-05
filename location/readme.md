@@ -1,9 +1,9 @@
 # 51Degrees Geo-Location Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=51degrees-geo-location-engines) 
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") 
 **v4 Location Python**
 
-[Developer Documentation](https://51degrees.com/location-python/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=51degrees-geo-location-engines "Developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=51degrees-geo-location-engines "Developer documentation")
 
 ## Introduction
 
@@ -13,7 +13,6 @@ The Pipeline is a generic web request intelligence and data processing solution 
 
 ## Dependencies
 
-For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=dependencies) page.
 The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=dependencies) page shows the Python versions that we currently test against. The software may run fine against other versions, but additional caution should be applied.
 
 ## Installation and Examples
@@ -64,7 +63,7 @@ Execute `$env:FLASK_APP = "web"` where `web` is the example file, and start your
 ## Find out more
 
 - [Geolocation](https://51degrees.com/geolocation?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-geolocation)
-- [Reverse geocoding documentation](https://51degrees.com/documentation/_reverse_geocoding__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-documentation)
+- [Reverse geocoding documentation](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-documentation)
 - [Getting started](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-getting-started)
 - [Pricing](https://51degrees.com/pricing?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-pricing)
 - https://github.com/51Degrees/51degrees-python
