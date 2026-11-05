@@ -285,6 +285,11 @@ Describe 'the real packages.json' {
         $ipi.Count | Should -Be 5
         $ipi.FirstVersion | Select-Object -Unique | Should -Be '4.5.0'
     }
+
+    It 'has every tox.ini install the packages its package depends on' {
+        Get-ToxGaps (Split-Path $PSScriptRoot) $script:Real |
+            Should -BeNullOrEmpty
+    }
 }
 
 }

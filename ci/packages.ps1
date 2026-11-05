@@ -30,6 +30,51 @@ function Test-PathUnder([string]$Path, [string]$Folder) {
     return $Path -eq $Folder -or $Path.StartsWith("$Folder/")
 }
 
+# Each tox.ini that does not install every package its package depends on,
+# directly or through another, from this checkout, as a line naming what is
+# missing. Taken from a package index instead, a dependency is tested at its
+# last release rather than with the code it is released with.
+function Get-ToxGaps([string]$RepoPath, $Packages = $null) {
+    if ($null -eq $Packages) {
+        $Packages = Get-Packages $RepoPath
+    }
+    $byName = @{}
+    foreach ($package in $Packages) {
+        $byName[$package.Name] = $package
+    }
+    $gaps = @()
+    foreach ($package in $Packages) {
+        $tox = Join-Path $RepoPath $package.Path 'tox.ini'
+        if ((Test-Path $tox) -eq $false) {
+            continue
+        }
+        $text = Get-Content -Raw $tox
+        $needed = [Collections.Generic.HashSet[string]]::new()
+        $queue = [Collections.Generic.Queue[string]]::new()
+        foreach ($name in $package.DependsOn) {
+            $queue.Enqueue($name)
+        }
+        while ($queue.Count -gt 0) {
+            $name = $queue.Dequeue()
+            if ($needed.Add($name) -eq $true) {
+                foreach ($next in $byName[$name].DependsOn) {
+                    $queue.Enqueue($next)
+                }
+            }
+        }
+        foreach ($name in $needed) {
+            $relative = [IO.Path]::GetRelativePath(
+                (Join-Path $RepoPath $package.Path),
+                (Join-Path $RepoPath $byName[$name].Path)).Replace('\', '/')
+            $pattern = '(?m)^\s*-e\s*' + [regex]::Escape($relative) + '/?\s*$'
+            if ($text -notmatch $pattern) {
+                $gaps += "$($package.Path)/tox.ini does not install $name from $relative"
+            }
+        }
+    }
+    return $gaps
+}
+
 # The names of the given packages and of every package that depends on one of
 # them, directly or through another.
 function Get-DependentClosure($Packages, [string[]]$Names) {
