@@ -120,10 +120,12 @@ class DataFileUpdateConsole():
                 auto_update = False,
                 licence_keys = "").build()
             with pipeline:
-                published = ExampleUtils.get_data_file_date(pipeline)
-                output(f"The data file in use is the "
-                       f"'{pipeline.flow_elements_list['ip'].engine.getProduct()}' "
-                       f"file published on {published}, at '{data_file}'.")
+                engine = pipeline.flow_elements_list["ip"].engine
+                published = engine.getPublishedTime()
+                date = datetime(published.getYear(), published.getMonth(),
+                                published.getDay())
+                output(f"The data file in use is the '{engine.getProduct()}' "
+                       f"file published on {date:%Y-%m-%d}, at '{data_file}'.")
         output("")
         output("Updating the data file downloads the Enterprise data file, "
                "which needs a licence key. Give the key as the first command "

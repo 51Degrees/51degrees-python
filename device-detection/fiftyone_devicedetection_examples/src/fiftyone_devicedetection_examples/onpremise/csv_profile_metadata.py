@@ -40,7 +40,6 @@ import json
 import sys
 
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
-from fiftyone_pipeline_core.logger import Logger
 
 # CSV file name to search for
 CSV_FILE_NAME = "51Degrees-Tac-HardwarePlatform.csv"
@@ -114,7 +113,6 @@ def main(argv):
     output_file = None if output_arg == "-" else output_arg
     limit = int(argv[2]) if len(argv) > 2 else None
 
-    logger = Logger(min_level="info")
     output_func = flush_print if output_file else stderr_print
 
     if csv_file is not None:
