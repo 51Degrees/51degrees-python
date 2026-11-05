@@ -2,7 +2,7 @@
 
 ![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python Pipeline Translation**
 
-[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation&utm_term=pipeline-translation "Developer Documentation")
+[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation&utm_term=pipeline-translation "Developer Documentation")
 
 ## Introduction
 
@@ -28,6 +28,6 @@ This package is built on top of:
 ## Find out more
 
 - [Build your own](https://51degrees.com/build-your-own?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation&utm_term=find-out-more-build-your-own)
-- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation&utm_term=find-out-more-documentation)
+- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation&utm_term=find-out-more-documentation)
 - [Pipeline API examples](https://51degrees.com/documentation/_pipeline_api__examples__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_translation&utm_term=find-out-more-examples)
 - https://github.com/51Degrees/51degrees-python

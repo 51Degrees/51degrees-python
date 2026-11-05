@@ -2,7 +2,7 @@
 
 ![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=51degrees-ip-intelligence-engines-examples "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=51degrees-ip-intelligence-engines-examples "developer documentation")
 
 ## Introduction
 

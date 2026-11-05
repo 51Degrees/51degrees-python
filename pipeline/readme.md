@@ -2,7 +2,7 @@
 
 ![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python Pipeline**
 
-[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Developer Documentation")
+[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Developer Documentation")
 
 ## Introduction
 This repository contains the components of the Python implementation of the 51Degrees Pipeline API.
