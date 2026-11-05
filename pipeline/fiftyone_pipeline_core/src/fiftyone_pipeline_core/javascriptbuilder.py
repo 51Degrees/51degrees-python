@@ -38,7 +38,7 @@ from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
 from .elementdata_dictionary import ElementDataDictionary
 from .constants import Constants
-from .callback_url import callback_url
+from .callback_url import callback_url, is_scheme
 
 
 # Evidence keys the rendered script is not configured with. Both are
@@ -255,9 +255,10 @@ class JavascriptBuilderElement(FlowElement):
         * starting with a digit) and not a reserved word. An invalid
         * configured name raises a ValueError, and an invalid requested name
         * is ignored with a warning logged.
-        * @param {string} options.protocol The protocol ("http" or "https")
-        * used by the client side callback url.
-        * This can be overriden with header.protocol evidence
+        * @param {string} options.protocol The protocol of the client side
+        * callback url, http or https in any case of its ASCII letters. Any
+        * other configured protocol raises a ValueError. Left out, the
+        * header.protocol evidence is used, or https when there is none.
         * @param {string} options.host The host of the client side
         * callback url. This can be overriden with header.host evidence.
         * @param {string} options.endpoint The endpoint of the client side
@@ -286,6 +287,15 @@ class JavascriptBuilderElement(FlowElement):
                 "JavaScript identifier (ASCII letters, digits, '_' and '$', "
                 "not starting with a digit) and not a reserved word.")
         self.settings['_protocol'] = settings["protocol"] if "protocol" in settings else None
+
+        # A protocol given here is used for every request, so one the script
+        # cannot send its request with is refused now rather than logged on
+        # the first request.
+        protocol = self.settings['_protocol']
+        if protocol and not (isinstance(protocol, str) and is_scheme(protocol)):
+            raise ValueError(
+                "The JavaScript builder's protocol setting must be http or "
+                "https.")
         self.settings['_host'] = settings["host"] if "host" in settings else None
         self.settings['_endpoint'] = settings["endpoint"] if "endpoint" in settings else ''
         self.settings['_enableCookies'] = settings["enable_cookies"] if "enable_cookies" in settings else True
