@@ -2,7 +2,10 @@ param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
     [Parameter(Mandatory=$true)]
-    [Hashtable]$Keys
+    [Hashtable]$Keys,
+    # False, from the root select-options.ps1, on every entry of a pull
+    # request but one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 
 if ($IsWindows) {
@@ -39,6 +42,14 @@ $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
 $failures = @()
 if ($LASTEXITCODE -ne 0) {
     $failures += "the Python integration tests exited with code $LASTEXITCODE"
+}
+
+if (-not $SeleniumContract) {
+    Write-Output "Another entry runs the Selenium contract tests for this pull request."
+    if ($failures.Count -gt 0) {
+        throw "Integration tests failed: $($failures -join '; ')"
+    }
+    return
 }
 
 # The shared Selenium contract tests are run against the cloud example and the

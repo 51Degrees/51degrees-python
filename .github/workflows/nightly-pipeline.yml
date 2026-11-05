@@ -16,44 +16,12 @@ on:
   schedule:
     # The 51degrees-cxx nightly starts at 00:35 and ends by about 02:35, so
     # its release reaches this submodule update the same night.
-    - cron: '0 3 * * *'
+    - cron: '0 5 * * *'
 
 jobs:
-  SubmoduleUpdate:
-    name: Nightly Submodule Update
-    uses: 51Degrees/common-ci/.github/workflows/nightly-submodule-update.yml@main
-    with:
-      repo-name: ${{ github.event.repository.name }}
-      org-name: ${{ github.event.repository.owner.login }}
-      dryrun: ${{ inputs.dryrun || false }}
-      common-ci-ref: ${{ inputs.common-ci-ref || '' }}
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-
-  PullRequests:
-    if: ${{ !cancelled() }}
-    needs: SubmoduleUpdate
-    name: Nightly Pull Requests
-    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
-    with:
-      repo-name: ${{ github.event.repository.name }}
-      org-name: ${{ github.event.repository.owner.login }}
-      dryrun: ${{ inputs.dryrun || false }}
-      common-ci-ref: ${{ inputs.common-ci-ref || '' }}
-      skip-lite-tests: ${{ inputs.skip-lite-tests || false }}
-      cache-assets: true
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      CsvUrl: ${{ secrets.CSV_URL }}
-      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-
+  # The publish builds main, which the pull requests into rc do not change, so
+  # it runs first and has the runners before the pull request builds do.
   Publish:
-    if: ${{ !cancelled() }}
-    needs: PullRequests
     name: Nightly Publish
     uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
     with:
@@ -72,3 +40,37 @@ jobs:
       TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
       PypiToken: ${{ secrets.PYPI_TOKEN }}
       TestPypiToken: ${{ secrets.TEST_PYPI_TOKEN }}
+
+  SubmoduleUpdate:
+    name: Nightly Submodule Update
+    uses: 51Degrees/common-ci/.github/workflows/nightly-submodule-update.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      common-ci-ref: ${{ inputs.common-ci-ref || '' }}
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
+
+  PullRequests:
+    if: ${{ !cancelled() }}
+    needs: [Publish, SubmoduleUpdate]
+    name: Nightly Pull Requests
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      common-ci-ref: ${{ inputs.common-ci-ref || '' }}
+      skip-lite-tests: ${{ inputs.skip-lite-tests || false }}
+      cache-assets: true
+      # One configuration that fails does not cancel the others.
+      fail-fast: false
+    secrets:
+      token: ${{ secrets.ACCESS_TOKEN }}
+      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
+      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
+      CsvUrl: ${{ secrets.CSV_URL }}
+      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
+      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
+      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}

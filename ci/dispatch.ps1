@@ -10,11 +10,13 @@
 
 # Runs $Step for each affected product. Every product is run even when an
 # earlier one fails, so one run reports every broken product, and the step
-# fails at the end if any did.
+# fails at the end if any did. A pull request's changes are measured from
+# the Branch in $Options, the branch it merges into.
 function Invoke-ProductStep([string]$Step, [string]$RepoName,
         [Collections.IDictionary]$Options) {
     $failed = [Collections.Generic.List[string]]::new()
-    foreach ($product in (Get-AffectedProducts $RepoName)) {
+    $branch = $Options.Branch ? $Options.Branch : 'main'
+    foreach ($product in (Get-AffectedProducts $RepoName $branch)) {
         $script = Join-Path $RepoName $product 'ci' "$Step.ps1"
         if ((Test-Path $script) -eq $false) {
             Write-Output "$product has no $Step step"

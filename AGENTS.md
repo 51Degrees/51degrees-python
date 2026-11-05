@@ -263,7 +263,16 @@ product is built or tested belongs in that product's `ci/`, not in the root.
 A change touches a product when it is in that product's folder, or in a
 package another product depends on; a change outside every product folder
 touches all of them ([ci/packages.ps1](ci/packages.ps1),
-`Resolve-AffectedProducts`).
+`Resolve-AffectedProducts`). A pull request's changes are measured from the
+branch it merges into, `rc`.
+
+[ci/select-options.ps1](ci/select-options.ps1) chooses the entries a pull
+request runs. The standard set is Python 3.14 and 3.10 on Linux, with the
+Selenium contract on 3.14 alone. A native change adds Windows, a packaging
+change adds the other Python versions on Linux, and a change outside the
+product folders or to a `ci/` folder adds every entry but macOS. macOS and
+performance run only when `rc` itself or the release pull request is built,
+which `.github/workflows/release-pull-request.yml` does on every entry.
 
 ## Versions are per package
 
