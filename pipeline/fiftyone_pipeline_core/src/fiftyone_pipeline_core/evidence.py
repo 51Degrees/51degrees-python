@@ -98,7 +98,8 @@ class Evidence:
         if self.evidence_filtered:
             return
 
-        for key in self.evidence:
+        # Loop over a copy of the keys, as keys are removed on the way.
+        for key in list(self.evidence):
             if not any([
                 flow_element.filter_evidence_key(key)
                 for flow_element
