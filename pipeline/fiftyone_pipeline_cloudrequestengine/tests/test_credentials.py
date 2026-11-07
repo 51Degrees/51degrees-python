@@ -270,9 +270,9 @@ class TestCredentials(CloudRequestEngineTestsBase):
             "http_client": self.mock_http(),
         })
 
-        # The real service advertises these names under each prefix, and the
-        # stand-in advertises query.User-Agent alone, so an element that
-        # accepts every key keeps them for the engine to leave out.
+        # The stand-in service lists query.User-Agent alone, so an element
+        # that accepts every key keeps this evidence for the engine, which
+        # leaves it out whatever reaches it.
         pipeline = PipelineBuilder().add(AcceptEveryKeyElement()) \
             .add(engine).build()
         data = pipeline.create_flowdata()
