@@ -574,14 +574,16 @@ class UsageTests(unittest.TestCase):
 
     def test_session_cookie(self):
         """!
-        Check that naming the session cookie keeps it in the evidence, but
-        neither it nor any other ordinary cookie is shared.
+        Check that with session tracking on the session cookie is kept in
+        the evidence, but neither it nor any other ordinary cookie is
+        shared.
         """
 
         usage = ShareUsage(
             requested_package_size=1,
             endpoint=testEndpoint,
-            cookie="sessionid")
+            cookie="sessionid",
+            track_session=True)
 
         pipeline = (PipelineBuilder())\
             .add(usage)\
@@ -598,6 +600,61 @@ class UsageTests(unittest.TestCase):
         self.assertIn("some user agent", app.received[0])
         self.assertNotIn("session value", app.received[0])
         self.assertNotIn("analytics value", app.received[0])
+
+    def test_session_cookie_without_session_tracking(self):
+        """!
+        Check that session tracking is off by default, and that naming the
+        session cookie then has no effect. The cookie is not kept, and
+        evidence already shared is not shared again for a new session.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            cookie="sessionid")
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        for session in ("session value 1", "session value 2"):
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("header.user-agent", "repeated user agent")
+            flowdata.evidence.add("cookie.sessionid", session)
+            flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertNotIn("session value", app.received[0])
+        self.assertFalse(usage.get_evidence_key_filter().filter_evidence_key("cookie.sessionid"))
+        self.assertFalse(usage.track_session)
+
+    def test_session_tracking(self):
+        """!
+        Check that with session tracking on, evidence already shared is
+        shared again for a new session but not for a repeat in the same
+        session, and that the session cookie is not shared.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            cookie="sessionid",
+            track_session=True)
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        for session in ("session value 1", "session value 1", "session value 2"):
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("header.user-agent", "repeated user agent")
+            flowdata.evidence.add("cookie.sessionid", session)
+            flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 2)
+        received = "\n".join(app.received)
+        self.assertEqual(received.count("repeated user agent"), 2)
+        self.assertNotIn("session value", received)
 
     def test_ordinary_cookie_with_header_blacklist(self):
         """!
