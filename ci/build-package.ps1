@@ -6,9 +6,12 @@ $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot 'packages.ps1')
 
 # Builds the packages this publish releases, each at its own version from the
-# release plan. $Version is common-ci's label for the run and is not used.
+# release plan. When nothing is to be released, every package is built at its
+# released version, so that the tests have packages to install and the nightly
+# publish passes without publishing anything. $Version is common-ci's label for
+# the run and is not used.
 
-$plan = @(Get-ReleasePlan $RepoName)
+$plan = @(Get-BuildPlan $RepoName)
 
 # fiftyone_pipeline_did carries the OWID source inside itself, copied in by the
 # pipeline product's script; see pipeline/ci/copy-owid-source.ps1.

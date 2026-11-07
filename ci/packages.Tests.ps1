@@ -249,6 +249,36 @@ Describe 'Get-ReleasePlan' {
     }
 }
 
+Describe 'Get-BuildPlan' {
+    It 'is the release plan when a package is to be released' {
+        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
+        Add-Commit $script:Repo @('pipeline/engines/a.py')
+        $plan = @(Get-BuildPlan $script:Repo $script:Graph)
+        $plan.Name | Should -Be @('engines', 'dd', 'ipi')
+        ($plan | Where-Object Name -eq 'engines').Version | Should -Be '4.5.39'
+    }
+
+    It 'builds every published package at its released version when nothing changed' {
+        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
+        Add-Commit $script:Repo @()
+        @(Get-ReleasePlan $script:Repo $script:Graph).Count | Should -Be 0
+        $plan = @(Get-BuildPlan $script:Repo $script:Graph)
+        $plan.Name | Should -Be @('core', 'did', 'engines', 'location', 'dd', 'ipi')
+        ($plan | Where-Object Name -eq 'core').Version | Should -Be '4.5.38'
+        ($plan | Where-Object Name -eq 'dd').Version | Should -Be '4.5.96'
+        ($plan | Where-Object Name -eq 'location').Version | Should -Be '4.5.4'
+        ($plan | Where-Object Name -eq 'ipi').Version | Should -Be '4.5.0'
+    }
+
+    It 'builds the released versions from a commit already released' {
+        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
+        Add-Commit $script:Repo @('device/dd/a.py')
+        git -C $script:Repo tag 'dd/4.5.97'
+        ($plan = @(Get-BuildPlan $script:Repo $script:Graph)).Count | Should -Be 6
+        ($plan | Where-Object Name -eq 'dd').Version | Should -Be '4.5.97'
+    }
+}
+
 Describe 'the real packages.json' {
     BeforeAll {
         $script:Real = Get-Packages (Split-Path $PSScriptRoot)
