@@ -474,6 +474,14 @@ Source = "https://github.com/51Degrees/51degrees-python"
         Set-Files $script:Repo @{ 'device/dd/setup.py' = 'setup(' }
         (Get-DdPlan $script:Repo).Count | Should -Be 1
     }
+
+    It 'releases for a manifest that is not UTF-8' {
+        $script:Repo = New-FilterRepo @{ 'device/dd/setup.py' = $script:SetupPy }
+        [IO.File]::WriteAllBytes((Join-Path $script:Repo 'device/dd/setup.py'),
+            [byte[]](0x23, 0xff, 0xfe, 0x0a))
+        Set-Files $script:Repo @{}
+        (Get-DdPlan $script:Repo).Count | Should -Be 1
+    }
 }
 
 Describe 'Get-BuildPlan' {
