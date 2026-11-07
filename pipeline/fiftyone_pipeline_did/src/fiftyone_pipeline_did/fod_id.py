@@ -22,6 +22,7 @@
 
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from enum import Enum
 from typing import NamedTuple, Optional, Tuple
@@ -82,7 +83,9 @@ class FodIdParseStatus(Enum):
     MISSING_INPUT = "MissingInput"
     #: The input was supplied in a form this surface cannot read.
     INVALID_INPUT_TYPE = "InvalidInputType"
-    #: The string is not valid base 64, so there are no bytes to read.
+    #: The string is not valid base 64 in one alphabet, so there are no
+    #: bytes to read. White space inside the string, and characters from
+    #: both alphabets, report this.
     INVALID_BASE64 = "InvalidBase64"
     #: The first byte names an envelope version this package does not know.
     UNSUPPORTED_VERSION = "UnsupportedVersion"
@@ -303,11 +306,17 @@ class FodId:
         The cloud issues a 51Did in the standard alphabet with padding, and
         a page puts one in a link in the URL-safe alphabet (``-`` and ``_``)
         without padding. Both are accepted, with or without padding, by
-        normalising to the standard form before the envelope is read.
+        normalising to the standard form before the envelope is read. White
+        space around the value is ignored. A value with white space or any
+        other character outside the alphabet inside it, or with characters
+        from both alphabets, reports
+        :attr:`FodIdParseStatus.INVALID_BASE64`, as
+        :meth:`to_standard_base64` explains.
 
-        The value may be anything at all, as external data is. ``None`` and
-        the empty string report :attr:`FodIdParseStatus.MISSING_INPUT`,
-        anything other than a string reports
+        The value may be anything at all, as external data is. ``None``, the
+        empty string and a string of white space alone report
+        :attr:`FodIdParseStatus.MISSING_INPUT`, anything other than a string
+        reports
         :attr:`FodIdParseStatus.INVALID_INPUT_TYPE`, and every other failure
         names its reason. The signature is not checked.
         """
@@ -345,15 +354,33 @@ class FodId:
         return cls._from_read_or_raise(_read_base64(base64), "base64")
 
     @staticmethod
-    def to_standard_base64(value: str) -> str:
+    def to_standard_base64(value: str) -> Optional[str]:
         """Restores a base64 string in either alphabet to the standard
         alphabet with padding, which is the form the OWID library decodes.
 
-        ``-`` becomes ``+`` and ``_`` becomes ``/``, then ``==`` is added
-        when the length modulo 4 is 2 and ``=`` when it is 3. A value already
-        in the standard padded form is returned unchanged.
+        White space before and after the text is removed first, being every
+        character with the Unicode White_Space property, so a value read
+        from a file or a header with a trailing line break reads as the
+        clean value does. Then ``-`` becomes ``+`` and ``_`` becomes ``/``,
+        and ``==`` is added when the length modulo 4 is 2 and ``=`` when it
+        is 3. A value already in the standard padded form is returned
+        unchanged apart from that trim.
+
+        Answers ``None`` for a text the 51Did specification says to refuse,
+        being one with white space or any other character outside the
+        alphabet left inside it, or one holding a character from each
+        alphabet, such as both ``+`` and ``-``. The issuer writes neither,
+        so either is a sign of a damaged value, such as a ``+`` a form
+        decoder turned into a space or a value converted only in part.
         """
-        cleaned = value.strip().replace("-", "+").replace("_", "/")
+        text = _trim_white_space(value)
+        if _BASE64_CHARACTERS.fullmatch(text) is None:
+            return None
+        # Checked before the mapping below, which would hide a mix.
+        if (_has_any(text, _STANDARD_ONLY) and
+                _has_any(text, _URL_SAFE_ONLY)):
+            return None
+        cleaned = text.replace("-", "+").replace("_", "/")
         remainder = len(cleaned) % 4
         if remainder == 2:
             cleaned += "=="
@@ -365,9 +392,12 @@ class FodId:
     def to_base64_url(value: str) -> str:
         """Converts a base64 string in either alphabet to the URL-safe
         alphabet without padding, the inverse of :meth:`to_standard_base64`,
-        so a 51Did can be placed in a URL without further encoding.
+        so a 51Did can be placed in a URL without further encoding. White
+        space around the value is removed as :meth:`to_standard_base64`
+        removes it.
         """
-        return value.strip().replace("+", "-").replace("/", "_").rstrip("=")
+        return _trim_white_space(value).replace("+", "-").replace(
+            "/", "_").rstrip("=")
 
     @classmethod
     def from_byte_array(cls, buffer: bytes) -> "FodId":
@@ -546,12 +576,49 @@ class FodId:
         return self._owid.signature_status(public_pem)
 
 
+#: Every character with the Unicode White_Space property, which is what the
+#: 51Did specification means by white space. Written out because
+#: ``str.strip()`` and ``str.isspace()`` also take U+001C to U+001F, which
+#: do not have that property and so are outside the alphabet.
+_WHITE_SPACE = (
+    "\t\n\x0b\x0c\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005"
+    "\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000")
+
+#: The characters a 51Did text may hold once the white space around it is
+#: removed, being both alphabets and the padding. Which alphabet the text
+#: uses is checked apart, and where the padding sits is left to the OWID
+#: reader's decoder.
+_BASE64_CHARACTERS = re.compile(r"[A-Za-z0-9+/_=-]*")
+
+#: The characters for the values 62 and 63 that only the standard alphabet
+#: uses.
+_STANDARD_ONLY = "+/"
+
+#: The characters for the values 62 and 63 that only the URL-safe alphabet
+#: uses.
+_URL_SAFE_ONLY = "-_"
+
+
+def _trim_white_space(value: str) -> str:
+    """The value without the white space before and after it."""
+    return value.strip(_WHITE_SPACE)
+
+
+def _has_any(text: str, characters: str) -> bool:
+    """Whether the text holds any of the characters."""
+    return any(character in text for character in characters)
+
+
 def _read_base64(value) -> ParseResult:
-    """The OWID read of a base64 string in either alphabet. Anything that is
-    not a string goes to the OWID reader as given, so the reason it reports
-    (nothing supplied, or a type it cannot read) is the one carried."""
+    """The OWID read of a base64 string in either alphabet. A string the
+    51Did rules refuse reports invalid base 64, as the OWID reader does for
+    any other text it cannot decode. Anything that is not a string goes to
+    the OWID reader as given, so the reason it reports (nothing supplied, or
+    a type it cannot read) is the one carried."""
     if isinstance(value, str):
         value = FodId.to_standard_base64(value)
+        if value is None:
+            return ParseResult(False, None, ParseStatus.INVALID_BASE64)
     return Owid.parse(value)
 
 
