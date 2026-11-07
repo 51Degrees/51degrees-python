@@ -20,7 +20,27 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-from flask import request
+import hashlib
+import json
+
+from flask import make_response, request
+
+# The Cache-Control of a client-side response to a request whose processing
+# recorded no errors. The browser alone may keep it, for 30 minutes.
+_CACHE_CONTROL = "max-age=1800, private"
+
+# The Cache-Control of a client-side response to a request whose processing
+# recorded errors. It goes with no ETag, so a browser that kept the response
+# has nothing to revalidate with and asks again in full once processing
+# works, rather than having the faulty response confirmed by a 304.
+_CACHE_CONTROL_AFTER_ERRORS = "private, no-cache"
+
+# The headers a browser adds when it revalidates or reloads. They differ
+# between a request and its revalidation and no element uses them, so they
+# are left out of the ETag and the Vary header.
+_REVALIDATION_HEADERS = frozenset((
+    "cache-control", "if-match", "if-modified-since", "if-none-match",
+    "if-range", "if-unmodified-since", "pragma"))
 
 def webevidence(request):
 
@@ -91,3 +111,131 @@ def set_response_header(flowData, response):
             response.headers[response_key] = response_value
 
     return response
+
+def javascript_response(pipeline, request):
+
+    """!
+    Process a request for the client-side JavaScript and answer with the
+    JavaScript the pipeline's JavaScriptBuilder writes, with the cache headers
+    the web integration specification sets.
+
+    A request whose If-None-Match header names the ETag of its evidence gets
+    a 304 without being processed, so a browser keeps a good copy while
+    processing fails. Otherwise the response carries
+    'Cache-Control: max-age=1800, private' and the ETag, or
+    'Cache-Control: private, no-cache' and no ETag when processing recorded
+    errors. Both carry a Vary header naming the request headers the
+    pipeline's elements accept.
+
+    @type pipeline: Pipeline
+    @param pipeline: A pipeline holding the JavaScriptBuilder
+    @type request: Request
+    @param request: The request for the JavaScript
+    @rtype Response
+    @return The response to send
+    """
+
+    return _client_side_response(
+        pipeline, request,
+        lambda flowdata: flowdata.javascriptbuilder.javascript,
+        "application/x-javascript")
+
+def json_response(pipeline, request):
+
+    """!
+    Process a request from the client-side JavaScript and answer with the
+    JSON the pipeline's JSONBundler writes, with the same cache headers as
+    javascript_response.
+
+    @type pipeline: Pipeline
+    @param pipeline: A pipeline holding the JSONBundler
+    @type request: Request
+    @param request: The request from the client-side JavaScript
+    @rtype Response
+    @return The response to send
+    """
+
+    return _client_side_response(
+        pipeline, request,
+        lambda flowdata: json.dumps(flowdata.jsonbundler.json),
+        "application/json")
+
+def _client_side_response(pipeline, request, content, content_type):
+
+    flowdata = pipeline.create_flowdata()
+    try:
+        evidence = webevidence(request)
+        flowdata.evidence.add_from_dict(evidence)
+
+        # From the request's own evidence, because processing adds to it.
+        # The sequence element gives a request with no session id a new one.
+        etag = _etag(pipeline, evidence)
+        vary = _vary(pipeline, request)
+
+        if _etag_matches(request.headers.get("If-None-Match"), etag):
+            response = make_response("", 304)
+            response.headers.pop("Content-Type", None)
+            response.headers["Cache-Control"] = _CACHE_CONTROL
+            response.headers["ETag"] = etag
+        else:
+            flowdata.process()
+            response = make_response(content(flowdata))
+            response.headers["Content-Type"] = content_type
+            if flowdata.errors:
+                response.headers["Cache-Control"] = _CACHE_CONTROL_AFTER_ERRORS
+            else:
+                response.headers["Cache-Control"] = _CACHE_CONTROL
+                response.headers["ETag"] = etag
+
+        if vary:
+            response.headers["Vary"] = vary
+        return response
+    finally:
+        flowdata.close()
+
+def _uses(pipeline, key):
+
+    # Whether the key is evidence one of the pipeline's elements accepts.
+    if key.startswith("header.") and \
+            key[len("header."):] in _REVALIDATION_HEADERS:
+        return False
+    return any(
+        element.filter_evidence_key(key)
+        for element in pipeline.flow_elements)
+
+def _etag(pipeline, evidence):
+
+    # SHA-256 rather than hash(), which Python seeds afresh in each process,
+    # so a browser revalidating against another process, after a restart or
+    # behind a load balancer, still matches.
+    digest = hashlib.sha256()
+    for key in sorted(evidence):
+        if _uses(pipeline, key):
+            digest.update(key.encode("utf-8"))
+            digest.update(b"\0")
+            digest.update(str(evidence[key]).encode("utf-8"))
+            digest.update(b"\0")
+    return '"' + digest.hexdigest()[:32] + '"'
+
+def _etag_matches(if_none_match, etag):
+
+    # The weak comparison RFC 9110 section 13.1.2 asks for, so a W/ prefix
+    # is ignored, and "*" matches any ETag.
+    if not if_none_match:
+        return False
+    for candidate in if_none_match.split(","):
+        candidate = candidate.strip()
+        if candidate.startswith("W/"):
+            candidate = candidate[2:]
+        if candidate == "*" or candidate == etag:
+            return True
+    return False
+
+def _vary(pipeline, request):
+
+    names = {}
+    for name, _ in request.headers:
+        key = name.lower()
+        if key not in names and _uses(pipeline, "header." + key):
+            names[key] = name
+    return ", ".join(sorted(names.values(), key=str.lower))
