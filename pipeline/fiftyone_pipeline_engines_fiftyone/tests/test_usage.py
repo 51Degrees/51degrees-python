@@ -574,9 +574,9 @@ class UsageTests(unittest.TestCase):
 
     def test_session_cookie(self):
         """!
-        Check that with session tracking on the session cookie is kept in
-        the evidence, but neither it nor any other ordinary cookie is
-        shared.
+        Check that with session tracking on the tracker reads the session
+        cookie, which the element does not accept as evidence, and that
+        neither it nor any other ordinary cookie is shared.
         """
 
         usage = ShareUsage(
@@ -595,7 +595,8 @@ class UsageTests(unittest.TestCase):
         flowdata.process()
 
         self.waitForUsageThreads()
-        self.assertTrue(usage.get_evidence_key_filter().filter_evidence_key("cookie.sessionid"))
+        self.assertFalse(usage.get_evidence_key_filter().filter_evidence_key("cookie.sessionid"))
+        self.assertTrue(usage.tracker_evidence_key_filter.filter_evidence_key("cookie.sessionid"))
         self.assertEqual(len(app.received), 1)
         self.assertIn("some user agent", app.received[0])
         self.assertNotIn("session value", app.received[0])
