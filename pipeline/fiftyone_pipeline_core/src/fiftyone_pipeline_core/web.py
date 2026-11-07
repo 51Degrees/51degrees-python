@@ -20,13 +20,18 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from types import MappingProxyType
+
 from flask import request
+
+from .evidence import HTTP_REQUEST_KEY
 
 def webevidence(request):
 
     """!
     Get evidence from a web request (gets headers, cookies, query parameters
-    and the fields of a posted form)
+    and the fields of a posted form, and the request itself as
+    server.http-request)
     
     @type request: Request 
     @param request: A Request object
@@ -58,6 +63,12 @@ def webevidence(request):
         for field, value in request.form.items():
 
             webevidence["query." + field] = value
+
+    # The request itself, for the usage sharing element, which accepts no
+    # evidence and shares what it finds. A read-only view of the headers,
+    # cookies, query string and form fields above, keyed as evidence is.
+    # Evidence.filter() keeps it from every other element.
+    webevidence[HTTP_REQUEST_KEY] = MappingProxyType(dict(webevidence))
 
     webevidence["server.client-ip"] =  request.remote_addr
 
