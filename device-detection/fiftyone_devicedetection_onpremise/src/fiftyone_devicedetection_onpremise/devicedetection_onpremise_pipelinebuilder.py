@@ -82,8 +82,12 @@ class DeviceDetectionOnPremisePipelineBuilder(PipelineBuilder):
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type max_matched_useragents_length : int
         @param Number of characters to consider in the matched User-Agent. Ignored if update_matched_useragent is false
-        @type update_matched_useragent: 
-        @param: update_matched_useragent: True if the detection should record the matched characters from the target User-Agent
+        @type update_matched_useragent: bool
+        @param update_matched_useragent: True if the detection should record
+        the matched characters from the target User-Agent, which the
+        UserAgents property returns. On by default, as the native code sets
+        it. Set it to False when UserAgents is not needed, which saves
+        recording the characters.
         @type drift: int
         @param drift: Set maximum drift in hash position to allow when processing HTTP headers
         @type difference: int

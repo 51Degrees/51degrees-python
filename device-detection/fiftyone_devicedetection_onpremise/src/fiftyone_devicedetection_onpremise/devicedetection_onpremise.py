@@ -61,7 +61,7 @@ class DeviceDetectionOnPremise(Engine):
         polling_interval=30,
         update_time_maximum_randomisation=10,
         create_temp_data_copy=True,
-        update_matched_useragent=False,
+        update_matched_useragent=None,
         performance_profile="LowMemory",
         reuse_temp_file=False,
         concurrency=multiprocessing.cpu_count(),
@@ -92,8 +92,12 @@ class DeviceDetectionOnPremise(Engine):
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type max_matched_useragents_length : int
         @param Number of characters to consider in the matched User-Agent. Ignored if update_matched_useragent is false
-        @type update_matched_useragent:
-        @param: update_matched_useragent: True if the detection should record the matched characters from the target User-Agent
+        @type update_matched_useragent: bool
+        @param update_matched_useragent: True if the detection should record
+        the matched characters from the target User-Agent, which the
+        UserAgents property returns. On by default, as the native code sets
+        it. Set it to False when UserAgents is not needed, which saves
+        recording the characters.
         @type drift: int
         @param drift: Set maximum drift in hash position to allow when processing HTTP headers
         @type difference: int
@@ -209,7 +213,10 @@ class DeviceDetectionOnPremise(Engine):
             config.setUseTempFile(True)
 
         config.setReuseTempFile(reuse_temp_file)
-        config.setUpdateMatchedUserAgent(update_matched_useragent)
+
+        # Left unset, the native default applies, which is on.
+        if update_matched_useragent is not None:
+            config.setUpdateMatchedUserAgent(update_matched_useragent)
 
         if allow_unmatched == True or allow_unmatched == False:
             config.setAllowUnmatched(allow_unmatched)
