@@ -205,7 +205,11 @@ def _client_side_response(pipeline, request, content, content_type):
 
 def _uses(pipeline, key):
 
-    # Whether the key is evidence one of the pipeline's elements accepts.
+    # Whether the key is evidence one of the pipeline's elements accepts. The
+    # web request itself, which the usage sharing element reads, is evidence
+    # no element uses, whatever the filters accept.
+    if key.lower() == "server.http-request":
+        return False
     if key.startswith("header.") and \
             key[len("header."):] in _REVALIDATION_HEADERS:
         return False
