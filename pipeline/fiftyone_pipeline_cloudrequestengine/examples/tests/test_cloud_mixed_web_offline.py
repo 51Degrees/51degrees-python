@@ -390,8 +390,12 @@ def test_a_response_to_a_failed_request_carries_no_etag(cloud, path):
     assert "ETag" not in response.headers
 
 
-@pytest.mark.parametrize("path", ["/51Degrees.core.js", "/json"])
-def test_a_good_copy_is_kept_while_processing_fails(cloud, path):
+# A 304 for the script, which is a GET, and a 412 for the callback, which is
+# a POST, as RFC 9110 section 13.1.2 asks.
+@pytest.mark.parametrize("path, status", [
+    ("/51Degrees.core.js", 304), ("/json", 412)])
+def test_a_matching_etag_is_answered_while_processing_fails(
+        cloud, path, status):
     stub = cloud(EVERY_SECTION)
     client = example_client()
     etag = client_side(client, path).headers.get("ETag")
@@ -399,5 +403,6 @@ def test_a_good_copy_is_kept_while_processing_fails(cloud, path):
     stub.failing = True
     response = client_side(client, path, **{"If-None-Match": etag})
 
-    assert response.status_code == 304
-    assert response.headers.get("ETag") == etag
+    assert response.status_code == status
+    if status == 304:
+        assert response.headers.get("ETag") == etag

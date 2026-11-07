@@ -162,21 +162,35 @@ class ClientSideCacheTests(unittest.TestCase):
         self.assertEqual(script_etag(), etags[0])
 
     def test_revalidation_with_the_etag_is_answered_not_modified(self):
-        for path, method in (("/51Degrees.core.js", self.client.get),
-                             ("/json", self.client.post)):
-            etag = method(path, headers={"User-Agent": CHROME}) \
-                .headers["ETag"]
+        good = self.client.get(
+            "/51Degrees.core.js", headers={"User-Agent": CHROME})
+        for method in (self.client.get, self.client.head):
             # A browser that revalidates sends Cache-Control as well when
             # the page is reloaded, and neither header is evidence.
-            response = method(path, headers={
+            response = method("/51Degrees.core.js", headers={
                 "User-Agent": CHROME,
-                "If-None-Match": etag,
+                "If-None-Match": good.headers["ETag"],
                 "Cache-Control": "max-age=0",
             })
-            self.assertEqual(304, response.status_code, path)
+            self.assertEqual(304, response.status_code)
             self.assertEqual(b"", response.data)
-            self.assertEqual(etag, response.headers.get("ETag"))
-            self.assertEqual(CACHEABLE, response.headers.get("Cache-Control"))
+            # The headers of the good response that RFC 9110 section 15.4.5
+            # asks a 304 to repeat.
+            for name in ("ETag", "Cache-Control", "Vary"):
+                self.assertEqual(good.headers.get(name),
+                                 response.headers.get(name), name)
+
+    def test_a_post_with_a_matching_etag_is_refused(self):
+        """RFC 9110 section 13.1.2 allows a 304 for GET and HEAD only, and
+        asks for 412 Precondition Failed for any other method."""
+
+        etag = self.client.post(
+            "/json", headers={"User-Agent": CHROME}).headers["ETag"]
+        response = self.client.post("/json", headers={
+            "User-Agent": CHROME, "If-None-Match": etag})
+        self.assertEqual(412, response.status_code)
+        self.assertEqual(b"", response.data)
+        self.assertNotIn("ETag", response.headers)
 
     def test_a_weak_or_listed_etag_still_matches(self):
         etag = self.client.get(
