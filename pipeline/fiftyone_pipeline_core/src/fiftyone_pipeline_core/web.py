@@ -119,9 +119,12 @@ def javascript_response(pipeline, request):
     JavaScript the pipeline's JavaScriptBuilder writes, with the cache headers
     the web integration specification sets.
 
-    A request whose If-None-Match header names the ETag of its evidence gets
-    a 304 without being processed, so a browser keeps a good copy while
-    processing fails. Otherwise the response carries
+    A GET or HEAD request whose If-None-Match header names the ETag of its
+    evidence gets a 304 without being processed, so a browser keeps a good
+    copy while processing fails. A request by any other method whose
+    If-None-Match matches, such as a POST to the JSON endpoint, gets 412
+    Precondition Failed, as RFC 9110 section 13.1.2 asks. Otherwise the
+    response carries
     'Cache-Control: max-age=1800, private' and the ETag, or
     'Cache-Control: private, no-cache' and no ETag when processing recorded
     errors. Both carry a Vary header naming the request headers the
@@ -173,6 +176,13 @@ def _client_side_response(pipeline, request, content, content_type):
         vary = _vary(pipeline, request)
 
         if _etag_matches(request.headers.get("If-None-Match"), etag):
+            if request.method not in ("GET", "HEAD"):
+                # RFC 9110 section 13.1.2 allows a 304 for GET and HEAD only.
+                response = make_response("", 412)
+                response.headers.pop("Content-Type", None)
+                return response
+            # With the headers of a good response that RFC 9110 section
+            # 15.4.5 asks a 304 to repeat.
             response = make_response("", 304)
             response.headers.pop("Content-Type", None)
             response.headers["Cache-Control"] = _CACHE_CONTROL
