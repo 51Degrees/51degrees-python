@@ -21,8 +21,10 @@
 # *********************************************************************
 
 import platform
+import re
 import sys
 import threading
+import time
 from time import sleep
 import unittest
 from wsgiref.simple_server import make_server
@@ -59,25 +61,44 @@ class ReceiverThread(threading.Thread):
 
 app = Flask(__name__)
 app.received = []
+# When each request arrived, whatever the answer.
+app.attempts = []
+# The status the receiver answers with. Only data it accepts is received.
+app.status = 200
 
 @app.route('/', methods=['POST'])
 def server():
+    app.attempts.append(time.monotonic())
     data = gzip.decompress(request.data).decode("utf8")
-    str(app.received.append(data))
-    return ""
+    if app.status == 200:
+        app.received.append(data)
+    return "", app.status
+
+
+def client_ips(received):
+    """!
+    The client IPs in the usage data received.
+    """
+    ips = []
+    for data in received:
+        ips.extend(re.findall("<ClientIP>([^<]*)</ClientIP>", data))
+    return ips
 
 
 ######################################
 # The Tests
 
 class UsageTests(unittest.TestCase):
-    
+
     @classmethod
     def setUpClass(cls):
         cls.startReceiver()
 
     def setUp(self):
         app.received = []
+        app.attempts = []
+        app.status = 200
+        self.requests = 0
 
     @classmethod
     def tearDownClass(cls):
@@ -96,6 +117,182 @@ class UsageTests(unittest.TestCase):
         # necessary for context switching and
         # allowing the thread pool in ShareUsage to start sending data and release the GIL
         sleep(0.1)
+
+    def wait_for(self, condition, message):
+        """!
+        Wait for a condition, failing the test with the message if it is not
+        met within 30 seconds.
+        """
+        end = time.monotonic() + 30
+        while not condition():
+            if time.monotonic() > end:
+                self.fail(message())
+            sleep(0.02)
+
+    def back_off_pipeline(self, **settings):
+        """!
+        A pipeline whose usage sharing element sends each entry on its own.
+        The element is closed when the test ends.
+        """
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            **settings)
+        pipeline = PipelineBuilder().add(usage).build()
+        self.addCleanup(usage.close)
+        return usage, pipeline
+
+    def process_unique(self, pipeline):
+        """!
+        Process a request whose evidence no other request has, and return
+        its client IP.
+        """
+        ip = f"10.0.{self.requests // 250}.{self.requests % 250 + 1}"
+        self.requests += 1
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("server.client-ip", ip)
+        flowdata.process()
+        return ip
+
+    def fail_sends(self, pipeline, count):
+        """!
+        Process requests one at a time, waiting for each to be sent, so each
+        is a separate failed send.
+        """
+        app.status = 500
+        for sent in range(1, count + 1):
+            self.process_unique(pipeline)
+            self.wait_for(
+                lambda: len(app.attempts) == sent,
+                lambda: f"Send {sent} was not made.")
+
+    def test_back_off_pauses_then_drains_queue(self):
+        """!
+        Ten failed sends pause sending for two seconds, the defaults.
+        Nothing is sent during the pause, the evidence processed during it
+        is queued, and all of it is sent once the pause ends and the
+        service answers, with no more requests processed.
+        """
+
+        usage, pipeline = self.back_off_pipeline()
+        self.fail_sends(pipeline, 10)
+        paused_at = time.monotonic()
+
+        queued = [self.process_unique(pipeline) for i in range(5)]
+        sleep(0.7)
+        self.assertEqual(
+            len(app.attempts), 10,
+            "Sends were made during the pause that ten failed sends "
+            "should have started.")
+
+        app.status = 200
+        self.wait_for(
+            lambda: all(ip in client_ips(app.received) for ip in queued),
+            lambda: "The evidence processed during the pause was not all "
+                f"sent once the service answered. Sent: "
+                f"{client_ips(app.received)}")
+        waited = app.attempts[10] - paused_at
+        self.assertGreaterEqual(
+            waited, 1.5,
+            f"Sending resumed {waited:.2f} seconds after the pause started, "
+            "before the two second pause ended.")
+
+    def test_back_off_close_while_paused(self):
+        """!
+        Closing while paused returns at once rather than waiting for the
+        pause to end, and sends nothing.
+        """
+
+        usage, pipeline = self.back_off_pipeline()
+        self.fail_sends(pipeline, 10)
+        self.process_unique(pipeline)
+        self.process_unique(pipeline)
+
+        start = time.monotonic()
+        usage.close()
+        took = time.monotonic() - start
+
+        self.assertLess(
+            took, 1.5,
+            f"Closing took {took:.2f} seconds, as it waited for the pause.")
+        self.assertEqual(
+            len(app.attempts), 10,
+            "A send was made during the pause or when closing.")
+
+    def test_back_off_delay_grows_to_maximum(self):
+        """!
+        Each failed send after a pause multiplies the delay, and the delay
+        stops growing at the maximum.
+        """
+
+        usage, pipeline = self.back_off_pipeline(
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=0.5,
+            max_recovery_delay_seconds=1.0)
+        app.status = 500
+        for i in range(40):
+            self.process_unique(pipeline)
+
+        self.wait_for(
+            lambda: len(app.attempts) >= 4,
+            lambda: "Fewer than four sends were made.")
+        gaps = [app.attempts[i] - app.attempts[i - 1] for i in range(1, 4)]
+        shown = ", ".join(f"{gap:.2f}" for gap in gaps)
+        self.assertGreaterEqual(
+            gaps[0], 0.4,
+            f"The first pause was not the initial delay. Gaps: {shown}")
+        self.assertGreaterEqual(
+            gaps[1], 0.9,
+            f"The second pause was not doubled. Gaps: {shown}")
+        self.assertTrue(
+            0.9 <= gaps[2] < 1.9,
+            f"The third pause was not held at the maximum. Gaps: {shown}")
+
+    def test_back_off_full_queue_drops_new_evidence(self):
+        """!
+        When the queue fills during a pause, new evidence is dropped and
+        what was queued first is sent once sending resumes.
+        """
+
+        usage, pipeline = self.back_off_pipeline(
+            max_queue_size=4,
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=2,
+            max_recovery_delay_seconds=2)
+        self.fail_sends(pipeline, 1)
+
+        kept = [self.process_unique(pipeline) for i in range(4)]
+        dropped = [self.process_unique(pipeline) for i in range(6)]
+        app.status = 200
+
+        self.wait_for(
+            lambda: all(ip in client_ips(app.received) for ip in kept),
+            lambda: "The evidence queued during the pause was not all sent. "
+                f"Sent: {client_ips(app.received)}")
+        sleep(0.5)
+        for ip in dropped:
+            self.assertNotIn(
+                ip, client_ips(app.received),
+                "Evidence processed when the queue was full was sent.")
+
+    def test_back_off_invalid_settings(self):
+        """!
+        Settings the pause cannot work with are rejected.
+        """
+
+        for settings in [
+                {"failures_to_enter_recovery": 0},
+                {"failures_to_enter_recovery": 101},
+                {"failures_window_seconds": 0},
+                {"initial_recovery_delay_seconds": 0},
+                {"max_recovery_delay_seconds": -1},
+                {"recovery_multiplier": 0.5},
+                {"max_queue_size": 0}]:
+            with self.assertRaises(ValueError, msg=str(settings)):
+                ShareUsage(
+                    requested_package_size=1,
+                    endpoint=testEndpoint,
+                    **settings)
 
     def test_data_received(self):
         """!
