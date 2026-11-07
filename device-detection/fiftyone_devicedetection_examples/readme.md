@@ -16,11 +16,30 @@ getting started example:
 
 `python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console`
 
+The on-premise examples use the free Lite data file by default. The data
+repository, at `cxx/data`, links to it, and an example downloads it the
+first time it is missing, so the examples run from a fresh clone with no
+settings. Where an example shows a property that only the Enterprise data
+file has, such as HardwareVendor, HardwareName or DeviceType, it shows the
+property as needing the Enterprise data file and gives a link to
+[contact us](https://51degrees.com/contact-us?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-readme.md&utm_term=enterprise-data-file)
+about a copy. Supply the path to an Enterprise data file as the first
+command line argument to see every property.
+
+The data file update example needs a licence key, and the hardware profile
+examples need the TAC data file or its CSV export, so without them each one
+says what it needs and where to ask for it, and stops.
+
 ## Tests
 
 To run the tests use:
 
 `python -m unittest discover -s tests -p test*.py -b`
+
+The tests in `tests/test_examples_without_settings.py` run the on-premise
+examples as they run from a fresh clone, with no licence key, and check that
+each one finishes on the free Lite data file and gives the link to ask for
+the Enterprise data file.
 
 Cloud tests will only run with a valid 51Degrees resource key (see above) set as a resource_key operating system environment variable.
 

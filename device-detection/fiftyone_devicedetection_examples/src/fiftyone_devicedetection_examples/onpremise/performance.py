@@ -51,6 +51,11 @@ import multiprocessing as mp
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 # This example goes through a CSV of 20000 user agents and processes them, returning the time and information about the matches
 from fiftyone_devicedetection_onpremise.devicedetection_onpremise_pipelinebuilder import DeviceDetectionOnPremisePipelineBuilder
+from fiftyone_devicedetection_shared.example_constants import UA_FILE_NAME
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-performance.py&utm_term=enterprise-data-file"
 
 # Here we make a function that processes a user agent
 # And returns if it is a mobile device
@@ -150,11 +155,13 @@ def run(data_file, skip = False):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description='Run detection benchmark.')
     ap.add_argument('-d', '--data_file', default='', help='Path to data file')
-    ap.add_argument('-u', '--user_agents_file', default='../../cxx/data/device-detection/20000 User Agents.csv', help='Path to user agents evidence file')
+    ap.add_argument('-u', '--user_agents_file', default='', help='Path to user agents evidence file')
     ap.add_argument('-j', '--json_output', default='', help='Output results in JSON format')
     args = ap.parse_args()
     if args.data_file == "":
         args.data_file = ExampleUtils.find_file("51Degrees-LiteV4.1.hash")
+    if args.user_agents_file == "":
+        args.user_agents_file = ExampleUtils.find_file(UA_FILE_NAME)
 
     # First we read the contents of the 20000 user agents file as a list
     with open(args.user_agents_file, newline='') as file:
@@ -206,3 +213,16 @@ if __name__ == "__main__":
         final_result["notmobile"] += result["notmobile"]
 
     print("Results", final_result)
+
+    # Say what the Enterprise data file adds when the benchmark ran on the
+    # free Lite data file. The data file is opened with the low memory
+    # profile, which reads little of it.
+    with DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=args.data_file,
+            licence_keys="",
+            performance_profile='LowMemory',
+            add_javascript_builder=False,
+            usage_sharing=False,
+            auto_update=False).build() as check:
+        if ExampleUtils.is_lite_data_file(check.get_element("device")):
+            print(ExampleUtils.get_enterprise_offer(CONTACT_US))

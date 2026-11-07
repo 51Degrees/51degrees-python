@@ -48,6 +48,10 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_shared.example_constants import EVIDENCE_VALUES
 from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=enterprise-data-file"
+
 class MatchMetricsConsole():
     
     def run(self, data_file, show_descs, logger, output):
@@ -76,8 +80,9 @@ class MatchMetricsConsole():
             # Uncomment BrowserName to include Browser component profile ID
             # in the device ID value.
             #restricted_properties=["ismobile", "hardwarename", "browsername"],
-            # If using the full on-premise data file this property will be
-            # present in the data file. See https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=run
+            # Only the Enterprise data file has this property, and the free
+            # Lite data file leaves it out. Contact us for a copy at
+            # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=run
             # Only use the predictive graph to better handle variances
             # between the training data and the target User-Agent string.
             # For a more detailed description of the differences between
@@ -169,7 +174,9 @@ class MatchMetricsConsole():
                         if (show_descs == True):
                             output(f"        {propertyDescription}")
 
-            output()
+            output("")
+            if ExampleUtils.is_lite_data_file(pipeline.get_element("device")):
+                output(ExampleUtils.get_enterprise_offer(CONTACT_US))
             logger.log("info", "Finished Match Metrics Example")
     
     # Evidence values from a windows 11 device using a browser
@@ -183,8 +190,8 @@ def main(argv):
     #
     # Note that the Lite data file is only used for illustration, and has
     # limited accuracy and capabilities.
-    # Find out about the Enterprise data file on our pricing page:
-    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=main
+    # Contact us for a copy of the Enterprise data file:
+    # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
     
     # Configure a logger to output to the console.

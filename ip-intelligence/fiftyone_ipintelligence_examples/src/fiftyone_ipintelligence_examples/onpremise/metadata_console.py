@@ -25,7 +25,8 @@
 #
 # This example shows how to list the properties available from the
 # on-premise IP intelligence engine, along with their types and
-# descriptions.
+# descriptions. By default it uses the free Lite data file, which it
+# downloads when it is missing.
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -34,7 +35,11 @@ import sys
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
-from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-metadata_console.py&utm_term=enterprise-data-file"
 
 
 class MetadataConsole():
@@ -59,9 +64,13 @@ class MetadataConsole():
                 if property_metadata.get("description"):
                     output(f"      {property_metadata['description']}")
 
+            if ExampleUtils.is_free_data_file(engine):
+                output("")
+                output(ExampleUtils.get_enterprise_offer(CONTACT_US))
+
 
 def main(argv):
-    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(ENTERPRISE_DATAFILE_NAME)
+    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
 
     logger = Logger(min_level="info")
 
@@ -69,10 +78,11 @@ def main(argv):
         MetadataConsole().run(data_file, logger, print)
     else:
         logger.log("error",
-            "Failed to find an IP intelligence data file. Supply its path "
-            "as the first command line argument. To obtain an enterprise "
-            "data file for testing, please contact us: "
-            "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-metadata_console.py&utm_term=data-file-required")
+            "Failed to find an IP intelligence data file. Make sure the "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`, and run this "
+            "example again to download the file, or supply the path to a "
+            "data file as the first command line argument.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

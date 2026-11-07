@@ -45,6 +45,17 @@ from fiftyone_pipeline_core.logger import Logger
 from fiftyone_devicedetection_shared.example_constants import EVIDENCE_VALUES
 from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=enterprise-data-file"
+
+# The properties only the Enterprise data file has, with the names they are
+# shown with. The free Lite data file has the ones the example shows first.
+ENTERPRISE_PROPERTIES = [
+    ("Hardware Vendor", "hardwarevendor"),
+    ("Hardware Name", "hardwarename"),
+    ("Device Type", "devicetype")]
+
 class GettingStartedConsole():
     def run(self, data_file, logger, output):
 
@@ -76,8 +87,12 @@ class GettingStartedConsole():
             ExampleUtils.check_data_file(pipeline, logger)
 
             # carry out some sample detections
+            needs_enterprise = False
             for values in EVIDENCE_VALUES:
-                self.analyseEvidence(values, pipeline, output)
+                needs_enterprise |= self.analyseEvidence(
+                    values, pipeline, output)
+            if needs_enterprise:
+                output("\n" + ExampleUtils.get_enterprise_note(CONTACT_US))
 
     def analyseEvidence(self, evidence, pipeline, output):
 
@@ -126,7 +141,18 @@ class GettingStartedConsole():
             self.outputValue("Platform Version", device.platformversion, message)
             self.outputValue("Browser Name", device.browsername, message)
             self.outputValue("Browser Version", device.browserversion, message)
+
+            # The engine says which properties its data file has, and the
+            # value of a property it does not have is not read.
+            engine = pipeline.get_element("device")
+            needs_enterprise = False
+            for name, property in ENTERPRISE_PROPERTIES:
+                value = ExampleUtils.get_enterprise_value(
+                    engine, device, property)
+                needs_enterprise |= value == ExampleUtils.NEEDS_ENTERPRISE
+                message.append(f"\t{name}: {value}\n")
             output("".join(message))
+            return needs_enterprise
 
     def outputValue(self, name, value, message):
         # Individual result values have a wrapper called
@@ -147,9 +173,10 @@ def main(argv):
     # a command line parameter.
     #
     # Note that the Lite data file is only used for illustration, and has
-    # limited accuracy and capabilities.
-    # Find out about the Enterprise data file on our pricing page:
-    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=main
+    # limited accuracy and capabilities. The example shows the properties
+    # only the Enterprise data file has as needing it. Contact us for a copy
+    # of the Enterprise data file:
+    # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
 
     # Configure a logger to output to the console.

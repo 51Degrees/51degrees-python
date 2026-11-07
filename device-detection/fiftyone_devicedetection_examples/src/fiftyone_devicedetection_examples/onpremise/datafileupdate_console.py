@@ -32,9 +32,9 @@
 # - Daily auto-update
 #
 # ## License Key
-# In order to test this example you will need a 51Degrees Enterprise license which can be
-# purchased from our [pricing page](https://51degrees.com/pricing/annual?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=top). Look for our "Bigger" or
-# "Biggest" options.
+# Updating the data file needs a 51Degrees licence key for the Enterprise data file.
+# Without one, the example shows the free Lite data file and says where to ask for a key.
+# Contact us for a key at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=top
 #
 # # Data Files
 # You can find out more about data files, licenses etc. at our [FAQ page](https://51degrees.com/resources/faqs?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=top)
@@ -166,10 +166,14 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_shared.key_utils import KeyUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_devicedetection_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
 from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
 UPDATE_EXAMPLE_LICENSE_KEY_NAME = "license_key"
+# Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
 DEFAULT_DATA_FILENAME = os.path.expanduser("~") + os.path.sep +  ENTERPRISE_DATAFILE_NAME
 
 
@@ -187,6 +191,32 @@ class UpdateEvent(threading.Event):
 		super().clear()
 
 class DataFileUpdateConsole():
+	def explain_license_key(self, data_file, output):
+		# Without a licence key the example cannot download a data file, so
+		# it shows the data file it would start from, the free Lite file
+		# unless another is given, and says what an update needs.
+		if not data_file:
+			data_file = ExampleUtils.find_file(LITE_DATAFILE_NAME)
+		if data_file and os.path.isfile(data_file):
+			pipeline = DeviceDetectionPipelineBuilder(
+				data_file_path = data_file,
+				performance_profile = "LowMemory",
+				usage_sharing = False,
+				auto_update = False,
+				licence_keys = "").build()
+			with pipeline:
+				engine = pipeline.get_element("device")
+				output(f"The data file in use is the "
+					f"'{ExampleUtils.get_data_file_tier(engine)}' file published on "
+					f"{ExampleUtils.get_data_file_date(engine):%Y-%m-%d}, at "
+					f"'{data_file}'.")
+		output("")
+		output("Updating the data file downloads the Enterprise data file, "
+			"which needs a licence key. Give the key as the first command line "
+			f"argument, or in the environment variable "
+			f"'{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'. Contact us for a key and a "
+			f"copy at {CONTACT_US}")
+
 	def run(self, data_file, license_key, interactive, logger, output):
 		logger.log("info", "Starting example")
 
@@ -195,13 +225,8 @@ class DataFileUpdateConsole():
 			license_key = KeyUtils.get_named_key(UPDATE_EXAMPLE_LICENSE_KEY_NAME)
 
 		if not license_key:
-			logger.log("error",
-				"In order to test this example you will need a 51Degrees Enterprise "
-				"license which can be obtained on a trial basis or purchased from our\n"
-				"pricing page https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=license-key-required. You must supply the license "
-				"key as an argument to this program, or as an environment or system variable "
-				f"named '{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'")
-			raise Exception("No license key available")
+			self.explain_license_key(data_file, output)
+			return
 
 		# work out where the downloaded file will be put, directory must exist
 		if (data_file != None):
@@ -283,7 +308,7 @@ class DataFileUpdateConsole():
 			# to notify when update complete
 			data_file_update_service = update_service,
 			# For automatic updates to work you will need to provide a license key.
-			# A license key can be obtained with a subscription from https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=run
+			# Contact us for a licence key at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=run
 			licence_keys = license_key,
 			# Enable update on startup, the auto update system
 			# will be used to check for an update before the
