@@ -98,7 +98,9 @@ class DeviceDetectionPipelineBuilder(PipelineBuilder):
         @type allow_unmatched : bool
         @param allow_unmatched:  True if there should be at least one matched node in order for the results to be considered valid. By default, this is false
         @type performance_profile: string
-        @param performance_profile: options are: LowMemory, MaxPerformance, Balanced, BalancedTemp, HighPerformance
+        @param performance_profile: options are: LowMemory, MaxPerformance,
+        Balanced, BalancedTemp, HighPerformance. Balanced by default, as in
+        the native code.
         @type reuse_temp_file: bool
         @param reuse_temp_file: Indicates that an existing temp file may be used. This should be selected if multiple instances wish to use the same file to prevent high disk usage.
         @type concurrency: int
