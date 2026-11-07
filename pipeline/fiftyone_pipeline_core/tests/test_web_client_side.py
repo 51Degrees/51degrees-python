@@ -26,10 +26,13 @@ the cache header detail of the web integration specification sets them."""
 import os
 import subprocess
 import sys
+from types import MappingProxyType
 import unittest
+from unittest import mock
 
 from flask import Flask, request
 
+from fiftyone_pipeline_core import web
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
     BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.elementdata_dictionary import \
@@ -191,6 +194,26 @@ class ClientSideCacheTests(unittest.TestCase):
         self.assertEqual(412, response.status_code)
         self.assertEqual(b"", response.data)
         self.assertNotIn("ETag", response.headers)
+
+    def test_the_web_request_value_is_not_in_the_etag(self):
+        """The web integration may add the request itself as
+        server.http-request, for the usage sharing element. It holds the
+        request's every header, If-None-Match included, so it must not be
+        hashed, even though the JavaScript builder accepts every key."""
+
+        def with_web_request(request):
+            evidence = webevidence(request)
+            evidence["server.http-request"] = MappingProxyType(dict(evidence))
+            return evidence
+
+        webevidence = web.webevidence
+        with mock.patch.object(web, "webevidence", with_web_request):
+            etag = self.client.get(
+                "/51Degrees.core.js", headers={"User-Agent": CHROME}) \
+                .headers["ETag"]
+            response = self.client.get("/51Degrees.core.js", headers={
+                "User-Agent": CHROME, "If-None-Match": etag})
+        self.assertEqual(304, response.status_code)
 
     def test_a_weak_or_listed_etag_still_matches(self):
         etag = self.client.get(
