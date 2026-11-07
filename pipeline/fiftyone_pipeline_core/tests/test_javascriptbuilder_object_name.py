@@ -151,7 +151,9 @@ class JavaScriptBuilderObjectNameTests(unittest.TestCase):
 
     @parameterized.expand([
         ["statement", "a;b", True],
-        ["leading_digit", "9bad", True],
+        # The name has a letter that is not a hex digit, so the random
+        # session id the script also carries can never contain it.
+        ["leading_digit", "9zz", True],
         ["quote", 'x"y', True],
         ["empty", "", False],
         # A reserved word is also an ordinary word in the script's comments,
