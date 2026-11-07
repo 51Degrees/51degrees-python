@@ -76,7 +76,9 @@ class PerformanceProfileDefaultTests(unittest.TestCase):
     """
     The engine keeps no name for the profile in use, so these tests compare
     the collection settings of the configuration the engine gives the
-    native code with the settings each profile has there.
+    native code with the settings each profile has there. MaxPerformance
+    and LowMemory have the same collection settings, and Balanced and
+    BalancedTemp do too, so neither pair can be told apart this way.
     """
 
     def _engine_settings(self, **settings):
