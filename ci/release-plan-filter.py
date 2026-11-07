@@ -40,14 +40,14 @@ ASSIGNMENT = re.compile(
     r"(?:\s*\.\s*(?:\"[^\"]*\"|'[^']*'|[A-Za-z0-9_-]+))*\s*=")
 
 
-def text_at(repository, revision, path):
-    """The file's text at the revision, or None when it is not there."""
+def bytes_at(repository, revision, path):
+    """The file's content at the revision, or None when it is not there."""
     found = subprocess.run(
         ["git", "-C", repository, "show", revision + ":" + path],
         capture_output=True)
     if found.returncode != 0:
         return None
-    return found.stdout.decode("utf-8")
+    return found.stdout
 
 
 class StripSetupMetadata(ast.NodeTransformer):
@@ -169,12 +169,12 @@ READERS = {
 def counts(repository, tag, path):
     """Whether the change to the file since the tag is more than metadata."""
     reader = READERS.get(os.path.basename(path))
-    before = text_at(repository, tag, path)
-    after = text_at(repository, "HEAD", path)
+    before = bytes_at(repository, tag, path)
+    after = bytes_at(repository, "HEAD", path)
     if reader is None or before is None or after is None:
         return True
     try:
-        return reader(before) != reader(after)
+        return reader(before.decode("utf-8")) != reader(after.decode("utf-8"))
     except (SyntaxError, ValueError, configparser.Error,
             UnicodeDecodeError):
         return True
