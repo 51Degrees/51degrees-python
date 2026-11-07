@@ -298,6 +298,15 @@ Describe 'Get-ReleasePlan' {
         Add-Commit $script:Repo @('device/dd/readme.md')
         @(Get-ReleasePlan $script:Repo $graph).Name | Should -Be @('dd')
     }
+
+    It 'refuses IgnoreDefaults given as text' {
+        $graph = @($script:Graph | ForEach-Object { $_.PSObject.Copy() })
+        ($graph | Where-Object Name -eq 'dd') | Add-Member IgnoreDefaults 'false'
+        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
+        Add-Commit $script:Repo @('device/dd/readme.md')
+        { Get-ReleasePlan $script:Repo $graph } |
+            Should -Throw '*IgnoreDefaults*true or false*'
+    }
 }
 
 Describe 'release-plan-filter.ps1' {

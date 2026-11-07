@@ -15,6 +15,9 @@
 # examples releases nothing. release-plan-filter.ps1 then leaves out a
 # manifest whose change is only to metadata such as links. These are the
 # fields and the filter of common-ci's steps/release-plan.ps1.
+#
+# A submodule in Path or ExtraPaths changes as one path, its own, so any move
+# of it counts. Neither the globs nor the filter see inside it.
 
 # Reads packages.json. Kept as a function so the tests can give their own list.
 function Get-Packages([string]$RepoPath) {
@@ -57,9 +60,14 @@ $ReleasePlanDefaultIgnore = @(
 # holds a '*' with the files it matches, if any. Each of these starts with
 # ':(', which no file in a checkout starts with, so git receives it as written.
 function Get-PackageExcludes($Package) {
+    $defaults = $Package.IgnoreDefaults
+    if ($null -ne $defaults -and $defaults -isnot [bool]) {
+        throw "$($Package.Name) gives IgnoreDefaults as '$defaults', where " +
+            "packages.json must give true or false."
+    }
     $excludes = @($Package.Ignore | Where-Object { $_ } |
         ForEach-Object { ":(exclude,glob)$_" })
-    if ($Package.IgnoreDefaults -ne $false) {
+    if ($defaults -ne $false) {
         # The defaults ignore case, as one language names a folder Tests or
         # Examples where another names it tests or examples.
         $excludes = @($ReleasePlanDefaultIgnore |
@@ -84,7 +92,9 @@ function Get-ChangedFiles([string]$RepoPath, $Package, [string]$From) {
 
 # The files that count among a package's changed files. The repository's
 # ci/release-plan-filter.ps1 decides when there is one, and otherwise every
-# file counts.
+# file counts. A path the filter returns that it was not given stops the
+# plan, because a filter that rewrote a path would otherwise release a
+# package on a file that never changed.
 function Select-CountedFiles([string]$RepoPath, $Package, [string]$From,
         [string[]]$Files) {
     $filter = Join-Path $RepoPath 'ci/release-plan-filter.ps1'
@@ -92,8 +102,15 @@ function Select-CountedFiles([string]$RepoPath, $Package, [string]$From,
         return $Files
     }
     $filter = (Resolve-Path $filter).ProviderPath
-    return @(& $filter -RepoPath $RepoPath -Package $Package -From $From `
+    $kept = @(& $filter -RepoPath $RepoPath -Package $Package -From $From `
         -Files $Files | Where-Object { $_ })
+    foreach ($file in $kept) {
+        if ($Files -cnotcontains $file) {
+            throw "ci/release-plan-filter.ps1 returned '$file' for " +
+                "$($Package.Name), which is not one of the files it was given."
+        }
+    }
+    return $kept
 }
 
 # Each tox.ini that does not install every package its package depends on,
