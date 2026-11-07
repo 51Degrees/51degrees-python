@@ -56,7 +56,8 @@ class ShareUsage(Engine):
         share_percentage = 1,
         endpoint = "https://devices-v4.51degrees.com/new.ashx",
         request_timeout=REQUEST_TIMEOUT,
-        share_all = False):
+        share_all = False,
+        track_session = False):
         """!
         Constructor for ShareUsage element
         
@@ -72,10 +73,15 @@ class ShareUsage(Engine):
         reduce the overhead of sending HTTP messages.
         For example, the 51Degrees cloud service uses a value of 2500.
         @type cookie: string
-        @param cookie: If a cookie is being used to identify user
-        sessions, it can be specified here. Evidence already shared is
-        then shared again for a new session, and the cookie itself is
-        never shared.
+        @param cookie: The name of the cookie that holds the session id.
+        It has no effect unless track_session is True. The cookie itself
+        is not shared unless share_all is True.
+        @type track_session: bool
+        @param track_session: If True, the cookie named by cookie is used
+        to tell user sessions apart, so evidence already shared is shared
+        again when it comes from a new session. False by default. It
+        needs cookie to be set, and has no effect when share_all is True,
+        because every cookie is then shared and used to find repeats.
         @type query_whitelist: list
         @param query_whitelist: By default query string and HTTP form
         parameters are not shared unless prefixed with '51D_'.
@@ -110,21 +116,24 @@ class ShareUsage(Engine):
         self.endpoint = endpoint
         self.request_timeout = request_timeout
         self.share_all = share_all
+        self.track_session = track_session
 
         # The session id and sequence number are kept in evidence, as the
         # usage data carries them separately.
         included = None if query_whitelist is None else \
             list(query_whitelist) + ["session-id", "sequence"]
 
-        # The pipeline keeps the session cookie for the tracker, but the
-        # data sent never includes it.
+        # When sessions are tracked, the pipeline keeps the session cookie
+        # for the tracker. The data sent leaves it out unless all evidence
+        # is shared.
         self.evidence_key_filter = ShareUsageEvidenceKeyFilter(
-            cookie, included, header_blacklist, True, share_all)
+            cookie, included, header_blacklist, track_session, share_all)
         self.data_evidence_key_filter = ShareUsageEvidenceKeyFilter(
             cookie, included, header_blacklist, False, share_all)
         self.tracker_evidence_key_filter = \
             ShareUsageTrackerEvidenceKeyFilter(
-                cookie, included, header_blacklist, True, share_all)
+                cookie, included, header_blacklist, track_session,
+                share_all)
 
         # Add the share usage tracker which detects when
         # to send up sharing data
