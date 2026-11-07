@@ -4,10 +4,17 @@
 # which version.
 #
 # Each package has its own version, tagged '<package>/<version>'. A package is
-# released when a file under its folder changed since its last tag, or when a
-# package it depends on is being released, because its requirement on that
-# package moves. This is the scheme in 51Degrees/rust#205, which the per
-# language repositories follow.
+# released when a file that counts under its folders changed since its last
+# tag, or when a package it depends on is being released, because its
+# requirement on that package moves. This is the scheme in 51Degrees/rust#205,
+# which the per language repositories follow.
+#
+# Every file counts except those matched by the package's Ignore globs in
+# packages.json and, unless its IgnoreDefaults is false, by
+# $ReleasePlanDefaultIgnore, so a change only to documentation, tests or
+# examples releases nothing. release-plan-filter.ps1 then leaves out a
+# manifest whose change is only to metadata such as links. These are the
+# fields and the filter of common-ci's steps/release-plan.ps1.
 
 # Reads packages.json. Kept as a function so the tests can give their own list.
 function Get-Packages([string]$RepoPath) {
@@ -28,6 +35,65 @@ function Get-PackagePaths($Package) {
 
 function Test-PathUnder([string]$Path, [string]$Folder) {
     return $Path -eq $Folder -or $Path.StartsWith("$Folder/")
+}
+
+# The files whose changes do not release a package, being documentation,
+# tests, examples and LICENSE files wherever they sit and whatever their case,
+# unless the package sets IgnoreDefaults to false. These are git glob
+# pathspecs from the repository root, where '**/' matches any number of
+# folders, none included.
+$ReleasePlanDefaultIgnore = @(
+    '**/*.md'
+    '**/docs/**'
+    '**/tests/**'
+    '**/test/**'
+    '**/examples/**'
+    '**/LICENSE*'
+)
+
+# The pathspecs that leave out of a package's changes the files its Ignore
+# globs match and, unless IgnoreDefaults is false, the default set.
+# PowerShell on Linux and macOS replaces a native command's argument that
+# holds a '*' with the files it matches, if any. Each of these starts with
+# ':(', which no file in a checkout starts with, so git receives it as written.
+function Get-PackageExcludes($Package) {
+    $excludes = @($Package.Ignore | Where-Object { $_ } |
+        ForEach-Object { ":(exclude,glob)$_" })
+    if ($Package.IgnoreDefaults -ne $false) {
+        # The defaults ignore case, as one language names a folder Tests or
+        # Examples where another names it tests or examples.
+        $excludes = @($ReleasePlanDefaultIgnore |
+            ForEach-Object { ":(exclude,glob,icase)$_" }) + $excludes
+    }
+    return $excludes
+}
+
+# The files under the package's folders that changed since the given tag, as
+# paths from the repository root, apart from those it ignores.
+function Get-ChangedFiles([string]$RepoPath, $Package, [string]$From) {
+    # A failure is reported below, naming the package, whatever the caller's
+    # preference. Set for this function only.
+    $PSNativeCommandUseErrorActionPreference = $false
+    $pathspecs = @(Get-PackagePaths $Package) + @(Get-PackageExcludes $Package)
+    $files = @(& git -C $RepoPath diff --name-only $From HEAD -- $pathspecs)
+    if ($LASTEXITCODE -ne 0) {
+        throw "git could not list the changes to $($Package.Name) since $From."
+    }
+    return $files
+}
+
+# The files that count among a package's changed files. The repository's
+# ci/release-plan-filter.ps1 decides when there is one, and otherwise every
+# file counts.
+function Select-CountedFiles([string]$RepoPath, $Package, [string]$From,
+        [string[]]$Files) {
+    $filter = Join-Path $RepoPath 'ci/release-plan-filter.ps1'
+    if ($Files.Count -eq 0 -or (Test-Path $filter -PathType Leaf) -eq $false) {
+        return $Files
+    }
+    $filter = (Resolve-Path $filter).ProviderPath
+    return @(& $filter -RepoPath $RepoPath -Package $Package -From $From `
+        -Files $Files | Where-Object { $_ })
 }
 
 # Each tox.ini that does not install every package its package depends on,
@@ -224,11 +290,6 @@ function Get-ReleasedVersions([string]$RepoPath, [string]$Name,
 # from packages.json. Packages that are not published, the examples, are never
 # in the plan; a change to them is tested but releases nothing.
 function Get-ReleasePlan([string]$RepoPath, $Packages = $null) {
-    # 'git diff --quiet' exits 1 to say a package changed. That is an answer,
-    # not a failure, but a caller that stops on a failing native command, as
-    # publish-package.ps1 does, stopped there and failed the publish. Set for
-    # this function only.
-    $PSNativeCommandUseErrorActionPreference = $false
     if ($null -eq $Packages) {
         $Packages = Get-Packages $RepoPath
     }
@@ -254,10 +315,18 @@ function Get-ReleasePlan([string]$RepoPath, $Packages = $null) {
         $last = $released[-1]
         $previous[$package.Name] = $last
         $tag = "$($package.Name)/$last"
-        & git -C $RepoPath diff --quiet $tag HEAD -- (Get-PackagePaths $package)
-        if ($LASTEXITCODE -eq 1) {
-            $reasons[$package.Name] = "changed since $last"
+        $files = @(Get-ChangedFiles $RepoPath $package $tag)
+        $counted = @(Select-CountedFiles $RepoPath $package $tag $files)
+        if ($counted.Count -gt 0) {
+            $noun = 'files'
+            if ($counted.Count -eq 1) {
+                $noun = 'file'
+            }
+            $reasons[$package.Name] =
+                "changed since $last ($($counted.Count) $noun)"
         }
+        # A filter may leave an exit code that was an answer, which must not
+        # read as a failure to the script that called this.
         $global:LASTEXITCODE = 0
     }
 
