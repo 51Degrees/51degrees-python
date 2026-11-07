@@ -219,6 +219,81 @@ class UsageTests(unittest.TestCase):
             len(app.attempts), 10,
             "A send was made during the pause or when closing.")
 
+    def test_back_off_delay_grows_to_maximum(self):
+        """!
+        Each failed send after a pause multiplies the delay, and the delay
+        stops growing at the maximum.
+        """
+
+        usage, pipeline = self.back_off_pipeline(
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=0.5,
+            max_recovery_delay_seconds=1.0)
+        app.status = 500
+        for i in range(40):
+            self.process_unique(pipeline)
+
+        self.wait_for(
+            lambda: len(app.attempts) >= 4,
+            lambda: "Fewer than four sends were made.")
+        gaps = [app.attempts[i] - app.attempts[i - 1] for i in range(1, 4)]
+        shown = ", ".join(f"{gap:.2f}" for gap in gaps)
+        self.assertGreaterEqual(
+            gaps[0], 0.4,
+            f"The first pause was not the initial delay. Gaps: {shown}")
+        self.assertGreaterEqual(
+            gaps[1], 0.9,
+            f"The second pause was not doubled. Gaps: {shown}")
+        self.assertTrue(
+            0.9 <= gaps[2] < 1.9,
+            f"The third pause was not held at the maximum. Gaps: {shown}")
+
+    def test_back_off_full_queue_drops_new_evidence(self):
+        """!
+        When the queue fills during a pause, new evidence is dropped and
+        what was queued first is sent once sending resumes.
+        """
+
+        usage, pipeline = self.back_off_pipeline(
+            max_queue_size=4,
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=2,
+            max_recovery_delay_seconds=2)
+        self.fail_sends(pipeline, 1)
+
+        kept = [self.process_unique(pipeline) for i in range(4)]
+        dropped = [self.process_unique(pipeline) for i in range(6)]
+        app.status = 200
+
+        self.wait_for(
+            lambda: all(ip in client_ips(app.received) for ip in kept),
+            lambda: "The evidence queued during the pause was not all sent. "
+                f"Sent: {client_ips(app.received)}")
+        sleep(0.5)
+        for ip in dropped:
+            self.assertNotIn(
+                ip, client_ips(app.received),
+                "Evidence processed when the queue was full was sent.")
+
+    def test_back_off_invalid_settings(self):
+        """!
+        Settings the pause cannot work with are rejected.
+        """
+
+        for settings in [
+                {"failures_to_enter_recovery": 0},
+                {"failures_to_enter_recovery": 101},
+                {"failures_window_seconds": 0},
+                {"initial_recovery_delay_seconds": 0},
+                {"max_recovery_delay_seconds": -1},
+                {"recovery_multiplier": 0.5},
+                {"max_queue_size": 0}]:
+            with self.assertRaises(ValueError, msg=str(settings)):
+                ShareUsage(
+                    requested_package_size=1,
+                    endpoint=testEndpoint,
+                    **settings)
+
     def test_data_received(self):
         """!
         Check that data is received from the share usage element. 
