@@ -28,6 +28,7 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
 from fiftyone_pipeline_cloudrequestengine.constants import Constants
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
+from .classes.accepteverykeyelement import AcceptEveryKeyElement
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 
 RESOURCE_KEY = "resource_key"
@@ -269,7 +270,11 @@ class TestCredentials(CloudRequestEngineTestsBase):
             "http_client": self.mock_http(),
         })
 
-        pipeline = PipelineBuilder().add(engine).build()
+        # The real service advertises these names under each prefix, and the
+        # stand-in advertises query.User-Agent alone, so an element that
+        # accepts every key keeps them for the engine to leave out.
+        pipeline = PipelineBuilder().add(AcceptEveryKeyElement()) \
+            .add(engine).build()
         data = pipeline.create_flowdata()
         data.evidence.add("query.license", "another-key")
         data.evidence.add("header.resource", "another-key")
@@ -301,6 +306,30 @@ class TestCredentials(CloudRequestEngineTestsBase):
                 evidence_key)
         for message in messages:
             self.assertNotIn("another-key", message)
+
+    def test_evidence_no_element_accepts_is_not_sent(self):
+        """
+        A default pipeline keeps only the evidence one of its elements
+        accepts, so a header or cookie the service does not ask for is not
+        sent to it.
+        """
+        engine = CloudRequestEngine({
+            "license_key": LICENSE_KEY,
+            "requested_properties": REQUESTED,
+            "http_client": self.mock_http(),
+        })
+
+        pipeline = PipelineBuilder().add(engine).build()
+        data = pipeline.create_flowdata()
+        data.evidence.add("query.User-Agent", "iPhone")
+        data.evidence.add("header.x-test", "a header")
+        data.evidence.add("cookie.other", "a cookie")
+        data.process()
+
+        request_type, url, content = engine.http_client.requests[-1]
+        self.assertEqual("iPhone", content["user-agent"])
+        self.assertNotIn("x-test", content)
+        self.assertNotIn("other", content)
 
     def test_properties_added_later_are_normalised_and_checked(self):
         """

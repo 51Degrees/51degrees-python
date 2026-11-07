@@ -29,6 +29,7 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import CloudRequest
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_cloudrequestengine.constants import Constants
 
+from .classes.accepteverykeyelement import AcceptEveryKeyElement
 from .classes.constants import Constants as TestConstants
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 
@@ -111,8 +112,11 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
             "http_client": self.mock_http(),
         })
 
+        # The stand-in service accepts query.User-Agent alone, so an element
+        # that accepts every key keeps the rest of the evidence for the
+        # engine to order.
         builder = PipelineBuilder()
-        pipeline = builder.add(engine).build()
+        pipeline = builder.add(AcceptEveryKeyElement()).add(engine).build()
 
         data = pipeline.create_flowdata()
 
