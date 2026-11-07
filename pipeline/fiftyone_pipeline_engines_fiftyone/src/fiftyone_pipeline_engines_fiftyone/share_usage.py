@@ -31,7 +31,8 @@ from importlib.metadata import version
 import requests
 from fiftyone_pipeline_engines.engine import Engine
 
-from .share_usage_evidencekeyfilter import ShareUsageEvidenceKeyFilter
+from .share_usage_evidencekeyfilter import ShareUsageEvidenceKeyFilter, \
+    ShareUsageTrackerEvidenceKeyFilter
 from .share_usage_tracker import ShareUsageTracker
 
 # The maximum length of a piece of evidence's value which can be
@@ -54,7 +55,9 @@ class ShareUsage(Engine):
         header_blacklist = [],
         share_percentage = 1,
         endpoint = "https://devices-v4.51degrees.com/new.ashx",
-        request_timeout=REQUEST_TIMEOUT):
+        request_timeout=REQUEST_TIMEOUT,
+        share_all = False,
+        track_session = False):
         """!
         Constructor for ShareUsage element
         
@@ -70,22 +73,32 @@ class ShareUsage(Engine):
         reduce the overhead of sending HTTP messages.
         For example, the 51Degrees cloud service uses a value of 2500.
         @type cookie: string
-        @param cookie: If a cookie is being used to identify user 
-        sessions, it can be specified here in order to reduce the 
-        sharing of duplicated data.
+        @param cookie: The name of the cookie that holds the session id.
+        It has no effect unless track_session is True. The cookie itself
+        is not shared unless share_all is True.
+        @type track_session: bool
+        @param track_session: If True, the cookie named by cookie is used
+        to tell user sessions apart, so evidence already shared is shared
+        again when it comes from a new session. False by default. It
+        needs cookie to be set, and has no effect when share_all is True,
+        because every cookie is then shared and used to find repeats.
         @type query_whitelist: list
-        @param query_whitelist: By default query string and HTTP form 
+        @param query_whitelist: By default query string and HTTP form
         parameters are not shared unless prefixed with '51D_'.
-        If you need to share query string parameters, a list can be 
-        specified here.
-        @type query_blacklist: list
-        @param query_blacklist: By default, all HTTP headers 
-        (except a few, such as Cookies) are shared. 
-        Individual headers can be excluded from sharing by adding them 
+        If you need to share query string parameters, a list can be
+        specified here. None shares every parameter.
+        @type header_blacklist: list
+        @param header_blacklist: By default, all HTTP headers
+        except Cookie are shared.
+        Individual headers can be excluded from sharing by adding them
         to this list.
         @type share_percentage : float
         @param share_percentage: approximate proportion of requests to
         be shared. 1 = 100%, 0.5 = 50%, etc..
+        @type share_all: bool
+        @param share_all: If True, all evidence is shared apart from the
+        email address, the salt used for hashed email identifiers, and the
+        request's query string and path. False by default.
         """
 
         super(ShareUsage, self).__init__()
@@ -102,6 +115,25 @@ class ShareUsage(Engine):
         self.share_percentage = share_percentage
         self.endpoint = endpoint
         self.request_timeout = request_timeout
+        self.share_all = share_all
+        self.track_session = track_session
+
+        # The session id and sequence number are kept in evidence, as the
+        # usage data carries them separately.
+        included = None if query_whitelist is None else \
+            list(query_whitelist) + ["session-id", "sequence"]
+
+        # When sessions are tracked, the pipeline keeps the session cookie
+        # for the tracker. The data sent leaves it out unless all evidence
+        # is shared.
+        self.evidence_key_filter = ShareUsageEvidenceKeyFilter(
+            cookie, included, header_blacklist, track_session, share_all)
+        self.data_evidence_key_filter = ShareUsageEvidenceKeyFilter(
+            cookie, included, header_blacklist, False, share_all)
+        self.tracker_evidence_key_filter = \
+            ShareUsageTrackerEvidenceKeyFilter(
+                cookie, included, header_blacklist, track_session,
+                share_all)
 
         # Add the share usage tracker which detects when
         # to send up sharing data
@@ -188,11 +220,7 @@ class ShareUsage(Engine):
     
         """
 
-        return ShareUsageEvidenceKeyFilter(
-            cookie = self.cookie,
-            query_whitelist = self.query_whitelist,
-            header_blacklist = self.header_blacklist
-        )
+        return self.evidence_key_filter
 
     def share_send_usage(self):
         """!
@@ -291,7 +319,7 @@ class ShareUsage(Engine):
         """
         
         if random.uniform(0, 1) <= self.share_percentage:
-            cachekey = self.get_evidence_key_filter().filter_evidence(flow_data.evidence.get_all())
+            cachekey = self.tracker_evidence_key_filter.filter_evidence(flow_data.evidence.get_all())
             cachekey = json.dumps(cachekey)
             share = self.tracker.track(cachekey) 
             if share:
@@ -327,7 +355,7 @@ class ShareUsage(Engine):
                         f"The value '{value}' could not be parsed to an integer.")
             else:
                 # Check if we can send this piece of evidence
-                if self.get_evidence_key_filter().filter_evidence_key(key):
+                if self.data_evidence_key_filter.filter_evidence_key(key):
                     data.try_add(key, value)
 
         return data
@@ -394,7 +422,7 @@ class ShareUsageData:
         category = ""
         field = key
 
-        first_separator = key.index(".")
+        first_separator = key.find(".")
         if first_separator > 0:
             category = key[0:first_separator]
             field = key[first_separator + 1:len(key)]

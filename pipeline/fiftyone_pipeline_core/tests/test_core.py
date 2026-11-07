@@ -58,6 +58,24 @@ class CoreTests(unittest.TestCase):
         nullEvidence = testPipeline.flowdata.evidence.get("header.other-evidence")
         self.assertTrue(nullEvidence == None)
 
+    # Test that evidence no element accepts is removed without an error.
+    # The JavaScript and set header elements accept every key, so they are
+    # left out.
+    def testEvidenceKeyFilterRemovesKeys(self):
+
+        pipeline = (PipelineBuilder({
+                "add_javascript_builder": False,
+                "use_setheader_properties": False}))\
+            .add(ExampleFlowElement1())\
+            .build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("header.user-agent", "test")
+        flowdata.evidence.add("header.accept-encoding", "gzip")
+        flowdata.evidence.add("header.host", "example.com")
+        flowdata.process()
+        self.assertEqual(
+            flowdata.evidence.get_all(), {"header.user-agent": "test"})
+
     # Test Getter methods
     def testGet(self):
  
