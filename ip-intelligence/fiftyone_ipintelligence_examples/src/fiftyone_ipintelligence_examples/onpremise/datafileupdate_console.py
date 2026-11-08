@@ -188,6 +188,9 @@ class DataFileUpdateConsole():
             # is configured to use a temporary copy.
             data_file_path = data_file,
             create_temp_data_copy = True,
+            # The Enterprise data file is large, so the LowMemory profile
+            # reads it from disk rather than holding parts of it in memory.
+            performance_profile = "LowMemory",
             # The update listener notifies us when an update is complete.
             data_file_update_service = update_service,
             # A license key is required for automatic updates.

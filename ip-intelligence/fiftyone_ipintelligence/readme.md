@@ -25,7 +25,7 @@ pipeline = IpIntelligencePipelineBuilder(resource_key="YOUR_RESOURCE_KEY").build
 
 # On-premise
 pipeline = IpIntelligencePipelineBuilder(
-    data_file_path="51Degrees-LiteIpiV41.ipi",
+    data_file_path="51Degrees-LiteV41.ipi",
     licence_keys="",
     usage_sharing=False).build()
 
