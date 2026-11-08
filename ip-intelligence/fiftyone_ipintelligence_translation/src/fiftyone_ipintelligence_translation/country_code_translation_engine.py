@@ -49,13 +49,13 @@ class CountryCodeTranslationEngine(TranslationEngineBase):
 
         super().__init__(
             # Source element data key of the IP Intelligence engine.
-            source_element_data_key="ip",
-            translations=[
+            "ip",
+            [
                 ("CountryCodesGeographical", "CountryNamesGeographical"),
                 ("CountryCodesPopulation", "CountryNamesPopulation"),
             ],
-            sources=get_country_code_resources(),
-            fixed_language="en_GB",
-            missing_translation_behavior=MissingTranslationBehavior.ORIGINAL)
+            get_country_code_resources(),
+            "en_GB",
+            MissingTranslationBehavior.ORIGINAL)
 
         self.datakey = Constants.COUNTRY_NAMES_KEY

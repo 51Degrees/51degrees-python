@@ -67,16 +67,16 @@ class CountriesTranslationEngine(TranslationEngineBase):
 
         super().__init__(
             # Source is the output of the CountryCodeTranslationEngine.
-            source_element_data_key=Constants.COUNTRY_NAMES_KEY,
-            translations=[
+            Constants.COUNTRY_NAMES_KEY,
+            [
                 ("CountryNamesGeographical",
                  "CountryNamesGeographicalTranslated"),
                 ("CountryNamesPopulation",
                  "CountryNamesPopulationTranslated"),
             ],
-            sources=get_country_resources(),
-            fixed_language=None,
-            missing_translation_behavior=MissingTranslationBehavior.ORIGINAL)
+            get_country_resources(),
+            None,
+            MissingTranslationBehavior.ORIGINAL)
 
         self.datakey = Constants.COUNTRY_NAMES_TRANSLATED_KEY
 
