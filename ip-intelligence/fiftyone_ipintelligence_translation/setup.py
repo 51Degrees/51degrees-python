@@ -96,7 +96,8 @@ setuptools.setup(
     },
     install_requires=[
         "fiftyone_pipeline_core",
-        "fiftyone_pipeline_translation",
+        # The first version that takes missing_translation_behavior.
+        "fiftyone_pipeline_translation>=4.5.43",
         "PyYAML"
     ],
     license="EUPL-1.2",

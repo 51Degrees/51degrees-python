@@ -22,7 +22,8 @@
 
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
-from .missing_translation_behavior import MissingTranslationBehavior
+from .missing_translation_behavior import (
+    MissingTranslationBehavior, _NOT_GIVEN, _resolve)
 
 
 class Translator:
@@ -41,7 +42,9 @@ class Translator:
     def __init__(
             self,
             translations=None,
-            behavior=MissingTranslationBehavior.ORIGINAL):
+            missing_translation_behavior=_NOT_GIVEN,
+            *,
+            behavior=_NOT_GIVEN):
 
         """!
         Constructor.
@@ -50,17 +53,24 @@ class Translator:
         @param translations: Map of source value to translated value. Lookups
         are case-insensitive.
 
+        @type missing_translation_behavior: MissingTranslationBehavior or
+        string
+        @param missing_translation_behavior: Behavior when a translation is
+        missing for a value, as a member or as text naming one, such as
+        "EmptyString". ORIGINAL when not given. Anything else, None
+        included, raises ValueError.
+
         @type behavior: MissingTranslationBehavior or string
-        @param behavior: Behavior when a translation is missing for a value,
-        as a member or as text naming one, such as "EmptyString". Anything
-        else raises ValueError.
+        @param behavior: Deprecated name for missing_translation_behavior,
+        which raises a DeprecationWarning when used. When both are given,
+        missing_translation_behavior wins.
         """
 
         translations = translations or {}
         # Store with lower-cased keys so lookups are case-insensitive.
         self._translations = {
             str(key).lower(): value for key, value in translations.items()}
-        self._behavior = MissingTranslationBehavior.from_value(behavior)
+        self._behavior = _resolve(missing_translation_behavior, behavior)
 
     def translate(self, value, errors=None):
 

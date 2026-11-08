@@ -20,6 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import warnings
 from enum import Enum
 
 
@@ -66,3 +67,32 @@ class MissingTranslationBehavior(Enum):
         raise ValueError(
             f"{value!r} is not a missing translation behavior. Use "
             f"Original, EmptyString or FlowError.")
+
+
+# Stands for an argument the caller did not give, so that None given on
+# purpose is refused like any other value that names no member.
+_NOT_GIVEN = object()
+
+
+def _resolve(missing_translation_behavior, behavior):
+
+    """!
+    The member the constructor arguments name. behavior is the deprecated
+    name for missing_translation_behavior, so using it warns, and when both
+    are given missing_translation_behavior wins. Neither given means
+    ORIGINAL.
+    """
+
+    if behavior is not _NOT_GIVEN:
+        # Two levels up is the caller of the constructor that called this.
+        warnings.warn(
+            "The 'behavior' argument is deprecated. Use "
+            "'missing_translation_behavior', the name the specification "
+            "gives the option.",
+            DeprecationWarning,
+            stacklevel=3)
+        if missing_translation_behavior is _NOT_GIVEN:
+            missing_translation_behavior = behavior
+    if missing_translation_behavior is _NOT_GIVEN:
+        return MissingTranslationBehavior.ORIGINAL
+    return MissingTranslationBehavior.from_value(missing_translation_behavior)

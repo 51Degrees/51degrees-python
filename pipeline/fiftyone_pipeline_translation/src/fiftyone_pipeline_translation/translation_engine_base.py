@@ -31,7 +31,8 @@ from fiftyone_pipeline_core.flowerror import FlowError
 
 from .languages import Languages, validate_locale
 from .translator import Translator
-from .missing_translation_behavior import MissingTranslationBehavior
+from .missing_translation_behavior import (
+    MissingTranslationBehavior, _NOT_GIVEN, _resolve)
 
 
 class TranslationEngineBase(FlowElement):
@@ -65,7 +66,9 @@ class TranslationEngineBase(FlowElement):
             translations,
             sources,
             fixed_language=None,
-            behavior=MissingTranslationBehavior.ORIGINAL):
+            missing_translation_behavior=_NOT_GIVEN,
+            *,
+            behavior=_NOT_GIVEN):
 
         """!
         Constructor.
@@ -86,10 +89,17 @@ class TranslationEngineBase(FlowElement):
         always translates to this language, otherwise the language is resolved
         from the evidence.
 
+        @type missing_translation_behavior: MissingTranslationBehavior or
+        string
+        @param missing_translation_behavior: Behavior when a translation is
+        missing for a value, as a member or as text naming one, such as
+        "EmptyString". ORIGINAL when not given. Anything else, None
+        included, raises ValueError.
+
         @type behavior: MissingTranslationBehavior or string
-        @param behavior: Behavior when a translation is missing for a value,
-        as a member or as text naming one, such as "EmptyString". Anything
-        else raises ValueError.
+        @param behavior: Deprecated name for missing_translation_behavior,
+        which raises a DeprecationWarning when used. When both are given,
+        missing_translation_behavior wins.
         """
 
         super().__init__()
@@ -102,7 +112,7 @@ class TranslationEngineBase(FlowElement):
         if not source_element_data_key or not source_element_data_key.strip():
             raise ValueError("The source element key must be configured.")
 
-        behavior = MissingTranslationBehavior.from_value(behavior)
+        behavior = _resolve(missing_translation_behavior, behavior)
 
         self.datakey = "translation"
         self.source_element_data_key = source_element_data_key.strip()
