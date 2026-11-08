@@ -183,5 +183,160 @@ class TranslationEngineBaseTests(unittest.TestCase):
             TranslationEngineBase._get_language_name("countries.fr_FR.yml"))
 
 
+# Each text the missing translation behavior accepts, and the member it
+# names. The specification's names, the members' names and values, and
+# other mixes of case and underscores are all accepted.
+BEHAVIOR_TEXTS = {
+    "Original": MissingTranslationBehavior.ORIGINAL,
+    "original": MissingTranslationBehavior.ORIGINAL,
+    "ORIGINAL": MissingTranslationBehavior.ORIGINAL,
+    "EmptyString": MissingTranslationBehavior.EMPTY_STRING,
+    "emptystring": MissingTranslationBehavior.EMPTY_STRING,
+    "empty_string": MissingTranslationBehavior.EMPTY_STRING,
+    "EMPTY_STRING": MissingTranslationBehavior.EMPTY_STRING,
+    "Empty_String": MissingTranslationBehavior.EMPTY_STRING,
+    "FlowError": MissingTranslationBehavior.FLOW_ERROR,
+    "flowerror": MissingTranslationBehavior.FLOW_ERROR,
+    "flow_error": MissingTranslationBehavior.FLOW_ERROR,
+    "FLOW_ERROR": MissingTranslationBehavior.FLOW_ERROR,
+}
+
+# Values that name no member, each refused when the engine is built.
+UNKNOWN_BEHAVIORS = (
+    "", "Empty String", "Origin", "Missing", "flow-error", None, 1,
+    ["Original"])
+
+# The value a missing translation of "Spain" gives under each member, with
+# the number of flow errors it adds.
+MISSING_RESULTS = {
+    MissingTranslationBehavior.ORIGINAL: (["Allemagne", "Spain"], 0),
+    MissingTranslationBehavior.EMPTY_STRING: (["Allemagne", ""], 0),
+    MissingTranslationBehavior.FLOW_ERROR: (["Allemagne", None], 1),
+}
+
+
+class MissingTranslationBehaviorTests(unittest.TestCase):
+
+    """
+    The missing translation behavior given as a member or as text, as a
+    configuration file gives it, with anything else refused when the engine
+    is built.
+    """
+
+    def _engine(self, behavior):
+        return TranslationEngineBase(
+            "source",
+            [("Names", "NamesTranslated")],
+            FR_SOURCE,
+            "fr_FR",
+            behavior)
+
+    def _missing(self, pipeline):
+        """The translated names and the flow errors for a source holding a
+        name with a translation and one without. The pipeline keeps errors
+        on the flow data rather than raising them, so a flow error can be
+        counted."""
+        self.addCleanup(pipeline.close)
+        flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
+        flowdata.process()
+        translated = flowdata.get("translation").get("NamesTranslated")
+        if isinstance(translated, AspectPropertyValue):
+            translated = translated.value()
+        return translated, len(flowdata.errors)
+
+    def _pipeline(self, behavior):
+        source = MockSourceElement("source", {
+            "Names": AspectPropertyValue(value=["Germany", "Spain"])
+        })
+        return PipelineBuilder({"suppress_process_exceptions": True}).add(
+            source).add(self._engine(behavior)).build()
+
+    def test_from_value_names_each_member(self):
+        for text, member in BEHAVIOR_TEXTS.items():
+            with self.subTest(text):
+                self.assertIs(
+                    member, MissingTranslationBehavior.from_value(text))
+
+    def test_from_value_returns_a_member_as_it_is(self):
+        for member in MissingTranslationBehavior:
+            with self.subTest(member.name):
+                self.assertIs(
+                    member, MissingTranslationBehavior.from_value(member))
+
+    def test_each_text_takes_effect(self):
+        for text, member in BEHAVIOR_TEXTS.items():
+            with self.subTest(text):
+                self.assertEqual(
+                    MISSING_RESULTS[member],
+                    self._missing(self._pipeline(text)))
+
+    def test_each_member_takes_effect(self):
+        for member, expected in MISSING_RESULTS.items():
+            with self.subTest(member.name):
+                self.assertEqual(
+                    expected, self._missing(self._pipeline(member)))
+
+    def test_unknown_value_is_refused_when_the_engine_is_built(self):
+        for value in UNKNOWN_BEHAVIORS:
+            with self.subTest(repr(value)):
+                with self.assertRaises(ValueError) as raised:
+                    self._engine(value)
+                self.assertIn("EmptyString", str(raised.exception))
+
+    def test_translator_takes_text(self):
+        translator = Translator({"Germany": "Allemagne"}, "EmptyString")
+        self.assertEqual("", translator.translate("Spain"))
+
+    def test_configuration_text_takes_effect(self):
+        for text, member in (("EmptyString", "EMPTY_STRING"),
+                             ("flow_error", "FLOW_ERROR"),
+                             ("Original", "ORIGINAL")):
+            with self.subTest(text):
+                pipeline = PipelineBuilder().build_from_configuration(
+                    self._configuration(text))
+                self.assertEqual(
+                    MISSING_RESULTS[MissingTranslationBehavior[member]],
+                    self._missing(pipeline))
+
+    def test_configuration_with_an_unknown_value_is_refused(self):
+        with self.assertRaises(ValueError):
+            PipelineBuilder().build_from_configuration(
+                self._configuration("EmptyStrings"))
+
+    @staticmethod
+    def _configuration(behavior):
+        """A pipeline configuration as a configuration file gives one, so
+        every value in it is text, a list or a dictionary."""
+        return {
+            "PipelineOptions": {
+                "suppress_process_exceptions": True,
+                "Elements": [
+                    {
+                        "elementPath": __name__,
+                        "elementName": "MockSourceElement",
+                        "elementParameters": {
+                            "datakey": "source",
+                            "contents": {"Names": ["Germany", "Spain"]},
+                        },
+                    },
+                    {
+                        "elementPath": (
+                            "fiftyone_pipeline_translation."
+                            "translation_engine_base"),
+                        "elementName": "TranslationEngineBase",
+                        "elementParameters": {
+                            "source_element_data_key": "source",
+                            "translations": [["Names", "NamesTranslated"]],
+                            "sources": FR_SOURCE,
+                            "fixed_language": "fr_FR",
+                            "behavior": behavior,
+                        },
+                    },
+                ]
+            }
+        }
+
+
 if __name__ == "__main__":
     unittest.main()

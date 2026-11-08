@@ -86,8 +86,10 @@ class TranslationEngineBase(FlowElement):
         always translates to this language, otherwise the language is resolved
         from the evidence.
 
-        @type behavior: MissingTranslationBehavior
-        @param behavior: Behavior when a translation is missing for a value.
+        @type behavior: MissingTranslationBehavior or string
+        @param behavior: Behavior when a translation is missing for a value,
+        as a member or as text naming one, such as "EmptyString". Anything
+        else raises ValueError.
         """
 
         super().__init__()
@@ -99,6 +101,8 @@ class TranslationEngineBase(FlowElement):
             raise ValueError("At least one source file must be configured.")
         if not source_element_data_key or not source_element_data_key.strip():
             raise ValueError("The source element key must be configured.")
+
+        behavior = MissingTranslationBehavior.from_value(behavior)
 
         self.datakey = "translation"
         self.source_element_data_key = source_element_data_key.strip()

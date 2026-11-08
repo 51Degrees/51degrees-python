@@ -50,15 +50,17 @@ class Translator:
         @param translations: Map of source value to translated value. Lookups
         are case-insensitive.
 
-        @type behavior: MissingTranslationBehavior
-        @param behavior: Behavior when a translation is missing for a value.
+        @type behavior: MissingTranslationBehavior or string
+        @param behavior: Behavior when a translation is missing for a value,
+        as a member or as text naming one, such as "EmptyString". Anything
+        else raises ValueError.
         """
 
         translations = translations or {}
         # Store with lower-cased keys so lookups are case-insensitive.
         self._translations = {
             str(key).lower(): value for key, value in translations.items()}
-        self._behavior = behavior
+        self._behavior = MissingTranslationBehavior.from_value(behavior)
 
     def translate(self, value, errors=None):
 
