@@ -80,8 +80,14 @@ class DeviceDetectionOnPremisePipelineBuilder(PipelineBuilder):
         @param licence_keys: licencekeys to use for the data file update service
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
-        @type max_matched_useragents_length : int
-        @param Number of characters to consider in the matched User-Agent. Ignored if update_matched_useragent is false
+        @type max_matched_useragent_length: int
+        @param max_matched_useragent_length: Limit in bytes on the length of
+        a single header such as User-Agent, of a pseudo header including the
+        separators between its values, and of the matched User-Agent. A value
+        longer than the limit is ignored and detection moves on to the next
+        header. The limit applies whether or not update_matched_useragent is
+        on. Left unset, the native default of 500 applies. A larger limit
+        raises the memory each set of results holds.
         @type update_matched_useragent: bool
         @param update_matched_useragent: True if the detection should record
         the matched characters from the target User-Agent, which the
