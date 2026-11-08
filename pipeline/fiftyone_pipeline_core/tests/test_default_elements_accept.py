@@ -29,6 +29,7 @@ import unittest
 
 from flask import Flask, request
 
+from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.javascriptbuilder import \
     JavascriptBuilderElement
 from fiftyone_pipeline_core.jsonbundler import JSONBundlerElement
@@ -37,6 +38,17 @@ from fiftyone_pipeline_core.sequenceelement import SequenceElement
 from fiftyone_pipeline_core.setheaderelement import SetHeaderElement
 
 from .classes.exampleflowelement1 import ExampleFlowElement1
+
+
+class DeclaresNothingElement(FlowElement):
+    """An element that does not say which evidence it accepts."""
+
+    def __init__(self):
+        super(DeclaresNothingElement, self).__init__()
+        self.datakey = "declaresnothing"
+
+    def process_internal(self, flowdata):
+        pass
 
 NOT_READ = ("header.if-none-match", "header.x-test", "header.x-query",
             "header.cookie", "cookie.query", "server.client-ip")
@@ -106,6 +118,21 @@ class DefaultElementsAcceptTests(unittest.TestCase):
                            if accepted(pipeline, "header." + name.lower()))
 
         self.assertEqual(["Host", "User-Agent"], named)
+
+
+    def test_an_element_that_declares_nothing_accepts_nothing(self):
+        element = DeclaresNothingElement()
+        for key in NOT_READ + ("header.user-agent", "query.session-id"):
+            self.assertFalse(element.filter_evidence_key(key), key)
+
+    def test_an_element_that_declares_nothing_widens_nothing(self):
+        pipeline = PipelineBuilder() \
+            .add(ExampleFlowElement1()) \
+            .add(DeclaresNothingElement()) \
+            .build()
+        for key in NOT_READ:
+            self.assertFalse(accepted(pipeline, key), key)
+        self.assertTrue(accepted(pipeline, "header.user-agent"))
 
 
 if __name__ == "__main__":
