@@ -91,8 +91,8 @@ class MatchMetricsConsole():
             use_predictive_graph = True,
             use_performance_graph = False,
             # This example shows the matched evidence characters, which
-            # needs this option on. It is on by default and is set here to
-            # show where it is turned off.
+            # needs this option on. It is on by default, and is set here to
+            # show where to turn it off.
             update_matched_useragent = True).add_logger(logger).build()
 
         # The pipeline is closed at the end of the with block, which
