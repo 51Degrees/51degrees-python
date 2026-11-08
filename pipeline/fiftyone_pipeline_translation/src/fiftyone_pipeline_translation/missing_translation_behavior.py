@@ -69,21 +69,17 @@ class MissingTranslationBehavior(Enum):
             f"Original, EmptyString or FlowError.")
 
 
-# Stands for an argument the caller did not give, so that None given on
-# purpose is refused like any other value that names no member.
-_NOT_GIVEN = object()
-
-
 def _resolve(missing_translation_behavior, behavior):
 
     """!
-    The member the constructor arguments name. behavior is the deprecated
-    name for missing_translation_behavior, so using it warns, and when both
-    are given missing_translation_behavior wins. Neither given means
-    ORIGINAL.
+    The member the constructor arguments name. None means not given, as for
+    the other engines' optional settings, so a setting passed on as None
+    gives ORIGINAL. behavior is the deprecated name for
+    missing_translation_behavior, so using it warns, and when both are given
+    missing_translation_behavior wins. Neither given means ORIGINAL.
     """
 
-    if behavior is not _NOT_GIVEN:
+    if behavior is not None:
         # Two levels up is the caller of the constructor that called this.
         warnings.warn(
             "The 'behavior' argument is deprecated. Use "
@@ -91,8 +87,8 @@ def _resolve(missing_translation_behavior, behavior):
             "gives the option.",
             DeprecationWarning,
             stacklevel=3)
-        if missing_translation_behavior is _NOT_GIVEN:
+        if missing_translation_behavior is None:
             missing_translation_behavior = behavior
-    if missing_translation_behavior is _NOT_GIVEN:
+    if missing_translation_behavior is None:
         return MissingTranslationBehavior.ORIGINAL
     return MissingTranslationBehavior.from_value(missing_translation_behavior)

@@ -204,7 +204,7 @@ BEHAVIOR_TEXTS = {
 
 # Values that name no member, each refused when the engine is built.
 UNKNOWN_BEHAVIORS = (
-    "", "Empty String", "Origin", "Missing", "flow-error", None, 1,
+    "", "Empty String", "Origin", "Missing", "flow-error", 1,
     ["Original"])
 
 # The specification's name for each member.
@@ -228,9 +228,9 @@ class MissingTranslationBehaviorTests(unittest.TestCase):
     """
     The missing translation behavior given as a member or as text, as a
     configuration file gives it, with anything else refused when the engine
-    is built. The option takes the specification's name,
-    missing_translation_behavior, and still takes the old name, behavior,
-    with a DeprecationWarning.
+    is built, apart from None, which means not given. The option takes the
+    specification's name, missing_translation_behavior, and still takes the
+    old name, behavior, with a DeprecationWarning.
     """
 
     def _engine(self, behavior):
@@ -351,12 +351,24 @@ class MissingTranslationBehaviorTests(unittest.TestCase):
             MISSING_RESULTS[MissingTranslationBehavior.ORIGINAL],
             self._missing(self._pipeline_with(engine)))
 
-    def test_none_given_by_either_name_is_refused(self):
-        with self.assertRaises(ValueError):
-            self._engine_with(missing_translation_behavior=None)
-        with self.assertWarns(DeprecationWarning):
-            with self.assertRaises(ValueError):
-                self._engine_with(behavior=None)
+    def test_none_given_by_either_name_is_original(self):
+        # None means not given, so it gives Original without a warning.
+        translations = {"Germany": "Allemagne"}
+        for given in ("by position", "missing_translation_behavior",
+                      "behavior"):
+            with self.subTest(given):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", DeprecationWarning)
+                    if given == "by position":
+                        engine = self._engine(None)
+                        translator = Translator(translations, None)
+                    else:
+                        engine = self._engine_with(**{given: None})
+                        translator = Translator(translations, **{given: None})
+                self.assertEqual(
+                    MISSING_RESULTS[MissingTranslationBehavior.ORIGINAL],
+                    self._missing(self._pipeline_with(engine)))
+                self.assertEqual("Spain", translator.translate("Spain"))
 
     def test_translator_takes_both_names(self):
         translations = {"Germany": "Allemagne"}

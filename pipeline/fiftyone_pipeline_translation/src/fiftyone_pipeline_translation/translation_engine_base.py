@@ -32,7 +32,7 @@ from fiftyone_pipeline_core.flowerror import FlowError
 from .languages import Languages, validate_locale
 from .translator import Translator
 from .missing_translation_behavior import (
-    MissingTranslationBehavior, _NOT_GIVEN, _resolve)
+    MissingTranslationBehavior, _resolve)
 
 
 class TranslationEngineBase(FlowElement):
@@ -66,9 +66,9 @@ class TranslationEngineBase(FlowElement):
             translations,
             sources,
             fixed_language=None,
-            missing_translation_behavior=_NOT_GIVEN,
+            missing_translation_behavior=None,
             *,
-            behavior=_NOT_GIVEN):
+            behavior=None):
 
         """!
         Constructor.
@@ -93,8 +93,8 @@ class TranslationEngineBase(FlowElement):
         string
         @param missing_translation_behavior: Behavior when a translation is
         missing for a value, as a member or as text naming one, such as
-        "EmptyString". ORIGINAL when not given. Anything else, None
-        included, raises ValueError.
+        "EmptyString". ORIGINAL when not given or None. Any other value
+        raises ValueError.
 
         @type behavior: MissingTranslationBehavior or string
         @param behavior: Deprecated name for missing_translation_behavior,
