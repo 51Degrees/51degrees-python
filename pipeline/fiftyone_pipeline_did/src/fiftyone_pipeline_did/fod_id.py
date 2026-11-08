@@ -586,7 +586,7 @@ _WHITE_SPACE = (
 
 #: The characters a 51Did text may hold once the white space around it is
 #: removed, being both alphabets and the padding. Which alphabet the text
-#: uses is checked apart, and where the padding sits is left to the OWID
+#: uses is checked separately, and where the padding sits is left to the OWID
 #: reader's decoder.
 _BASE64_CHARACTERS = re.compile(r"[A-Za-z0-9+/_=-]*")
 
