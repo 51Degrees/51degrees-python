@@ -20,6 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
@@ -42,7 +43,7 @@ class CloudEngine(Engine):
     It requires the 51Degrees cloudRequestEngine to be placed in a
     pipeline before it. It takes that raw JSON response and
     parses it to extract the device part.
-    It also uses this data to generate a list of properties and an evidence key filter
+    It also uses this data to generate a list of properties.
 
     """
 
@@ -51,6 +52,15 @@ class CloudEngine(Engine):
         super(CloudEngine, self).__init__()
 
         self.datakey = "CloudEngineBase" # This should be overriden
+
+    def get_evidence_key_filter(self):
+
+        """!
+        A cloud engine reads only the cloud request engine's results, so it
+        accepts no evidence.
+        """
+
+        return BasicListEvidenceKeyFilter([])
 
     def on_registration(self, pipeline):
  
