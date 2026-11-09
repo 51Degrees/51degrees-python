@@ -20,7 +20,8 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 

@@ -50,6 +50,7 @@ class DeclaresNothingElement(FlowElement):
     def process_internal(self, flowdata):
         pass
 
+
 NOT_READ = ("header.if-none-match", "header.x-test", "header.x-query",
             "header.cookie", "cookie.query", "server.client-ip")
 
@@ -118,7 +119,6 @@ class DefaultElementsAcceptTests(unittest.TestCase):
                            if accepted(pipeline, "header." + name.lower()))
 
         self.assertEqual(["Host", "User-Agent"], named)
-
 
     def test_an_element_that_declares_nothing_accepts_nothing(self):
         element = DeclaresNothingElement()
