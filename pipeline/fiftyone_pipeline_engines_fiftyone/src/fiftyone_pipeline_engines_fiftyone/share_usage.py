@@ -285,7 +285,7 @@ class ShareUsage(Engine):
                     xml += f"<{entry_key}"
                 # Write any attributes
                 if replaced_string.replaced:
-                    xml += ' replaced="true"'
+                    xml += ' escaped="true"'
                 if replaced_string.truncated:
                     xml += ' truncated="true"'
                 # End the start element
