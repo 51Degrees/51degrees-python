@@ -1,0 +1,32 @@
+name: Temporary gaps tests
+
+on:
+  push:
+    branches:
+      - 'tmp/gaps-python-*'
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: >
+          pip install pytest parameterized requests_mock flask
+          -e pipeline/fiftyone_pipeline_core
+          -e pipeline/fiftyone_pipeline_engines
+          -e pipeline/fiftyone_pipeline_cloudrequestengine
+          -e pipeline/fiftyone_pipeline_engines_fiftyone
+      - name: Usage sharing tests
+        run: python -m pytest pipeline/fiftyone_pipeline_engines_fiftyone/tests -q -m "not live"
+      - name: Engines tests
+        if: always()
+        run: python -m pytest pipeline/fiftyone_pipeline_engines/tests -q -m "not live"
+      - name: Core tests
+        if: always()
+        run: python -m pytest pipeline/fiftyone_pipeline_core/tests -q -m "not live"
