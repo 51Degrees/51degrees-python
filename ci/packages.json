@@ -52,6 +52,7 @@
     "Name": "fiftyone_pipeline_examples",
     "Product": "pipeline",
     "Path": "pipeline/examples",
+    "Ignore": ["**/tox.ini"],
     "DependsOn": [
       "fiftyone_pipeline_core",
       "fiftyone_pipeline_engines",
@@ -63,6 +64,7 @@
     "Name": "fiftyone_devicedetection_shared",
     "Product": "device-detection",
     "Path": "device-detection/fiftyone_devicedetection_shared",
+    "Ignore": ["**/tox.ini"],
     "DependsOn": [
       "fiftyone_pipeline_core",
       "fiftyone_pipeline_engines",
@@ -95,6 +97,7 @@
     "Name": "fiftyone_devicedetection",
     "Product": "device-detection",
     "Path": "device-detection/fiftyone_devicedetection",
+    "Ignore": ["**/tox.ini"],
     "DependsOn": [
       "fiftyone_devicedetection_shared",
       "fiftyone_devicedetection_cloud",
@@ -177,6 +180,7 @@
     "Name": "fiftyone_ipintelligence",
     "Product": "ip-intelligence",
     "Path": "ip-intelligence/fiftyone_ipintelligence",
+    "Ignore": ["**/tox.ini"],
     "DependsOn": [
       "fiftyone_ipintelligence_shared",
       "fiftyone_ipintelligence_cloud",

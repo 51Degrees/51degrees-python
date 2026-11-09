@@ -583,12 +583,8 @@ Describe 'the real packages.json' {
                 Should -Be 'changed since 4.5.1 (1 file)'
         }
 
-        It 'is ignored by every package that has a tox.ini' {
-            $root = Split-Path $PSScriptRoot
-            $beside = @($script:Real | Where-Object {
-                Test-Path (Join-Path $root "$($_.Path)/tox.ini") -PathType Leaf })
-            $beside.Count | Should -BeGreaterThan 10
-            foreach ($package in $beside) {
+        It 'is ignored by every package, so one added later counts for nothing' {
+            foreach ($package in $script:Real) {
                 $package.Ignore | Should -Contain '**/tox.ini' -Because $package.Name
             }
         }
