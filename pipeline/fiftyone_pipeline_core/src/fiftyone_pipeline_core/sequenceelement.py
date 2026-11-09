@@ -23,7 +23,7 @@
 
 from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
-from .javascriptbuilder import parse_sequence
+from .javascriptbuilder import get_session_id, parse_sequence
 from .elementdata_dictionary import ElementDataDictionary
 import uuid
 
@@ -96,5 +96,9 @@ class SequenceElement(FlowElement):
 
         flowdata.evidence.add("query.sequence", sequence)
 
+        # The Element Data goes into the JSON that is written into the script,
+        # so a session id the script cannot be given is empty there, as it is
+        # in the script itself.
         flowdata.set_element_data(ElementDataDictionary(
-            self, {"session-id": session_id, "sequence": sequence}))
+            self, {"session-id": get_session_id(session_id),
+                   "sequence": sequence}))

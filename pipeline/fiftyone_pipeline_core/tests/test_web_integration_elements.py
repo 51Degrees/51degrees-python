@@ -113,6 +113,12 @@ class SequenceElementDataTests(unittest.TestCase):
             flowdata.get("sequence").get("session-id"), entry["session-id"])
         self.assertEqual(1, entry["sequence"])
 
+    def testUnsafeSessionIdIsEmptyInTheElementDataAndTheJson(self):
+        flowdata = self.process({"query.session-id": "</script>"})
+        self.assertEqual("", flowdata.get("sequence").get("session-id"))
+        self.assertEqual("", flowdata.jsonbundler.json["sequence"]["session-id"])
+        self.assertNotIn("</script>", flowdata.javascriptbuilder.javascript)
+
     def testSequencePropertiesAreDescribed(self):
         element = PipelineBuilder({}).build().flow_elements[0]
         self.assertEqual("sequence", element.datakey)
