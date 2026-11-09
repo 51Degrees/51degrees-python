@@ -1,0 +1,2 @@
+device-detection/fiftyone_devicedetection_onpremise/tests/test_swig_data_threads.py
+ip-intelligence/fiftyone_ipintelligence_onpremise/tests/test_swig_data_threads.py
