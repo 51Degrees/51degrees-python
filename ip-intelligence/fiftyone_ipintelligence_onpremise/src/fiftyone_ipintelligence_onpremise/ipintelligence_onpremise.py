@@ -400,8 +400,9 @@ class IpIntelligenceOnPremise(Engine):
 
         evidence = EvidenceIpiSwig()
 
+        # The native evidence takes text, and the Sequence Element adds a number.
         for key, value in flow_data.evidence.get_all().items():
-            evidence.__setitem__(key, value)
+            evidence.__setitem__(key, str(value))
 
         result = self.engine.process(evidence)
 
