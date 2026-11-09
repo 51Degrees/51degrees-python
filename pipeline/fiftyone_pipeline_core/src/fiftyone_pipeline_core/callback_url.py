@@ -25,9 +25,9 @@ The callback URL the client script posts to for updated JSON. The protocol
 and host usually come from the request, and the script holds the URL in a
 single-quoted string, so the URL is checked before it is written into the
 script. A URL that is not valid, including one whose protocol is not http or
-https, is refused. In the user information, in anything after the host and
-port, and in the endpoint, the characters a URL cannot hold or that could end
-the string or the script are percent-encoded.
+https, is refused. In anything after the authority, and in the endpoint, the
+characters a URL cannot hold or that could end the string or the script are
+percent-encoded.
 
 See https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/javascript-builder.md#callback-url
 """
@@ -67,16 +67,15 @@ SCHEMES = ("http", "https")
 _ASCII_LOWER = str.maketrans(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
-# Where the authority ends, which is at the first '/', '?' or '#' of the
-# host.
-AUTHORITY_END_PATTERN = re.compile(r"[/?#]")
+# The characters the host value must not hold.
+FORBIDDEN_PATTERN = re.compile(r"[?#@]")
 
 # A label of a host name, being ASCII letters, digits, '-' and '_'.
 LABEL_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
 
-# An IPv6 zone identifier, being unreserved characters as RFC 3986 section
-# 2.3 defines them.
-ZONE_PATTERN = re.compile(r"[A-Za-z0-9._~-]+")
+# A last label that makes the host a number, being only digits, or 0x or 0X
+# and any number of hexadecimal digits.
+NUMBER_LABEL_PATTERN = re.compile(r"[0-9]+|0[xX][0-9A-Fa-f]*")
 
 # A port as it follows the host, being ':' and any number of digits.
 PORT_PATTERN = re.compile(r":[0-9]*")
@@ -147,18 +146,19 @@ def callback_url(protocol, host, endpoint):
     Build the callback URL from its parts and check it. One slash separates
     the host and the endpoint, being added when neither has one and removed
     when both do. The protocol and the host are written in lower case and
-    the rest as given, apart from the percent-encoding.
+    the rest as given, apart from the percent-encoding. The host value holds
+    no '?', '#' or '@'.
 
     @type protocol: str
     @param protocol: The protocol, http or https in any case
     @type host: str
-    @param host: The host, which can start with user information and end
-    with a port, a path, a query or a fragment
+    @param host: The host, which can end with a port and a path
     @type endpoint: str
     @param endpoint: The endpoint
     @rtype: CallbackUrl
     @return: The callback URL, or None when the protocol, host or endpoint
-    is not set
+    is not set. The URL of an invalid one is as it was built, for the log,
+    with '***' in place of everything in the host before its last '@'.
     """
 
     if is_blank(protocol) or is_blank(host) or is_blank(endpoint):
@@ -169,12 +169,14 @@ def callback_url(protocol, host, endpoint):
         endpoint = "/" + endpoint
     elif host_has_slash and endpoint_has_slash:
         endpoint = endpoint[1:]
-    built = protocol + "://" + host + endpoint
-    if not is_scheme(protocol):
+    at = host.rfind("@")
+    built = (protocol + "://" + ("***" + host[at:] if at != -1 else host)
+             + endpoint)
+    if not is_scheme(protocol) or FORBIDDEN_PATTERN.search(host):
         return CallbackUrl(False, built)
-    match = AUTHORITY_END_PATTERN.search(host)
-    end = len(host) if match is None else match.start()
-    authority = _checked_authority(host[:end])
+    end = host.find("/")
+    end = len(host) if end == -1 else end
+    authority = _checked_host_port(host[:end])
     if authority is None:
         return CallbackUrl(False, built)
     return CallbackUrl(
@@ -183,40 +185,21 @@ def callback_url(protocol, host, endpoint):
         + _encoded(host[end:]) + _encoded(endpoint))
 
 
-def _checked_authority(authority):
-
-    """!
-    The user information, host and port as they are written into the URL,
-    or None when they are not valid. The user information ends at the first
-    '@', so a second '@' is part of the host and refused.
-    """
-
-    user, at, host_port = authority.partition("@")
-    if not at:
-        return _checked_host_port(authority)
-    host_port = _checked_host_port(host_port)
-    if host_port is None:
-        return None
-    return _encoded(user) + "@" + host_port
-
-
 def _checked_host_port(host_port):
 
     """!
     The host and optional port in lower case, or None when they are not
-    valid. The host is an IPv6 address in brackets with an optional zone
-    identifier, or a name of labels separated by dots with a dot allowed at
-    the end. The port is ':' followed by digits up to 65535, or by nothing.
+    valid. The host is an IPv6 address in brackets, or a name of labels
+    separated by dots with a dot allowed at the end, which is an IPv4 address
+    when its last label is a number. The port is ':' followed by digits up to
+    65535, or by nothing.
     """
 
     if host_port.startswith("["):
         close = host_port.find("]")
         if close == -1:
             return None
-        address, separator, zone = host_port[1:close].partition("%25")
-        if separator and ZONE_PATTERN.fullmatch(zone) is None:
-            return None
-        if not _is_ipv6(address):
+        if not _is_ipv6(host_port[1:close]):
             return None
         host = host_port[:close + 1]
         port = host_port[close + 1:]
@@ -224,9 +207,13 @@ def _checked_host_port(host_port):
         host, colon, port = host_port.partition(":")
         port = colon + port
         name = host[:-1] if host.endswith(".") else host
-        for label in name.split("."):
+        labels = name.split(".")
+        for label in labels:
             if LABEL_PATTERN.fullmatch(label) is None:
                 return None
+        if (NUMBER_LABEL_PATTERN.fullmatch(labels[-1])
+                and IPV4_PATTERN.fullmatch(host) is None):
+            return None
     if port and not _is_port(port):
         return None
     return host.lower() + port
