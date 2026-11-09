@@ -65,9 +65,11 @@ class GettingStartedConsole():
         # https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=run
         pipeline = DeviceDetectionPipelineBuilder(
             data_file_path = data_file,
-            # We use the low memory profile as its performance is
-            # sufficient for this example. See the documentation for
-            # more detail on this and other configuration options:
+            # We use the MaxPerformance profile, which loads the whole data
+            # file into memory. The free Lite data file is about 35 MB, so
+            # that costs little memory and gives the fastest detections.
+            # See the documentation for more detail on this and other
+            # configuration options:
             # https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=run
             # https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=run
             # https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=run
