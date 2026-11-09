@@ -211,7 +211,9 @@ class JavaScriptBuilderSequenceTests(unittest.TestCase):
 
     @parameterized.expand([
         [name + "_" + ("with" if element else "without")
-         + "_sequence_element", value, check_text, element]
+         + "_sequence_element", value,
+         # The JSON of the Sequence Element's data holds the long id as it is.
+         check_text and not (element and name == "too_long"), element]
         for name, value, check_text in [
             ["quote", 'a"b', True],
             ["backslash", "a\\b", True],
@@ -231,7 +233,8 @@ class JavaScriptBuilderSequenceTests(unittest.TestCase):
         one that is not 1 to 64 ASCII letters, digits and hyphens is rendered
         as an empty string, as the pipeline specification says. The
         SequenceElement keeps a session id it is given, so the check is the
-        builder's in both pipelines."""
+        builder's in both pipelines. The JSON in the script cannot be ended
+        early by the id either."""
 
         script = _render(
             {"query.session-id": value},
