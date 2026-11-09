@@ -103,9 +103,22 @@ class SequenceElementDataTests(unittest.TestCase):
         self.assertEqual("abc-123", flowdata.evidence.get("query.session-id"))
         self.assertEqual(4, flowdata.evidence.get("query.sequence"))
 
-    def testSequenceIsNotAddedToTheJsonSentToBrowsers(self):
+    # The JSON Builder specification requires a top-level entry for each
+    # Element Data, excluding only Set Headers, the Cloud Request Engine and
+    # Usage Sharing.
+    def testSequenceHasAnEntryInTheJsonSentToBrowsers(self):
         flowdata = self.process({})
-        self.assertNotIn("sequence", flowdata.jsonbundler.json)
+        entry = flowdata.jsonbundler.json["sequence"]
+        self.assertEqual(
+            flowdata.get("sequence").get("session-id"), entry["session-id"])
+        self.assertEqual(1, entry["sequence"])
+
+    def testSequencePropertiesAreDescribed(self):
+        element = PipelineBuilder({}).build().flow_elements[0]
+        self.assertEqual("sequence", element.datakey)
+        self.assertEqual(
+            {"session-id": {"type": "string"}, "sequence": {"type": "int"}},
+            element.get_properties())
 
 
 if __name__ == "__main__":

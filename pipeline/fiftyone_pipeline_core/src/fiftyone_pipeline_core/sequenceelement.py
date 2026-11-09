@@ -53,6 +53,9 @@ class SequenceElement(FlowElement):
         super(SequenceElement, self).__init__()
 
         self.datakey = "sequence"
+        self.properties = {
+            "session-id": {"type": "string"},
+            "sequence": {"type": "int"}}
         self.exclude_from_messages = True
 
 
