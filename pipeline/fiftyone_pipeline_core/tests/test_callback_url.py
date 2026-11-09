@@ -69,7 +69,6 @@ class CallbackUrlTests(unittest.TestCase):
     @parameterized.expand([
         ("EXAMPLE.com", "https://example.com/51dpipeline/json"),
         ("example.com:8080", "https://example.com:8080/51dpipeline/json"),
-        ("example.com:", "https://example.com:/51dpipeline/json"),
         ("example.com:65535", "https://example.com:65535/51dpipeline/json"),
         ("a_b.com", "https://a_b.com/51dpipeline/json"),
         ("-ab.com", "https://-ab.com/51dpipeline/json"),
@@ -276,6 +275,19 @@ class CallbackUrlTests(unittest.TestCase):
         """Rule 4 reads a name whose last label is a number as an IPv4
         address written as four decimal numbers, each starting with 0 only
         when it is 0 alone."""
+
+        self.assertFalse(_url("https", host).valid, repr(host))
+
+    @parameterized.expand([
+        ("example.com:",),
+        ("example.com:/path",),
+        ("[::1]:",),
+        ("https://example.com",),
+        ("http://example.com",),
+    ])
+    def test_refuses_the_empty_port(self, host):
+        """Rule 5 refuses a port that is present but empty, so a protocol
+        written into the host gives the host "https" with an empty port."""
 
         self.assertFalse(_url("https", host).valid, repr(host))
 
