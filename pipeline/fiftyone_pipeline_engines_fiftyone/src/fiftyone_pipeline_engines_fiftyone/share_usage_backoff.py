@@ -63,7 +63,8 @@ class ShareUsageBackOff:
         max_recovery_delay_seconds = MAX_RECOVERY_DELAY_SECONDS_DEFAULT,
         recovery_multiplier = RECOVERY_MULTIPLIER_DEFAULT):
 
-        if not (FAILURES_TO_ENTER_RECOVERY_MIN <= failures_to_enter_recovery
+        if not (isinstance(failures_to_enter_recovery, int)
+                and FAILURES_TO_ENTER_RECOVERY_MIN <= failures_to_enter_recovery
                 <= FAILURES_TO_ENTER_RECOVERY_MAX):
             raise ValueError(
                 "failures_to_enter_recovery must be from "

@@ -401,6 +401,7 @@ class UsageTests(unittest.TestCase):
         for settings in [
                 {"failures_to_enter_recovery": 0},
                 {"failures_to_enter_recovery": 101},
+                {"failures_to_enter_recovery": 2.5},
                 {"failures_window_seconds": 0},
                 {"initial_recovery_delay_seconds": 0},
                 {"max_recovery_delay_seconds": -1},
