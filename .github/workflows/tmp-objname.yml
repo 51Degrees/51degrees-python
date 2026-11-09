@@ -1,0 +1,32 @@
+name: Temporary object name tests
+
+on:
+  push:
+    branches:
+      - 'tmp/objname-python-*'
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Show head
+        run: git log -1 --format=%H
+      - name: Install
+        run: >
+          pip install pytest parameterized requests_mock flask
+          -e pipeline/fiftyone_pipeline_cloudrequestengine
+          -e pipeline/fiftyone_pipeline_engines
+          -e pipeline/fiftyone_pipeline_engines_fiftyone
+          -e pipeline/fiftyone_pipeline_core
+      - name: Test
+        working-directory: pipeline/fiftyone_pipeline_core
+        run: pytest tests/test_javascriptbuilder_object_name.py tests/test_javascriptbuilder.py
