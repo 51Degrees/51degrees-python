@@ -86,14 +86,14 @@ class UnacceptedEvidenceTests(unittest.TestCase):
         with app.test_request_context(
                 "/page?campaign=a",
                 headers={"User-Agent": "a browser",
-                         "Cookie": "sessionid=a cookie value"},
+                         "Cookie": "sessionid=cookievalue"},
                 environ_base={"REMOTE_ADDR": "203.0.113.5"}):
             session["51D_one"] = "first"
             session["theme"] = "dark"
             view = webevidence(request)["server.http-request"]
 
         self.assertEqual("a browser", view["header.user-agent"])
-        self.assertEqual("a cookie value", view["cookie.sessionid"])
+        self.assertEqual("cookievalue", view["cookie.sessionid"])
         self.assertEqual("a", view["query.campaign"])
         self.assertEqual("first", view["session.51D_one"])
         self.assertEqual("dark", view["session.theme"])

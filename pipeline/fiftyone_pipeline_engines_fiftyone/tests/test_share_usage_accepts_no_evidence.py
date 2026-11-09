@@ -147,13 +147,13 @@ class ShareUsageAcceptsNoEvidenceTests(unittest.TestCase):
         flowdata = pipeline_with(usage).create_flowdata()
         flowdata.evidence.add_from_dict(request_evidence({
             "User-Agent": CHROME,
-            "Cookie": "sessionid=a cookie value",
+            "Cookie": "sessionid=cookievalue",
         }, "/page?a=1"))
         flowdata.process()
 
         shared = "".join(usage.share_data)
         self.assertIn("request-method", shared)
-        self.assertIn('<cookie Name="sessionid">a cookie value</cookie>',
+        self.assertIn('<cookie Name="sessionid">cookievalue</cookie>',
                       shared)
         self.assertNotIn("/page", shared)
         self.assertNotIn('<header Name="cookie">', shared)
