@@ -73,6 +73,12 @@ class ShareUsageRecordTests(unittest.TestCase):
         xml = self.record("&" * 10000)
         self.assertNotIn("truncated", xml)
 
+    def test_escapes_do_not_count_towards_the_limit(self):
+        xml = self.record(chr(1) + "a" * 9999)
+        self.assertIn(' escaped="true"', xml)
+        self.assertNotIn("truncated", xml)
+        self.assertIn(chr(92) + "x0001" + "a" * 9999 + "<", xml)
+
     def test_character_outside_the_basic_plane_is_never_split(self):
         emoji = chr(0x1f600)
         xml = self.record("a" * 9999 + emoji + "tail")
