@@ -121,7 +121,8 @@ class SequenceElementDataTests(unittest.TestCase):
         self.assertEqual(
             "</script>", flowdata.jsonbundler.json["sequence"]["session-id"])
         self.assertNotIn("</script>", flowdata.javascriptbuilder.javascript)
-        self.assertIn('var sessionId = "";', flowdata.javascriptbuilder.javascript)
+        self.assertIn(
+            "\\u003c/script\\u003e", flowdata.javascriptbuilder.javascript)
 
     def testSequencePropertiesAreDescribed(self):
         element = PipelineBuilder({}).build().flow_elements[0]
