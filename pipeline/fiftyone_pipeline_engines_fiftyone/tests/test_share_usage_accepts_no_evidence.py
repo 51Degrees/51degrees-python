@@ -140,6 +140,24 @@ class ShareUsageAcceptsNoEvidenceTests(unittest.TestCase):
                          "secret", "http-request"):
             self.assertNotIn(left_out, shared)
 
+    def test_the_method_is_shared_and_the_path_and_cookie_header_are_not(self):
+        """Even when all evidence is shared."""
+
+        usage = usage_element(share_all=True)
+        flowdata = pipeline_with(usage).create_flowdata()
+        flowdata.evidence.add_from_dict(request_evidence({
+            "User-Agent": CHROME,
+            "Cookie": "sessionid=a cookie value",
+        }, "/page?a=1"))
+        flowdata.process()
+
+        shared = "".join(usage.share_data)
+        self.assertIn("request-method", shared)
+        self.assertIn('<cookie Name="sessionid">a cookie value</cookie>',
+                      shared)
+        self.assertNotIn("/page", shared)
+        self.assertNotIn('<header Name="cookie">', shared)
+
     def test_a_key_in_both_places_is_shared_once_with_the_evidence_value(self):
         usage = usage_element()
         flowdata = pipeline_with(usage).create_flowdata()

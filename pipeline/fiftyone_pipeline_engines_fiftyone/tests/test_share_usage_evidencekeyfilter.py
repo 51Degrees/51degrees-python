@@ -112,7 +112,7 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
 
         keys = ShareUsageEvidenceKeyFilter(share_all=True)
 
-        self.assertTrue(keys.filter_evidence_key("header.cookie"))
+        self.assertFalse(keys.filter_evidence_key("header.cookie"))
         self.assertTrue(keys.filter_evidence_key("cookie.sessionid"))
         self.assertTrue(keys.filter_evidence_key("query.password"))
         self.assertTrue(keys.filter_evidence_key("query.id.usage"))
@@ -127,7 +127,8 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
     def test_never_shared_in_every_mode(self):
         """!
         Check that the email address, the salt for hashed email
-        identifiers, the query string and the path are never shared,
+        identifiers, the query string, the path and the Cookie header are never
+        shared,
         whether bare or after a prefix, and without regard to case.
         """
 
@@ -140,7 +141,8 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
                     "query.id.email", "QUERY.ID.EMAIL",
                     "header.id.salt", "HEADER.ID.SALT",
                     "server.request-query", "SERVER.REQUEST-QUERY",
-                    "server.request-path", "SERVER.REQUEST-PATH"):
+                    "server.request-path", "SERVER.REQUEST-PATH",
+                    "header.cookie", "HEADER.COOKIE"):
                 self.assertFalse(keys.filter_evidence_key(key), key)
 
     def test_never_shared_keys_match_whole_parts(self):

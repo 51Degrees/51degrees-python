@@ -25,7 +25,7 @@ web integration adds as server.http-request."""
 
 import unittest
 
-from flask import Flask, request
+from flask import Flask, request, session
 
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_core.web import webevidence
@@ -79,6 +79,31 @@ class UnacceptedEvidenceTests(unittest.TestCase):
         # change.
         with self.assertRaises(TypeError):
             view["header.x-test"] = "changed"
+
+    def test_the_web_request_has_every_part_the_specification_names(self):
+        app = Flask(__name__)
+        app.secret_key = "a secret"
+        with app.test_request_context(
+                "/page?campaign=a",
+                headers={"User-Agent": "a browser",
+                         "Cookie": "sessionid=a cookie value"},
+                environ_base={"REMOTE_ADDR": "203.0.113.5"}):
+            session["51D_one"] = "first"
+            session["theme"] = "dark"
+            view = webevidence(request)["server.http-request"]
+
+        self.assertEqual("a browser", view["header.user-agent"])
+        self.assertEqual("a cookie value", view["cookie.sessionid"])
+        self.assertEqual("a", view["query.campaign"])
+        self.assertEqual("first", view["session.51D_one"])
+        self.assertEqual("dark", view["session.theme"])
+        self.assertEqual("203.0.113.5", view["server.client-ip"])
+        self.assertEqual("http", view["header.protocol"])
+        self.assertEqual("GET", view["server.request-method"])
+        self.assertEqual("/page", view["server.request-path"])
+        # The Cookie header carries every cookie, and cookies are their own
+        # part of the view.
+        self.assertNotIn("header.cookie", view)
 
 
 if __name__ == "__main__":
