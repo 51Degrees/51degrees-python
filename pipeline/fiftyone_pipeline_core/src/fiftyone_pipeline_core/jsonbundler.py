@@ -23,6 +23,10 @@
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
 
+# The property types that hold a shape in well-known text. The JSON holds such
+# a value as an object with one member, value, holding the text.
+WKT_TYPES = ("wkt", "wktstring", "wkb", "wkbr")
+
 class JSONBundlerElement(FlowElement):
 
     """!
@@ -174,6 +178,10 @@ class JSONBundlerElement(FlowElement):
 
                     continue
         
+                if (isinstance(value, str)
+                        and str(propertymeta.get("type", "")).lower() in WKT_TYPES):
+                    value = {"value": value}
+
                 output[flow_element.datakey.lower()][propertykey.lower()] = value
                 if value is None:
                     output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason

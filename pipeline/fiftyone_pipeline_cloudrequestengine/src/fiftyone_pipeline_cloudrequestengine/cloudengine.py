@@ -22,6 +22,7 @@
 
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
+from fiftyone_pipeline_core.jsonbundler import WKT_TYPES
 
 from .clouddata import CloudData
 
@@ -123,6 +124,12 @@ class CloudEngine(Engine):
         result = {}
 
         for key, value in engineData.items():
+
+            # A shape in well-known text arrives as an object holding the text.
+            property_type = str(self.properties.get(key, {}).get("type", ""))
+            if (property_type.lower() in WKT_TYPES and isinstance(value, dict)
+                    and list(value) == ["value"]):
+                value = value["value"]
 
             if key + "nullreason" in engineData:
                 result[key] = AspectPropertyValue(no_value_message=engineData[key + "nullreason"])
