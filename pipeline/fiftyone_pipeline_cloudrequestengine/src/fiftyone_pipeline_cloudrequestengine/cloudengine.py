@@ -71,11 +71,15 @@ class CloudEngine(Engine):
 
         # The accessible properties come from the cloud service for the
         # key in use, a resource key or a licence key, so a section missing
-        # from them means that key does not carry the product at all.
-        if not self.datakey in pipeline.flow_elements_list["cloud"].flow_element_properties:
-            raise Exception("The key in use does not include access to any properties under the engine with key " + self.datakey +  " that was added to the pipeline. For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=engine-properties-not-accessible " + "Available engine data keys are: " + str([e for e in pipeline.flow_elements_list["cloud"].flow_element_properties]))
-
-        self.properties = pipeline.flow_elements_list["cloud"].flow_element_properties[self.datakey]
+        # from them means that key does not carry the product at all. That
+        # is not a configuration error, so the engine is built with no
+        # properties and the missing product is logged here, once.
+        carried = pipeline.flow_elements_list["cloud"].flow_element_properties
+        if not self.datakey in carried:
+            pipeline.log("error", "The key in use does not include access to any properties under the engine with key " + self.datakey +  " that was added to the pipeline. For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=engine-properties-not-accessible " + "Available engine data keys are: " + str([e for e in carried]))
+            self.properties = {}
+        else:
+            self.properties = carried[self.datakey]
 
         # Add a special message to the pipeline 
         # when requesting an element that does not exist
