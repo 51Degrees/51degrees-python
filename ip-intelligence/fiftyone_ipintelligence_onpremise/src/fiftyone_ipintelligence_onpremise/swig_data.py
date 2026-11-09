@@ -27,9 +27,11 @@ from fiftyone_pipeline_engines.missingproperty_service import MissingPropertySer
 
 from .constants import RESULTS_CLOSED
 
-# Number of decimal places used when converting WKB geometry
-# properties (e.g. Areas) to their WKT string form.
-WKT_DECIMAL_PLACES = 16
+# Latitude and Longitude are given to this many decimal places, as the
+# native code gives them in text and in the WKT of Areas.
+COORDINATE_DECIMAL_PLACES = 3
+
+COORDINATE_PROPERTIES = ("latitude", "longitude")
 
 
 class OnPremiseMissingPropertyService(MissingPropertyService):
@@ -166,6 +168,15 @@ class SwigData(AspectData):
 
         return AspectPropertyValue(no_value_message="The IP address type is invalid.")
 
+    @staticmethod
+    def round_coordinate(value):
+
+        """!
+        A latitude or longitude to COORDINATE_DECIMAL_PLACES places
+        """
+
+        return round(value, COORDINATE_DECIMAL_PLACES)
+
     def single_value(self, value, convert=None):
 
         """!
@@ -233,9 +244,15 @@ class SwigData(AspectData):
                 return self.weighted_list_to_value(
                     results.getValuesAsWeightedIntegerList(name))
 
+            # Only the coordinates are rounded.
+            round_coordinate = (
+                self.round_coordinate if name.lower() in COORDINATE_PROPERTIES
+                else None)
+
             if property_type in ("weighteddouble", "weightedsingle"):
                 return self.weighted_list_to_value(
-                    results.getValuesAsWeightedDoubleList(name))
+                    results.getValuesAsWeightedDoubleList(name),
+                    convert=round_coordinate)
 
             if property_type == "weightedbool":
                 return self.weighted_list_to_value(
@@ -265,7 +282,8 @@ class SwigData(AspectData):
                 return self.single_value(results.getValueAsInteger(name))
 
             if property_type in ("double", "single"):
-                return self.single_value(results.getValueAsDouble(name))
+                return self.single_value(
+                    results.getValueAsDouble(name), convert=round_coordinate)
 
             if property_type == "bool":
                 return self.single_value(results.getValueAsBool(name))
