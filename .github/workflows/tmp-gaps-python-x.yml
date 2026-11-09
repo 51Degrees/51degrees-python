@@ -29,7 +29,10 @@ jobs:
         if: always()
         env:
           PYTHONPATH: ip-intelligence/fiftyone_ipintelligence_onpremise/src:device-detection/fiftyone_devicedetection_onpremise/src
-        run: python -m pytest $(cat tmp-tests.txt) -q -m "not live"
+        run: |
+          status=0
+          for f in $(cat tmp-tests.txt); do python -m pytest "$f" -q -m "not live" || status=1; done
+          exit $status
       - name: Core tests
         if: always()
         run: python -m pytest pipeline/fiftyone_pipeline_core/tests -q -m "not live"
