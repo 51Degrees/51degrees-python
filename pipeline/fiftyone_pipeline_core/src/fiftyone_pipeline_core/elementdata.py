@@ -32,7 +32,7 @@ class ElementData(object):
     does not need to be safe to write from several threads. A finished
     instance, once the Flow Element that writes it has finished, is safe to
     read from several threads at once, as the members of a parallel group do.
-    Writing an instance from several threads, or reading it while another
+    An instance that is written from several threads, or read while another
     thread writes it, is not catered for.
 
     """
