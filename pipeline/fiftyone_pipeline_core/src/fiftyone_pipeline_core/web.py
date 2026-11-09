@@ -22,16 +22,28 @@
 
 from types import MappingProxyType
 
-from flask import request
+from flask import has_request_context, request, session
 
 from .evidence import HTTP_REQUEST_KEY
+
+def request_line_path(request):
+
+    """!
+    The path of the request line as the server received it, when the server
+    says what that was, and otherwise the path Flask decoded.
+    """
+
+    raw = request.environ.get("RAW_URI") or request.environ.get("REQUEST_URI")
+    if raw:
+        return raw.split("?", 1)[0].split("#", 1)[0]
+    return request.path
 
 def webevidence(request):
 
     """!
-    Get evidence from a web request (gets headers, cookies, query parameters
-    and the fields of a posted form, and the request itself as
-    server.http-request)
+    Get evidence from a web request (gets headers, cookies, session values,
+    query parameters and the fields of a posted form, and the request itself
+    as server.http-request)
     
     @type request: Request 
     @param request: A Request object
@@ -64,11 +76,13 @@ def webevidence(request):
 
             webevidence["query." + field] = value
 
-    # The request itself, for the usage sharing element, which accepts no
-    # evidence and shares what it finds. A read-only view of the headers,
-    # cookies, query string and form fields above, keyed as evidence is.
-    # Evidence.filter() keeps it from every other element.
-    webevidence[HTTP_REQUEST_KEY] = MappingProxyType(dict(webevidence))
+    # Values stored in the session. They are read without marking the session
+    # as accessed, which would add a Vary: Cookie header to the response, and
+    # only plain values are taken.
+    if has_request_context():
+        for name, value in dict.items(session):
+            if isinstance(value, (str, int, float, bool)):
+                webevidence["session." + name] = value
 
     webevidence["server.client-ip"] =  request.remote_addr
 
@@ -78,6 +92,17 @@ def webevidence(request):
         webevidence["header.protocol"] = "https"
     else:
         webevidence["header.protocol"] = "http"
+
+    # The request itself, for the usage sharing element, which accepts no
+    # evidence and shares what it finds. A read-only view of the parts above
+    # and the method and path of the request line, keyed as evidence is. It
+    # leaves out the Cookie header, which cookies already cover. Evidence
+    # keeps it from every other element.
+    view = {key: value for key, value in webevidence.items()
+            if key not in ("header.cookie", "server.host-ip")}
+    view["server.request-method"] = request.method
+    view["server.request-path"] = request_line_path(request)
+    webevidence[HTTP_REQUEST_KEY] = MappingProxyType(view)
 
     return webevidence
 
