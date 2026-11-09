@@ -76,6 +76,10 @@ class DataFileUpdateService():
         if pipeline != None:
             self.pipeline = pipeline
         self.on_complete_methods = []
+        # Held while the updating flag and the pending check of a data file
+        # are read and changed, so two threads cannot both start an update
+        # or both schedule the next check.
+        self._lock = threading.Lock()
 
     def __emit(self, status, data_file):
         for method in self.on_complete_methods:
@@ -94,10 +98,18 @@ class DataFileUpdateService():
         if not self.__is_registered(data_file):
             return False
 
-        # exit if already updating
+        # Exit if already updating.
+        with self._lock:
+            if data_file.updating:
+                return False
+            data_file.updating = True
 
-        if data_file.updating:
-            pass
+        try:
+            return self._update_data_file(data_file)
+        finally:
+            data_file.updating = False
+
+    def _update_data_file(self, data_file):
 
         # Get the update url
 
@@ -248,7 +260,13 @@ class DataFileUpdateService():
             t = threading.Timer(interval, self.async_update_data_file, args=[data_file])
             t.daemon = True
             t.name = "AutoUpdate - Scheduled"
-            data_file.update_timer = t
+            # One check is pending for a data file, so the one already
+            # waiting is cancelled, for example after a manual update.
+            with self._lock:
+                previous = getattr(data_file, "update_timer", None)
+                if previous is not None:
+                    previous.cancel()
+                data_file.update_timer = t
             t.start()
 
     def register_pipeline(self, pipeline):
