@@ -55,8 +55,9 @@ NOT_CACHEABLE = "private, no-cache"
 # the evidence alone and the response can change while the evidence does not.
 WEAK_ETAG = re.compile(r'W/"[0-9a-f]{32}"\Z')
 
-# The session id the JavaScript builder writes into the script.
-SESSION_ID = re.compile(r'var sessionId = "([^"]*)"')
+# The session id the JavaScript builder writes into the script, which is
+# minified by default.
+SESSION_ID = re.compile(r'var sessionId\s*=\s*"([^"]*)"')
 
 
 class Switchable(FlowElement):
