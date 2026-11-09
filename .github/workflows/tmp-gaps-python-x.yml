@@ -1,0 +1,35 @@
+name: Temporary gaps tests list
+
+on:
+  push:
+    branches:
+      - 'tmp/gaps-x-*'
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: >
+          pip install pytest parameterized requests_mock flask
+          -e pipeline/fiftyone_pipeline_core
+          -e pipeline/fiftyone_pipeline_engines
+          -e pipeline/fiftyone_pipeline_cloudrequestengine
+          -e pipeline/fiftyone_pipeline_engines_fiftyone
+      - name: Install the 51Did package
+        continue-on-error: true
+        run: pwsh pipeline/ci/copy-owid-source.ps1 && pip install -e pipeline/fiftyone_pipeline_did cryptography
+      - name: Listed tests
+        if: always()
+        env:
+          PYTHONPATH: ip-intelligence/fiftyone_ipintelligence_onpremise/src:device-detection/fiftyone_devicedetection_onpremise/src
+        run: python -m pytest $(cat tmp-tests.txt) -q -m "not live"
+      - name: Core tests
+        if: always()
+        run: python -m pytest pipeline/fiftyone_pipeline_core/tests -q -m "not live"
