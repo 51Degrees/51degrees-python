@@ -42,12 +42,22 @@ class PipelineBuilder(object):
         Pipeline Builder constructor.
         @type settings: dictionary
         @param settings : settings for the pipeline builder including:
-        `add_javascript_builder (Bool)` - Whether to add the JavaScriptBuilder to the pipeline
-        (default true)
+        `add_javascript_builder (Bool)` - Whether to add the JavaScriptBuilder, with the
+        JSONBundler and SequenceElement it works with, to the pipeline (default true).
+        Set to False to add none of the three.
+        `add_sequence_element (Bool)` - Whether to add the SequenceElement, as the first
+        element of the pipeline (default true)
+        `add_json_builder_element (Bool)` - Whether to add the JSONBundler (default true).
+        The JavaScriptBuilder reads its output, so a pipeline that keeps the
+        JavaScriptBuilder needs a JSONBundler, added here or by the caller.
+        `add_javascript_builder_element (Bool)` - Whether to add the JavaScriptBuilder
+        alone (default true)
         `javascript_builder_settings (dict)` - Settings for the JavaScriptBuilder engine 
         @rtype: PipelineBuilder
         `use_setheader_properties (Bool)` - Whether to add the SetHeaderElement to the pipeline
         (default true)
+        `add_set_header_element (Bool)` - The same switch as use_setheader_properties.
+        The SetHeaderElement is added only when both are true (default true)
         `suppress_process_exceptions (Bool)` - If False (the default) the first error thrown
         while processing is re-raised from flow_data.process(); if True, errors are stored on
         flow_data.errors and process() returns normally. Recommended True for web apps so a
@@ -67,6 +77,14 @@ class PipelineBuilder(object):
         else:
             self.add_javaScriptbuilder = True
           
+        self.add_sequence_element = settings.get("add_sequence_element", True)
+        self.add_json_builder_element = settings.get(
+            "add_json_builder_element", True)
+        self.add_javascript_builder_element = settings.get(
+            "add_javascript_builder_element", True)
+        self.add_set_header_element = settings.get(
+            "add_set_header_element", True)
+
         if "javascript_builder_settings" in settings:
             self.javascriptbuilder_settings = settings["javascript_builder_settings"]
 
@@ -90,10 +108,25 @@ class PipelineBuilder(object):
         else:
             self.auto_close_elements = True
 
+    def get_sequence_elements(self):
+        """
+        The SequenceElement, to be the first element of the pipeline, unless
+        add_javascript_builder or add_sequence_element is false
+        @rtype: list
+        @return: Returns a list of FlowElements
+        """
+
+        if self.add_javaScriptbuilder and self.add_sequence_element:
+            return [SequenceElement()]
+
+        return []
+
     def get_javascript_elements(self):
         """
-        Adds the JavaScriptBuilder, JSONBundler and SequenceElement to the pipeline if
-        If add_javascript_builder is set to true (the default)
+        The JSONBundler and the JavaScriptBuilder, to be added after the other
+        elements. Neither is added if add_javascript_builder is false, and
+        each has its own switch (add_json_builder_element and
+        add_javascript_builder_element).
         @rtype: list
         @return: Returns a list of FlowElements     
         """
@@ -102,27 +135,28 @@ class PipelineBuilder(object):
 
         if (self.add_javaScriptbuilder):
 
-            flow_elements.append(SequenceElement())
-            flow_elements.append(JSONBundlerElement())
-    
-            if (hasattr(self, "javascriptbuilder_settings")):
-                flow_elements.append(JavascriptBuilderElement(self.javascriptbuilder_settings))
-            else:
-                flow_elements.append(JavascriptBuilderElement())
+            if self.add_json_builder_element:
+                flow_elements.append(JSONBundlerElement())
+
+            if self.add_javascript_builder_element:
+                if (hasattr(self, "javascriptbuilder_settings")):
+                    flow_elements.append(JavascriptBuilderElement(self.javascriptbuilder_settings))
+                else:
+                    flow_elements.append(JavascriptBuilderElement())
    
         return flow_elements
 
     def get_setheader_elements(self):
         """
         Adds the SetHeaderElement to the pipeline if
-        If use_setheader_properties is set to true (the default)
+        If use_setheader_properties and add_set_header_element are true (the default)
         @rtype: list
         @return: Returns a list of FlowElements     
         """
         
         flow_elements = []
 
-        if (self.use_setheader_properties):
+        if self.use_setheader_properties and self.add_set_header_element:
             flow_elements.append(SetHeaderElement())
    
         return flow_elements
@@ -153,10 +187,13 @@ class PipelineBuilder(object):
 
         """
 
-        self.flow_elements.extend(self.get_javascript_elements())
-        self.flow_elements.extend(self.get_setheader_elements())
+        flow_elements = (
+            self.get_sequence_elements() +
+            self.flow_elements +
+            self.get_javascript_elements() +
+            self.get_setheader_elements())
 
-        return Pipeline(self.flow_elements, logger=self.logger, suppress_process_exceptions=self.suppress_process_exceptions, data_file_update_service=self.data_file_update_service, auto_close_elements=self.auto_close_elements)
+        return Pipeline(flow_elements, logger=self.logger, suppress_process_exceptions=self.suppress_process_exceptions, data_file_update_service=self.data_file_update_service, auto_close_elements=self.auto_close_elements)
 
     def add_logger(self, logger):
         """

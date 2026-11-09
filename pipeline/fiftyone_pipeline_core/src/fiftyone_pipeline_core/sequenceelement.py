@@ -24,6 +24,7 @@
 from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
 from .javascriptbuilder import parse_sequence
+from .elementdata_dictionary import ElementDataDictionary
 import uuid
 
 class SequenceElementEvidenceKeyFilter(EvidenceKeyFilter):
@@ -66,7 +67,8 @@ class SequenceElement(FlowElement):
     def process_internal(self, flowdata):
 
         """!
-        The SequenceElement stores session data for requests for JavaScript
+        The SequenceElement stores session data for requests for JavaScript,
+        in its Element Data (session-id and sequence) and in Evidence
     
         @type flowdata: FlowData
         @param flowdata: The FlowData
@@ -81,15 +83,15 @@ class SequenceElement(FlowElement):
             # builder renders any value it cannot use as 1 in the same way.
 
             sequence = parse_sequence(flowdata.evidence.get("query.sequence"))
-
-            flowdata.evidence.add(
-                "query.sequence",
-                1 if sequence is None else sequence + 1)
+            sequence = 1 if sequence is None else sequence + 1
+            session_id = flowdata.evidence.get("query.session-id")
 
         else:
-            flowdata.evidence.add(
-                "query.session-id",
-                str(uuid.uuid4())
-            )
-      
-            flowdata.evidence.add("query.sequence", 1)
+            session_id = str(uuid.uuid4())
+            sequence = 1
+            flowdata.evidence.add("query.session-id", session_id)
+
+        flowdata.evidence.add("query.sequence", sequence)
+
+        flowdata.set_element_data(ElementDataDictionary(
+            self, {"session-id": session_id, "sequence": sequence}))
