@@ -82,7 +82,9 @@ class IpIntelligencePipelineBuilder(PipelineBuilder):
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type performance_profile: string
-        @param performance_profile: options are: LowMemory, MaxPerformance, Balanced, BalancedTemp, HighPerformance
+        @param performance_profile: options are: LowMemory, MaxPerformance,
+        Balanced, BalancedTemp, HighPerformance. Balanced by default, as in
+        the native code.
         @type reuse_temp_file: bool
         @param reuse_temp_file: Indicates that an existing temp file may be used. This should be selected if multiple instances wish to use the same file to prevent high disk usage.
         @type concurrency: int
