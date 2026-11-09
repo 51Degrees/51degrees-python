@@ -555,6 +555,44 @@ Describe 'the real packages.json' {
         Get-ToxGaps (Split-Path $PSScriptRoot) $script:Real |
             Should -BeNullOrEmpty
     }
+
+    Context 'a change to a package''s tox.ini' {
+        BeforeAll {
+            $published = @($script:Real | Where-Object Publish -eq $true)
+            $script:RealTags = @($published | ForEach-Object { "$($_.Name)/4.5.1" })
+            $script:RealFiles = @($script:Real | ForEach-Object {
+                "$($_.Path)/src/a.py"
+                "$($_.Path)/tox.ini"
+            })
+        }
+
+        It 'releases nothing, whichever package it sits beside' {
+            $script:Repo = New-Repo $script:RealFiles $script:RealTags
+            Add-Commit $script:Repo ($script:Real | ForEach-Object { "$($_.Path)/tox.ini" })
+            @(Get-ReleasePlan $script:Repo $script:Real).Count | Should -Be 0
+        }
+
+        It 'still releases a package for a change to its source' {
+            $script:Repo = New-Repo $script:RealFiles $script:RealTags
+            Add-Commit $script:Repo @(
+                'pipeline/fiftyone_pipeline_core/tox.ini',
+                'pipeline/fiftyone_pipeline_core/src/a.py')
+            $plan = @(Get-ReleasePlan $script:Repo $script:Real)
+            $plan.Name | Should -Contain 'fiftyone_pipeline_core'
+            ($plan | Where-Object Name -eq 'fiftyone_pipeline_core').Reason |
+                Should -Be 'changed since 4.5.1 (1 file)'
+        }
+
+        It 'is ignored by every package that has a tox.ini' {
+            $root = Split-Path $PSScriptRoot
+            $beside = @($script:Real | Where-Object {
+                Test-Path (Join-Path $root "$($_.Path)/tox.ini") -PathType Leaf })
+            $beside.Count | Should -BeGreaterThan 10
+            foreach ($package in $beside) {
+                $package.Ignore | Should -Contain '**/tox.ini' -Because $package.Name
+            }
+        }
+    }
 }
 
 }
