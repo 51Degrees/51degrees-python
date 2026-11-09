@@ -22,6 +22,7 @@
 
 import hashlib
 import json
+import re
 
 from flask import make_response, request
 
@@ -41,6 +42,15 @@ _CACHE_CONTROL_AFTER_ERRORS = "private, no-cache"
 _REVALIDATION_HEADERS = frozenset((
     "cache-control", "if-match", "if-modified-since", "if-none-match",
     "if-range", "if-unmodified-since", "pragma"))
+
+# An entity tag of RFC 9110 section 8.8.3, being an optional W/ and an
+# opaque tag in double quotes of visible characters other than the double
+# quote. The second group is the opaque tag without its quotes.
+_ENTITY_TAG = re.compile(r'(W/)?"([\x21\x23-\x7e\x80-\xff]*)"')
+
+# The optional whitespace around the commas of a list, RFC 9110 section
+# 5.6.3.
+_OWS = " \t"
 
 def webevidence(request):
 
@@ -119,12 +129,14 @@ def javascript_response(pipeline, request):
     JavaScript the pipeline's JavaScriptBuilder writes, with the cache headers
     the web integration specification sets.
 
-    A GET or HEAD request whose If-None-Match header names the ETag of its
-    evidence gets a 304 without being processed, so a browser keeps a good
-    copy while processing fails. A request by any other method whose
-    If-None-Match matches, such as a POST to the JSON endpoint, gets 412
-    Precondition Failed, as RFC 9110 section 13.1.2 asks. Otherwise the
-    response carries
+    The ETag is a weak entity tag, W/"...", hashed from the evidence the
+    request supplied that the pipeline's elements accept. A GET or HEAD
+    request whose If-None-Match header matches it, by the weak comparison of
+    RFC 9110 section 13.1.2, gets a 304 without being processed, so a
+    browser keeps a good copy while processing fails. A request by any other
+    method whose If-None-Match matches, such as a POST to the JSON endpoint,
+    gets 412 Precondition Failed. An If-None-Match that is neither "*" nor a
+    list of entity tags matches nothing. Otherwise the response carries
     'Cache-Control: max-age=1800, private' and the ETag, or
     'Cache-Control: private, no-cache' and no ETag when processing recorded
     errors. Both carry a Vary header naming the request headers the
@@ -172,10 +184,14 @@ def _client_side_response(pipeline, request, content, content_type):
 
         # From the request's own evidence, because processing adds to it.
         # The sequence element gives a request with no session id a new one.
-        etag = _etag(pipeline, evidence)
+        opaque_tag = _opaque_tag(pipeline, evidence)
+        # Weak, because the response can change while the evidence does not,
+        # for example when the data file is updated (RFC 9110 section 8.8.3).
+        etag = 'W/"' + opaque_tag + '"'
         vary = _vary(pipeline, request)
 
-        if _etag_matches(request.headers.get("If-None-Match"), etag):
+        if _if_none_match_matches(
+                request.headers.get("If-None-Match"), opaque_tag):
             if request.method not in ("GET", "HEAD"):
                 # RFC 9110 section 13.1.2 allows a 304 for GET and HEAD only.
                 response = make_response("", 412)
@@ -217,7 +233,7 @@ def _uses(pipeline, key):
         element.filter_evidence_key(key)
         for element in pipeline.flow_elements)
 
-def _etag(pipeline, evidence):
+def _opaque_tag(pipeline, evidence):
 
     # SHA-256 rather than hash(), which Python seeds afresh in each process,
     # so a browser revalidating against another process, after a restart or
@@ -229,21 +245,46 @@ def _etag(pipeline, evidence):
             digest.update(b"\0")
             digest.update(str(evidence[key]).encode("utf-8"))
             digest.update(b"\0")
-    return '"' + digest.hexdigest()[:32] + '"'
+    return digest.hexdigest()[:32]
 
-def _etag_matches(if_none_match, etag):
+def _if_none_match_matches(if_none_match, opaque_tag):
 
-    # The weak comparison RFC 9110 section 13.1.2 asks for, so a W/ prefix
-    # is ignored, and "*" matches any ETag.
-    if not if_none_match:
+    # RFC 9110 section 13.1.2. "*" matches, as there is always a response.
+    # A list of entity tags matches when one of them has the same opaque
+    # tag, whether or not either is weak. Anything else matches nothing.
+    if if_none_match is None:
         return False
-    for candidate in if_none_match.split(","):
-        candidate = candidate.strip()
-        if candidate.startswith("W/"):
-            candidate = candidate[2:]
-        if candidate == "*" or candidate == etag:
-            return True
-    return False
+    value = if_none_match.strip(_OWS)
+    if value == "*":
+        return True
+    tags = _entity_tags(value)
+    return tags is not None and opaque_tag in tags
+
+def _entity_tags(value):
+
+    # The opaque tags of a list of entity tags, which may have whitespace
+    # around its commas and empty elements (RFC 9110 section 5.6.1.2), or
+    # None when the value is not such a list.
+    tags = []
+    position = 0
+    while True:
+        while position < len(value) and value[position] in _OWS:
+            position += 1
+        if position == len(value):
+            return tags
+        if value[position] != ",":
+            tag = _ENTITY_TAG.match(value, position)
+            if tag is None:
+                return None
+            tags.append(tag.group(2))
+            position = tag.end()
+            while position < len(value) and value[position] in _OWS:
+                position += 1
+            if position == len(value):
+                return tags
+            if value[position] != ",":
+                return None
+        position += 1
 
 def _vary(pipeline, request):
 
