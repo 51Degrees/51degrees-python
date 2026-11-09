@@ -80,7 +80,7 @@ def webevidence(request):
     # as accessed, which would add a Vary: Cookie header to the response, and
     # only plain values are taken.
     if has_request_context():
-        for name, value in dict.items(session):
+        for name, value in dict.items(session._get_current_object()):
             if isinstance(value, (str, int, float, bool)):
                 webevidence["session." + name] = value
 
