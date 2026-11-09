@@ -6,8 +6,9 @@ param (
 )
 
 if (!$Keys.TestResourceKey) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::No resource key was provided, so integration tests will not run."
-    return
+    throw "No TestResourceKey was passed, so the cloud tests cannot call " +
+        "the cloud service. The workflows set it from the " +
+        "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
 }
 
 ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages . -Keys $Keys

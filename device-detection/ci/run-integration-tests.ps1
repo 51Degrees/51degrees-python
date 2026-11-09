@@ -14,11 +14,14 @@ if ($IsWindows) {
 $packages = "fiftyone_devicedetection_cloud", "fiftyone_devicedetection_examples"
 
 if (!$Keys.TestResourceKey) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::No resource key was provided, so integration tests will not run."
-    return
-} elseif (!(Test-Path $RepoName/fiftyone_devicedetection_cloud/tests/51Degrees.csv)) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No CSV File::CSV file wasn't found, so cloud tests will not run."
-    $packages = "fiftyone_devicedetection_examples"
+    throw "No TestResourceKey was passed, so the cloud tests cannot call " +
+        "the cloud service. The workflows set it from the " +
+        "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
+}
+# The cloud package runs without the CSV file too, because only its property
+# coverage tests read the file, and they say so when it is missing.
+if (!(Test-Path $RepoName/fiftyone_devicedetection_cloud/tests/51Degrees.csv)) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No CSV File::CSV file wasn't found, so the cloud property coverage tests will not run."
 }
 
 # nightly-publish-main workflow doesn't create the examples package, so
