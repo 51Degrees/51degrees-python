@@ -77,8 +77,8 @@ LABEL_PATTERN = re.compile(r"[A-Za-z0-9_-]+")
 # and any number of hexadecimal digits.
 NUMBER_LABEL_PATTERN = re.compile(r"[0-9]+|0[xX][0-9A-Fa-f]*")
 
-# A port as it follows the host, being ':' and any number of digits.
-PORT_PATTERN = re.compile(r":[0-9]*")
+# A port as it follows the host, being ':' and at least one digit.
+PORT_PATTERN = re.compile(r":[0-9]+")
 
 # One group of an IPv6 address.
 HEX_GROUP_PATTERN = re.compile(r"[0-9A-Fa-f]{1,4}")
@@ -192,7 +192,7 @@ def _checked_host_port(host_port):
     valid. The host is an IPv6 address in brackets, or a name of labels
     separated by dots with a dot allowed at the end, which is an IPv4 address
     when its last label is a number. The port is ':' followed by digits up to
-    65535, or by nothing.
+    65535.
     """
 
     if host_port.startswith("["):
@@ -223,7 +223,7 @@ def _is_port(text):
 
     """!
     Whether the text is ':' followed by digits whose value is no more than
-    65535, or by nothing.
+    65535.
     """
 
     if PORT_PATTERN.fullmatch(text) is None:
