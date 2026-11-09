@@ -28,6 +28,7 @@ in the shapes the cloud service uses.
 
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -322,6 +323,10 @@ DESKTOP_CHROME = (
 CACHEABLE = "max-age=1800, private"
 NOT_CACHEABLE = "private, no-cache"
 
+# A weak entity tag of RFC 9110 section 8.8.3, because the ETag depends on
+# the evidence alone.
+WEAK_ETAG = re.compile(r'W/"[0-9a-f]{32}"\Z')
+
 
 def client_side(client, path, **headers):
     """The response of one of the client-side endpoints."""
@@ -355,7 +360,7 @@ def test_a_good_response_may_be_kept_by_the_browser_alone(cloud, path):
 
     assert response.status_code == 200
     assert response.headers.get("Cache-Control") == CACHEABLE
-    assert response.headers.get("ETag", "").startswith('"')
+    assert WEAK_ETAG.match(response.headers.get("ETag", ""))
     assert "User-Agent" in response.headers.get("Vary", "")
 
 
@@ -374,7 +379,7 @@ def test_the_etag_is_the_same_in_every_process():
             text=True, timeout=120, env=dict(os.environ, PYTHONHASHSEED=seed))
         assert finished.returncode == 0, finished.stderr
         etags.append(finished.stdout.strip().splitlines()[-1])
-    assert etags[0].startswith('"'), etags
+    assert WEAK_ETAG.match(etags[0]), etags
     assert etags[0] == etags[1]
 
 

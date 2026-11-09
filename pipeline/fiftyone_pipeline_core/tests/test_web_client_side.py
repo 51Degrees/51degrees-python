@@ -24,6 +24,7 @@
 the cache header detail of the web integration specification sets them."""
 
 import os
+import re
 import subprocess
 import sys
 from types import MappingProxyType
@@ -49,6 +50,13 @@ SAFARI = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
 
 CACHEABLE = "max-age=1800, private"
 NOT_CACHEABLE = "private, no-cache"
+
+# A weak entity tag of RFC 9110 section 8.8.3, because the ETag depends on
+# the evidence alone and the response can change while the evidence does not.
+WEAK_ETAG = re.compile(r'W/"[0-9a-f]{32}"\Z')
+
+# The session id the JavaScript builder writes into the script.
+SESSION_ID = re.compile(r'var sessionId = "([^"]*)"')
 
 
 class Switchable(FlowElement):
@@ -123,8 +131,7 @@ class ClientSideCacheTests(unittest.TestCase):
             self.assertEqual(CACHEABLE, response.headers.get("Cache-Control"))
             etag = response.headers.get("ETag")
             self.assertIsNotNone(etag, "a good response carries an ETag")
-            self.assertTrue(etag.startswith('"') and etag.endswith('"'),
-                            "an ETag is a quoted string: " + etag)
+            self.assertRegex(etag, WEAK_ETAG)
             self.assertIn("User-Agent", response.headers.get("Vary", ""))
 
     def test_the_content_type_says_which_endpoint_answered(self):
@@ -161,8 +168,33 @@ class ClientSideCacheTests(unittest.TestCase):
                 env=dict(os.environ, PYTHONHASHSEED=seed))
             self.assertEqual(0, finished.returncode, finished.stderr)
             etags.append(finished.stdout.strip().splitlines()[-1])
+        self.assertRegex(etags[0], WEAK_ETAG)
         self.assertEqual(etags[0], etags[1])
         self.assertEqual(script_etag(), etags[0])
+
+    def test_the_etag_is_the_same_from_two_pipelines(self):
+        self.assertRegex(script_etag(), WEAK_ETAG)
+        self.assertEqual(script_etag(), script_etag())
+
+    def test_the_session_id_the_sequence_element_adds_is_not_in_the_etag(
+            self):
+        """The sequence element gives a request with no session id a new one
+        while processing, and the script carries it. The ETag covers only the
+        evidence the request supplied, so it is the same for both
+        requests."""
+
+        responses = [
+            self.client.get(
+                "/51Degrees.core.js", headers={"User-Agent": CHROME})
+            for _ in range(2)]
+        session_ids = [
+            SESSION_ID.search(response.get_data(as_text=True)).group(1)
+            for response in responses]
+        self.assertTrue(session_ids[0], "the script carries a session id")
+        self.assertNotEqual(session_ids[0], session_ids[1])
+        self.assertRegex(responses[0].headers["ETag"], WEAK_ETAG)
+        self.assertEqual(
+            responses[0].headers["ETag"], responses[1].headers["ETag"])
 
     def test_revalidation_with_the_etag_is_answered_not_modified(self):
         good = self.client.get(
@@ -215,17 +247,87 @@ class ClientSideCacheTests(unittest.TestCase):
                 "User-Agent": CHROME, "If-None-Match": etag})
         self.assertEqual(304, response.status_code)
 
-    def test_a_weak_or_listed_etag_still_matches(self):
+    @staticmethod
+    def if_none_match_cases(etag):
+        """Values of If-None-Match, each with whether it matches the ETag by
+        RFC 9110 section 13.1.2. A value that is neither "*" nor a list of
+        entity tags matches nothing, even when it holds the ETag."""
+
+        quoted = etag[len("W/"):]
+        return [
+            # The weak comparison ignores W/ on either side.
+            (etag, True),
+            (quoted, True),
+            ("*", True),
+            ('"other", ' + etag, True),
+            ('W/"other", ' + quoted, True),
+            # A list may hold a comma inside a tag, a tab or no space
+            # around a comma, and empty elements (RFC 9110 section 5.6.1.2).
+            ('W/"a,b", ' + etag, True),
+            ('"other",\t' + etag, True),
+            ('"other"\t,' + etag, True),
+            ('"other",' + etag, True),
+            (", " + etag + " ,", True),
+            ('"other"', False),
+            ('W/"other", "another"', False),
+            ("", False),
+            # Not a list of entity tags.
+            (etag + ", other", False),
+            ("other, " + etag, False),
+            ('"other" ' + etag, False),
+            ('"other"' + etag, False),
+            (etag + ' "other"', False),
+            (etag + ', "a b"', False),
+            (quoted[:-1] + ' "', False),
+            ("w/" + quoted, False),
+            ("W/ " + quoted, False),
+            ("*, " + etag, False),
+            (etag + ", *", False),
+            (quoted[1:-1], False),
+            (quoted[:-1], False),
+        ]
+
+    def test_if_none_match_on_a_get_is_compared_weakly(self):
+        good = self.client.get(
+            "/51Degrees.core.js", headers={"User-Agent": CHROME})
+        self.assertRegex(good.headers["ETag"], WEAK_ETAG)
+        for value, matches in self.if_none_match_cases(good.headers["ETag"]):
+            with self.subTest(value=value):
+                response = self.client.get("/51Degrees.core.js", headers={
+                    "User-Agent": CHROME, "If-None-Match": value})
+                self.assertEqual(304 if matches else 200,
+                                 response.status_code)
+                self.assertEqual(good.headers["ETag"],
+                                 response.headers.get("ETag"))
+
+    def test_if_none_match_on_a_post_is_compared_weakly(self):
+        good = self.client.post("/json", headers={"User-Agent": CHROME})
+        self.assertRegex(good.headers["ETag"], WEAK_ETAG)
+        for value, matches in self.if_none_match_cases(good.headers["ETag"]):
+            with self.subTest(value=value):
+                response = self.client.post("/json", headers={
+                    "User-Agent": CHROME, "If-None-Match": value})
+                self.assertEqual(412 if matches else 200,
+                                 response.status_code)
+                if matches:
+                    self.assertEqual(b"", response.data)
+                    self.assertNotIn("ETag", response.headers)
+                else:
+                    self.assertEqual(
+                        42, response.get_json()["switchable"]["answer"])
+
+    def test_if_none_match_fields_are_one_list(self):
+        """Several If-None-Match fields are one comma-separated list, as RFC
+        9110 section 5.3 says."""
+
         etag = self.client.get(
             "/51Degrees.core.js", headers={"User-Agent": CHROME}) \
             .headers["ETag"]
-        for value in ("W/" + etag, '"other", ' + etag, "*"):
-            response = self.client.get("/51Degrees.core.js", headers={
-                "User-Agent": CHROME, "If-None-Match": value})
-            self.assertEqual(304, response.status_code, value)
-        response = self.client.get("/51Degrees.core.js", headers={
-            "User-Agent": CHROME, "If-None-Match": '"other"'})
-        self.assertEqual(200, response.status_code)
+        response = self.client.get("/51Degrees.core.js", headers=[
+            ("User-Agent", CHROME),
+            ("If-None-Match", '"other"'),
+            ("If-None-Match", etag)])
+        self.assertEqual(304, response.status_code)
 
     def test_a_response_to_a_failed_request_carries_no_etag(self):
         Switchable.failing = True
