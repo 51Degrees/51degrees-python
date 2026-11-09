@@ -130,9 +130,9 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.assertEqual("version 1", data_file.data)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_REFRESH_FAILED], self.statuses)
-        self.assertEqual(1, len(self.pipeline.logs))
-        self.assertEqual("error", self.pipeline.logs[0][0])
-        self.assertIn("The data file cannot be used.", self.pipeline.logs[0][1])
+        errors = [log for log in self.pipeline.logs if log[0] == "error"]
+        self.assertEqual(1, len(errors))
+        self.assertIn("The data file cannot be used.", errors[0][1])
         self.assertEqual(1, len(self.pending))
 
         self.write("version 2")
