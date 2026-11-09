@@ -361,6 +361,28 @@ class ClientSideCacheTests(unittest.TestCase):
         self.assertEqual(200, response.status_code)
         self.assertEqual(CACHEABLE, response.headers.get("Cache-Control"))
 
+    def test_the_max_age_can_be_set(self):
+        pipeline = PipelineBuilder({
+            "javascript_builder_settings": {"endpoint": "/json"},
+        }).add(Switchable()).build()
+        app = Flask(__name__)
+
+        @app.route("/51Degrees.core.js")
+        def javascript():
+            return javascript_response(pipeline, request, 60)
+
+        @app.route("/json", methods=["POST"])
+        def results():
+            return json_response(pipeline, request, max_age_seconds=60)
+
+        client = app.test_client()
+        for response in (
+                client.get("/51Degrees.core.js",
+                           headers={"User-Agent": CHROME}),
+                client.post("/json", headers={"User-Agent": CHROME})):
+            self.assertEqual("max-age=60, private",
+                             response.headers.get("Cache-Control"))
+
 
 if __name__ == "__main__":
     unittest.main()
