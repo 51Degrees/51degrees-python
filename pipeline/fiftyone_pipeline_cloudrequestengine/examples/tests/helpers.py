@@ -29,18 +29,21 @@ import pytest
 
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
+from live_cloud import find_resource_key, no_resource_key
+
+NO_KEY = no_resource_key(
+    "the device, ip and countrynamestranslated products",
+    "device detection and IP Intelligence properties, and the translated "
+    "country names", several=True)
+
 # The ways a test can reach the cloud service, as the keyword arguments the
-# examples' create_pipeline takes. Each is skipped when its key is not set.
+# examples' create_pipeline takes, each passed through credentials(). A test
+# with a resource key fails when none is set. A test with a licence key is
+# skipped when none is set, because CI has no cloud licence key to give it.
 KEYS = [
     pytest.param(
-        {"resource_key": ExampleUtils.get_resource_key()},
-        id="resource key",
-        marks=pytest.mark.skipif(
-            not ExampleUtils.get_resource_key(),
-            reason=f"Set {ExampleUtils.RESOURCE_KEY_ENV_VAR} to a resource "
-                   "key carrying device detection and IP intelligence "
-                   "properties to run the cloud tests with a resource "
-                   "key.")),
+        {"resource_key": find_resource_key()},
+        id="resource key"),
     pytest.param(
         {"license_key": ExampleUtils.get_license_key()},
         id="licence key",
@@ -51,6 +54,15 @@ KEYS = [
                    "properties to run the cloud tests with a licence "
                    "key.")),
 ]
+
+
+def credentials(keys):
+    """The keyword arguments from KEYS, failing the test when they hold a
+    resource key that is not set."""
+
+    if "resource_key" in keys and not keys["resource_key"]:
+        pytest.fail(NO_KEY, pytrace=False)
+    return keys
 
 
 def cell_after(page, label):

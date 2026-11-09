@@ -35,9 +35,12 @@
 #
 # The native engine holds the Python GIL for the duration of each lookup, so
 # threads cannot run lookups in parallel. Parallelism therefore uses worker
-# processes, each building its own pipeline. With the LowMemory profile the
-# memory mapped data file is shared between the processes by the operating
-# system, so a large enterprise data file is not duplicated per worker.
+# processes, each building its own pipeline. With the default MaxPerformance
+# profile each worker loads the whole data file into its own memory, so the
+# memory used grows with the number of workers. With -p LowMemory each worker
+# reads the data file from disk as it needs it, and the operating system's
+# file cache holds one copy for all the workers, so a large Enterprise data
+# file is not held once per worker.
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence

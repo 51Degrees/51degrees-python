@@ -41,7 +41,10 @@ examples as they run from a fresh clone, with no licence key, and check that
 each one finishes on the free Lite data file and gives the link to ask for
 the Enterprise data file.
 
-Cloud tests will only run with a valid 51Degrees resource key (see above) set as a resource_key operating system environment variable.
+The cloud tests need a valid 51Degrees resource key (see above), and fail
+without one. They read it from the environment variable
+`_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`, then
+`resource_key`.
 
 For example, use following command to set resource_key on Linux:
 `export resource_key=MY-RESOURCE-KEY`

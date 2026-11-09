@@ -90,8 +90,10 @@ then open <http://localhost:5000>. Set `PORT` to listen on another port.
 .venv/bin/python -m pytest
 ```
 
-The tests that call the cloud service skip themselves when no resource key
-is set.
+The tests that call the cloud service with a resource key fail when none is
+set, naming the variables they read, which are `_51DEGREES_RESOURCE_KEY`,
+`_51DEGREES_RESOURCE_KEY_BESPOKE` and `resource_key`, in that order. The
+tests that use a licence key skip themselves when none is set.
 
 In CI the examples are run by [ci/run-integration-tests.ps1](../../ci/run-integration-tests.ps1)
 through common-ci, on every Python version and operating system in

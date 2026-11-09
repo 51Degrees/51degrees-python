@@ -202,6 +202,51 @@ class JavaScriptBuilderVariablesTests(unittest.TestCase):
         self.assertEqual(1, len(errors), errors)
         self.assertIn("'https://exa mple.com/json'", errors[0])
 
+    @parameterized.expand([
+        ("user:secret@example.com", "'https://***@example.com/json'"),
+        ("a@b@example.com", "'https://***@example.com/json'"),
+        ("u@[::1]:80x", "'https://***@[::1]:80x/json'"),
+        ("user:pa/ss@example.com", "'https://***@example.com/json'"),
+        ("user:pa?ss@example.com", "'https://***@example.com/json'"),
+        ("exa mple.com/a@b", "'https://***@b/json'"),
+    ])
+    def test_refused_host_is_logged_without_its_user_information(
+            self, host, logged):
+        """The log never holds what comes before the last '@' of the host
+        value. Each host has an element of its own because a refusal is
+        logged once per element."""
+
+        rendered, errors = _render_with_hosts([host])
+
+        self.assertNotIn("_url", rendered[0])
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn(logged, errors[0])
+        self.assertNotIn("secret", errors[0])
+        self.assertNotIn("'pa", errors[0])
+        self.assertNotIn("pa/", errors[0])
+
+    def test_refused_configured_host_is_logged_without_user_information(
+            self):
+        """A host from the settings is refused and logged the same way."""
+
+        logger = MemoryLogger("error")
+        pipeline = PipelineBuilder({"javascript_builder_settings": {
+            "minify": False, "endpoint": "/json",
+            "host": "user:secret@example.com"}}).add_logger(
+                logger).build()
+        captured = _CapturedAll()
+        with mock.patch.object(
+                javascriptbuilder.chevron, "render", captured.render):
+            pipeline.create_flowdata().process()
+        errors = [
+            entry["message"] for entry in logger.memory_log
+            if entry["level"] == "error"]
+
+        self.assertNotIn("_url", captured.variables[0])
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn("'https://***@example.com/json'", errors[0])
+        self.assertNotIn("secret", errors[0])
+
     def test_refused_url_is_logged_on_one_line(self):
         """The URL is quoted and escaped in the log, so a line break in it
         cannot start a new log line."""

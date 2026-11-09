@@ -35,6 +35,13 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.cloud.gettingstarted_console import GettingStartedConsole
 from fiftyone_devicedetection_examples.cloud.configurator_console import ConfiguratorConsole
 
+from .live_cloud import find_resource_key, no_resource_key
+
+NO_KEY = no_resource_key(
+    "the device product, and the hardware product for the lookups",
+    "device detection properties, and for the hardware profiles the TAC "
+    "and native model lookups return", several=True)
+
 # Text that shows an example printed a programming fault rather than a
 # result. An example that reaches any of these is broken, however little of
 # the data the resource key is entitled to.
@@ -50,17 +57,12 @@ FAULT_MARKERS = [
 
 class DeviceDetectionExampleTests(unittest.TestCase):
 
-    # Init method - specify a resource key here, or set one in the
-    # environment variable named by ExampleUtils.RESOURCE_KEY_ENV_VAR.
     def setUp(self):
-        self.resource_key = ExampleUtils.get_resource_key()
+        self.resource_key = find_resource_key()
         self.logger = Logger()
 
         if not self.resource_key:
-            # Skipping rather than passing, so a run without a key is not
-            # mistaken for a run that proved something. The message names
-            # the variable that was wanted.
-            self.skipTest(ExampleUtils.get_missing_resource_key_message())
+            self.fail(NO_KEY)
 
     def run_example(self, example):
         """!
