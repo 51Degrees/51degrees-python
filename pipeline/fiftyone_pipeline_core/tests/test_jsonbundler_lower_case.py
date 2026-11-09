@@ -27,8 +27,9 @@ class MixedCaseElement(FlowElement):
             "EmptyProp": {"name": "EmptyProp", "type": "string"}}
 
     def process_internal(self, flowdata):
-        flowdata.set_element_data(ElementDataDictionary(
-            self, {"DelayedProp": "a", "OtherProp": "b", "EmptyProp": None}))
+        # FlowData.get reads the data under the lower case key.
+        flowdata.data["mixedcase"] = ElementDataDictionary(
+            self, {"DelayedProp": "a", "OtherProp": "b", "EmptyProp": None})
 
 
 class JsonBuilderLowerCaseTests(unittest.TestCase):
