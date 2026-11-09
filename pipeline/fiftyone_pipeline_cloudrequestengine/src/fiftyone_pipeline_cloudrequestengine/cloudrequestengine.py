@@ -30,6 +30,7 @@ from json import JSONDecodeError
 
 import requests
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 
@@ -354,7 +355,8 @@ class CloudRequestEngine(Engine):
         # in the response then add an explanation to the list of
         # messages.
         if not messages and not has_data:
-            message = Constants.MESSAGE_NO_DATA_IN_RESPONSE.format(cloud_response.url)
+            message = Constants.MESSAGE_NO_DATA_IN_RESPONSE.format(
+                mask_licence_keys_in_text(cloud_response.url))
             messages.append(message)
 
         # If there were no errors returned but the response code was non
