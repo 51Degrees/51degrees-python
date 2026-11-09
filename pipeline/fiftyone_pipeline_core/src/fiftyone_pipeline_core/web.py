@@ -26,9 +26,9 @@ import re
 
 from flask import make_response, request
 
-# The Cache-Control of a client-side response to a request whose processing
-# recorded no errors. The browser alone may keep it, for 30 minutes.
-_CACHE_CONTROL = "max-age=1800, private"
+# How long the browser alone may keep a client-side response to a request
+# whose processing recorded no errors, unless the caller gives another time.
+CLIENT_SIDE_MAX_AGE_SECONDS = 1800
 
 # The Cache-Control of a client-side response to a request whose processing
 # recorded errors. It goes with no ETag, so a browser that kept the response
@@ -122,7 +122,8 @@ def set_response_header(flowData, response):
 
     return response
 
-def javascript_response(pipeline, request):
+def javascript_response(
+        pipeline, request, max_age_seconds=CLIENT_SIDE_MAX_AGE_SECONDS):
 
     """!
     Process a request for the client-side JavaScript and answer with the
@@ -137,15 +138,17 @@ def javascript_response(pipeline, request):
     method whose If-None-Match matches, such as a POST to the JSON endpoint,
     gets 412 Precondition Failed. An If-None-Match that is neither "*" nor a
     list of entity tags matches nothing. Otherwise the response carries
-    'Cache-Control: max-age=1800, private' and the ETag, or
-    'Cache-Control: private, no-cache' and no ETag when processing recorded
-    errors. Both carry a Vary header naming the request headers the
+    'Cache-Control: max-age=1800, private', or the max age given, and the
+    ETag, or 'Cache-Control: private, no-cache' and no ETag when processing
+    recorded errors. Both carry a Vary header naming the request headers the
     pipeline's elements accept.
 
     @type pipeline: Pipeline
     @param pipeline: A pipeline holding the JavaScriptBuilder
     @type request: Request
     @param request: The request for the JavaScript
+    @type max_age_seconds: int
+    @param max_age_seconds: How long the browser may keep the response
     @rtype Response
     @return The response to send
     """
@@ -153,9 +156,10 @@ def javascript_response(pipeline, request):
     return _client_side_response(
         pipeline, request,
         lambda flowdata: flowdata.javascriptbuilder.javascript,
-        "application/x-javascript")
+        "application/x-javascript", max_age_seconds)
 
-def json_response(pipeline, request):
+def json_response(
+        pipeline, request, max_age_seconds=CLIENT_SIDE_MAX_AGE_SECONDS):
 
     """!
     Process a request from the client-side JavaScript and answer with the
@@ -166,6 +170,8 @@ def json_response(pipeline, request):
     @param pipeline: A pipeline holding the JSONBundler
     @type request: Request
     @param request: The request from the client-side JavaScript
+    @type max_age_seconds: int
+    @param max_age_seconds: How long the browser may keep the response
     @rtype Response
     @return The response to send
     """
@@ -173,10 +179,12 @@ def json_response(pipeline, request):
     return _client_side_response(
         pipeline, request,
         lambda flowdata: json.dumps(flowdata.jsonbundler.json),
-        "application/json")
+        "application/json", max_age_seconds)
 
-def _client_side_response(pipeline, request, content, content_type):
+def _client_side_response(
+        pipeline, request, content, content_type, max_age_seconds):
 
+    cache_control = "max-age=" + str(int(max_age_seconds)) + ", private"
     flowdata = pipeline.create_flowdata()
     try:
         evidence = webevidence(request)
@@ -201,7 +209,7 @@ def _client_side_response(pipeline, request, content, content_type):
             # 15.4.5 asks a 304 to repeat.
             response = make_response("", 304)
             response.headers.pop("Content-Type", None)
-            response.headers["Cache-Control"] = _CACHE_CONTROL
+            response.headers["Cache-Control"] = cache_control
             response.headers["ETag"] = etag
         else:
             flowdata.process()
@@ -210,7 +218,7 @@ def _client_side_response(pipeline, request, content, content_type):
             if flowdata.errors:
                 response.headers["Cache-Control"] = _CACHE_CONTROL_AFTER_ERRORS
             else:
-                response.headers["Cache-Control"] = _CACHE_CONTROL
+                response.headers["Cache-Control"] = cache_control
                 response.headers["ETag"] = etag
 
         if vary:
