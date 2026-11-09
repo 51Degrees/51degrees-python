@@ -37,7 +37,7 @@ from .share_usage_tracker import ShareUsageTracker
 
 # The maximum length of a piece of evidence's value which can be
 # added to the usage data being sent.
-SHARE_USAGE_MAX_EVIDENCE_LENGTH = 512
+SHARE_USAGE_MAX_EVIDENCE_LENGTH = 10000
 
 SHARE_USAGE_VERSION = '1.1'
 
@@ -284,7 +284,7 @@ class ShareUsage(Engine):
                 else:
                     xml += f"<{entry_key}"
                 # Write any attributes
-                if replaced_string.replaced:
+                if replaced_string.escaped:
                     xml += ' escaped="true"'
                 if replaced_string.truncated:
                     xml += ' truncated="true"'
@@ -361,49 +361,51 @@ class ShareUsage(Engine):
         return data
 
 
-# a set of valid XML character values (ignoring valid controls x09, x0a, x0d, x85)
-VALID_XML_CHARS = [*range(int("0x20", 16), int("0x7F", 16))]
-VALID_XML_CHARS.extend(range(int("0x40", 16), int("0x100", 16)))
+# The characters that XML 1.0 section 2.2 allows, as ranges of code points.
+VALID_XML_RANGES = (
+    (0x9, 0xA), (0xD, 0xD), (0x20, 0xD7FF), (0xE000, 0xFFFD),
+    (0x10000, 0x10FFFF))
 
-def get_is_valid_char_map():
-  maxChar = int('0x100', 16)
-  isValidChar = {}
-  for c in range(maxChar):
-    isValidChar[c] = c in VALID_XML_CHARS
-  return isValidChar
+# The characters that are written as entities in element text.
+XML_ENTITIES = {
+    '&': '&amp;',
+    '"': '&quot;',
+    "'": '&apos;',
+    '<': '&lt;',
+    '>': '&gt;',
+}
 
-# an array describing whether a character value is valid
-IS_VALID_XML_CHAR = get_is_valid_char_map()
+
+def is_valid_xml_char(code):
+    return any(low <= code <= high for low, high in VALID_XML_RANGES)
 
 
 class ReplacedString:
     """!
-    replace characters that cause problems in XML with the "Replacement character"
+    Makes an Evidence value fit in the usage sharing XML. The value is cut to
+    SHARE_USAGE_MAX_EVIDENCE_LENGTH characters (code points, so a character is
+    never split), a character XML 1.0 does not allow is written as a backslash,
+    "x" and its code in four lower-case hexadecimal digits, and the markup
+    characters are written as entities. `escaped` and `truncated` say what
+    changed.
     """
     def __init__(self, text):
         self.result = ""
-        self.replaced = False
+        self.escaped = False
         self.truncated = False
         if text:
-            escapedText = text\
-                .replace('&', '&amp;')\
-                .replace('"', '&quot;')\
-                .replace('\'', '&apos;')\
-                .replace('<', '&lt;')\
-                .replace('>', '&gt;')
-
-            length = min(len(escapedText), SHARE_USAGE_MAX_EVIDENCE_LENGTH)
-            self.truncated = len(escapedText) > SHARE_USAGE_MAX_EVIDENCE_LENGTH
-            self.result = "".join(map(self.map_char, list(escapedText[0:length])))
-
+            if not isinstance(text, str):
+                text = str(text)
+            self.truncated = len(text) > SHARE_USAGE_MAX_EVIDENCE_LENGTH
+            self.result = "".join(
+                map(self.map_char, text[0:SHARE_USAGE_MAX_EVIDENCE_LENGTH]))
 
     def map_char(self, char):
-        charV = ord(char)
-        if charV < len(IS_VALID_XML_CHAR) and IS_VALID_XML_CHAR[charV]:
-            return char
-        else:
-            self.replaced = True
-            return chr(int("0xFFFD", 16))
+        code = ord(char)
+        if not is_valid_xml_char(code):
+            self.escaped = True
+            return "\\x%04x" % code
+        return XML_ENTITIES.get(char, char)
 
 class ShareUsageData:
     """!
