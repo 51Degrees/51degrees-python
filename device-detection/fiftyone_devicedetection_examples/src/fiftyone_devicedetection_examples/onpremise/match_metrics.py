@@ -90,8 +90,9 @@ class MatchMetricsConsole():
             # https://51degrees.com/documentation/_device_detection__hash.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-match_metrics.py&utm_term=run#DeviceDetection_Hash_DataSetProduction_Performance
             use_predictive_graph = True,
             use_performance_graph = False,
-            # We want to show the matching evidence characters as part of this example, so we have to set
-            # this flag to true.
+            # This example shows the matched evidence characters, which
+            # needs this option on. It is on by default, and is set here to
+            # show where to turn it off.
             update_matched_useragent = True).add_logger(logger).build()
 
         # The pipeline is closed at the end of the with block, which
