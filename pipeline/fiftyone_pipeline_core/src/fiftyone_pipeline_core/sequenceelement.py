@@ -23,9 +23,13 @@
 
 from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
-from .javascriptbuilder import get_session_id, parse_sequence
+from .javascriptbuilder import parse_sequence
 from .elementdata_dictionary import ElementDataDictionary
+import re
 import uuid
+
+# Text that is a sequence, in ASCII decimal digits and nothing else.
+DIGITS_PATTERN = re.compile(r"[0-9]+")
 
 class SequenceElementEvidenceKeyFilter(EvidenceKeyFilter):
 
@@ -78,27 +82,22 @@ class SequenceElement(FlowElement):
 
         """
     
-        if flowdata.evidence.get("query.session-id"):
-            
-            # Get current sequence number. A value that is absent or is not
-            # a positive 32 bit integer is treated as no sequence at all, so
-            # the request is sequence 1 rather than failing. The JavaScript
-            # builder renders any value it cannot use as 1 in the same way.
-
-            sequence = parse_sequence(flowdata.evidence.get("query.sequence"))
-            sequence = 1 if sequence is None else sequence + 1
-            session_id = flowdata.evidence.get("query.session-id")
-
-        else:
+        # The session id and the sequence are read independently. A session
+        # id that is not a non-empty string is absent, and gets a new id. A
+        # sequence that is not a whole number from 1 to 2147483647, written
+        # in decimal digits if it is text, is absent and gives 1.
+        session_id = flowdata.evidence.get("query.session-id")
+        if not isinstance(session_id, str) or session_id == "":
             session_id = str(uuid.uuid4())
-            sequence = 1
-            flowdata.evidence.add("query.session-id", session_id)
 
+        sequence = flowdata.evidence.get("query.sequence")
+        if isinstance(sequence, str) and not DIGITS_PATTERN.fullmatch(sequence):
+            sequence = None
+        sequence = parse_sequence(sequence)
+        sequence = 1 if sequence is None else sequence + 1
+
+        flowdata.evidence.add("query.session-id", session_id)
         flowdata.evidence.add("query.sequence", sequence)
 
-        # The Element Data goes into the JSON that is written into the script,
-        # so a session id the script cannot be given is empty there, as it is
-        # in the script itself.
         flowdata.set_element_data(ElementDataDictionary(
-            self, {"session-id": get_session_id(session_id),
-                   "sequence": sequence}))
+            self, {"session-id": session_id, "sequence": sequence}))

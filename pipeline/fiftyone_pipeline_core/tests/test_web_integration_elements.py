@@ -113,11 +113,15 @@ class SequenceElementDataTests(unittest.TestCase):
             flowdata.get("sequence").get("session-id"), entry["session-id"])
         self.assertEqual(1, entry["sequence"])
 
-    def testUnsafeSessionIdIsEmptyInTheElementDataAndTheJson(self):
+    # The JSON is written into the script, so a session id from the query
+    # string must not end the script.
+    def testSessionIdIsKeptButCannotEndTheScript(self):
         flowdata = self.process({"query.session-id": "</script>"})
-        self.assertEqual("", flowdata.get("sequence").get("session-id"))
-        self.assertEqual("", flowdata.jsonbundler.json["sequence"]["session-id"])
+        self.assertEqual("</script>", flowdata.get("sequence").get("session-id"))
+        self.assertEqual(
+            "</script>", flowdata.jsonbundler.json["sequence"]["session-id"])
         self.assertNotIn("</script>", flowdata.javascriptbuilder.javascript)
+        self.assertIn('var sessionId = "";', flowdata.javascriptbuilder.javascript)
 
     def testSequencePropertiesAreDescribed(self):
         element = PipelineBuilder({}).build().flow_elements[0]
@@ -125,6 +129,60 @@ class SequenceElementDataTests(unittest.TestCase):
         self.assertEqual(
             {"session-id": {"type": "string"}, "sequence": {"type": "int"}},
             element.get_properties())
+
+
+# The session id and the sequence are read independently, as the Process
+# section of the Sequence Element specification says, and the Evidence and the
+# Element Data are written from the same values.
+class SequenceElementProcessTests(unittest.TestCase):
+
+    def process(self, evidence):
+        pipeline = PipelineBuilder({}).build()
+        flowdata = pipeline.create_flowdata()
+        for key, value in evidence.items():
+            flowdata.evidence.add(key, value)
+        flowdata.process()
+        data = flowdata.get("sequence")
+        session_id = data.get("session-id")
+        sequence = data.get("sequence")
+        self.assertEqual(session_id, flowdata.evidence.get("query.session-id"))
+        self.assertEqual(sequence, flowdata.evidence.get("query.sequence"))
+        return session_id, sequence
+
+    def testSequenceWithNoSessionIdCountsUpWithANewId(self):
+        session_id, sequence = self.process({"query.sequence": "3"})
+        self.assertTrue(session_id)
+        self.assertEqual(4, sequence)
+
+    def testSessionIdWithNoSequenceGivesOne(self):
+        self.assertEqual(("abc", 1), self.process({"query.session-id": "abc"}))
+
+    def testIntegerSequenceCountsUp(self):
+        self.assertEqual(
+            ("abc", 8),
+            self.process({"query.session-id": "abc", "query.sequence": 7}))
+
+    def testSessionIdThatIsNotANonEmptyStringIsAbsent(self):
+        for value in (123, "", None, ["abc"]):
+            session_id, sequence = self.process(
+                {"query.session-id": value, "query.sequence": "2"})
+            self.assertIsInstance(session_id, str)
+            self.assertTrue(session_id)
+            self.assertEqual(3, sequence)
+
+    def testSessionIdOfZeroIsKept(self):
+        self.assertEqual(
+            ("0", 3),
+            self.process({"query.session-id": "0", "query.sequence": "2"}))
+
+    def testSequenceThatIsNotWholeDigitsIsAbsent(self):
+        for value in ("abc", "", " 5 ", "+5", "-5", "5.0", "0", True, 0,
+                      2 ** 31, "2147483648", "٣", None):
+            self.assertEqual(
+                ("abc", 1),
+                self.process(
+                    {"query.session-id": "abc", "query.sequence": value}),
+                repr(value))
 
 
 if __name__ == "__main__":
