@@ -71,13 +71,16 @@ class Constants:
     LICENSE_PARAMETER = "license"
     VALUES_PARAMETER = "values"
 
-    # The cloud service advertises these three among its accepted evidence
-    # keys, so evidence such as "query.license" would otherwise go into the
-    # request body beside the engine's own credentials, with no way to say
+    # The service reads its credentials and the list of requested properties
+    # from these names, and also reads "licence" as another spelling of
+    # "license", so evidence such as "query.license" would otherwise go into
+    # the request body beside the engine's own values, with no way to say
     # which one the service applied. Evidence whose key strips to one of
-    # them is left out of every request.
+    # them, in any letter case, is left out of every request.
+    LICENCE_SPELLING = "licence"
     RESERVED_EVIDENCE_SUFFIXES = (
-        RESOURCE_PARAMETER, LICENSE_PARAMETER, VALUES_PARAMETER)
+        RESOURCE_PARAMETER, LICENSE_PARAMETER, LICENCE_SPELLING,
+        VALUES_PARAMETER)
 
     # The path, below the base URL, of the data endpoint that takes no
     # resource key in its route, used when the engine authenticates on a
