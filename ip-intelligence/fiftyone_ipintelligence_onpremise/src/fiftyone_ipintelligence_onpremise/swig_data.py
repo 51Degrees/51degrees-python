@@ -20,6 +20,8 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import threading
+
 from fiftyone_pipeline_engines.aspectdata import AspectData
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
@@ -73,6 +75,11 @@ class SwigData(AspectData):
 
         self.missing_property_service = OnPremiseMissingPropertyService()
 
+        # Reading a value writes into the native results, and the first read
+        # of a component can walk its graph, so one thread at a time reads
+        # this instance.
+        self._read_lock = threading.RLock()
+
     def close(self):
 
         """!
@@ -82,7 +89,8 @@ class SwigData(AspectData):
         exception. Closing the FlowData closes its results.
         """
 
-        self.swig_results = None
+        with self._read_lock:
+            self.swig_results = None
 
     def get(self, key):
 
@@ -93,12 +101,13 @@ class SwigData(AspectData):
         @returns mixed
         """
 
-        # Checked here, because AspectData.get turns an exception from
-        # get_internal into a missing property message.
-        if self.swig_results is None:
-            raise Exception(RESULTS_CLOSED)
+        with self._read_lock:
+            # Checked here, because AspectData.get turns an exception from
+            # get_internal into a missing property message.
+            if self.swig_results is None:
+                raise Exception(RESULTS_CLOSED)
 
-        return super(SwigData, self).get(key)
+            return super(SwigData, self).get(key)
 
     @staticmethod
     def utf8_string_to_str(utf8_string):
