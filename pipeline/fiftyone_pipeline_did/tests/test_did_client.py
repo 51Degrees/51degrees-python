@@ -1188,9 +1188,37 @@ class RedeemTests(unittest.TestCase):
             json.loads(REDEEMED_WITH_NOT_RECORDED_FACTORS)["factors"],
             result.to_dict()["factors"])
 
-    def test_a_factor_value_this_package_does_not_list_reads_as_none(self):
+    # A word this package does not list is a mismatch, so a value a newer
+    # service sends never reads as a factor that matched or one that could
+    # not be compared.
+    def test_a_factor_word_this_package_does_not_list_is_a_mismatch(self):
         result = self.redeem(200, REDEEMED_WITH_AN_UNKNOWN_FACTOR_VALUE)
+        self.assertIs(FactorResult.MISMATCH, result.factors["transport"])
+        self.assertEqual("mismatch", result.to_dict()["factors"]["transport"])
+
+    def test_a_factor_that_was_not_compared_is_still_none(self):
+        body = json.dumps({
+            "signature": "verified", "context": "mismatch",
+            "factors": {"transport": None}})
+        result = self.redeem(200, body)
         self.assertIsNone(result.factors["transport"])
+
+    def test_each_listed_factor_word_is_read_only_from_its_own_word(self):
+        for word, expected in (
+                ("verified", FactorResult.VERIFIED),
+                ("mismatch", FactorResult.MISMATCH),
+                ("misconfigured", FactorResult.MISCONFIGURED),
+                ("notrecorded", FactorResult.NOT_RECORDED),
+                ("Verified", FactorResult.MISMATCH),
+                ("", FactorResult.MISMATCH),
+                ("not recorded", FactorResult.MISMATCH),
+                (7, FactorResult.MISMATCH),
+                (True, FactorResult.MISMATCH)):
+            body = json.dumps({
+                "signature": "verified", "context": "mismatch",
+                "factors": {"transport": word}})
+            result = self.redeem(200, body)
+            self.assertIs(expected, result.factors["transport"], repr(word))
 
     def test_the_factor_outcomes_are_the_words_the_cloud_writes(self):
         self.assertEqual(
