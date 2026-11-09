@@ -71,6 +71,23 @@ class Engine(FlowElement):
         self.restricted_properties = properties_list
   
 
+    def is_cacheable(self, flowdata):
+
+        """!
+        Whether the result just made for a flowdata may be stored in the
+        cache. A result that holds a value created for the one request must
+        not be, so an engine whose results can hold one overrides this.
+
+        @type flowdata: FlowData
+        @param flowdata: The flowdata the engine has processed
+
+        @rtype: bool
+        @return: True if the result may be stored in the cache
+
+        """
+
+        return True
+
     def in_cache(self, flowdata):
 
         """!
@@ -127,8 +144,10 @@ class Engine(FlowElement):
                 return True
             else:
                 self.process_internal(flowdata)
-                cacheKey = json.dumps(self.filter_evidence(flowdata))
-                self.cache.set_cache_value(cacheKey, flowdata.get(self.datakey))
+                if self.is_cacheable(flowdata):
+                    cacheKey = json.dumps(self.filter_evidence(flowdata))
+                    self.cache.set_cache_value(
+                        cacheKey, flowdata.get(self.datakey))
 
         else:
 
