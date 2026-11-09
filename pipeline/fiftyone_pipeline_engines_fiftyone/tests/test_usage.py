@@ -20,6 +20,8 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import contextlib
+import io
 import platform
 import re
 import sys
@@ -65,6 +67,8 @@ app.received = []
 app.attempts = []
 # The status the receiver answers with. Only data it accepts is received.
 app.status = 200
+# The content the receiver answers with.
+app.body = ""
 
 @app.route('/', methods=['POST'])
 def server():
@@ -72,7 +76,7 @@ def server():
     data = gzip.decompress(request.data).decode("utf8")
     if app.status == 200:
         app.received.append(data)
-    return "", app.status
+    return app.body, app.status
 
 
 def client_ips(received):
@@ -98,7 +102,9 @@ class UsageTests(unittest.TestCase):
         app.received = []
         app.attempts = []
         app.status = 200
+        app.body = ""
         self.requests = 0
+        self.logs = []
 
     @classmethod
     def tearDownClass(cls):
@@ -274,6 +280,118 @@ class UsageTests(unittest.TestCase):
             self.assertNotIn(
                 ip, client_ips(app.received),
                 "Evidence processed when the queue was full was sent.")
+
+    def test_full_queue_logs_without_a_message_per_entry(self):
+        """!
+        Entries discarded because the queue is full are logged, but not with
+        a message for each entry discarded.
+        """
+
+        usage, pipeline = self.back_off_pipeline(
+            max_queue_size=4,
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=2,
+            max_recovery_delay_seconds=2)
+        usage._log = lambda level, message: self.logs.append((level, message))
+        self.fail_sends(pipeline, 1)
+        self.logs.clear()
+
+        for i in range(10):
+            self.process_unique(pipeline)
+
+        full = [log for log in self.logs if "full" in log[1]]
+        self.assertGreaterEqual(
+            len(full), 1, "Discarding entries was not logged.")
+        self.assertLess(
+            len(full), 6, "A message was logged for each entry discarded.")
+        self.assertEqual("warning", full[0][0])
+
+    def test_failed_answer_logs_status_and_content(self):
+        """!
+        A send answered with anything other than 200 logs the status code and
+        the content of the answer.
+        """
+
+        usage, pipeline = self.back_off_pipeline()
+        usage._log = lambda level, message: self.logs.append((level, message))
+        app.body = "the service says no"
+
+        self.fail_sends(pipeline, 1)
+
+        self.wait_for(
+            lambda: any("500" in log[1] for log in self.logs),
+            lambda: f"The status code was not logged. Logged: {self.logs}")
+        failed = [log for log in self.logs if "500" in log[1]][0]
+        self.assertIn("the service says no", failed[1])
+
+    def test_failed_send_prints_nothing(self):
+        """!
+        A send that cannot be made is logged and does not print.
+        """
+
+        usage, pipeline = self.back_off_pipeline(request_timeout=1)
+        usage._log = lambda level, message: self.logs.append((level, message))
+        usage.endpoint = "http://127.0.0.1:1"
+        printed = io.StringIO()
+
+        with contextlib.redirect_stdout(printed):
+            self.process_unique(pipeline)
+            self.wait_for(
+                lambda: any("failed sending" in log[1] for log in self.logs),
+                lambda: f"The failed send was not logged. Logged: {self.logs}")
+
+        self.assertEqual("", printed.getvalue())
+
+    def test_message_holds_up_to_twice_the_package_size(self):
+        """!
+        A message holds the requested package size or more entries, up to
+        twice the package size, so a queue that filled during a pause drains
+        in fewer messages.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=2,
+            endpoint=testEndpoint,
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=1,
+            max_recovery_delay_seconds=1)
+        pipeline = PipelineBuilder().add(usage).build()
+        self.addCleanup(usage.close)
+        app.status = 500
+        self.process_unique(pipeline)
+        self.process_unique(pipeline)
+        self.wait_for(
+            lambda: len(app.attempts) == 1,
+            lambda: "The first send was not made.")
+        for i in range(6):
+            self.process_unique(pipeline)
+
+        app.status = 200
+        self.wait_for(
+            lambda: len(client_ips(app.received)) == 6,
+            lambda: f"Not all entries were sent: {client_ips(app.received)}")
+
+        sizes = [len(client_ips([data])) for data in app.received]
+        self.assertEqual(
+            [4, 2], sizes,
+            "The messages did not hold up to twice the package size.")
+
+    def test_close_sends_fewer_entries_than_the_package_size(self):
+        """!
+        Closing sends the entries still queued, even when there are fewer
+        than the requested package size.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=5,
+            endpoint=testEndpoint)
+        pipeline = PipelineBuilder().add(usage).build()
+        ips = [self.process_unique(pipeline) for i in range(2)]
+        self.assertEqual([], app.received)
+
+        usage.close()
+
+        self.assertEqual(ips, client_ips(app.received))
 
     def test_back_off_invalid_settings(self):
         """!
