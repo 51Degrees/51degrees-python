@@ -103,7 +103,7 @@ class JSONBundlerElement(FlowElement):
                         if len(delayed_evidence_properties_list):
                             
                             delayed_evidence_properties[propertykey] = list(map(lambda x:
-                                flow_element.datakey + '.' + x, delayed_evidence_properties_list))
+                                flow_element.datakey.lower() + '.' + x, delayed_evidence_properties_list))
 
 
                 self.property_cache[flow_element.datakey] = {
@@ -115,7 +115,7 @@ class JSONBundlerElement(FlowElement):
 
             # Create empty area for FlowElement properties to go
 
-            output[flow_element.datakey] = {}
+            output[flow_element.datakey.lower()] = {}
 
             for propertykey, propertymeta in properties.items():
                 value = None
@@ -125,13 +125,13 @@ class JSONBundlerElement(FlowElement):
 
 
                 if propertykey in property_cache["delayExecutionList"]:
-                    output[flow_element.datakey][propertykey.lower() + "delayexecution"] = True
+                    output[flow_element.datakey.lower()][propertykey.lower() + "delayexecution"] = True
                 
 
                 # Check if property has any delayed execution evidence properties and set in JSON if yes
 
                 if propertykey in property_cache["evidenceProperties"]:
-                    output[flow_element.datakey][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
+                    output[flow_element.datakey.lower()][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
                 
 
                 try:
