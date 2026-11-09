@@ -317,7 +317,7 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(len(app.received), 1)
         self.assertNotIn("ƌ", app.received[0])
         self.assertIn(replacementChar, app.received[0])
-        self.assertIn(f"<header Name=\"user-agent\" replaced=\"true\">1{replacementChar}2</header>", app.received[0])
+        self.assertIn(f"<header Name=\"user-agent\" escaped=\"true\">1{replacementChar}2</header>", app.received[0])
 
     def test_truncated_value(self):
         """!
