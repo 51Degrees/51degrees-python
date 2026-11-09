@@ -22,7 +22,8 @@ jobs:
           -e pipeline/fiftyone_pipeline_engines
           -e pipeline/fiftyone_pipeline_cloudrequestengine
           -e pipeline/fiftyone_pipeline_engines_fiftyone
-          -e pipeline/fiftyone_pipeline_did
+      - name: Install the 51Did package
+        run: pip install -e pipeline/owid-python -e pipeline/fiftyone_pipeline_did cryptography
       - name: Listed tests
         run: python -m pytest $(cat tmp-tests.txt) -q -m "not live"
       - name: Core tests
