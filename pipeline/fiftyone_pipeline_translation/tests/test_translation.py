@@ -21,6 +21,7 @@
 # *********************************************************************
 
 import unittest
+import warnings
 
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.elementdata_dictionary import ElementDataDictionary
@@ -181,6 +182,270 @@ class TranslationEngineBaseTests(unittest.TestCase):
         self.assertEqual(
             "fr_FR",
             TranslationEngineBase._get_language_name("countries.fr_FR.yml"))
+
+
+# Each text the missing translation behavior accepts, and the member it
+# names. The specification's names, the members' names and values, and
+# other mixes of case and underscores are all accepted.
+BEHAVIOR_TEXTS = {
+    "Original": MissingTranslationBehavior.ORIGINAL,
+    "original": MissingTranslationBehavior.ORIGINAL,
+    "ORIGINAL": MissingTranslationBehavior.ORIGINAL,
+    "EmptyString": MissingTranslationBehavior.EMPTY_STRING,
+    "emptystring": MissingTranslationBehavior.EMPTY_STRING,
+    "empty_string": MissingTranslationBehavior.EMPTY_STRING,
+    "EMPTY_STRING": MissingTranslationBehavior.EMPTY_STRING,
+    "Empty_String": MissingTranslationBehavior.EMPTY_STRING,
+    "FlowError": MissingTranslationBehavior.FLOW_ERROR,
+    "flowerror": MissingTranslationBehavior.FLOW_ERROR,
+    "flow_error": MissingTranslationBehavior.FLOW_ERROR,
+    "FLOW_ERROR": MissingTranslationBehavior.FLOW_ERROR,
+}
+
+# Values that name no member, each refused when the engine is built.
+UNKNOWN_BEHAVIORS = (
+    "", "Empty String", "Origin", "Missing", "flow-error", 1,
+    ["Original"])
+
+# The specification's name for each member.
+SPECIFICATION_NAMES = {
+    "Original": MissingTranslationBehavior.ORIGINAL,
+    "EmptyString": MissingTranslationBehavior.EMPTY_STRING,
+    "FlowError": MissingTranslationBehavior.FLOW_ERROR,
+}
+
+# The value a missing translation of "Spain" gives under each member, with
+# the number of flow errors it adds.
+MISSING_RESULTS = {
+    MissingTranslationBehavior.ORIGINAL: (["Allemagne", "Spain"], 0),
+    MissingTranslationBehavior.EMPTY_STRING: (["Allemagne", ""], 0),
+    MissingTranslationBehavior.FLOW_ERROR: (["Allemagne", None], 1),
+}
+
+
+class MissingTranslationBehaviorTests(unittest.TestCase):
+
+    """
+    The missing translation behavior given as a member or as text, as a
+    configuration file gives it, with anything else refused when the engine
+    is built, apart from None, which means not given. The option takes the
+    specification's name, missing_translation_behavior, and still takes the
+    old name, behavior, with a DeprecationWarning.
+    """
+
+    def _engine(self, behavior):
+        return TranslationEngineBase(
+            "source",
+            [("Names", "NamesTranslated")],
+            FR_SOURCE,
+            "fr_FR",
+            behavior)
+
+    def _missing(self, pipeline):
+        """The translated names and the flow errors for a source holding a
+        name with a translation and one without. The pipeline keeps errors
+        on the flow data rather than raising them, so a flow error can be
+        counted."""
+        self.addCleanup(pipeline.close)
+        flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
+        flowdata.process()
+        translated = flowdata.get("translation").get("NamesTranslated")
+        if isinstance(translated, AspectPropertyValue):
+            translated = translated.value()
+        return translated, len(flowdata.errors)
+
+    def _pipeline(self, behavior):
+        return self._pipeline_with(self._engine(behavior))
+
+    @staticmethod
+    def _pipeline_with(engine):
+        source = MockSourceElement("source", {
+            "Names": AspectPropertyValue(value=["Germany", "Spain"])
+        })
+        return PipelineBuilder({"suppress_process_exceptions": True}).add(
+            source).add(engine).build()
+
+    @staticmethod
+    def _engine_with(**options):
+        """An engine built with every option given by its name."""
+        return TranslationEngineBase(
+            source_element_data_key="source",
+            translations=[("Names", "NamesTranslated")],
+            sources=FR_SOURCE,
+            fixed_language="fr_FR",
+            **options)
+
+    def test_from_value_names_each_member(self):
+        for text, member in BEHAVIOR_TEXTS.items():
+            with self.subTest(text):
+                self.assertIs(
+                    member, MissingTranslationBehavior.from_value(text))
+
+    def test_from_value_returns_a_member_as_it_is(self):
+        for member in MissingTranslationBehavior:
+            with self.subTest(member.name):
+                self.assertIs(
+                    member, MissingTranslationBehavior.from_value(member))
+
+    def test_each_text_takes_effect(self):
+        for text, member in BEHAVIOR_TEXTS.items():
+            with self.subTest(text):
+                self.assertEqual(
+                    MISSING_RESULTS[member],
+                    self._missing(self._pipeline(text)))
+
+    def test_each_member_takes_effect(self):
+        for member, expected in MISSING_RESULTS.items():
+            with self.subTest(member.name):
+                self.assertEqual(
+                    expected, self._missing(self._pipeline(member)))
+
+    def test_unknown_value_is_refused_when_the_engine_is_built(self):
+        for value in UNKNOWN_BEHAVIORS:
+            with self.subTest(repr(value)):
+                with self.assertRaises(ValueError) as raised:
+                    self._engine(value)
+                self.assertIn("EmptyString", str(raised.exception))
+
+    def test_translator_takes_text(self):
+        translator = Translator({"Germany": "Allemagne"}, "EmptyString")
+        self.assertEqual("", translator.translate("Spain"))
+
+    def test_specification_name_takes_effect_without_a_warning(self):
+        for text, member in SPECIFICATION_NAMES.items():
+            with self.subTest(text):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", DeprecationWarning)
+                    engine = self._engine_with(
+                        missing_translation_behavior=text)
+                self.assertEqual(
+                    MISSING_RESULTS[member],
+                    self._missing(self._pipeline_with(engine)))
+
+    def test_old_name_still_takes_effect_with_a_warning(self):
+        for text, member in SPECIFICATION_NAMES.items():
+            with self.subTest(text):
+                with self.assertWarns(DeprecationWarning) as warned:
+                    engine = self._engine_with(behavior=text)
+                self.assertIn(
+                    "missing_translation_behavior", str(warned.warning))
+                self.assertEqual(
+                    MISSING_RESULTS[member],
+                    self._missing(self._pipeline_with(engine)))
+
+    def test_specification_name_wins_when_both_are_given(self):
+        with self.assertWarns(DeprecationWarning):
+            engine = self._engine_with(
+                missing_translation_behavior="EmptyString",
+                behavior="FlowError")
+        self.assertEqual(
+            MISSING_RESULTS[MissingTranslationBehavior.EMPTY_STRING],
+            self._missing(self._pipeline_with(engine)))
+
+    def test_neither_name_given_is_original(self):
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            engine = self._engine_with()
+        self.assertEqual(
+            MISSING_RESULTS[MissingTranslationBehavior.ORIGINAL],
+            self._missing(self._pipeline_with(engine)))
+
+    def test_none_given_by_either_name_is_original(self):
+        # None means not given, so it gives Original without a warning.
+        translations = {"Germany": "Allemagne"}
+        for given in ("by position", "missing_translation_behavior",
+                      "behavior"):
+            with self.subTest(given):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", DeprecationWarning)
+                    if given == "by position":
+                        engine = self._engine(None)
+                        translator = Translator(translations, None)
+                    else:
+                        engine = self._engine_with(**{given: None})
+                        translator = Translator(translations, **{given: None})
+                self.assertEqual(
+                    MISSING_RESULTS[MissingTranslationBehavior.ORIGINAL],
+                    self._missing(self._pipeline_with(engine)))
+                self.assertEqual("Spain", translator.translate("Spain"))
+
+    def test_translator_takes_both_names(self):
+        translations = {"Germany": "Allemagne"}
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", DeprecationWarning)
+            translator = Translator(
+                translations, missing_translation_behavior="EmptyString")
+        self.assertEqual("", translator.translate("Spain"))
+        with self.assertWarns(DeprecationWarning):
+            translator = Translator(translations, behavior="EmptyString")
+        self.assertEqual("", translator.translate("Spain"))
+        with self.assertWarns(DeprecationWarning):
+            translator = Translator(
+                translations,
+                missing_translation_behavior="Original",
+                behavior="EmptyString")
+        self.assertEqual("Spain", translator.translate("Spain"))
+
+    def test_configuration_text_takes_effect(self):
+        for text, member in (("EmptyString", "EMPTY_STRING"),
+                             ("flow_error", "FLOW_ERROR"),
+                             ("Original", "ORIGINAL")):
+            with self.subTest(text):
+                with warnings.catch_warnings():
+                    warnings.simplefilter("error", DeprecationWarning)
+                    pipeline = PipelineBuilder().build_from_configuration(
+                        self._configuration(text))
+                self.assertEqual(
+                    MISSING_RESULTS[MissingTranslationBehavior[member]],
+                    self._missing(pipeline))
+
+    def test_configuration_with_an_unknown_value_is_refused(self):
+        with self.assertRaises(ValueError):
+            PipelineBuilder().build_from_configuration(
+                self._configuration("EmptyStrings"))
+
+    def test_configuration_with_the_old_name_still_takes_effect(self):
+        with self.assertWarns(DeprecationWarning):
+            pipeline = PipelineBuilder().build_from_configuration(
+                self._configuration("EmptyString", "behavior"))
+        self.assertEqual(
+            MISSING_RESULTS[MissingTranslationBehavior.EMPTY_STRING],
+            self._missing(pipeline))
+
+    @staticmethod
+    def _configuration(behavior, name="missing_translation_behavior"):
+        """A pipeline configuration as a configuration file gives one, so
+        every value in it is text, a list or a dictionary. Every option has
+        the specification's name, unless the behavior's name is given."""
+        return {
+            "PipelineOptions": {
+                "suppress_process_exceptions": True,
+                "Elements": [
+                    {
+                        "elementPath": __name__,
+                        "elementName": "MockSourceElement",
+                        "elementParameters": {
+                            "datakey": "source",
+                            "contents": {"Names": ["Germany", "Spain"]},
+                        },
+                    },
+                    {
+                        "elementPath": (
+                            "fiftyone_pipeline_translation."
+                            "translation_engine_base"),
+                        "elementName": "TranslationEngineBase",
+                        "elementParameters": {
+                            "source_element_data_key": "source",
+                            "translations": [["Names", "NamesTranslated"]],
+                            "sources": FR_SOURCE,
+                            "fixed_language": "fr_FR",
+                            name: behavior,
+                        },
+                    },
+                ]
+            }
+        }
 
 
 if __name__ == "__main__":
