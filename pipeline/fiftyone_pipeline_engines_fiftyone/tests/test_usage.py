@@ -293,7 +293,9 @@ class UsageTests(unittest.TestCase):
         self.waitForUsageThreads()
         self.assertEqual(len(app.received), 1)
         self.assertIn("<SessionId>1</SessionId>", app.received[0])
-        self.assertIn("<Sequence>1</Sequence>", app.received[0])
+        # The Sequence Element is the first element, so it has added one to the
+        # sequence by the time usage sharing reads it.
+        self.assertIn("<Sequence>2</Sequence>", app.received[0])
 
     def test_invalid_char(self):
         """!
