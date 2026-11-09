@@ -354,6 +354,9 @@ class DataFileUpdateConsole():
 					output(f"Update on file modification complete, status: {update_event.status}")
 				else:
 					output("Update on file modification timed out")
+			elif update_event.status == UpdateStatus.AUTO_UPDATE_NOT_NEEDED:
+				output("The data file is already the latest published, "
+				       "so there is nothing to download")
 			else:
 				logger.log("error", "Auto update was not successful, abandoning example")
 				error_message = f"Auto update failed: {update_event.status}"
