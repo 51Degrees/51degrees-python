@@ -21,11 +21,11 @@
 # *********************************************************************
 
 import random
+import re
 import json
 import gzip
 import platform
 import datetime
-import re
 from concurrent.futures import ThreadPoolExecutor
 from importlib.metadata import version
 
