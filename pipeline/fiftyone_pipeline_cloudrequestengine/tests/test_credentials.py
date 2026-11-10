@@ -181,23 +181,39 @@ class TestCredentials(CloudRequestEngineTestsBase):
         self.assertIn("400", str(context.exception))
         self.assertIn("requested_properties", str(context.exception))
 
-    def test_properties_with_resource_key_are_refused(self):
+    def test_properties_with_resource_key_are_sent(self):
         """
-        Row five of the table, with and without a licence key beside the
-        resource key. The service ignores the list, so the engine refuses
-        to build and says the response would not narrow.
+        A list beside a resource key, with and without a licence key. The
+        service adds the listed properties to those the resource key
+        carries, so the engine builds and sends the list as values, with
+        the licence key in the body where there is one.
         """
 
         for license_key in ("", LICENSE_KEY):
-            with self.assertRaises(ValueError) as context:
-                CloudRequestEngine({
-                    "resource_key": RESOURCE_KEY,
-                    "license_key": license_key,
-                    "requested_properties": REQUESTED,
-                    "http_client": self.mock_http(),
-                })
+            engine = CloudRequestEngine({
+                "resource_key": RESOURCE_KEY,
+                "license_key": license_key,
+                "requested_properties": REQUESTED,
+                "http_client": self.mock_http(),
+            })
 
-            self.assertIn("ignores the list", str(context.exception))
+            requests = self.process(engine)
+
+            for request_type, url, content in requests:
+                self.assertNotIn(LICENSE_KEY, url)
+
+            request_type, url, content = self.data_request(requests)
+            self.assertTrue(url.endswith(RESOURCE_KEY + ".json?"), url)
+            self.assertEqual(
+                RESOURCE_KEY, content[Constants.RESOURCE_PARAMETER])
+            self.assertEqual(
+                "device.ismobile,device.istablet",
+                content[Constants.VALUES_PARAMETER])
+            if license_key == "":
+                self.assertNotIn(Constants.LICENSE_PARAMETER, content)
+            else:
+                self.assertEqual(
+                    LICENSE_KEY, content[Constants.LICENSE_PARAMETER])
 
     def test_no_credential_is_refused(self):
         """
@@ -302,14 +318,13 @@ class TestCredentials(CloudRequestEngineTestsBase):
         for message in messages:
             self.assertNotIn("another-key", message)
 
-    def test_properties_added_later_are_normalised_and_checked(self):
+    def test_properties_added_later_are_normalised_and_sent(self):
         """
         A caller may add to the list after the engine is built, once the
         accessible properties say which client-side properties the key
         carries. The names added are trimmed and lower-cased as the
-        constructor's are, so they match the answer, and the rule that a
-        list only goes with a licence key alone is checked again, because
-        the constructor cannot see a list added after it ran.
+        constructor's are, so they match the answer, and they are sent
+        beside a resource key as well as beside a licence key alone.
         """
 
         engine = CloudRequestEngine({
@@ -336,10 +351,13 @@ class TestCredentials(CloudRequestEngineTestsBase):
             "http_client": self.mock_http(),
         })
 
-        with self.assertRaises(ValueError) as context:
-            engine.add_requested_properties(REQUESTED)
+        engine.add_requested_properties(REQUESTED)
 
-        self.assertIn("ignores the list", str(context.exception))
+        request_type, url, content = self.data_request(
+            self.process(engine))
+        self.assertEqual(
+            "device.ismobile,device.istablet",
+            content[Constants.VALUES_PARAMETER])
 
     def test_properties_the_answer_leaves_out_are_reported_once(self):
         """
