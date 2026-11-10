@@ -24,6 +24,10 @@ from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
 
+# The property types that hold a shape in well-known text. The JSON holds such
+# a value as an object with one member, value, holding the text.
+WKT_TYPES = ("wkt", "wktstring", "wkb", "wkbr")
+
 class JSONBundlerElement(FlowElement):
 
     """!
@@ -144,7 +148,7 @@ class JSONBundlerElement(FlowElement):
                         if len(delayed_evidence_properties_list):
                             
                             delayed_evidence_properties[propertykey] = list(map(lambda x:
-                                flow_element.datakey + '.' + x, delayed_evidence_properties_list))
+                                flow_element.datakey.lower() + '.' + x, delayed_evidence_properties_list))
 
 
                 self.property_cache[flow_element.datakey] = {
@@ -156,7 +160,7 @@ class JSONBundlerElement(FlowElement):
 
             # Create empty area for FlowElement properties to go
 
-            output[flow_element.datakey] = {}
+            output[flow_element.datakey.lower()] = {}
 
             for propertykey, propertymeta in properties.items():
                 value = None
@@ -167,13 +171,13 @@ class JSONBundlerElement(FlowElement):
 
 
                 if propertykey in property_cache["delayExecutionList"]:
-                    output[flow_element.datakey][propertykey.lower() + "delayexecution"] = True
+                    output[flow_element.datakey.lower()][propertykey.lower() + "delayexecution"] = True
                 
 
                 # Check if property has any delayed execution evidence properties and set in JSON if yes
 
                 if propertykey in property_cache["evidenceProperties"]:
-                    output[flow_element.datakey][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
+                    output[flow_element.datakey.lower()][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
                 
 
                 try:
@@ -222,6 +226,10 @@ class JSONBundlerElement(FlowElement):
                     # Catching missing property exceptions and other errors
 
                     continue
+
+                if (isinstance(value, str)
+                        and str(propertymeta.get("type", "")).lower() in WKT_TYPES):
+                    value = {"value": value}
 
                 # A null that was not assigned 'no value', which an element
                 # that is not an engine can give, has no entry of its own. A
