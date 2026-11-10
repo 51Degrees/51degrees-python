@@ -31,6 +31,7 @@ import random
 import threading
 import time
 import requests
+from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 # gzip decompress alternative for python 2
 from io import StringIO
 
