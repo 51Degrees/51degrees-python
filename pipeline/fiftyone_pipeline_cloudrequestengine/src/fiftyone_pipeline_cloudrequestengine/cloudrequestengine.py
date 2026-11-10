@@ -266,7 +266,7 @@ class CloudRequestEngine(Engine):
         """
 
         # Get properties for all engines. A resource key alone goes in the
-        # query string as it always has. A licence key identifies an
+        # query string. A licence key identifies an
         # account, so it is posted in the body instead, where it stays out
         # of request logs. The cloud service reads both keys from either
         # place, answers a licence key alone with everything the licence
@@ -404,7 +404,7 @@ class CloudRequestEngine(Engine):
 
         """
    
-        # A resource key names the route, as it always has. A licence key
+        # A resource key names the route. A licence key
         # alone has no resource key to put there, so it uses the data
         # endpoint that takes none and travels in the body with the list
         # of properties wanted.
@@ -436,13 +436,16 @@ class CloudRequestEngine(Engine):
         Compare the properties a request asked for with the ones its answer
         carries, and warn once about any it left out.
 
-        The cloud service drops a property the licence key does not cover
-        without naming it, whenever the request also asked for a property
-        the key does cover, so the engine has to notice the difference
-        itself. A property that is present but null counts as answered,
+        With a licence key, the cloud service drops a property the licence
+        key does not cover without naming it, whenever the request also
+        asked for a property the key does cover, so the engine has to
+        notice the difference itself. With a resource key and no licence
+        key, a property no licence grants comes back as null with a reason,
+        so a name left out is not a property, and the warning says that
+        instead. A property that is present but null counts as answered,
         because it carries a nullreason beside it saying why it has no
         value on this request, which is a different matter from
-        entitlement. The answer cannot change while the key and the list
+        entitlement. The answer cannot change while the keys and the list
         stay the same, so each distinct list is reported once.
 
         @type result: string
@@ -472,9 +475,10 @@ class CloudRequestEngine(Engine):
         self.reported_not_covered.add(requested)
 
         if len(not_covered) > 0:
-            warnings.warn(
-                Constants.MESSAGE_PROPERTIES_NOT_COVERED.format(
-                    ", ".join(not_covered)))
+            message = (Constants.MESSAGE_PROPERTIES_NOT_COVERED
+                       if self.license_key != ""
+                       else Constants.MESSAGE_PROPERTIES_NOT_KNOWN)
+            warnings.warn(message.format(", ".join(not_covered)))
 
     def get_content(self, flowData):
 

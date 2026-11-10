@@ -109,10 +109,19 @@ class Constants:
         "qualified names wanted, for example "
         "['device.ismobile', 'device.iscrawler'].")
 
-    # Logged once when a request named properties and the response left
-    # some of them out without saying so.
+    # Logged once when a request with a licence key named properties and
+    # the response left some of them out without saying so.
     MESSAGE_PROPERTIES_NOT_COVERED = (
         "The cloud service did not return the requested properties {} in "
-        "its answer. They are not covered by the keys in use, so they will "
-        "be missing from every result. The other requested properties came "
-        "back and are usable.")
+        "its answer. They are not covered by the licence key in use, so "
+        "they will be missing from every result. The other requested "
+        "properties came back and are usable.")
+    # Logged once when a request with a resource key and no licence key
+    # named properties and the response left some of them out. Without a
+    # licence key a property no licence grants comes back as null with a
+    # reason, so a name left out is not a property.
+    MESSAGE_PROPERTIES_NOT_KNOWN = (
+        "The cloud service did not return the requested properties {} in "
+        "its answer. They are not properties the cloud service knows, so "
+        "check the names. The other requested properties came back and "
+        "are usable.")
