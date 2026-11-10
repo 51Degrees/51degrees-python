@@ -71,6 +71,16 @@ class JSONBundlerElement(FlowElement):
     
         """
    
+        # The sequence number is the one the Sequence Element has put in the
+        # Evidence as a whole number. Text in the query string does not
+        # count, and without a number no JSON is set.
+        sequence = flowdata.evidence.get("query.sequence")
+        if isinstance(sequence, bool) or not isinstance(sequence, int):
+            raise Exception(
+                "The JSON Builder needs the sequence number that a Sequence "
+                "Element produces. A Sequence Element needs to be placed "
+                "before it in the Pipeline.")
+
         # Get every property on every FlowElement
         # Storing JavaScript properties in an extra section
 
@@ -196,9 +206,7 @@ class JSONBundlerElement(FlowElement):
                 if value is None:
                     output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
 
-                sequence = flowdata.evidence.get("query.sequence")
-
-                if sequence is None or sequence < 10: 
+                if sequence < 10:
 
                     if "type" in propertymeta and propertymeta["type"].lower() == "javascript":
 
