@@ -108,18 +108,11 @@ class Constants:
         "properties it wants. Set requested_properties to the fully "
         "qualified names wanted, for example "
         "['device.ismobile', 'device.iscrawler'].")
-    MESSAGE_PROPERTIES_IGNORED_WITH_RESOURCE_KEY = (
-        "CloudRequestEngine has requested_properties and a resource key. "
-        "The cloud service ignores the list whenever a resource key is "
-        "present and answers with everything the resource key carries, so "
-        "the caller would believe the response had narrowed when it had "
-        "not. Either leave out requested_properties, or authenticate with "
-        "a licence key alone.")
 
     # Logged once when a request named properties and the response left
     # some of them out without saying so.
     MESSAGE_PROPERTIES_NOT_COVERED = (
         "The cloud service did not return the requested properties {} in "
-        "its answer. They are not covered by the licence key in use, so "
-        "they will be missing from every result. The other requested "
-        "properties came back and are usable.")
+        "its answer. They are not covered by the keys in use, so they will "
+        "be missing from every result. The other requested properties came "
+        "back and are usable.")

@@ -57,9 +57,8 @@ class CloudRequestEngine(Engine):
         license_key, and optionally
         1) requested_properties, the fully qualified names of the
         properties to ask for, as a list or a comma separated string.
-        Required with a license_key alone and refused with a resource_key,
-        because the cloud service ignores the list whenever a resource key
-        is present
+        Required with a license_key alone. Beside a resource_key the cloud
+        service adds them to the properties the resource key carries
         2) a cloud_endpoint to overwrite the default baseurl
         3) an cloud_request_origin to use when making requests
 
@@ -178,9 +177,7 @@ class CloudRequestEngine(Engine):
         Add to the properties each request asks for, after the engine is
         built. The names are trimmed and lower-cased as the constructor
         does, so a name given in the case the documentation uses still
-        matches the answer, and the credential rules are checked again,
-        because a list only has meaning on a licence key alone and the
-        constructor's check cannot see a list added later.
+        matches the answer.
 
         @type names: list or string
         @param names: the names to add, as a list or one comma separated
@@ -189,7 +186,6 @@ class CloudRequestEngine(Engine):
 
         self.requested_properties.extend(
             self.setting_names({"names": names}, "names"))
-        self.check_credentials()
 
     def check_credentials(self):
 
@@ -209,10 +205,6 @@ class CloudRequestEngine(Engine):
 
         if has_resource_key == False and has_requested_properties == False:
             raise ValueError(Constants.MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES)
-
-        if has_resource_key == True and has_requested_properties == True:
-            raise ValueError(
-                Constants.MESSAGE_PROPERTIES_IGNORED_WITH_RESOURCE_KEY)
 
     def get_credentials(self):
 
