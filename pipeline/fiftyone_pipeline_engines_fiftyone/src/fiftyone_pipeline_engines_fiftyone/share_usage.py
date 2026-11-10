@@ -30,11 +30,18 @@ from concurrent.futures import ThreadPoolExecutor
 from importlib.metadata import version
 
 import requests
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
 from fiftyone_pipeline_engines.engine import Engine
 
 from .share_usage_evidencekeyfilter import ShareUsageEvidenceKeyFilter, \
     ShareUsageTrackerEvidenceKeyFilter
 from .share_usage_tracker import ShareUsageTracker
+
+# The key the web integration gives the web request itself. Written out
+# rather than imported, so the element still loads beside an older
+# fiftyone_pipeline_core.
+HTTP_REQUEST_KEY = "server.http-request"
 
 # The maximum length of a piece of evidence's value which can be
 # added to the usage data being sent.
@@ -124,11 +131,13 @@ class ShareUsage(Engine):
         included = None if query_whitelist is None else \
             list(query_whitelist) + ["session-id", "sequence"]
 
-        # When sessions are tracked, the pipeline keeps the session cookie
-        # for the tracker. The data sent leaves it out unless all evidence
+        # The element accepts no evidence, so that caching, the ETag and the
+        # Vary header never depend on it. It shares what it finds instead,
+        # and these filters decide which of that is shared and which tells
+        # a repeat apart. When sessions are tracked the tracker reads the
+        # session cookie, which the data sent leaves out unless all evidence
         # is shared.
-        self.evidence_key_filter = ShareUsageEvidenceKeyFilter(
-            cookie, included, header_blacklist, track_session, share_all)
+        self.evidence_key_filter = BasicListEvidenceKeyFilter([])
         self.data_evidence_key_filter = ShareUsageEvidenceKeyFilter(
             cookie, included, header_blacklist, False, share_all)
         self.tracker_evidence_key_filter = \
@@ -215,13 +224,39 @@ class ShareUsage(Engine):
 
         """!
 
-        The share useage element comes with its own evidence
-        key filter that uses the whitelists and blacklists to
-        determine which evidence to share    
-    
+        The usage sharing element accepts no evidence. See found_evidence
+        for what it shares.
         """
 
         return self.evidence_key_filter
+
+    def found_evidence(self, flow_data):
+
+        """!
+        The evidence the element finds to share. These are the values of the
+        web request, when the web integration added it as
+        server.http-request, and every evidence value in the flow data,
+        whether an element accepted it or not. A key found in both places
+        takes the evidence value. The web request itself is never one of
+        them.
+
+        @type flow_data: FlowData
+        @param flow_data: The flow data being processed
+        @rtype: dict
+        @return: The evidence found, before the sharing rules apply
+        """
+
+        evidence = flow_data.evidence
+        # An older fiftyone_pipeline_core sets nothing aside.
+        unaccepted = getattr(evidence, "get_unaccepted", dict)()
+        web_request = unaccepted.get(HTTP_REQUEST_KEY) or \
+            evidence.get(HTTP_REQUEST_KEY) or {}
+        found = {}
+        for source in (web_request, unaccepted, evidence.get_all()):
+            for key, value in source.items():
+                if str(key).lower() != HTTP_REQUEST_KEY:
+                    found[key] = value
+        return found
 
     def share_send_usage(self):
         """!
@@ -310,8 +345,11 @@ class ShareUsage(Engine):
         """
         
         if random.uniform(0, 1) <= self.share_percentage:
-            cachekey = self.tracker_evidence_key_filter.filter_evidence(flow_data.evidence.get_all())
-            cachekey = json.dumps(cachekey)
+            # A hash of the values that would be shared, as the element
+            # accepts no evidence of its own.
+            cachekey = self.tracker_evidence_key_filter.filter_evidence(
+                self.found_evidence(flow_data))
+            cachekey = json.dumps(cachekey, sort_keys=True, default=str)
             share = self.tracker.track(cachekey) 
             if share:
                 self.tracker.set_cache_value(cachekey)
@@ -327,7 +365,7 @@ class ShareUsage(Engine):
         """
         data = ShareUsageData()
 
-        for key, value in flow_data.evidence.get_all().items():
+        for key, value in self.found_evidence(flow_data).items():
             if key == 'server.client-ip':
                 # The client IP is dealt with separately for backwards
                 # compatibility purposes.
