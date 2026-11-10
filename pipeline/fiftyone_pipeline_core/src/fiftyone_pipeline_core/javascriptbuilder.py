@@ -60,11 +60,12 @@ OBJECT_NAME_PATTERN = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
 
 # Names the object cannot have. These are the reserved words of the language,
 # including those reserved only in strict mode and the literals null, true
-# and false, plus the three global values a top level var cannot replace,
-# eval, the properties of the browser's Window object that a top level var
-# cannot replace or that navigate the page away, so the object would
-# silently never be created, and the name of the constructor the script
-# itself defines.
+# and false. Then eval and arguments, which strict mode code cannot declare,
+# and eval would also replace the page's own eval function. Then the three
+# global values and the properties of the browser's Window object that a
+# top level var cannot replace, so the object would never be created, and
+# location, which would navigate the page away. Last, the name of the
+# constructor the script itself defines.
 RESERVED_WORDS = frozenset([
     "await", "break", "case", "catch", "class", "const", "continue",
     "debugger", "default", "delete", "do", "else", "enum", "export",
