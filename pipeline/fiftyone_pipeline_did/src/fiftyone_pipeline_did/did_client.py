@@ -174,7 +174,7 @@ class FactorResult(str, Enum):
     """The outcome of one factor in a mismatch or a partly misconfigured
     result. The cloud reports ``null`` for a factor that was not compared,
     which is passed through as ``None``, and a word this package does not
-    list is read the same way."""
+    list is read as :attr:`MISMATCH`."""
 
     VERIFIED = "verified"
     MISMATCH = "mismatch"
@@ -415,6 +415,12 @@ def _context_of(text: str) -> ContextResult:
 
 
 def _factor_of(value: Any) -> FactorValue:
+    # Nothing was compared.
+    if value is None:
+        return None
+    # The cloud writes lower case words, and the comparison ignores case.
+    if isinstance(value, str):
+        value = value.lower()
     if value == "verified":
         return FactorResult.VERIFIED
     if value == "mismatch":
@@ -425,7 +431,10 @@ def _factor_of(value: Any) -> FactorValue:
         return FactorResult.MISCONFIGURED
     if value == "notrecorded":
         return FactorResult.NOT_RECORDED
-    return None
+    # A word this package does not list, such as one a newer service sends,
+    # is a mismatch, so it never reads as a factor that matched or one that
+    # could not be compared.
+    return FactorResult.MISMATCH
 
 
 class DidClient:
