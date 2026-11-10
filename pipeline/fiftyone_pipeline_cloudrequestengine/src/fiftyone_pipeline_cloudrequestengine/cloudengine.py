@@ -24,6 +24,7 @@ from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
     BasicListEvidenceKeyFilter
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
+from fiftyone_pipeline_core.jsonbundler import WKT_TYPES
 
 from .clouddata import CloudData
 
@@ -133,7 +134,18 @@ class CloudEngine(Engine):
 
         result = {}
 
+        # A shape in well-known text arrives as an object holding the text.
+        # The property list is keyed by the names the cloud service gives,
+        # such as Areas, and the response by the same names in lower case.
+        wkt_keys = {
+            name.lower() for name, meta in self.properties.items()
+            if str(meta.get("type", "")).lower() in WKT_TYPES}
+
         for key, value in engineData.items():
+
+            if (key.lower() in wkt_keys and isinstance(value, dict)
+                    and list(value) == ["value"]):
+                value = value["value"]
 
             if key + "nullreason" in engineData:
                 result[key] = AspectPropertyValue(no_value_message=engineData[key + "nullreason"])
