@@ -119,11 +119,19 @@ class FileSystemWatcherTests(unittest.TestCase):
         check = self.pending.pop(0)
         check.function(*check.args)
 
+    def register_watched(self, data_file):
+        # The watcher runs only with automatic updates on. The update checks
+        # those would schedule are left out, so only the watcher's are
+        # pending.
+        data_file.auto_update = True
+        with mock.patch.object(self.service, "check_next_update"):
+            self.service.register_data_file(data_file)
+
     # A refresh that fails is logged and reported, the data in use is kept,
     # and a later good file is picked up.
     def testFileSystemWatcherKeepsWatchingAfterFailedRefresh(self):
         data_file = StandInDataFile(self.path)
-        self.service.register_data_file(data_file)
+        self.register_watched(data_file)
 
         self.write("unusable")
         self.run_next_check()
@@ -143,7 +151,7 @@ class FileSystemWatcherTests(unittest.TestCase):
     # replaced, is looked for again at the next check.
     def testFileSystemWatcherKeepsWatchingWhileFileIsMissing(self):
         data_file = StandInDataFile(self.path)
-        self.service.register_data_file(data_file)
+        self.register_watched(data_file)
 
         os.remove(self.path)
         self.run_next_check()
@@ -160,7 +168,7 @@ class FileSystemWatcherTests(unittest.TestCase):
     # nothing is left holding the data file.
     def testUnregisterStopsFileSystemWatcher(self):
         data_file = StandInDataFile(self.path)
-        self.service.register_data_file(data_file)
+        self.register_watched(data_file)
         check = self.pending[0]
 
         self.service.unregister_data_file(data_file)
