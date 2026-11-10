@@ -30,10 +30,9 @@ import os
 import random
 import threading
 import time
+import zlib
 import requests
 from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
-# gzip decompress alternative for python 2
-from io import StringIO
 
 
 class UpdateStatus(Enum):
@@ -59,6 +58,10 @@ class UpdateStatus(Enum):
     AUTO_UPDATE_NEW_FILE_CANT_RENAME = 9
     # Refreshing the engine with the new data caused an error to occur.
     AUTO_UPDATE_REFRESH_FAILED = 10
+
+# The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
+GZIP_MAGIC = b"\x1f\x8b"
+
 
 class DataFileUpdateService():
 
@@ -108,6 +111,8 @@ class DataFileUpdateService():
         # Get the update url
 
         url = data_file.get_update_url()
+        # The URL carries the licence key, so only a masked copy is logged.
+        shown_url = mask_licence_keys_in_text(url)
         engine = self._engine_type(data_file)
 
         headers = {}
@@ -123,7 +128,7 @@ class DataFileUpdateService():
 
         self._log(
             "info",
-            "Checking for update from '" + url + "' for Engine '" +
+            "Checking for update from '" + shown_url + "' for Engine '" +
             engine + "'")
 
         retry = self._retry_text(data_file)
@@ -131,21 +136,24 @@ class DataFileUpdateService():
         try:
             response = requests.get(url, headers=headers)
         except requests.RequestException as e:
+            # The message of a failed request names the URL, key included.
             self._log(
                 "warning",
-                "An error occurred when connecting to " + url +
+                "An error occurred when connecting to " + shown_url +
                 " in order to check for data file updates for " + engine +
-                "." + retry + " Error detail: " + str(e))
+                "." + retry + " Error detail: " +
+                mask_licence_keys_in_text(e))
             return self._update_failed(
-                data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR, True)
+                data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
 
         if response.status_code == 304:
             self._log(
                 "info",
                 "No data newer than " + (since or "the data in use") +
-                " found at '" + url + "' for Engine '" + engine + "'")
+                " found at '" + shown_url + "' for Engine '" + engine +
+                "'")
             return self._update_failed(
-                data_file, UpdateStatus.AUTO_UPDATE_NOT_NEEDED, True)
+                data_file, UpdateStatus.AUTO_UPDATE_NOT_NEEDED)
 
         if response.status_code != 200:
 
@@ -161,15 +169,20 @@ class DataFileUpdateService():
             self._log(
                 "warning",
                 "An error occurred while downloading a data file update "
-                "for " + engine + " from " + url + "." + retry +
+                "for " + engine + " from " + shown_url + "." + retry +
                 " Error detail: HTTP status code " +
                 str(response.status_code))
-            return self._update_failed(data_file, status, True)
+            return self._update_failed(data_file, status)
 
-        # Verify MD5 hash if enabled
+        # Verify the MD5 hash if enabled and the answer gives one.
 
-        if data_file.verify_md5:
-            header_md5 = response.headers["content-md5"]
+        header_md5 = response.headers.get("content-md5")
+        if data_file.verify_md5 and header_md5 is None:
+            self._log(
+                "warning",
+                "No MD5 hash included in data update response for '" +
+                shown_url + "'. Unable to verify data integrity")
+        elif data_file.verify_md5:
 
             import hashlib
             hash_md5 = hashlib.md5()
@@ -186,64 +199,33 @@ class DataFileUpdateService():
                     "match the content-md5 header.")
                 return self._update_failed(
                     data_file,
-                    UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED,
-                    False)
+                    UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED)
 
         self._log(
             "info",
-            "Downloaded new data from '" + url + "' for Engine '" +
+            "Downloaded new data from '" + shown_url + "' for Engine '" +
             engine + "'")
 
         data = response.content
 
-        # Decompress if set
-        if data_file.decompress:
-            # Python 3 version
-            if(hasattr(gzip, "decompress")):
-                data = gzip.decompress(response.content)
-            else:
-                compressed_stream = StringIO(response.content)
-                gzipper = gzip.GzipFile(fileobj=compressed_stream)
-                data = gzipper.read()
+        # Decompress if set and the content is compressed.
+        if data_file.decompress and data[:2] == GZIP_MAGIC:
+            try:
+                data = gzip.decompress(data)
+            except (OSError, EOFError, zlib.error) as e:
+                self._log(
+                    "warning",
+                    "An error occurred during the integrity check of new "
+                    "data file for " + engine + "." + retry +
+                    " Error detail: " + str(e))
+                return self._update_failed(
+                    data_file, UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM)
 
         # Download datafile if needed, or pass through memory
         if data_file.download:
-
-            if data_file.create_temp_copy:
-
-                filename = data_file.temp_directory + "/" + data_file.identifier + str(time.time())
-            
-            else:
-
-                filename = data_file.path
-
-            try:
-                with open(filename, 'wb') as f:
-                    f.write(data)
-            except OSError as e:
-                self._log(
-                    "error",
-                    "An error occurred when writing to " + filename +
-                    ". Error detail: " + str(e))
-                return self._update_failed(
-                    data_file, UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM,
-                    True)
-
-            if data_file.create_temp_copy:
-
-                # Move to real file
-
-                try:
-                    shutil.move(filename, data_file.path)
-                except (OSError, shutil.Error):
-                    self._log(
-                        "error",
-                        "An error occurred when copying a data file to "
-                        "replace the existing one at '" + data_file.path +
-                        "'.")
-                    return self._update_failed(
-                        data_file,
-                        UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME, True)
+            failed = self._write_data_file(data_file, data)
+            if failed is not None:
+                return self._update_failed(data_file, failed)
 
         else:
 
@@ -268,26 +250,34 @@ class DataFileUpdateService():
     def update_from_memory(self, data_file, data):
 
         """!
-        Refresh a data file that is kept in memory from the bytes given,
-        without downloading anything.
+        Refresh a data file from the bytes given, without downloading
+        anything. A data file kept on disk has the bytes written to its path
+        first, as the update route writes a download, and the engine is then
+        refreshed from the file.
         @type data_file: DataFile
-        @param data_file: Datafile to update, created with download set to
-        False
+        @param data_file: Datafile to update
         @type data: bytes
         @param data: The new content of the data file
         @rtype: UpdateStatus
         @return: AUTO_UPDATE_SUCCESS, AUTO_UPDATE_REFRESH_FAILED if the
-        engine could not use the data (the data it had is kept), or
+        engine could not use the data (the data it had is kept), the status
+        of a failed write for a data file kept on disk, or
         AUTO_UPDATE_NOT_NEEDED if the data file's engine has been closed
         """
 
-        if data_file.download:
-            raise ValueError(
-                "update_from_memory needs a data file that is kept in "
-                "memory, created with download set to False.")
-
         if not self.__is_registered(data_file):
             return UpdateStatus.AUTO_UPDATE_NOT_NEEDED
+
+        if data_file.download and getattr(data_file, "path", None):
+            data_file.updating = True
+            try:
+                status = self._write_data_file(data_file, data)
+                if status is None:
+                    status = self._refresh(data_file)
+            finally:
+                data_file.updating = False
+            self.__emit(status, data_file)
+            return status
 
         previous = data_file.data
         data_file.data = data
@@ -303,6 +293,39 @@ class DataFileUpdateService():
         self.__emit(status, data_file)
 
         return status
+
+    def _write_data_file(self, data_file, data):
+        # Write new data to the data file's path, through a temporary copy
+        # when the data file asks for one. None when written, or the status
+        # of the failure, which is logged.
+        if data_file.create_temp_copy:
+            filename = os.path.join(
+                data_file.temp_directory,
+                data_file.identifier + str(time.time()))
+        else:
+            filename = data_file.path
+
+        try:
+            with open(filename, 'wb') as f:
+                f.write(data)
+        except OSError as e:
+            self._log(
+                "error",
+                "An error occurred when writing to " + filename +
+                ". Error detail: " + str(e))
+            return UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM
+
+        if data_file.create_temp_copy:
+            try:
+                shutil.move(filename, data_file.path)
+            except (OSError, shutil.Error):
+                self._log(
+                    "error",
+                    "An error occurred when copying a data file to "
+                    "replace the existing one at '" + data_file.path +
+                    "'.")
+                return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
+        return None
 
     def _refresh(self, data_file):
         # Refresh the engine with the data file's new content.
@@ -320,12 +343,12 @@ class DataFileUpdateService():
             return UpdateStatus.AUTO_UPDATE_REFRESH_FAILED
         return UpdateStatus.AUTO_UPDATE_SUCCESS
 
-    def _update_failed(self, data_file, status, run_after_error):
-        # An update that ends without new data. With run_after_error False, a
-        # check on start-up that has not yet succeeded is made again at once.
+    def _update_failed(self, data_file, status):
+        # An update that ends without new data. The next check is the next
+        # scheduled one, never an immediate repeat of a check on start-up.
         data_file.updating = False
         self.__emit(status, data_file)
-        self.check_next_update(data_file, run_after_error=run_after_error)
+        self.check_next_update(data_file, run_after_error=True)
         return False
 
     def _log(self, level, message):
@@ -454,7 +477,9 @@ class DataFileUpdateService():
         # Watch for changes in file and refresh if
         # file_system_watcher is enabled on data_file
 
-        if data_file.file_system_watcher:
+        # The watcher is an automatic update, so it only runs with
+        # automatic updates on.
+        if data_file.auto_update and data_file.file_system_watcher:
             self._log("info", "Creating file system watcher")
             data_file.last_changed_time = os.stat(data_file.path).st_mtime
             self.track_local_data_file_changes(data_file)    
