@@ -20,6 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
 
@@ -46,6 +47,15 @@ class JSONBundlerElement(FlowElement):
         self.properties = {"json" : { "type": "dict"} }
 
         self.property_cache = {}
+
+    def get_evidence_key_filter(self):
+
+        """!
+        The element reads only the results of other elements, so it accepts
+        no evidence.
+        """
+
+        return BasicListEvidenceKeyFilter([])
 
     @staticmethod
     def record_json(record):
