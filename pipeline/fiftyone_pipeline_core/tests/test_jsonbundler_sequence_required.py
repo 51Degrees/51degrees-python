@@ -7,15 +7,37 @@ says.
 
 import unittest
 
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.jsonbundler import JSONBundlerElement
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 
-def bundler_only(suppress=False):
+class KeepsTheSequence(FlowElement):
+    """Accepts query.sequence and does nothing else, as an element of the
+    caller's that keeps the integer it adds would. The JSON Builder accepts
+    no evidence, so without such an element the pipeline sets the value
+    aside."""
+
+    def __init__(self):
+        super(KeepsTheSequence, self).__init__()
+        self.datakey = "keepsthesequence"
+
+    def get_evidence_key_filter(self):
+        return BasicListEvidenceKeyFilter(["query.sequence"])
+
+    def process_internal(self, flowdata):
+        pass
+
+
+def bundler_only(suppress=False, keep_sequence=False):
     builder = PipelineBuilder({
         "add_javascript_builder": False,
         "use_setheader_properties": False,
         "suppress_process_exceptions": suppress})
+    if keep_sequence:
+        builder.add(KeepsTheSequence())
     return builder.add(JSONBundlerElement()).build()
 
 
@@ -49,7 +71,7 @@ class JsonBuilderSequenceTests(unittest.TestCase):
             self.assertNotIn("jsonbundler", flowdata.data, repr(value))
 
     def test_an_integer_sequence_number_in_the_evidence_counts(self):
-        pipeline = bundler_only()
+        pipeline = bundler_only(keep_sequence=True)
         self.addCleanup(pipeline.close)
         flowdata = pipeline.create_flowdata()
         flowdata.evidence.add("query.sequence", 3)
@@ -66,7 +88,7 @@ class JsonBuilderSequenceTests(unittest.TestCase):
 
     def test_a_sequence_of_ten_or_more_leaves_out_the_javascript_properties(
             self):
-        pipeline = bundler_only()
+        pipeline = bundler_only(keep_sequence=True)
         self.addCleanup(pipeline.close)
         flowdata = pipeline.create_flowdata()
         flowdata.evidence.add("query.sequence", 10)
