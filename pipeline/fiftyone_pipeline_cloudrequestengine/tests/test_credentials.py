@@ -316,7 +316,9 @@ class TestCredentials(CloudRequestEngineTestsBase):
 
         settings["http_client"] = self.mock_http()
         engine = CloudRequestEngine(settings)
-        pipeline = PipelineBuilder().add(engine).build()
+        # The stand-in service lists query.User-Agent alone, so an element
+        # that accepts every key keeps the other evidence for the engine.
+        pipeline = PipelineBuilder().add(AcceptEveryKeyElement())             .add(engine).build()
         data = pipeline.create_flowdata()
         data.evidence.add("query.Resource", "evidence_resource")
         data.evidence.add("query.LICENSE", "evidence_license")
