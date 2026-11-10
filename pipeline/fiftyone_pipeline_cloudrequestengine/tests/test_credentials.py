@@ -423,6 +423,38 @@ class TestCredentials(CloudRequestEngineTestsBase):
         self.assertNotIn("device.istablet", messages[0])
         self.assertNotIn("device.ismobile", messages[0])
 
+    def test_a_name_left_out_beside_a_resource_key_alone_is_not_a_property(
+            self):
+        """
+        With a resource key, a list and no licence key, a property no
+        licence grants comes back as null with its nullreason, so a name the
+        answer leaves out is not a property at all. The engine says so,
+        once, and does not name a licence key that was never given.
+        """
+
+        engine = CloudRequestEngine({
+            "resource_key": RESOURCE_KEY,
+            "requested_properties": ["device.value", "device.notaproperty"],
+            "http_client": self.mock_http(),
+        })
+
+        pipeline = PipelineBuilder().add(engine).build()
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            for _ in range(2):
+                data = pipeline.create_flowdata()
+                data.evidence.add("query.User-Agent", "iPhone")
+                data.process()
+
+        messages = [
+            str(warning.message) for warning in caught
+            if "device.notaproperty" in str(warning.message)]
+        self.assertEqual(1, len(messages), messages)
+        self.assertIn("not properties the cloud service knows", messages[0])
+        self.assertNotIn("licence key", messages[0])
+        self.assertNotIn("device.value", messages[0])
+
     def test_no_report_when_every_property_came_back(self):
         """
         An answer carrying every requested property raises no warning, and
