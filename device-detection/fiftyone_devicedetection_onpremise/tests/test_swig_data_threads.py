@@ -11,6 +11,18 @@ import unittest
 from fiftyone_devicedetection_onpremise.swig_data import SwigData
 
 
+# How long a stand-in read takes, long enough that overlapping reads are seen.
+READ_SECONDS = 0.02
+# The longest a test waits for another thread.
+WAIT_SECONDS = 10
+# How long closing is given while a read holds the results. It must still be
+# waiting at the end.
+BLOCKED_SECONDS = 0.2
+
+KEY = "deviceid"
+VALUE = "1-2-3"
+
+
 class OverlapCountingResults:
     """Stands in for the native results and records how many reads overlap."""
 
@@ -23,9 +35,23 @@ class OverlapCountingResults:
         with self.guard:
             self.active += 1
             self.most_active = max(self.most_active, self.active)
-        time.sleep(0.02)
+        time.sleep(READ_SECONDS)
         with self.guard:
             self.active -= 1
+        return "1-2-3"
+
+
+class BlockingResults:
+    """Stands in for the native results with a read that waits to be let go,
+    so a test can act while the read is in progress."""
+
+    def __init__(self):
+        self.reading = threading.Event()
+        self.release = threading.Event()
+
+    def getDeviceId(self):
+        self.reading.set()
+        self.release.wait(WAIT_SECONDS)
         return "1-2-3"
 
 
@@ -58,16 +84,28 @@ class SwigDataThreadTests(unittest.TestCase):
         self.assertEqual(1, results.most_active)
 
     def test_closing_waits_for_a_read_in_progress(self):
-        results = OverlapCountingResults()
+        results = BlockingResults()
         data = SwigData(FakeElement(), results)
-        reader = threading.Thread(target=lambda: data.get("deviceid"))
+        values = []
+        reader = threading.Thread(
+            target=lambda: values.append(data.get(KEY)))
         reader.start()
-        time.sleep(0.005)
-        data.close()
-        reader.join()
+        self.assertTrue(results.reading.wait(WAIT_SECONDS))
+
+        closer = threading.Thread(target=data.close)
+        closer.start()
+        closer.join(BLOCKED_SECONDS)
+        # The read holds the results, so closing waits for it.
+        self.assertTrue(closer.is_alive())
+
+        results.release.set()
+        reader.join(WAIT_SECONDS)
+        closer.join(WAIT_SECONDS)
+        self.assertFalse(closer.is_alive())
+        self.assertEqual([VALUE], [value.value() for value in values])
         self.assertIsNone(data.swig_results)
         with self.assertRaises(Exception):
-            data.get("deviceid")
+            data.get(KEY)
 
 
 if __name__ == "__main__":
