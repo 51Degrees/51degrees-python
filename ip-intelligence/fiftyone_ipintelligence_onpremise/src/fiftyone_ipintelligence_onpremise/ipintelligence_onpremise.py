@@ -21,7 +21,6 @@
 # *********************************************************************
 
 from __future__ import absolute_import
-import ipaddress
 import multiprocessing
 import os.path
 
@@ -33,6 +32,7 @@ from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenc
 
 from .IpIntelligenceEngineModule import *
 
+from .client_ip import client_ips
 from .swig_data import SwigData
 from .ipintelligence_datafile import IpIntelligenceDataFile
 
@@ -348,39 +348,15 @@ class IpIntelligenceOnPremise(Engine):
 
         """!
 
-        Get the IPv4 and IPv6 addresses from the evidence, using the same
-        priority order as the other IP intelligence engines:
-        query.client-ip first, then server.client-ip, then any other
-        parseable value in the evidence accepted by the engine.
+        Get the IPv4 and IPv6 addresses from the evidence accepted by the
+        engine, as client_ips reads them.
 
         @rtype: tuple
         @returns: (ipv4 or None, ipv6 or None)
 
         """
 
-        evidence = flow_data.evidence.get_all()
-
-        ordered = []
-        for key in ["query.client-ip", "server.client-ip"]:
-            if key in evidence:
-                ordered.append(evidence[key])
-        for key, value in evidence.items():
-            if value not in ordered:
-                ordered.append(value)
-
-        ipv4 = None
-        ipv6 = None
-        for value in ordered:
-            try:
-                parsed = ipaddress.ip_address(str(value).strip())
-            except ValueError:
-                continue
-            if parsed.version == 4 and ipv4 is None:
-                ipv4 = str(parsed)
-            elif parsed.version == 6 and ipv6 is None:
-                ipv6 = str(parsed)
-
-        return (ipv4, ipv6)
+        return client_ips(flow_data.evidence.get_all())
 
     def process_internal(self, flow_data):
 
