@@ -65,7 +65,7 @@ from typing import (
 from ._owid import Version
 
 from ._layout import GUID_LENGTH, HEADER_LENGTH, MATCH_KEY_LENGTH
-from .fod_id import DATE_EPOCH, FodId, _date_minutes
+from .fod_id import DATE_EPOCH, FodId, _date_minutes, _trim_white_space
 from .id_type import IdType
 
 #: The public cloud API base, used when neither the ``endpoint`` argument
@@ -934,10 +934,10 @@ def _ensure_parses(value: str) -> None:
 
 def _ensure_encoded_size(value: str) -> None:
     """Refuses obviously malformed text before it is parsed, a key is
-    fetched or the cloud is called. Surrounding whitespace is stripped
-    before measuring, as the reader strips it before decoding, so the two
-    measure the same characters."""
-    if len(value.strip()) > _MAXIMUM_ENCODED_LENGTH:
+    fetched or the cloud is called. White space around the value is
+    removed before measuring, as the reader removes it before decoding,
+    so the two measure the same characters."""
+    if len(_trim_white_space(value)) > _MAXIMUM_ENCODED_LENGTH:
         raise ValueError(
             "The identifier is far longer than any 51Did the cloud "
             "issues.")
