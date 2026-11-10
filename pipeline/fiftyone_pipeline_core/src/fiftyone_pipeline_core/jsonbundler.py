@@ -150,6 +150,7 @@ class JSONBundlerElement(FlowElement):
             for propertykey, propertymeta in properties.items():
                 value = None
                 null_reason = "Unknown"
+                no_value = False
 
                 # Check if property has delayed execution and set in JSON if yes
 
@@ -178,6 +179,7 @@ class JSONBundlerElement(FlowElement):
                             value = value_container.value()
                         else:
                             value = None
+                            no_value = True
                             null_reason = value_container.no_value_message()
                         
                     # A list of records, such as the profiles of a hardware
@@ -193,8 +195,6 @@ class JSONBundlerElement(FlowElement):
                             elif hasattr(item, "has_value"):
                                 if item.has_value():
                                     items.append(item.value())
-                                else:
-                                    null_reason = item.no_value_message()
                             else:
                                 items.append(item)
 
@@ -208,6 +208,11 @@ class JSONBundlerElement(FlowElement):
                 except:
                     # Catching missing property exceptions and other errors
 
+                    continue
+
+                # A null that was not assigned 'no value', which an element
+                # that is not an engine can give, has no entry of its own.
+                if value is None and not no_value:
                     continue
         
                 output[flow_element.datakey.lower()][propertykey.lower()] = value
