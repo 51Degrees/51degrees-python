@@ -45763,7 +45763,7 @@ SWIGINTERN PyObject *_wrap_ConfigIpiSwig_getComponents(PyObject *self, PyObject 
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CollectionConfig, SWIG_POINTER_OWN |  0 );
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CollectionConfig, 0 |  0 );
   return resultobj;
 fail:
   return NULL;
@@ -45873,7 +45873,7 @@ SWIGINTERN PyObject *_wrap_ConfigIpiSwig_getProperties(PyObject *self, PyObject 
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CollectionConfig, SWIG_POINTER_OWN |  0 );
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CollectionConfig, 0 |  0 );
   return resultobj;
 fail:
   return NULL;
@@ -45928,7 +45928,7 @@ SWIGINTERN PyObject *_wrap_ConfigIpiSwig_getValues(PyObject *self, PyObject *arg
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CollectionConfig, SWIG_POINTER_OWN |  0 );
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CollectionConfig, 0 |  0 );
   return resultobj;
 fail:
   return NULL;
@@ -45983,7 +45983,7 @@ SWIGINTERN PyObject *_wrap_ConfigIpiSwig_getProfiles(PyObject *self, PyObject *a
       SWIG_exception(SWIG_ValueError, e.what());
     }
   }
-  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CollectionConfig, SWIG_POINTER_OWN |  0 );
+  resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_CollectionConfig, 0 |  0 );
   return resultobj;
 fail:
   return NULL;
