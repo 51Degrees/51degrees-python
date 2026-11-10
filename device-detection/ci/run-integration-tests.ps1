@@ -137,10 +137,10 @@ $failures += Test-Example -Name 'cloud' `
 # against the TAC data file, which is only fetched when a licence is given.
 $tac = "$PWD/assets/TAC-HashV41.hash"
 if (Test-Path $tac) {
-    ${env:51DEGREES_DD_PATH} = (Resolve-Path $tac).Path
+    $env:_51DEGREES_DD_PATH = (Resolve-Path $tac).Path
     $failures += Test-Example -Name 'onpremise' `
         -Module 'fiftyone_devicedetection_examples.onpremise.gettingstarted_web' -Port 8098
-    Remove-Item Env:51DEGREES_DD_PATH
+    Remove-Item Env:_51DEGREES_DD_PATH
 } else {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No TAC Data File::The TAC data file wasn't found, so the Selenium tests will not run against the on-premise example."
 }

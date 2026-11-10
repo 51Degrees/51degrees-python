@@ -52,7 +52,7 @@ class ExampleUtils:
     # The environment variable an on-premise example reads the path of its
     # device detection data file from, when one is given, in place of the
     # file named in its configuration.
-    DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"
+    DATA_FILE_ENV_VAR = "_51DEGREES_DD_PATH"
 
     # The data repository's device detection folder, from the root of a
     # checkout of this repository. Each file the data repository links to
