@@ -1209,7 +1209,11 @@ class RedeemTests(unittest.TestCase):
                 ("mismatch", FactorResult.MISMATCH),
                 ("misconfigured", FactorResult.MISCONFIGURED),
                 ("notrecorded", FactorResult.NOT_RECORDED),
-                ("Verified", FactorResult.MISMATCH),
+                # The words are compared without regard to case.
+                ("Verified", FactorResult.VERIFIED),
+                ("MISMATCH", FactorResult.MISMATCH),
+                ("Misconfigured", FactorResult.MISCONFIGURED),
+                ("NotRecorded", FactorResult.NOT_RECORDED),
                 ("", FactorResult.MISMATCH),
                 ("not recorded", FactorResult.MISMATCH),
                 (7, FactorResult.MISMATCH),
