@@ -81,7 +81,8 @@ class JSONBundlerElement(FlowElement):
                     written[key] = value.value()
                 else:
                     written[key] = None
-                    written[key + "nullreason"] = value.no_value_message()
+                    written[key + "nullreason"] = (
+                        value.no_value_message() or "Unknown")
             elif value is not None:
                 written[key] = value
 
@@ -190,7 +191,9 @@ class JSONBundlerElement(FlowElement):
                         else:
                             value = None
                             no_value = True
-                            null_reason = value_container.no_value_message()
+                            null_reason = (
+                                value_container.no_value_message()
+                                or null_reason)
                         
                     # A list of records, such as the profiles of a hardware
                     # profile lookup, or of aspect property values
@@ -221,13 +224,12 @@ class JSONBundlerElement(FlowElement):
                     continue
 
                 # A null that was not assigned 'no value', which an element
-                # that is not an engine can give, has no entry of its own.
-                if value is None and not no_value:
-                    continue
-        
-                output[flow_element.datakey.lower()][propertykey.lower()] = value
-                if value is None:
-                    output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
+                # that is not an engine can give, has no entry of its own. A
+                # JavaScript Property is still listed below.
+                if value is not None or no_value:
+                    output[flow_element.datakey.lower()][propertykey.lower()] = value
+                    if value is None:
+                        output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
 
                 sequence = flowdata.evidence.get("query.sequence")
 
