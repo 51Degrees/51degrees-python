@@ -180,6 +180,10 @@ class DeviceDetectionOnPremise(Engine):
 
         properties_list = RequiredPropertiesConfigSwig(restricted_properties_vector)
 
+        # The property names the engine is built with. A property's index is
+        # its place in this list, which is fixed at build.
+        self.build_property_names = list(restricted_properties_vector)
+
         #  Assemble configuration
 
         config = ConfigHashSwig()
@@ -295,9 +299,27 @@ class DeviceDetectionOnPremise(Engine):
         else:
             data = self.data
 
+        # An engine given no property names is built with every name in the
+        # data set, read from a low memory engine first, so that each
+        # property keeps its index after a reload.
+        if not self.build_property_names:
+            probe_config = ConfigHashSwig()
+            probe_config.setLowMemory()
+            probe = EngineHashSwig(data, probe_config, self.properties_list)
+            self.build_property_names = self.available_property_names(probe)
+            del probe
+            names = VectorStringSwig()
+            for name in self.build_property_names:
+                names.append(name)
+            self.properties_list = RequiredPropertiesConfigSwig(names)
+
         engine = EngineHashSwig(data, self.config, self.properties_list)
 
         self.engine = engine
+
+        # The table from each build-time name to its index, from the native
+        # results, read once here so every read goes by index.
+        self.property_indexes = self.read_property_indexes(engine)
 
         # Get keys and add to evidenceKey filter
 
@@ -333,6 +355,34 @@ class DeviceDetectionOnPremise(Engine):
         # Special properties
         for key, property in self.get_metric_properties().items():
             self.properties[key] = property
+
+    @staticmethod
+    def available_property_names(engine):
+
+        """!
+        The names of the properties an engine's data set holds, in the
+        data set's order.
+        """
+
+        metadata = engine.getMetaData().getProperties()
+        return [metadata.getByIndex(x).getName()
+                for x in range(metadata.getSize())
+                if metadata.getByIndex(x).getAvailable()]
+
+    def read_property_indexes(self, engine):
+
+        """!
+        The index of each property the engine was built with, keyed by its
+        name in lower case. The index is the property's place in the
+        native results' list, which is the order of the build-time names.
+        """
+
+        try:
+            results = engine.process(EvidenceDeviceDetectionSwig())
+            names = list(results.getProperties())
+        except Exception:
+            names = list(self.build_property_names)
+        return {name.lower(): index for index, name in enumerate(names)}
 
     def get_metric_properties(self):
         return { "deviceid": {
