@@ -112,11 +112,12 @@ url_safe = fod_id.as_base64_url()  # URL-safe alphabet, no padding, for a link
 ```
 
 `from_base64` accepts the standard alphabet the cloud issues and the
-URL-safe alphabet a page puts in a link, with or without padding. On an
-identifier carrying a creator context the License Id field holds an
-encrypted value that only 51Degrees can turn back into a licence
-identifier, so `license_id` is the field's raw value and identifies
-nothing outside 51Degrees.
+URL-safe alphabet a page puts in a link, with or without padding. White
+space around the value is ignored. A value with white space inside it, or
+with characters from both alphabets, is refused. On an identifier carrying
+a creator context the License Id field holds an encrypted value that only
+51Degrees can turn back into a licence identifier, so `license_id` is the
+field's raw value and identifies nothing outside 51Degrees.
 
 ### The usage an identifier was created for
 
@@ -267,9 +268,9 @@ same whichever language parsed the bytes.
 | Status | Meaning |
 | --- | --- |
 | `PARSED` | A structurally valid 51Did. The signature has not been checked |
-| `MISSING_INPUT` | `None`, an empty string or an empty buffer |
+| `MISSING_INPUT` | `None`, an empty string, a string of white space alone or an empty buffer |
 | `INVALID_INPUT_TYPE` | Not a string (base64 reader) or not a bytes-like object (byte reader) |
-| `INVALID_BASE64` | The text is not base64 in either alphabet |
+| `INVALID_BASE64` | The text is not base64 in one alphabet, so there are no bytes. White space inside the text, and characters from both alphabets, report this |
 | `UNSUPPORTED_VERSION` | The first byte names an envelope version this package does not know |
 | `UNEXPECTED_END` | The data stopped in the middle of an envelope field |
 | `INVALID_DOMAIN_ENCODING` | The creator domain is not terminated or is longer than the OWID maximum |
