@@ -28,7 +28,9 @@ import uuid
 
 class SequenceElementEvidenceKeyFilter(EvidenceKeyFilter):
 
-    def filter(self, key):
+    # The session id and the sequence. The result changes as the sequence
+    # grows, so they are part of the ETag.
+    def filter_evidence_key(self, key):
     
         if (key == "query.sequence" or key == "query.session-id"):
             return True
