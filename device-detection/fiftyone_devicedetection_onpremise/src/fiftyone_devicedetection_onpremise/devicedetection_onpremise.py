@@ -61,8 +61,8 @@ class DeviceDetectionOnPremise(Engine):
         polling_interval=30,
         update_time_maximum_randomisation=10,
         create_temp_data_copy=True,
-        update_matched_useragent=False,
-        performance_profile="LowMemory",
+        update_matched_useragent=None,
+        performance_profile="Balanced",
         reuse_temp_file=False,
         concurrency=multiprocessing.cpu_count(),
         update_on_start=False,
@@ -90,10 +90,20 @@ class DeviceDetectionOnPremise(Engine):
         @param licence_keys: licencekeys to use for the data file update service
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
-        @type max_matched_useragents_length : int
-        @param Number of characters to consider in the matched User-Agent. Ignored if update_matched_useragent is false
-        @type update_matched_useragent:
-        @param: update_matched_useragent: True if the detection should record the matched characters from the target User-Agent
+        @type max_matched_useragent_length: int
+        @param max_matched_useragent_length: Limit in bytes on the length of
+        a single header such as User-Agent, of a pseudo header including the
+        separators between its values, and of the matched User-Agent. A value
+        longer than the limit is ignored and detection moves on to the next
+        header. The limit applies whether or not update_matched_useragent is
+        on. Left unset, the native default of 500 applies. A larger limit
+        raises the memory each set of results holds.
+        @type update_matched_useragent: bool
+        @param update_matched_useragent: True if the detection should record
+        the matched characters from the target User-Agent, which the
+        UserAgents property returns. On by default, as the native code sets
+        it. Set it to False when UserAgents is not needed, which saves
+        recording the characters.
         @type drift: int
         @param drift: Set maximum drift in hash position to allow when processing HTTP headers
         @type difference: int
@@ -101,7 +111,9 @@ class DeviceDetectionOnPremise(Engine):
         @type allow_unmatched : bool
         @param allow_unmatched:  True if there should be at least one matched node in order for the results to be considered valid. By default, this is false
         @type performance_profile: string
-        @param performance_profile: options are: LowMemory, MaxPerformance, Balanced, BalancedTemp, HighPerformance
+        @param performance_profile: options are: LowMemory, MaxPerformance,
+        Balanced, BalancedTemp, HighPerformance. Balanced by default, as in
+        the native code.
         @type reuse_temp_file: bool
         @param reuse_temp_file: Indicates that an existing temp file may be used. This should be selected if multiple instances wish to use the same file to prevent high disk usage.
         @type concurrency: int
@@ -209,7 +221,10 @@ class DeviceDetectionOnPremise(Engine):
             config.setUseTempFile(True)
 
         config.setReuseTempFile(reuse_temp_file)
-        config.setUpdateMatchedUserAgent(update_matched_useragent)
+
+        # Left unset, the native default applies, which is on.
+        if update_matched_useragent is not None:
+            config.setUpdateMatchedUserAgent(update_matched_useragent)
 
         if allow_unmatched == True or allow_unmatched == False:
             config.setAllowUnmatched(allow_unmatched)
