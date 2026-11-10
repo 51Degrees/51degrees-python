@@ -30,8 +30,10 @@ def client_ips(evidence):
 
     """!
     The IPv4 and IPv6 addresses the engine reports in Ip and IpV6, read from
-    the evidence: query.client-ip first, then server.client-ip, then any
-    other value that is an address.
+    the evidence, query.client-ip first, then server.client-ip, then any
+    other value that is an address as given. An IPv4-mapped IPv6 address,
+    such as ::ffff:8.8.8.8, is its IPv4 address and is reported as Ip, as
+    the native code looks it up.
 
     @type evidence: dict
     @param evidence: evidence key to value
@@ -51,9 +53,11 @@ def client_ips(evidence):
     ipv6 = None
     for value in ordered:
         try:
-            parsed = ipaddress.ip_address(str(value).strip())
+            parsed = ipaddress.ip_address(str(value))
         except ValueError:
             continue
+        if parsed.version == 6 and parsed.ipv4_mapped is not None:
+            parsed = parsed.ipv4_mapped
         if parsed.version == 4 and ipv4 is None:
             ipv4 = str(parsed)
         elif parsed.version == 6 and ipv6 is None:
