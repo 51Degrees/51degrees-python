@@ -227,8 +227,10 @@ def url_encode(value):
 
 class JavaScriptBuilderEvidenceKeyFilter(EvidenceKeyFilter):
 
-    def filter(self, key):
-        if "query" in key:
+    # The query string, which the script sends back to the callback, and the
+    # host and protocol the callback URL is built from.
+    def filter_evidence_key(self, key):
+        if key.startswith("query."):
             return True
 
         if key == "header.host" or key == "header.protocol":
