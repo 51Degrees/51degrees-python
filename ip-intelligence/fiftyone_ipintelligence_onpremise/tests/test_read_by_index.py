@@ -60,6 +60,9 @@ class ReadByIndexTests(unittest.TestCase):
     def test_an_engine_with_no_names_is_built_with_the_data_sets_names(self):
         engine = IpIntelligenceOnPremise(
             data_file_path=data_file, licence_keys="")
+        pipeline, flowdata = process(engine)
+        self.addCleanup(pipeline.close)
+        self.addCleanup(flowdata.close)
         expected = engine.available_property_names(engine.engine)
         self.assertEqual(expected, engine.build_property_names)
         self.assertEqual(
@@ -70,14 +73,16 @@ class ReadByIndexTests(unittest.TestCase):
     def test_names_in_another_order_read_the_same_values(self):
         everything = IpIntelligenceOnPremise(
             data_file_path=data_file, licence_keys="")
+        first, all_data = process(everything)
+        self.addCleanup(first.close)
+        self.addCleanup(all_data.close)
         names = everything.build_property_names[:6]
         reversed_engine = IpIntelligenceOnPremise(
             data_file_path=data_file, licence_keys="",
             restricted_properties=list(reversed(names)))
-        first, all_data = process(everything)
         second, reversed_data = process(reversed_engine)
-        self.addCleanup(first.close)
         self.addCleanup(second.close)
+        self.addCleanup(reversed_data.close)
         self.assertEqual(
             [name.lower() for name in reversed(names)],
             sorted(reversed_engine.property_indexes,
