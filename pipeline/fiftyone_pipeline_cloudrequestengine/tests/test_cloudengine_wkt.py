@@ -21,9 +21,11 @@ class FakeCloudRequestEngine(FlowElement):
         super(FakeCloudRequestEngine, self).__init__()
         self.datakey = "cloud"
         self.answer = answer
+        # Keyed by the names the cloud service gives, as
+        # CloudRequestEngine.get_engine_properties keys them.
         self.flow_element_properties = {
-            "ip": {"areas": {"name": "Areas", "type": "WktString"},
-                   "name": {"name": "Name", "type": "String"}}}
+            "ip": {"Areas": {"name": "Areas", "type": "WktString"},
+                   "Name": {"name": "Name", "type": "String"}}}
 
     def process_internal(self, flowdata):
         flowdata.set_element_data(ElementDataDictionary(
