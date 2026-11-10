@@ -44,7 +44,6 @@ class TestCloudRequestEngineCache(CloudRequestEngineTestsBase):
         engine = CloudRequestEngine({
             "resource_key": "resource_key", "http_client": client})
         engine.set_cache(BasicDictionaryCache())
-        engine.flow_element_properties  # noqa
         pipeline = PipelineBuilder({
             "add_javascript_builder": False,
             "use_setheader_properties": False}).add(engine).build()
