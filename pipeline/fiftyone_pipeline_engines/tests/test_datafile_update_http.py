@@ -1,5 +1,6 @@
 
 import datetime
+import gzip
 import os
 import random
 import shutil
@@ -18,6 +19,13 @@ from .test_datafile_update_service import RecordingPipeline
 from .test_datafile_update_service import ScheduledCheck
 
 URL = "https://example.com/update"
+
+# An update URL that carries a licence key, which no message may hold in
+# full. Only its last four characters may be shown.
+KEY = "ABCDEFGHIJKL"
+KEYED_URL = "https://example.com/update?licenseKeys=" + KEY + "&Type=HashV41"
+MASKED_URL = (
+    "https://example.com/update?licenseKeys=********IJKL&Type=HashV41")
 
 
 class FakeEngine:
@@ -48,11 +56,12 @@ class HttpDataFile:
         self.published = datetime.datetime(2026, 11, 3, 10, 30, 0)
         self.next_update = datetime.datetime(2026, 11, 3, 10, 30, 0)
         self.refresh_error = None
+        self.url = URL
         if path is not None:
             self.path = path
 
     def get_update_url(self):
-        return URL
+        return self.url
 
     def get_date_published(self):
         if isinstance(self.published, Exception):
@@ -212,11 +221,36 @@ class UpdateFromMemoryTests(UpdateServiceTestCase):
              "FakeEngine. Error detail: boom"),
             self.pipeline.logs)
 
-    def testFileDataFileIsRefused(self):
+    def testFileDataFileIsWrittenThenRefreshed(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        path = os.path.join(folder, "data.dat")
+        with open(path, "wb") as file:
+            file.write(b"old")
+        self.data_file = HttpDataFile(path)
         self.data_file.download = True
-        with self.assertRaises(ValueError):
-            self.service.update_from_memory(self.data_file, b"fresh")
+        status = self.service.update_from_memory(self.data_file, b"fresh")
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, status)
+        with open(path, "rb") as file:
+            self.assertEqual(b"fresh", file.read())
+        self.assertEqual(1, len(self.data_file.refreshed))
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+
+    def testFailedWriteIsLoggedAndNotRefreshed(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        path = os.path.join(folder, "missing", "data.dat")
+        self.data_file = HttpDataFile(path)
+        self.data_file.download = True
+        status = self.service.update_from_memory(self.data_file, b"fresh")
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM, status)
         self.assertEqual([], self.data_file.refreshed)
+        errors = [message for level, message in self.pipeline.logs
+                  if level == "error"]
+        self.assertEqual(1, len(errors), self.pipeline.logs)
+        self.assertTrue(errors[0].startswith(
+            "An error occurred when writing to " + path +
+            ". Error detail: "), errors[0])
 
     def testUnregisteredDataFileIsLeftAlone(self):
         self.service.unregister_data_file(self.data_file)
@@ -318,10 +352,142 @@ class LoggingTests(UpdateServiceTestCase):
         with open(data_file.path, "w") as file:
             file.write("x")
         data_file.file_system_watcher = True
+        data_file.auto_update = True
         self.hold_timers()
         self.service.register_data_file(data_file)
         self.assertIn(
             ("info", "Creating file system watcher"), self.pipeline.logs)
+
+    def testNoFileSystemWatcherWithoutAutomaticUpdates(self):
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        data_file = HttpDataFile(os.path.join(folder, "data.dat"))
+        with open(data_file.path, "w") as file:
+            file.write("x")
+        data_file.file_system_watcher = True
+        data_file.auto_update = False
+        self.hold_timers()
+        self.service.register_data_file(data_file)
+        self.assertNotIn(
+            ("info", "Creating file system watcher"), self.pipeline.logs)
+        self.assertEqual([], self.pending)
+        self.assertIsNone(getattr(data_file, "watcher_timer", None))
+
+
+# No message holds a licence key in full, as the Logging section of the data
+# updates specification and the License keys section of logging.md say.
+class LicenceKeyTests(UpdateServiceTestCase):
+
+    def setUp(self):
+        super(LicenceKeyTests, self).setUp()
+        self.data_file.url = KEYED_URL
+
+    def assertNoKey(self):
+        self.assertTrue(self.pipeline.logs)
+        for level, message in self.pipeline.logs:
+            self.assertNotIn(KEY[:8], message)
+
+    def testSuccessfulUpdateShowsOnlyTheMaskedKey(self):
+        self.get(response(200))
+        self.service.update_data_file(self.data_file)
+        self.assertNoKey()
+        self.assertIn(
+            ("info",
+             "Checking for update from '" + MASKED_URL + "' for Engine "
+             "'FakeEngine'"),
+            self.pipeline.logs)
+        self.assertIn(
+            ("info",
+             "Downloaded new data from '" + MASKED_URL + "' for Engine "
+             "'FakeEngine'"),
+            self.pipeline.logs)
+
+    def testEachFailedAnswerShowsOnlyTheMaskedKey(self):
+        for status in (304, 403, 429, 500):
+            self.pipeline.logs.clear()
+            self.get(response(status))
+            self.service.update_data_file(self.data_file)
+            self.assertNoKey()
+            self.assertTrue(any(MASKED_URL in message
+                                for level, message in self.pipeline.logs),
+                            status)
+
+    def testFailedConnectionShowsOnlyTheMaskedKey(self):
+        # The message of a failed request names the URL, key included.
+        self.get(requests.ConnectionError("failed for url: " + KEYED_URL))
+        self.service.update_data_file(self.data_file)
+        self.assertNoKey()
+        self.assertIn(
+            ("warning",
+             "An error occurred when connecting to " + MASKED_URL +
+             " in order to check for data file updates for FakeEngine. "
+             "Error detail: failed for url: " + MASKED_URL),
+            self.pipeline.logs)
+
+
+# A missing MD5 header, content that is not compressed and content that
+# cannot be read each end as the data updates specification says, and the
+# checks carry on.
+class ContentTests(UpdateServiceTestCase):
+
+    def testMissingMd5HeaderIsWarnedAndTheUpdateCarriesOn(self):
+        self.data_file.verify_md5 = True
+        self.data_file.url = KEYED_URL
+        self.get(response(200))
+        self.service.update_data_file(self.data_file)
+        self.assertEqual([b"new"], self.data_file.refreshed)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+        self.assertIn(
+            ("warning",
+             "No MD5 hash included in data update response for '" +
+             MASKED_URL + "'. Unable to verify data integrity"),
+            self.pipeline.logs)
+
+    def testCompressedContentIsDecompressed(self):
+        self.data_file.decompress = True
+        self.get(response(200, gzip.compress(b"new")))
+        self.service.update_data_file(self.data_file)
+        self.assertEqual([b"new"], self.data_file.refreshed)
+
+    def testContentThatIsNotCompressedIsUsedAsItIs(self):
+        self.data_file.decompress = True
+        self.get(response(200, b"plain"))
+        self.service.update_data_file(self.data_file)
+        self.assertEqual([b"plain"], self.data_file.refreshed)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+
+    def testCorruptCompressedContentIsWarnedAndCheckedAgainLater(self):
+        self.data_file.decompress = True
+        self.data_file.auto_update = True
+        self.hold_timers()
+        self.get(response(200, gzip.compress(b"new")[:12]))
+        self.assertFalse(self.service.update_data_file(self.data_file))
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM], self.statuses)
+        warnings = [message for level, message in self.pipeline.logs
+                    if level == "warning"]
+        self.assertEqual(1, len(warnings), self.pipeline.logs)
+        self.assertTrue(warnings[0].startswith(
+            "An error occurred during the integrity check of new data file "
+            "for FakeEngine. Update will be attempted again later. Error "
+            "detail: "), warnings[0])
+        self.assertEqual(1, len(self.pending))
+
+    def testFailedMd5CheckOnStartUpIsNotRepeatedAtOnce(self):
+        reply = response(200)
+        reply.headers = {"content-md5": "not the hash"}
+        reply.iter_content = lambda size: [b"new"]
+        self.data_file.verify_md5 = True
+        self.data_file.update_on_start = True
+        self.data_file.updated_on_start = False
+        self.hold_timers()
+        self.get(reply)
+        self.service.update_data_file(self.data_file)
+        self.assertEqual(1, len(self.sent))
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED],
+            self.statuses)
 
 
 if __name__ == "__main__":
