@@ -418,6 +418,9 @@ def _factor_of(value: Any) -> FactorValue:
     # Nothing was compared.
     if value is None:
         return None
+    # The cloud writes lower case words, and the comparison ignores case.
+    if isinstance(value, str):
+        value = value.lower()
     if value == "verified":
         return FactorResult.VERIFIED
     if value == "mismatch":
