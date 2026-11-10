@@ -20,7 +20,9 @@ class ProfilesElement(FlowElement):
         self.datakey = "hardware"
         self.properties = {
             "profiles": {"name": "Profiles", "type": "array"},
-            "vendor": {"name": "Vendor", "type": "string"}}
+            "vendor": {"name": "Vendor", "type": "string"},
+            "model": {"name": "Model", "type": "string"},
+            "colour": {"name": "Colour", "type": "string"}}
 
     def process_internal(self, flowdata):
         records = [
@@ -30,7 +32,10 @@ class ProfilesElement(FlowElement):
             {"hardwarename": AspectPropertyValue(value="Tablet")}]
         flowdata.set_element_data(ElementDataDictionary(
             self, {"profiles": records,
-                   "vendor": AspectPropertyValue(value="Acme")}))
+                   "vendor": AspectPropertyValue(value="Acme"),
+                   "model": None,
+                   "colour": AspectPropertyValue(
+                       no_value_message="No colour")}))
 
 
 class JsonBuilderRecordTests(unittest.TestCase):
@@ -55,6 +60,16 @@ class JsonBuilderRecordTests(unittest.TestCase):
 
     def test_the_other_properties_are_still_written(self):
         self.assertEqual("Acme", self.process()["vendor"])
+
+    def test_a_top_level_null_not_assigned_no_value_has_no_entry(self):
+        hardware = self.process()
+        self.assertNotIn("model", hardware)
+        self.assertNotIn("modelnullreason", hardware)
+
+    def test_a_top_level_property_assigned_no_value_is_null(self):
+        hardware = self.process()
+        self.assertIsNone(hardware["colour"])
+        self.assertEqual("No colour", hardware["colournullreason"])
 
 
 if __name__ == "__main__":
