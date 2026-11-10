@@ -299,26 +299,14 @@ class DeviceDetectionOnPremise(Engine):
         else:
             data = self.data
 
-        # An engine given no property names is built with every name in the
-        # data set, read from a low memory engine first, so that each
-        # property keeps its index after a reload.
-        if not self.build_property_names:
-            probe_config = ConfigHashSwig()
-            probe_config.setLowMemory()
-            probe = EngineHashSwig(data, probe_config, self.properties_list)
-            self.build_property_names = self.available_property_names(probe)
-            del probe
-            names = VectorStringSwig()
-            for name in self.build_property_names:
-                names.append(name)
-            self.properties_list = RequiredPropertiesConfigSwig(names)
-
         engine = EngineHashSwig(data, self.config, self.properties_list)
 
         self.engine = engine
 
         # The table from each build-time name to its index, made once here
-        # so every read goes by index.
+        # so every read goes by index. An engine built with no names has no
+        # build-time list, so the table is empty and every read goes by
+        # name, which is the native behaviour it has today.
         self.property_indexes = self.read_property_indexes()
 
         # Get keys and add to evidenceKey filter
@@ -356,26 +344,14 @@ class DeviceDetectionOnPremise(Engine):
         for key, property in self.get_metric_properties().items():
             self.properties[key] = property
 
-    @staticmethod
-    def available_property_names(engine):
-
-        """!
-        The names of the properties an engine's data set holds, in the
-        data set's order.
-        """
-
-        metadata = engine.getMetaData().getProperties()
-        return [metadata.getByIndex(x).getName()
-                for x in range(metadata.getSize())
-                if metadata.getByIndex(x).getAvailable()]
-
     def read_property_indexes(self):
 
         """!
         The index of each property the engine was built with, keyed by its
         name in lower case. The native code gives a property the place of
         its name among the names the engine was built with, the first place
-        where a name is given twice.
+        where a name is given twice. An engine built with no names has an
+        empty table, so every read of its properties goes by name.
         """
 
         indexes = {}
