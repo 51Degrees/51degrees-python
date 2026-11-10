@@ -30,6 +30,8 @@ from json import JSONDecodeError
 
 import requests
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.keymask import mask_licence_key
+from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 
@@ -334,15 +336,15 @@ class CloudRequestEngine(Engine):
             try:
                 json_response = cloud_response.json()
             except (JSONDecodeError, requests.exceptions.JSONDecodeError):
-                raise CloudRequestException(
+                raise CloudRequestException(self.masked(
                     f'Cloud request engine properties list request returned code "{cloud_response.status_code}"'
                     f' with non-JSON content "{cloud_response.text}"'
-                )
+                ))
             except Exception as e:
-                raise CloudRequestException(
+                raise CloudRequestException(self.masked(
                     f'Cloud request engine properties list request returned code "{cloud_response.status_code}"'
                     f' with content "{cloud_response.text}".\nError: "{type(e).__name__}: {e}"'
-                )
+                ))
 
             has_errors = "errors" in json_response and len(json_response["errors"])
             has_data = len(json_response) > (1 if has_errors else 0)
@@ -354,7 +356,8 @@ class CloudRequestEngine(Engine):
         # in the response then add an explanation to the list of
         # messages.
         if not messages and not has_data:
-            message = Constants.MESSAGE_NO_DATA_IN_RESPONSE.format(cloud_response.url)
+            message = Constants.MESSAGE_NO_DATA_IN_RESPONSE.format(
+                mask_licence_keys_in_text(cloud_response.url))
             messages.append(message)
 
         # If there were no errors returned but the response code was non
@@ -378,10 +381,24 @@ class CloudRequestEngine(Engine):
         )
 
         raise CloudRequestException(
-            exception_message,
+            self.masked(exception_message),
             cloud_response.status_code,
             cloud_response.headers,
         )
+
+    def masked(self, text):
+
+        """!
+        Text from or about a cloud answer with the licence key in use shown
+        only as its last four characters. The cloud service names the key in
+        some of its errors, and a URL may carry it in its query.
+        """
+
+        text = mask_licence_keys_in_text(text)
+        if self.license_key != "":
+            text = text.replace(
+                self.license_key, mask_licence_key(self.license_key))
+        return text
 
     def make_cloud_request(self, type, url, content = None):
 
