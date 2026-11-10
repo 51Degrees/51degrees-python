@@ -78,11 +78,12 @@ def webevidence(request):
 
     # Values stored in the session. They are read without marking the session
     # as accessed, which would add a Vary: Cookie header to the response, and
-    # only plain values are taken.
+    # only plain values are taken. Numbers and booleans are added as text,
+    # because the on-premise engines take evidence values as text only.
     if has_request_context():
         for name, value in dict.items(session._get_current_object()):
             if isinstance(value, (str, int, float, bool)):
-                webevidence["session." + name] = value
+                webevidence["session." + name] = str(value)
 
     webevidence["server.client-ip"] =  request.remote_addr
 
