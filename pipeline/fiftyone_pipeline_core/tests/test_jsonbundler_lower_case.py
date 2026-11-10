@@ -7,6 +7,7 @@ javascriptProperties, as the JSON Builder specification says.
 
 import unittest
 
+from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 from fiftyone_pipeline_core.elementdata_dictionary import ElementDataDictionary
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
@@ -27,9 +28,11 @@ class MixedCaseElement(FlowElement):
             "EmptyProp": {"name": "EmptyProp", "type": "string"}}
 
     def process_internal(self, flowdata):
-        # FlowData.get reads the data under the lower case key.
-        flowdata.data["mixedcase"] = ElementDataDictionary(
-            self, {"DelayedProp": "a", "OtherProp": "b", "EmptyProp": None})
+        # Set as a real element sets it, under its mixed case data key.
+        flowdata.set_element_data(ElementDataDictionary(
+            self, {"DelayedProp": "a", "OtherProp": "b",
+                   "EmptyProp": AspectPropertyValue(
+                       no_value_message="No value")}))
 
 
 class JsonBuilderLowerCaseTests(unittest.TestCase):
@@ -56,8 +59,10 @@ class JsonBuilderLowerCaseTests(unittest.TestCase):
         section = self.process()["mixedcase"]
         self.assertTrue(section["delayedpropdelayexecution"])
         self.assertIn("otherpropevidenceproperties", section)
-        self.assertIn("emptypropnullreason", section)
+        self.assertEqual("No value", section["emptypropnullreason"])
         self.assertIsNone(section["emptyprop"])
+        self.assertEqual("a", section["delayedprop"])
+        self.assertEqual("b", section["otherprop"])
 
 
 if __name__ == "__main__":
