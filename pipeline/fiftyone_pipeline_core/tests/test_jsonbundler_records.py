@@ -22,37 +22,46 @@ class ProfilesElement(FlowElement):
             "profiles": {"name": "Profiles", "type": "array"},
             "vendor": {"name": "Vendor", "type": "string"},
             "model": {"name": "Model", "type": "string"},
-            "colour": {"name": "Colour", "type": "string"}}
+            "colour": {"name": "Colour", "type": "string"},
+            "script": {"name": "Script", "type": "javascript"},
+            "size": {"name": "Size", "type": "string"}}
 
     def process_internal(self, flowdata):
         records = [
             {"hardwarename": AspectPropertyValue(value="Phone"),
              "hardwarevendor": AspectPropertyValue(no_value_message="No data"),
              "hardwaremodel": None},
-            {"hardwarename": AspectPropertyValue(value="Tablet")}]
+            {"hardwarename": AspectPropertyValue(value="Tablet")},
+            {"hardwarename": AspectPropertyValue()}]
         flowdata.set_element_data(ElementDataDictionary(
             self, {"profiles": records,
                    "vendor": AspectPropertyValue(value="Acme"),
                    "model": None,
                    "colour": AspectPropertyValue(
-                       no_value_message="No colour")}))
+                       no_value_message="No colour"),
+                   "script": None,
+                   "size": AspectPropertyValue()}))
 
 
 class JsonBuilderRecordTests(unittest.TestCase):
 
-    def process(self):
+    def process_json(self):
         pipeline = PipelineBuilder({}).add(ProfilesElement()).build()
         self.addCleanup(pipeline.close)
         flowdata = pipeline.create_flowdata()
         flowdata.process()
-        return flowdata.jsonbundler.json["hardware"]
+        return flowdata.jsonbundler.json
+
+    def process(self):
+        return self.process_json()["hardware"]
 
     def test_each_record_is_an_object(self):
         self.assertEqual(
             [{"hardwarename": "Phone",
               "hardwarevendor": None,
               "hardwarevendornullreason": "No data"},
-             {"hardwarename": "Tablet"}],
+             {"hardwarename": "Tablet"},
+             {"hardwarename": None, "hardwarenamenullreason": "Unknown"}],
             self.process()["profiles"])
 
     def test_a_null_that_was_not_assigned_no_value_has_no_entry(self):
@@ -65,6 +74,16 @@ class JsonBuilderRecordTests(unittest.TestCase):
         hardware = self.process()
         self.assertNotIn("model", hardware)
         self.assertNotIn("modelnullreason", hardware)
+
+    def test_a_null_javascript_property_is_still_listed(self):
+        json = self.process_json()
+        self.assertNotIn("script", json["hardware"])
+        self.assertIn("hardware.script", json["javascriptProperties"])
+
+    def test_no_value_with_no_message_has_a_text_reason(self):
+        hardware = self.process()
+        self.assertIsNone(hardware["size"])
+        self.assertEqual("Unknown", hardware["sizenullreason"])
 
     def test_a_top_level_property_assigned_no_value_is_null(self):
         hardware = self.process()
