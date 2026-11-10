@@ -16,6 +16,8 @@ from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateServ
 from .test_datafile_update_service import RecordingPipeline
 
 URL = "https://example.com/update"
+# The longest a test waits for another thread.
+WAIT_SECONDS = 10
 
 
 class FakeEngine:
@@ -106,7 +108,7 @@ class UpdateGuardTests(unittest.TestCase):
             calls.append(url)
             if len(calls) == 1:
                 started.set()
-                release.wait(10)
+                release.wait(WAIT_SECONDS)
             return answer(200)
 
         results = []
@@ -115,10 +117,10 @@ class UpdateGuardTests(unittest.TestCase):
                 target=lambda: results.append(
                     self.service.update_data_file(self.data_file)))
             first.start()
-            self.assertTrue(started.wait(10))
+            self.assertTrue(started.wait(WAIT_SECONDS))
             second = self.service.update_data_file(self.data_file)
             release.set()
-            first.join(10)
+            first.join(WAIT_SECONDS)
 
         self.assertFalse(second)
         self.assertEqual(1, len(calls))
