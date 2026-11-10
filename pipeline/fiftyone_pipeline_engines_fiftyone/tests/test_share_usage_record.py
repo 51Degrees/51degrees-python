@@ -1,12 +1,16 @@
 
 """
 How the usage sharing element writes an Evidence value that was changed, as
-the Processing section of the usage sharing element specification says, with
-the invalid character and length rules of specifications pull request 122.
+the Processing section of the usage sharing element specification says,
+including its invalid character and length rules.
 """
 
+import re
 import unittest
+import xml.etree.ElementTree as ElementTree
 
+from fiftyone_pipeline_core.logger import Logger
+from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_engines_fiftyone.share_usage import (
     SHARE_USAGE_MAX_EVIDENCE_LENGTH, ShareUsage, ShareUsageData)
 
@@ -15,16 +19,69 @@ BS = chr(92)
 
 class ShareUsageRecordTests(unittest.TestCase):
 
-    def record(self, value, key="header.user-agent"):
+    def record(self, value, key="header.user-agent", session_id="session",
+               client_ip=""):
         element = ShareUsage(requested_package_size=1000)
         self.addCleanup(element.close)
         element.constant_xml = "<Version>test</Version>"
         data = ShareUsageData()
-        data.session_id = "session"
+        data.session_id = session_id
+        data.client_ip = client_ip
         data.sequence = 1
         data.try_add(key, value)
         element.add_to_share_usage(data)
         return element.share_data[0]
+
+    def test_session_id_is_written_so_the_record_parses(self):
+        session_id = 'a<b&c"d' + chr(0x1f)
+        device = ElementTree.fromstring(
+            self.record("Mozilla/5.0", session_id=session_id))
+        session = device.find("SessionId")
+        self.assertEqual('a<b&c"d' + BS + "x001f", session.text)
+        self.assertEqual("true", session.get("escaped"))
+
+    def test_client_ip_is_written_so_the_record_parses(self):
+        device = ElementTree.fromstring(
+            self.record("Mozilla/5.0", client_ip="203.0.113.5<&"))
+        self.assertEqual("203.0.113.5<&", device.find("ClientIP").text)
+
+    def test_name_attribute_is_written_so_the_record_parses(self):
+        device = ElementTree.fromstring(
+            self.record("a value", key='query.a"b<c&d'))
+        self.assertEqual('a"b<c&d', device.find("query").get("Name"))
+        self.assertEqual("a value", device.find("query").text)
+
+    def test_entry_whose_element_name_is_not_an_xml_name_is_left_out(self):
+        for key in ("a<b.field", "a b.field", "1st.field", "<bare>"):
+            xml = self.record("a value", key=key)
+            device = ElementTree.fromstring(xml)
+            self.assertNotIn("a value", xml, key)
+            self.assertEqual("session", device.find("SessionId").text, key)
+
+    def test_date_sent_is_utc_to_the_second(self):
+        device = ElementTree.fromstring(self.record("Mozilla/5.0"))
+        self.assertRegex(
+            device.find("DateSent").text,
+            re.compile(r"\A\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\Z"))
+
+    def test_registered_to_too_many_pipelines_logs_a_warning(self):
+        logged = []
+
+        class Recorder(Logger):
+            def log_internal(self, level, log):
+                logged.append(level)
+
+        element = ShareUsage(requested_package_size=1000)
+        self.addCleanup(element.close)
+        pipelines = []
+        for _ in range(2):
+            builder = PipelineBuilder({"add_javascript_builder": False,
+                                       "use_setheader_properties": False})
+            builder.add_logger(Recorder("debug"))
+            pipelines.append(builder.build())
+        element.pipelines = pipelines
+        self.assertEqual([], element.get_flow_elements())
+        self.assertEqual(["warning", "warning"], logged)
 
     def test_limit_is_ten_thousand(self):
         self.assertEqual(10000, SHARE_USAGE_MAX_EVIDENCE_LENGTH)
