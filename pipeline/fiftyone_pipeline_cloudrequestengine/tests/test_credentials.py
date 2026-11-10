@@ -318,7 +318,8 @@ class TestCredentials(CloudRequestEngineTestsBase):
         engine = CloudRequestEngine(settings)
         # The stand-in service lists query.User-Agent alone, so an element
         # that accepts every key keeps the other evidence for the engine.
-        pipeline = PipelineBuilder().add(AcceptEveryKeyElement())             .add(engine).build()
+        pipeline = PipelineBuilder().add(AcceptEveryKeyElement()) \
+            .add(engine).build()
         data = pipeline.create_flowdata()
         data.evidence.add("query.Resource", "evidence_resource")
         data.evidence.add("query.LICENSE", "evidence_license")
