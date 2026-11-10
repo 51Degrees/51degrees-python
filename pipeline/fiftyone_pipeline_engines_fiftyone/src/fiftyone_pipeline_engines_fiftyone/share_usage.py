@@ -300,11 +300,11 @@ class ShareUsage(Engine):
 
         # --- write variable data
         # The SessionID used to track a series of requests
-        xml += record_element("SessionId", data.session_id)
+        xml += plain_element("SessionId", data.session_id)
         # The sequence number of the request in a series of requests.
         xml += f"<Sequence>{data.sequence}</Sequence>"
         # The client IP of the request
-        xml += record_element("ClientIP", data.client_ip)
+        xml += plain_element("ClientIP", data.client_ip)
 
         # The UTC date and time this entry was written, to the second.
         date = datetime.datetime.now(datetime.timezone.utc).strftime(
@@ -418,6 +418,15 @@ XML_NAME_START = (
 XML_NAME = re.compile(
     "[" + XML_NAME_START + "][" + XML_NAME_START +
     "\\-.0-9\u00b7\u0300-\u036f\u203f-\u2040]*\\Z")
+
+
+def plain_element(tag, value):
+    """!
+    An element of a usage sharing record that is not an Evidence entry, with
+    its value made to fit the XML by ReplacedString and no attributes, as
+    the record gives these elements none.
+    """
+    return "<" + tag + ">" + ReplacedString(value).result + "</" + tag + ">"
 
 
 def record_element(tag, value, name=None):
