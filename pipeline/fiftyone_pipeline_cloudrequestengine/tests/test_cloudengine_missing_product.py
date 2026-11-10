@@ -67,6 +67,8 @@ class MissingProductTests(unittest.TestCase):
         missing = [entry for entry in logger.logged
                    if "location" in entry[1]]
         self.assertEqual(1, len(missing), logger.logged)
+        # The specification asks for the warning level.
+        self.assertEqual("warning", missing[0][0])
 
     def testNothingIsLoggedOnEachResponse(self):
         pipeline, engine, logger = self.build()
