@@ -416,9 +416,16 @@ class JavascriptBuilderElement(FlowElement):
         # Both are written into the script, so each always has a safe value.
         # The session id is written inside quotes and is empty when absent or
         # not safe, and the sequence is written as bare code, so it is always
-        # a positive number.
-        variables["_sessionId"] = get_session_id(query_params.get("query.session-id"))
-        variables["_sequence"] = get_sequence(query_params.get("query.sequence"))
+        # a positive number. With no Sequence Element the sequence is 1 and
+        # the session id empty, whatever the evidence holds.
+        if "sequence" in flowdata.pipeline.flow_elements_list:
+            variables["_sessionId"] = get_session_id(
+                query_params.get("query.session-id"))
+            variables["_sequence"] = get_sequence(
+                query_params.get("query.sequence"))
+        else:
+            variables["_sessionId"] = ""
+            variables["_sequence"] = 1
 
         # The session id and the sequence are left out, because the script
         # appends both to its own request after it has taken the record of
