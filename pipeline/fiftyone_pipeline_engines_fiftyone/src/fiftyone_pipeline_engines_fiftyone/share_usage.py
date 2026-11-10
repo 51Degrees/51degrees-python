@@ -56,14 +56,23 @@ MAX_QUEUE_SIZE_DEFAULT = 1000
 
 # While the queue is full, a message is logged for the first entry discarded
 # and then once for every this many more, never one for each entry.
-QUEUE_FULL_LOG_EVERY = 1000
+QUEUE_FULL_LOG_EVERY_ENTRIES = 1000
 
 # The most characters of an answer's content that are logged.
-LOGGED_CONTENT_LENGTH = 500
+LOGGED_CONTENT_CHARACTERS = 500
 
 # The longest single wait during a pause. Longer pauses are waited out in
 # parts, as a timer cannot wait for any length of time on every platform.
 LONGEST_WAIT_SECONDS = 86400
+
+
+def devices_message(entries):
+    """!
+    The text of one message, being the queued Device entries inside the
+    Devices element.
+    """
+    return (f'<Devices version="{SHARE_USAGE_VERSION}">'
+            f'{"".join(entries)}</Devices>')
 
 
 class ShareUsage(Engine):
@@ -273,7 +282,7 @@ class ShareUsage(Engine):
                     del self.share_data[:self._message_size]
             if paused:
                 break
-            data = f'<Devices version="{SHARE_USAGE_VERSION}">{"".join(share_data)}</Devices>'
+            data = devices_message(share_data)
             if not self.send_thread(self.endpoint, data):
                 with self._lock:
                     queued = len(self.share_data)
@@ -386,8 +395,9 @@ class ShareUsage(Engine):
 
     def _send_while_queued(self):
         """!
-        Send messages of requested_package_size entries until fewer are
-        queued or a failed send pauses sending.
+        Send messages of up to twice requested_package_size entries until
+        fewer than requested_package_size are queued, or a failed send pauses
+        sending.
         """
 
         try:
@@ -406,7 +416,7 @@ class ShareUsage(Engine):
                     self._sending = False
                     return
 
-            data = f'<Devices version="{SHARE_USAGE_VERSION}">{"".join(share_data)}</Devices>'
+            data = devices_message(share_data)
             accepted = self.send_thread(self.endpoint, data)
 
             with self._lock:
@@ -459,7 +469,7 @@ class ShareUsage(Engine):
                 "warning",
                 f"ShareUsage sent {len(data)} bytes of data and the service "
                 f"answered {response.status_code} with content "
-                f"'{response.text[:LOGGED_CONTENT_LENGTH]}'.")
+                f"'{response.text[:LOGGED_CONTENT_CHARACTERS]}'.")
             return False
         return True
 
@@ -521,7 +531,7 @@ class ShareUsage(Engine):
                 self._discarded += 1
                 discarded = self._discarded
                 log_full = (discarded == 1 or
-                            discarded % QUEUE_FULL_LOG_EVERY == 0)
+                            discarded % QUEUE_FULL_LOG_EVERY_ENTRIES == 0)
             else:
                 discarded = 0
                 log_full = False
@@ -534,8 +544,8 @@ class ShareUsage(Engine):
                     "warning",
                     f"The usage sharing queue is full at "
                     f"{self.max_queue_size} entries, so usage data is being "
-                    f"discarded. {discarded} entries have been discarded "
-                    "since the queue last had room.")
+                    f"discarded. Discarded since the queue last had room: "
+                    f"{discarded}.")
             return
 
         # Send share usage data if data size greater than requested
