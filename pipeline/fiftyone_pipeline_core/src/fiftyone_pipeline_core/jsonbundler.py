@@ -24,6 +24,10 @@ from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
 
+# The property types that hold a shape in well-known text. The JSON holds such
+# a value as an object with one member, value, holding the text.
+WKT_TYPES = ("wkt", "wktstring", "wkb", "wkbr")
+
 class JSONBundlerElement(FlowElement):
 
     """!
@@ -67,6 +71,16 @@ class JSONBundlerElement(FlowElement):
     
         """
    
+        # The sequence number is the one the Sequence Element has put in the
+        # Evidence as a whole number. Text in the query string does not
+        # count, and without a number no JSON is set.
+        sequence = flowdata.evidence.get("query.sequence")
+        if isinstance(sequence, bool) or not isinstance(sequence, int):
+            raise Exception(
+                "The JSON Builder needs the sequence number that a Sequence "
+                "Element produces. A Sequence Element needs to be placed "
+                "before it in the Pipeline.")
+
         # Get every property on every FlowElement
         # Storing JavaScript properties in an extra section
 
@@ -113,7 +127,7 @@ class JSONBundlerElement(FlowElement):
                         if len(delayed_evidence_properties_list):
                             
                             delayed_evidence_properties[propertykey] = list(map(lambda x:
-                                flow_element.datakey + '.' + x, delayed_evidence_properties_list))
+                                flow_element.datakey.lower() + '.' + x, delayed_evidence_properties_list))
 
 
                 self.property_cache[flow_element.datakey] = {
@@ -125,7 +139,7 @@ class JSONBundlerElement(FlowElement):
 
             # Create empty area for FlowElement properties to go
 
-            output[flow_element.datakey] = {}
+            output[flow_element.datakey.lower()] = {}
 
             for propertykey, propertymeta in properties.items():
                 value = None
@@ -135,13 +149,13 @@ class JSONBundlerElement(FlowElement):
 
 
                 if propertykey in property_cache["delayExecutionList"]:
-                    output[flow_element.datakey][propertykey.lower() + "delayexecution"] = True
+                    output[flow_element.datakey.lower()][propertykey.lower() + "delayexecution"] = True
                 
 
                 # Check if property has any delayed execution evidence properties and set in JSON if yes
 
                 if propertykey in property_cache["evidenceProperties"]:
-                    output[flow_element.datakey][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
+                    output[flow_element.datakey.lower()][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
                 
 
                 try:
@@ -184,13 +198,15 @@ class JSONBundlerElement(FlowElement):
 
                     continue
         
+                if (isinstance(value, str)
+                        and str(propertymeta.get("type", "")).lower() in WKT_TYPES):
+                    value = {"value": value}
+
                 output[flow_element.datakey.lower()][propertykey.lower()] = value
                 if value is None:
                     output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
 
-                sequence = flowdata.evidence.get("query.sequence")
-
-                if sequence is None or sequence < 10: 
+                if sequence < 10:
 
                     if "type" in propertymeta and propertymeta["type"].lower() == "javascript":
 
