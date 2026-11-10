@@ -38,12 +38,21 @@ class ShareUsageRecordTests(unittest.TestCase):
             self.record("Mozilla/5.0", session_id=session_id))
         session = device.find("SessionId")
         self.assertEqual('a<b&c"d' + BS + "x001f", session.text)
-        self.assertEqual("true", session.get("escaped"))
+        # The escaped and truncated attributes are for Evidence entries,
+        # and the record gives these elements none.
+        self.assertEqual({}, session.attrib)
 
     def test_client_ip_is_written_so_the_record_parses(self):
         device = ElementTree.fromstring(
             self.record("Mozilla/5.0", client_ip="203.0.113.5<&"))
         self.assertEqual("203.0.113.5<&", device.find("ClientIP").text)
+        self.assertEqual({}, device.find("ClientIP").attrib)
+
+    def test_a_long_session_id_is_cut_without_an_attribute(self):
+        device = ElementTree.fromstring(
+            self.record("Mozilla/5.0", session_id="s" * 10001))
+        self.assertEqual("s" * 10000, device.find("SessionId").text)
+        self.assertEqual({}, device.find("SessionId").attrib)
 
     def test_name_attribute_is_written_so_the_record_parses(self):
         device = ElementTree.fromstring(
