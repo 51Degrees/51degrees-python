@@ -21,6 +21,7 @@
 # *********************************************************************
 
 import random
+import re
 import json
 import gzip
 import platform
@@ -44,7 +45,7 @@ HTTP_REQUEST_KEY = "server.http-request"
 
 # The maximum length of a piece of evidence's value which can be
 # added to the usage data being sent.
-SHARE_USAGE_MAX_EVIDENCE_LENGTH = 512
+SHARE_USAGE_MAX_EVIDENCE_LENGTH = 10000
 
 SHARE_USAGE_VERSION = '1.1'
 
@@ -212,7 +213,7 @@ class ShareUsage(Engine):
             # make up the pipeline so a warning is logged
             # but otherwise, the system can continue as normal.
             self._log(
-                "warn",
+                "warning",
                 "Share usage element registered "
                 f"to {'too many' if len(self.pipelines) > 0 else 'no'}"
                 " pipelines. Unable to send share usage information.")
@@ -299,40 +300,30 @@ class ShareUsage(Engine):
 
         # --- write variable data
         # The SessionID used to track a series of requests
-        xml += f"<SessionId>{data.session_id}</SessionId>"
+        xml += plain_element("SessionId", data.session_id)
         # The sequence number of the request in a series of requests.
         xml += f"<Sequence>{data.sequence}</Sequence>"
         # The client IP of the request
-        xml += f"<ClientIP>{data.client_ip}</ClientIP>"
+        xml += plain_element("ClientIP", data.client_ip)
 
-        # The UTC date/time this entry was written
-        date = datetime.datetime.now().isoformat() 
+        # The UTC date and time this entry was written, to the second.
+        date = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%S")
         xml += f"<DateSent>{date}</DateSent>"
 
-        # Write all other evidence data that has been included.
+        # Write all other evidence data that has been included. The prefix,
+        # or a key with no prefix, is the element name. An entry whose
+        # element name is not an XML name is left out, because it would make
+        # the whole batch unreadable.
         for category_key, category_value in data.evidence_data.items():
             for entry_key, entry_value in category_value.items():
-                replaced_string = ReplacedString(entry_value)
-                # Write start element
                 if len(category_key) > 0:
-                    xml += f"<{category_key} Name=\"{entry_key}\""
-                else:
-                    xml += f"<{entry_key}"
-                # Write any attributes
-                if replaced_string.replaced:
-                    xml += ' replaced="true"'
-                if replaced_string.truncated:
-                    xml += ' truncated="true"'
-                # End the start element
-                xml += ">"
-                # Write the value
-                xml += replaced_string.result
-                # Write end element
-                if len(category_key) > 0:
-                    xml += f"</{category_key}>"
-                else:
-                    xml += f"</{entry_key}>"
-        
+                    if XML_NAME.match(category_key):
+                        xml += record_element(
+                            category_key, entry_value, entry_key)
+                elif XML_NAME.match(entry_key):
+                    xml += record_element(entry_key, entry_value)
+
         xml += "</Device>"
  
         self.share_data.append(xml)
@@ -399,49 +390,91 @@ class ShareUsage(Engine):
         return data
 
 
-# a set of valid XML character values (ignoring valid controls x09, x0a, x0d, x85)
-VALID_XML_CHARS = [*range(int("0x20", 16), int("0x7F", 16))]
-VALID_XML_CHARS.extend(range(int("0x40", 16), int("0x100", 16)))
+# The characters that XML 1.0 section 2.2 allows, as ranges of code points.
+VALID_XML_RANGES = (
+    (0x9, 0xA), (0xD, 0xD), (0x20, 0xD7FF), (0xE000, 0xFFFD),
+    (0x10000, 0x10FFFF))
 
-def get_is_valid_char_map():
-  maxChar = int('0x100', 16)
-  isValidChar = {}
-  for c in range(maxChar):
-    isValidChar[c] = c in VALID_XML_CHARS
-  return isValidChar
+# The characters that are written as entities in element text.
+XML_ENTITIES = {
+    '&': '&amp;',
+    '"': '&quot;',
+    "'": '&apos;',
+    '<': '&lt;',
+    '>': '&gt;',
+}
 
-# an array describing whether a character value is valid
-IS_VALID_XML_CHAR = get_is_valid_char_map()
+
+def is_valid_xml_char(code):
+    return any(low <= code <= high for low, high in VALID_XML_RANGES)
+
+
+# The characters XML 1.0 allows in a name, without the colon, which names a
+# namespace.
+XML_NAME_START = (
+    "A-Z_a-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u02ff\u0370-\u037d"
+    "\u037f-\u1fff\u200c-\u200d\u2070-\u218f\u2c00-\u2fef\u3001-\ud7ff"
+    "\uf900-\ufdcf\ufdf0-\ufffd\U00010000-\U000effff")
+XML_NAME = re.compile(
+    "[" + XML_NAME_START + "][" + XML_NAME_START +
+    "\\-.0-9\u00b7\u0300-\u036f\u203f-\u2040]*\\Z")
+
+
+def plain_element(tag, value):
+    """!
+    An element of a usage sharing record that is not an Evidence entry, with
+    its value made to fit the XML by ReplacedString and no attributes, as
+    the record gives these elements none.
+    """
+    return "<" + tag + ">" + ReplacedString(value).result + "</" + tag + ">"
+
+
+def record_element(tag, value, name=None):
+    """!
+    One element of a usage sharing record. The value, and the Name attribute
+    when there is one, are made to fit the XML by ReplacedString, and the
+    element is marked escaped or truncated when either changed.
+    """
+    replaced = ReplacedString(value)
+    escaped = replaced.escaped
+    xml = "<" + tag
+    if name is not None:
+        replaced_name = ReplacedString(name)
+        escaped = escaped or replaced_name.escaped
+        xml += ' Name="' + replaced_name.result + '"'
+    if escaped:
+        xml += ' escaped="true"'
+    if replaced.truncated:
+        xml += ' truncated="true"'
+    return xml + ">" + replaced.result + "</" + tag + ">"
 
 
 class ReplacedString:
     """!
-    replace characters that cause problems in XML with the "Replacement character"
+    Makes an Evidence value fit in the usage sharing XML. The value is cut to
+    SHARE_USAGE_MAX_EVIDENCE_LENGTH characters (code points, so a character is
+    never split), a character XML 1.0 does not allow is written as a backslash,
+    "x" and its code in four lower-case hexadecimal digits, and the markup
+    characters are written as entities. `escaped` and `truncated` say what
+    changed.
     """
     def __init__(self, text):
         self.result = ""
-        self.replaced = False
+        self.escaped = False
         self.truncated = False
         if text:
-            escapedText = text\
-                .replace('&', '&amp;')\
-                .replace('"', '&quot;')\
-                .replace('\'', '&apos;')\
-                .replace('<', '&lt;')\
-                .replace('>', '&gt;')
-
-            length = min(len(escapedText), SHARE_USAGE_MAX_EVIDENCE_LENGTH)
-            self.truncated = len(escapedText) > SHARE_USAGE_MAX_EVIDENCE_LENGTH
-            self.result = "".join(map(self.map_char, list(escapedText[0:length])))
-
+            if not isinstance(text, str):
+                text = str(text)
+            self.truncated = len(text) > SHARE_USAGE_MAX_EVIDENCE_LENGTH
+            self.result = "".join(
+                map(self.map_char, text[0:SHARE_USAGE_MAX_EVIDENCE_LENGTH]))
 
     def map_char(self, char):
-        charV = ord(char)
-        if charV < len(IS_VALID_XML_CHAR) and IS_VALID_XML_CHAR[charV]:
-            return char
-        else:
-            self.replaced = True
-            return chr(int("0xFFFD", 16))
+        code = ord(char)
+        if not is_valid_xml_char(code):
+            self.escaped = True
+            return "\\x%04x" % code
+        return XML_ENTITIES.get(char, char)
 
 class ShareUsageData:
     """!
