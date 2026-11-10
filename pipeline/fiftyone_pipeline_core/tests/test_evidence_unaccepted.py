@@ -105,6 +105,27 @@ class UnacceptedEvidenceTests(unittest.TestCase):
         # part of the view.
         self.assertNotIn("header.cookie", view)
 
+    def test_session_numbers_and_booleans_are_added_as_text(self):
+        """The on-premise engines take evidence values as text only, so a
+        number or a boolean kept in the session must not reach them as
+        anything else."""
+
+        app = Flask(__name__)
+        app.secret_key = "a secret"
+        with app.test_request_context("/"):
+            session["visits"] = 3
+            session["ratio"] = 0.5
+            session["consented"] = True
+            session["basket"] = ["left", "out"]
+            evidence = webevidence(request)
+
+        view = evidence["server.http-request"]
+        for source in (evidence, view):
+            self.assertEqual("3", source["session.visits"])
+            self.assertEqual("0.5", source["session.ratio"])
+            self.assertEqual("True", source["session.consented"])
+            self.assertNotIn("session.basket", source)
+
 
 if __name__ == "__main__":
     unittest.main()

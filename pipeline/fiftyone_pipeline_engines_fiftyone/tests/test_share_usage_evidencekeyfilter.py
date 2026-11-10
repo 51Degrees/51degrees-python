@@ -127,9 +127,9 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
     def test_never_shared_in_every_mode(self):
         """!
         Check that the email address, the salt for hashed email
-        identifiers, the query string, the path and the Cookie header are never
-        shared,
-        whether bare or after a prefix, and without regard to case.
+        identifiers, the query string, the path and the Cookie header are
+        never shared, whether bare or after a prefix, and without regard to
+        case.
         """
 
         for keys in (

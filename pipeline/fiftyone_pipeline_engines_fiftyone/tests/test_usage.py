@@ -595,8 +595,10 @@ class UsageTests(unittest.TestCase):
         flowdata.process()
 
         self.waitForUsageThreads()
-        self.assertFalse(usage.get_evidence_key_filter().filter_evidence_key("cookie.sessionid"))
-        self.assertTrue(usage.tracker_evidence_key_filter.filter_evidence_key("cookie.sessionid"))
+        self.assertFalse(usage.get_evidence_key_filter()
+                         .filter_evidence_key("cookie.sessionid"))
+        self.assertTrue(usage.tracker_evidence_key_filter
+                        .filter_evidence_key("cookie.sessionid"))
         self.assertEqual(len(app.received), 1)
         self.assertIn("some user agent", app.received[0])
         self.assertNotIn("session value", app.received[0])
