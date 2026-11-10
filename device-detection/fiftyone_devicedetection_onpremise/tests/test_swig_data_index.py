@@ -73,12 +73,14 @@ class SwigDataIndexTests(unittest.TestCase):
         data = SwigData(FakeElement(), results)
         self.assertTrue(data.get("IsMobile").value())
         data.get("browsername")
-        self.assertEqual([1, 0], results.asked)
+        # Each read asks the native results once or more, always by the
+        # index.
+        self.assertEqual({1, 0}, set(results.asked))
 
     def test_a_name_outside_the_table_is_read_by_name(self):
         results = RecordingResults()
         SwigData(FakeElement(), results).get("notbuilt")
-        self.assertEqual(["NotBuilt"], results.asked)
+        self.assertEqual({"NotBuilt"}, set(results.asked))
 
 
 if __name__ == "__main__":

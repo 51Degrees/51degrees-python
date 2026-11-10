@@ -258,9 +258,9 @@ class IpIntelligenceOnPremise(Engine):
 
         self.engine = engine
 
-        # The table from each build-time name to its index, from the native
-        # results, read once here so every read goes by index.
-        self.property_indexes = self.read_property_indexes(engine)
+        # The table from each build-time name to its index, made once here
+        # so every read goes by index.
+        self.property_indexes = self.read_property_indexes()
 
         # Get keys and add to evidenceKey filter
 
@@ -310,20 +310,19 @@ class IpIntelligenceOnPremise(Engine):
                 for x in range(metadata.getSize())
                 if metadata.getByIndex(x).getAvailable()]
 
-    def read_property_indexes(self, engine):
+    def read_property_indexes(self):
 
         """!
         The index of each property the engine was built with, keyed by its
-        name in lower case. The index is the property's place in the
-        native results' list, which is the order of the build-time names.
+        name in lower case. The native code gives a property the place of
+        its name among the names the engine was built with, the first place
+        where a name is given twice.
         """
 
-        try:
-            results = engine.process(EvidenceIpiSwig())
-            names = list(results.getProperties())
-        except Exception:
-            names = list(self.build_property_names)
-        return {name.lower(): index for index, name in enumerate(names)}
+        indexes = {}
+        for index, name in enumerate(self.build_property_names):
+            indexes.setdefault(name.lower(), index)
+        return indexes
 
     def get_metric_properties(self):
 
