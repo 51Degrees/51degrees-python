@@ -85,8 +85,17 @@ class DataFileUpdateService():
         self.on_complete_methods = []
 
     def __emit(self, status, data_file):
+        # A callback that raises is logged, so that the other callbacks and
+        # the next check still run.
         for method in self.on_complete_methods:
-            method(status, data_file)
+            try:
+                method(status, data_file)
+            except Exception as e:
+                self._log(
+                    "error",
+                    "An update complete callback raised an error for " +
+                    self._engine_type(data_file) + ". Error detail: " +
+                    str(e))
 
     def update_data_file(self, data_file):
 
