@@ -304,20 +304,17 @@ class UsageTests(unittest.TestCase):
             requested_package_size=1,
             endpoint=testEndpoint)
 
-        replacementChar = chr(int("0xFFFD", 16))
-
         pipeline = (PipelineBuilder())\
             .add(usage)\
             .build()
         flowdata = pipeline.create_flowdata()
-        flowdata.evidence.add("header.user-agent", "1ƌ2")
+        flowdata.evidence.add("header.user-agent", "1" + chr(0x1f) + "2")
         flowdata.process()
 
         self.waitForUsageThreads()
         self.assertEqual(len(app.received), 1)
-        self.assertNotIn("ƌ", app.received[0])
-        self.assertIn(replacementChar, app.received[0])
-        self.assertIn(f"<header Name=\"user-agent\" replaced=\"true\">1{replacementChar}2</header>", app.received[0])
+        self.assertNotIn(chr(0x1f), app.received[0])
+        self.assertIn('<header Name="user-agent" escaped="true">1\\x001f2</header>', app.received[0])
 
     def test_truncated_value(self):
         """!
@@ -328,7 +325,7 @@ class UsageTests(unittest.TestCase):
             requested_package_size=1,
             endpoint=testEndpoint)
 
-        ua = "X" * 1000
+        ua = "X" * 10001
 
         pipeline = (PipelineBuilder())\
             .add(usage)\
@@ -341,7 +338,7 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(len(app.received), 1)
         self.assertIn("truncated=\"true\"", app.received[0])
         self.assertNotIn(ua, app.received[0])
-        self.assertIn(f'<header Name="user-agent" truncated="true">{"X" * 512}</header>', app.received[0])
+        self.assertIn(f'<header Name="user-agent" truncated="true">{"X" * 10000}</header>', app.received[0])
 
     def test_send_more_than_once(self):
         """!

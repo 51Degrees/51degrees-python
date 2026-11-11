@@ -61,6 +61,37 @@ class JSONBundlerElement(FlowElement):
 
         return BasicListEvidenceKeyFilter([])
 
+    @staticmethod
+    def record_json(record):
+
+        """!
+        A record, being the Properties of one Element Data in a list, as an
+        object. A Property that has been assigned no value is null with its
+        nullreason beside it, and a Property that is null without one has no
+        entry.
+        @type record: dict
+        @param record: Property name to value or aspect property value
+        @rtype: dict
+        @return: The record as it is written to JSON
+        """
+
+        written = {}
+
+        for key, value in record.items():
+            key = str(key).lower()
+
+            if hasattr(value, "has_value"):
+                if value.has_value():
+                    written[key] = value.value()
+                else:
+                    written[key] = None
+                    written[key + "nullreason"] = (
+                        value.no_value_message() or "Unknown")
+            elif value is not None:
+                written[key] = value
+
+        return written
+
     def process_internal(self, flowdata):
 
         """!
@@ -144,6 +175,7 @@ class JSONBundlerElement(FlowElement):
             for propertykey, propertymeta in properties.items():
                 value = None
                 null_reason = "Unknown"
+                no_value = False
 
                 # Check if property has delayed execution and set in JSON if yes
 
@@ -172,21 +204,28 @@ class JSONBundlerElement(FlowElement):
                             value = value_container.value()
                         else:
                             value = None
-                            null_reason = value_container.no_value_message()
+                            no_value = True
+                            null_reason = (
+                                value_container.no_value_message()
+                                or null_reason)
                         
-                    # Check if list of aspect property values
+                    # A list of records, such as the profiles of a hardware
+                    # profile lookup, or of aspect property values
 
-                    elif isinstance(value_container, list) and isinstance(value_container[0], object):
+                    elif isinstance(value_container, list):
 
-                        output = []
+                        items = []
 
                         for item in value_container:
-                            if item.has_value():
-                                output.append(item.value())
+                            if isinstance(item, dict):
+                                items.append(self.record_json(item))
+                            elif hasattr(item, "has_value"):
+                                if item.has_value():
+                                    items.append(item.value())
                             else:
-                                null_reason = item.no_value_message
+                                items.append(item)
 
-                        value = output
+                        value = items
 
                     else:
 
@@ -197,14 +236,18 @@ class JSONBundlerElement(FlowElement):
                     # Catching missing property exceptions and other errors
 
                     continue
-        
+
                 if (isinstance(value, str)
                         and str(propertymeta.get("type", "")).lower() in WKT_TYPES):
                     value = {"value": value}
 
-                output[flow_element.datakey.lower()][propertykey.lower()] = value
-                if value is None:
-                    output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
+                # A null that was not assigned 'no value', which an element
+                # that is not an engine can give, has no entry of its own. A
+                # JavaScript Property is still listed below.
+                if value is not None or no_value:
+                    output[flow_element.datakey.lower()][propertykey.lower()] = value
+                    if value is None:
+                        output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
 
                 if sequence < 10:
 
