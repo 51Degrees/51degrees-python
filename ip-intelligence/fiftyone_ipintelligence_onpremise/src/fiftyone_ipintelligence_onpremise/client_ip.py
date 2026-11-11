@@ -26,7 +26,7 @@ import ipaddress
 CLIENT_IP_KEYS = ("query.client-ip", "server.client-ip")
 
 
-def client_ips(evidence):
+def client_ips(evidence, keys=None):
 
     """!
     The IPv4 and IPv6 addresses the engine reports in Ip and IpV6, read from
@@ -38,6 +38,8 @@ def client_ips(evidence):
 
     @type evidence: dict
     @param evidence: every evidence key and value
+    @type keys: list
+    @param keys: the engine's client IP evidence keys, not yet used
     @rtype: tuple
     @returns: (ipv4 or None, ipv6 or None)
     """
