@@ -33,7 +33,8 @@ from wsgiref.simple_server import make_server
 import gzip
 
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
-from fiftyone_pipeline_engines_fiftyone.share_usage import ShareUsage
+from fiftyone_pipeline_engines_fiftyone.share_usage import ShareUsage, \
+    CLEANUP_TIMEOUT_SECONDS, REQUESTED_PACKAGE_SIZE_DEFAULT
 from flask import Flask, request, render_template
 import requests
 
@@ -69,10 +70,16 @@ app.attempts = []
 app.status = 200
 # The content the receiver answers with.
 app.body = ""
+# How long in seconds the receiver holds a request before answering.
+app.delay = 0
+# Set to let a held request go at once.
+app.delay_release = threading.Event()
 
 @app.route('/', methods=['POST'])
 def server():
     app.attempts.append(time.monotonic())
+    if app.delay:
+        app.delay_release.wait(app.delay)
     data = gzip.decompress(request.data).decode("utf8")
     if app.status == 200:
         app.received.append(data)
@@ -103,6 +110,8 @@ class UsageTests(unittest.TestCase):
         app.attempts = []
         app.status = 200
         app.body = ""
+        app.delay = 0
+        app.delay_release.clear()
         self.requests = 0
         self.logs = []
 
@@ -392,6 +401,92 @@ class UsageTests(unittest.TestCase):
         usage.close()
 
         self.assertEqual(ips, client_ips(app.received))
+
+    def test_close_stops_sending_after_the_cleanup_bound(self):
+        """!
+        Closing stops after the five seconds the specification allows,
+        rather than waiting for a service that does not answer, and logs a
+        warning counting the entries it discarded.
+        """
+
+        self.assertEqual(
+            5, CLEANUP_TIMEOUT_SECONDS,
+            "Cleanup is not bounded at the five seconds the specification "
+            "gives.")
+        app.delay = CLEANUP_TIMEOUT_SECONDS + 5
+        # Let the held request go as soon as the test is done with it.
+        self.addCleanup(app.delay_release.set)
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint)
+        usage._log = lambda level, message: self.logs.append(
+            (level, message))
+        pipeline = PipelineBuilder().add(usage).build()
+        self.process_unique(pipeline)
+        self.wait_for(
+            lambda: len(app.attempts) == 1,
+            lambda: "The first send was not made, so nothing was holding "
+            "sending up when closing.")
+        for i in range(5):
+            self.process_unique(pipeline)
+
+        start = time.monotonic()
+        usage.close()
+        took = time.monotonic() - start
+
+        self.assertLess(
+            took, CLEANUP_TIMEOUT_SECONDS + 2,
+            f"Closing took {took:.2f} seconds, so it waited for the service "
+            "rather than stopping at the bound.")
+        self.assertGreaterEqual(
+            took, CLEANUP_TIMEOUT_SECONDS - 0.5,
+            f"Closing took {took:.2f} seconds, so it gave up before the "
+            "bound.")
+        warnings = [log for log in self.logs if "did not finish" in log[1]]
+        self.assertEqual(
+            1, len(warnings),
+            f"The entries discarded were not logged once. Logged: "
+            f"{self.logs}")
+        self.assertEqual(
+            ("warning",
+             "Usage sharing stopped sending when closing down, because it "
+             f"did not finish within {CLEANUP_TIMEOUT_SECONDS} seconds. 5 "
+             "entries were left in the queue and discarded."),
+            warnings[0])
+
+        # Let the held message go and wait for it to arrive, so that
+        # nothing from this element lands in another test.
+        app.delay_release.set()
+        self.wait_for(
+            lambda: len(app.received) == 1,
+            lambda: "The held message did not arrive once it was let go.")
+
+    def test_minimum_entries_per_message_default(self):
+        """!
+        The default minimum entries per message is the 50 the specification
+        gives, so no message is started before 50 entries are queued.
+        """
+
+        self.assertEqual(
+            50, REQUESTED_PACKAGE_SIZE_DEFAULT,
+            "The default is not the 50 the specification gives.")
+        usage = ShareUsage(endpoint=testEndpoint)
+        pipeline = PipelineBuilder().add(usage).build()
+        self.addCleanup(usage.close)
+        self.assertEqual(50, usage.requested_package_size)
+
+        for i in range(49):
+            self.process_unique(pipeline)
+        sleep(0.5)
+        self.assertEqual(
+            0, len(app.attempts),
+            "A message was started before 50 entries were queued.")
+
+        self.process_unique(pipeline)
+        self.wait_for(
+            lambda: len(client_ips(app.received)) == 50,
+            lambda: "The fiftieth entry did not start a message. Sent: "
+            f"{len(client_ips(app.received))}")
 
     def test_back_off_invalid_settings(self):
         """!
