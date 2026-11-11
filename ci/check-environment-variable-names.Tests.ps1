@@ -42,6 +42,10 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'ORIGIN_ENV_VAR = "cloud_request_origin"' }
         @{ Line = 'os.environ.get("cloud_request_origin")' }
         @{ Line = '$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"' }
+        @{ Line = '${env:cloud_endpoint} = "https://cloud.51degrees.com/api/v4/"' }
+        @{ Line = '${Env:RESOURCE_KEY}' }
+        @{ Line = 'Remove-Item Env:\license_key' }
+        @{ Line = '          url: ${{ env.cloud_endpoint }}' }
         @{ Line = 'env = os.environ.get("IPINTELLIGENCEDATAFILE")' }
         @{ Line = 'os.environ["ipintelligencetestkey"] = "value"' }
         @{ Line = 'if "run_performance_tests" in os.environ:' }
@@ -72,6 +76,8 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'builder = Builder({"resource_key": "YOUR_RESOURCE_KEY"})' }
         @{ Line = 'Builder(resource_key=key, license_key=licence)' }
         @{ Line = '$env:PAID_RESOURCE_KEY = $Keys.TestResourceKey' }
+        @{ Line = '${env:_51DEGREES_RESOURCE_KEY} = $Keys.TestResourceKey' }
+        @{ Line = '  PAID_RESOURCE_KEY: ${{ env.PAID_RESOURCE_KEY }}' }
         @{ Line = 'Set the 51D_ cookie for the 51Did example.' }
     ) {
         Get-Kind $Line | Should -BeNullOrEmpty
