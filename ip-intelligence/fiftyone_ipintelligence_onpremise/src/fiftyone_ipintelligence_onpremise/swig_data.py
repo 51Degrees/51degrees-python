@@ -20,6 +20,9 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import math
+from decimal import Decimal, ROUND_HALF_UP
+
 from fiftyone_pipeline_engines.aspectdata import AspectData
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
@@ -27,9 +30,15 @@ from fiftyone_pipeline_engines.missingproperty_service import MissingPropertySer
 
 from .constants import RESULTS_CLOSED
 
-# Number of decimal places used when converting WKB geometry
-# properties (e.g. Areas) to their WKT string form.
-WKT_DECIMAL_PLACES = 16
+# Latitude and Longitude are given to this many decimal places, as the
+# native code gives them in text and in the WKT of Areas.
+COORDINATE_DECIMAL_PLACES = 3
+
+# The step a coordinate is rounded to, worked out from the places above so
+# that the number of places is written down once.
+COORDINATE_QUANTUM = Decimal(1).scaleb(-COORDINATE_DECIMAL_PLACES)
+
+COORDINATE_PROPERTIES = ("latitude", "longitude")
 
 
 class OnPremiseMissingPropertyService(MissingPropertyService):
@@ -166,6 +175,26 @@ class SwigData(AspectData):
 
         return AspectPropertyValue(no_value_message="The IP address type is invalid.")
 
+    @staticmethod
+    def round_coordinate(value):
+
+        """!
+        A latitude or longitude to COORDINATE_DECIMAL_PLACES places.
+
+        A value half way between two places rounds away from zero, as the
+        native code rounds it, where Python's own round() would round it to
+        the nearer even place. A value that rounds to zero from below is
+        given as zero without a sign, because the native code writes the
+        same value as text without one. A value that is not finite is given
+        as it is, having no places to round.
+        """
+
+        if math.isfinite(value) is False:
+            return value
+        rounded = float(Decimal(value).quantize(
+            COORDINATE_QUANTUM, rounding=ROUND_HALF_UP))
+        return 0.0 if rounded == 0 else rounded
+
     def single_value(self, value, convert=None):
 
         """!
@@ -237,9 +266,15 @@ class SwigData(AspectData):
                 return self.weighted_list_to_value(
                     results.getValuesAsWeightedIntegerList(target))
 
+            # Only the coordinates are rounded.
+            round_coordinate = (
+                self.round_coordinate if key in COORDINATE_PROPERTIES
+                else None)
+
             if property_type in ("weighteddouble", "weightedsingle"):
                 return self.weighted_list_to_value(
-                    results.getValuesAsWeightedDoubleList(target))
+                    results.getValuesAsWeightedDoubleList(target),
+                    convert=round_coordinate)
 
             if property_type == "weightedbool":
                 return self.weighted_list_to_value(
@@ -269,7 +304,8 @@ class SwigData(AspectData):
                 return self.single_value(results.getValueAsInteger(target))
 
             if property_type in ("double", "single"):
-                return self.single_value(results.getValueAsDouble(target))
+                return self.single_value(
+                    results.getValueAsDouble(target), convert=round_coordinate)
 
             if property_type == "bool":
                 return self.single_value(results.getValueAsBool(target))
