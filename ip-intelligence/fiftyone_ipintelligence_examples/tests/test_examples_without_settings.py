@@ -42,7 +42,7 @@ from fiftyone_ipintelligence_examples.onpremise import offlineprocessing
 from fiftyone_ipintelligence_examples.onpremise import performance_console
 
 # The settings the examples read, which a fresh clone does not have.
-SETTINGS = ["license_key", "LICENSE_KEY", ExampleUtils.DATA_FILE_ENV_VAR]
+SETTINGS = ["_51DEGREES_LICENSE_KEY", ExampleUtils.DATA_FILE_ENV_VAR]
 
 # Options that keep the performance example short. They leave the data file
 # to the example.

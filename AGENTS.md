@@ -207,17 +207,16 @@ which is the configuration the example's own message names, and a key for IP
 Intelligence in the
 [configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
 
-The Device Detection cloud example takes the key as its first argument, or
-from `_51DEGREES_RESOURCE_KEY`, or from the older name `resource_key`, which
-the Device Detection README uses. The IP Intelligence cloud example takes it
-as its first argument or from `resource_key`.
+The Device Detection and IP Intelligence cloud examples take the key as
+their first argument, or from `_51DEGREES_RESOURCE_KEY`.
 
 ```
-resource_key=<key> python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console
-resource_key=<key> python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_console
+_51DEGREES_RESOURCE_KEY=<key> python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console
+_51DEGREES_RESOURCE_KEY=<key> python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_console
 ```
 
-In PowerShell, set `$env:resource_key = '<key>'` first. Without a key, each
+In PowerShell, set `$env:_51DEGREES_RESOURCE_KEY = '<key>'` first. Without
+a key, each
 example logs an error that names the variable and the configurator.
 
 ### Pitfalls

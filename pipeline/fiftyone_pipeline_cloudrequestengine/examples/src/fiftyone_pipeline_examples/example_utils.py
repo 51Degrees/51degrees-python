@@ -35,17 +35,9 @@ class ExampleUtils:
     # "_51DEGREES_RESOURCE_KEY".
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    # Also read for the resource key, being the name the other Python
-    # examples accept, so one setup runs them all.
-    LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
-
     # The environment variable the examples read a licence key from, to use
     # in place of a resource key.
     LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
-
-    # Also read for the licence key, being the name the other Python
-    # examples and tests accept.
-    LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
 
     # The environment variable naming a cloud service other than the public
     # one, for example one hosted privately. The value includes the api/v4
@@ -62,15 +54,11 @@ class ExampleUtils:
 
     @staticmethod
     def get_resource_key():
-        return (os.environ.get(ExampleUtils.RESOURCE_KEY_ENV_VAR) or
-                os.environ.get(ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR) or
-                "")
+        return os.environ.get(ExampleUtils.RESOURCE_KEY_ENV_VAR) or ""
 
     @staticmethod
     def get_license_key():
-        return (os.environ.get(ExampleUtils.LICENSE_KEY_ENV_VAR) or
-                os.environ.get(ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR) or
-                "")
+        return os.environ.get(ExampleUtils.LICENSE_KEY_ENV_VAR) or ""
 
     @staticmethod
     def get_cloud_endpoint():

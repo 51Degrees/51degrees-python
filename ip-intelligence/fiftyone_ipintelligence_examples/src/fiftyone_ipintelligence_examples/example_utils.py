@@ -38,7 +38,7 @@ class ExampleUtils:
 
     # The default environment variable used to get the resource key
     # to use when running examples.
-    RESOURCE_KEY_ENV_VAR = "resource_key"
+    RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
     ENDPOINT_ENV_VAR = "cloud_endpoint"
 
@@ -378,7 +378,4 @@ class ExampleUtils:
 
     @staticmethod
     def __get_env_variable(name):
-        value = os.environ.get(name)
-        if not value:
-            value = os.environ.get(name.upper())
-        return value
+        return os.environ.get(name)

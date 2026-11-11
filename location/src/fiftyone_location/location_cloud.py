@@ -44,12 +44,3 @@ class LocationCloud(CloudEngine):
             self.datakey = "location_digitalelement"
         else:
             raise Exception("The location provider " + location_provider + " was not recognized.")
-
-    def on_registration(self, pipeline):
-        available_properties = pipeline.flow_elements_list.get(
-            "cloud", {}).flow_element_properties
-        if "location" not in available_properties:
-            raise Exception("Location data was not available. "
-                            "Check that this key is authorised "
-                            "for geolocation data")
-        return super().on_registration(pipeline)
