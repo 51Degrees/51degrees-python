@@ -63,7 +63,7 @@ Execute `$env:FLASK_APP = "web"` where `web` is the example file, and start your
 ## Find out more
 
 - [Geolocation](https://51degrees.com/geolocation?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-geolocation)
-- [Reverse geocoding documentation](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-documentation)
+- [Reverse geocoding documentation](https://51degrees.com/documentation/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-documentation)
 - [Getting started](https://51degrees.com/documentation/_reverse_geocoding__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-getting-started)
 - [Pricing](https://51degrees.com/pricing?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-pricing)
 - https://github.com/51Degrees/51degrees-python

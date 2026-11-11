@@ -43,7 +43,7 @@ To run the tests use:
 ## Find out more
 
 - [Device Detection](https://51degrees.com/device-detection?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=find-out-more-device-detection)
-- [Device Detection documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=find-out-more-documentation)
+- [Device Detection documentation](https://51degrees.com/documentation/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=find-out-more-documentation)
 - [Getting started](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=find-out-more-getting-started)
 - [Pricing](https://51degrees.com/pricing?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=find-out-more-pricing)
 - https://github.com/51Degrees/51degrees-python
