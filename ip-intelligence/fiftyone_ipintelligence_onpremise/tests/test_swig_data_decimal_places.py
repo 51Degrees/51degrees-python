@@ -4,6 +4,7 @@ IP Intelligence Latitude and Longitude are given to 3 decimal places, as the
 value types page of the specification says.
 """
 
+import math
 import unittest
 
 from fiftyone_ipintelligence_onpremise import swig_data
@@ -91,6 +92,25 @@ class DecimalPlacesTests(unittest.TestCase):
 
     def test_the_unused_sixteen_place_setting_is_gone(self):
         self.assertFalse(hasattr(swig_data, "WKT_DECIMAL_PLACES"))
+
+    def test_a_half_rounds_away_from_zero(self):
+        for value, expected in ((0.0625, 0.063),
+                                (-0.0625, -0.063),
+                                (51.3125, 51.313)):
+            self.assertEqual(expected, SwigData.round_coordinate(value), value)
+
+    def test_a_value_that_rounds_to_zero_from_below_has_no_sign(self):
+        for value in (-0.0004, -0.0):
+            rounded = SwigData.round_coordinate(value)
+            self.assertEqual(0.0, rounded, value)
+            self.assertFalse(math.copysign(1.0, rounded) < 0,
+                             f"{value} was given as minus zero")
+
+    def test_a_value_that_is_not_finite_is_kept(self):
+        infinity = float("inf")
+        self.assertEqual(infinity, SwigData.round_coordinate(infinity))
+        self.assertEqual(-infinity, SwigData.round_coordinate(-infinity))
+        self.assertTrue(math.isnan(SwigData.round_coordinate(float("nan"))))
 
 
 if __name__ == "__main__":
