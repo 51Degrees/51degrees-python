@@ -101,7 +101,9 @@ releases of the original repositories stay with those repositories.
 
 ## License
 
-[European Union Public Licence v1.2](LICENSE), which every package declares.
+[European Union Public Licence v1.2](LICENSE), with the additional terms in
+[NOTICE](NOTICE), which every source file also states. Every package declares
+EUPL-1.2.
 
 ## Find out more
 
