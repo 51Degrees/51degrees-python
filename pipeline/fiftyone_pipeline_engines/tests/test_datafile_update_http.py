@@ -494,25 +494,51 @@ class ReportingEachCheckTests(UpdateServiceTestCase):
 
 # No message holds a licence key in full, as the Logging section of the data
 # updates specification and the License keys section of logging.md say.
-# A callback that raises is logged, and the other callbacks and the next
-# check still run, so polling carries on.
+# A callback that raises stops the callbacks after it, as data-updates.md
+# says, and its error is logged with .NET's message for any other error.
+# Polling carries on.
 class CallbackTests(UpdateServiceTestCase):
 
-    def testACallbackThatRaisesDoesNotStopTheChecks(self):
+    UNHANDLED = ("An unhandled error occurred while checking for automatic "
+                 "updates for engine 'FakeEngine'")
+
+    def fail_first(self):
         def fails(status, data_file):
             raise RuntimeError("callback failed")
 
         self.service.on_complete_methods.insert(0, fails)
+
+    def errors(self):
+        return [message for level, message in self.pipeline.logs
+                if level == "error"]
+
+    def testACallbackErrorOnPollingIsLoggedAndStopsTheCallbacks(self):
+        self.fail_first()
+        self.data_file.auto_update = True
+        self.hold_timers()
+        self.get(response(304))
+        self.service.async_update_data_file(self.data_file).join()
+        self.assertEqual([], self.statuses)
+        self.assertEqual(1, len(self.pending))
+        self.assertEqual([self.UNHANDLED], self.errors())
+
+    def testACallbackErrorOnAProgrammaticCheckIsLoggedAndStopsTheCallbacks(
+            self):
+        self.fail_first()
         self.data_file.auto_update = True
         self.hold_timers()
         self.get(response(304))
         self.service.update_data_file(self.data_file)
-        self.assertEqual([UpdateStatus.AUTO_UPDATE_NOT_NEEDED], self.statuses)
+        self.assertEqual([], self.statuses)
         self.assertEqual(1, len(self.pending))
-        errors = [message for level, message in self.pipeline.logs
-                  if level == "error"]
-        self.assertEqual(1, len(errors), self.pipeline.logs)
-        self.assertIn("callback failed", errors[0])
+        self.assertEqual([self.UNHANDLED], self.errors())
+
+    def testACallbackErrorOnAnUpdateFromMemoryIsLoggedAndStopsTheCallbacks(
+            self):
+        self.fail_first()
+        self.service.update_from_memory(self.data_file, b"fresh")
+        self.assertEqual([], self.statuses)
+        self.assertEqual([self.UNHANDLED], self.errors())
 
     def testAConnectionFailureKeepsPolling(self):
         self.data_file.auto_update = True
