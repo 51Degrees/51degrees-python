@@ -31,18 +31,26 @@ $script:DigitInitialPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable,
-# or given as a second name after a _51DEGREES_ one, or a constant holding a
-# legacy name to fall back to. Only those are matched, so the builder setting
-# resource_key, placeholder text such as YOUR_RESOURCE_KEY, and longer names
-# that end in the same words, are left alone.
+# An old name read or set as an environment variable, or given as a second
+# name after a _51DEGREES_ one, or a constant holding a legacy name to fall
+# back to. Only those are matched, so the builder setting resource_key or
+# cloud_endpoint, placeholder text such as YOUR_RESOURCE_KEY, and longer names
+# that end in the same words, are left alone. cloud_endpoint in particular is
+# a pipeline setting as well as an old environment variable name, and only the
+# environment variable moves.
+$oldNames = '(?:RESOURCE_KEY|LICENSE_KEY|FOD_CLOUD_API_URL|cloud_endpoint|' +
+    'IPINTELLIGENCEDATAFILE|ipintelligencetestkey|run_performance_tests)'
 $script:FallbackPattern = [regex]::new(
-    '(?:environ(?:\.get)?\s*[\(\[]\s*|getenv\(\s*|' +
-    'SetEnvironmentVariable\(\s*)[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]|' +
-    '\$env:(?:RESOURCE_KEY|LICENSE_KEY)(?![A-Za-z0-9_])|' +
-    '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]\s+in\s+os\.environ|' +
-    '[''"]_51DEGREES_[A-Za-z0-9_]*[''"]\s*,\s*' +
-    '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]|' +
+    '(?:environ(?:\.get|\.pop|\.setdefault)?\s*[\(\[]\s*|getenv\(\s*|' +
+    "SetEnvironmentVariable\(\s*)['`"]$oldNames['`"]|" +
+    "\`$env:$oldNames(?![A-Za-z0-9_])|" +
+    "['`"]$oldNames['`"]\s+in\s+os\.environ|" +
+    "['`"]_51DEGREES_[A-Za-z0-9_]*['`"]\s*,\s*['`"]$oldNames['`"]|" +
+    # A constant that holds an old name, which is how the cloud request
+    # engine and the example helpers name the variable they then read. The
+    # name is on the right of the assignment, so a pipeline setting written
+    # as settings["cloud_endpoint"] = value is left alone.
+    "=\s*['`"]$oldNames['`"]|" +
     '\bLEGACY_[A-Z_]*ENV_VARS?\b',
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
