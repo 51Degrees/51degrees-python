@@ -58,9 +58,21 @@ SHARE_USAGE_VERSION = '1.1'
 # The default number of seconds to wait for the server connection before failing the request when sending usage data
 REQUEST_TIMEOUT = 60
 
+# The default number of entries that must be queued before a message is
+# started. A message holds from this to twice this number.
+REQUESTED_PACKAGE_SIZE_DEFAULT = 50
+
 # The default maximum number of entries waiting to be sent, unless ten
 # times the requested package size is larger.
 MAX_QUEUE_SIZE_DEFAULT = 1000
+
+# The time in seconds that closing may spend sending the entries still
+# queued. Closing stops after this, so it does not hold up the process that
+# closes it. It is not a user setting.
+CLEANUP_TIMEOUT_SECONDS = 5
+
+# How long closing waits between looks at a send that is already running.
+CLEANUP_POLL_SECONDS = 0.01
 
 # While the queue is full, a message is logged for the first entry discarded
 # and then once for every this many more, never one for each entry.
@@ -87,7 +99,7 @@ class ShareUsage(Engine):
     def __init__(
         self,
         interval = 1200,
-        requested_package_size = 10,
+        requested_package_size = REQUESTED_PACKAGE_SIZE_DEFAULT,
         cookie = None,
         query_whitelist = [],
         header_blacklist = [],
@@ -110,10 +122,11 @@ class ShareUsage(Engine):
         multiple times within this time limit (in seconds) then they 
         will only be shared once.
         @type requested_package_size: int
-        @param requested_package_size: The usage element will group data into 
-        single requests before sending it. This setting controls the minimum 
-        number of entries before data is sent. If you are sharing large 
-        amounts of data, increasing this value is recommended in order to 
+        @param requested_package_size: The usage element will group data into
+        single requests before sending it. This setting controls the minimum
+        number of entries before data is sent, and a message holds from this
+        to twice this number. 50 by default. If you are sharing large
+        amounts of data, increasing this value is recommended in order to
         reduce the overhead of sending HTTP messages.
         For example, the 51Degrees cloud service uses a value of 2500.
         @type cookie: string
@@ -238,6 +251,9 @@ class ShareUsage(Engine):
         self._resume_timer = None
         # Set when the element closes.
         self._closing = threading.Event()
+        # The time closing may spend sending what is still queued. Not a
+        # user setting, and here so that a test can shorten it.
+        self.cleanup_timeout_seconds = CLEANUP_TIMEOUT_SECONDS
 
         self.constant_xml = None
 
@@ -252,7 +268,11 @@ class ShareUsage(Engine):
     def __del__(self):
         thread_pool = getattr(self, "thread_pool", None)
         if thread_pool is not None:
-            thread_pool.shutdown(wait=True)
+            closing = getattr(self, "_closing", None)
+            # Closing has already given sending all the time it is allowed,
+            # so waiting again here would undo that bound.
+            thread_pool.shutdown(
+                wait=closing is None or not closing.is_set())
 
     def close(self):
 
@@ -262,6 +282,11 @@ class ShareUsage(Engine):
         when it is closed. Closing does not wait for a pause after failed
         sends, and sends nothing while paused.
 
+        Closing gives up after cleanup_timeout_seconds, discards the entries
+        still queued and logs a warning, so that it does not hold up the
+        process that closes it. A message already going out when that time
+        passes is left to the request timeout on its own thread.
+
         """
 
         super(ShareUsage, self).close()
@@ -270,36 +295,84 @@ class ShareUsage(Engine):
             if self._resume_timer is not None:
                 self._resume_timer.cancel()
                 self._resume_timer = None
-        self.thread_pool.shutdown(wait=True)
-        self._send_remaining()
-
-    def _send_remaining(self):
-        """!
-        Send the entries still queued when closing, even if there are fewer
-        than the requested package size. Nothing is sent while paused, or
-        after a message fails, and the entries left are discarded and
-        counted in the log.
-        """
-
-        while True:
+        # Sending runs on its own thread, so that a service which does not
+        # answer cannot hold closing up for longer than the bound.
+        deadline = time.monotonic() + self.cleanup_timeout_seconds
+        # Set when sending stops for a reason of its own rather than for
+        # want of time, so that a thread which stops exactly at the
+        # deadline is still counted as having run out of time.
+        done = threading.Event()
+        flush = threading.Thread(
+            target=self._send_remaining, args=(deadline, done),
+            name="ShareUsageClose")
+        # The thread does not keep the process running.
+        flush.daemon = True
+        flush.start()
+        flush.join(self.cleanup_timeout_seconds)
+        if not done.is_set():
             with self._lock:
                 queued = len(self.share_data)
-                if queued == 0:
-                    return
-                if self.backoff.remaining(time.monotonic()) > 0:
+            self._log(
+                "warning",
+                "Usage sharing stopped sending when closing down, because "
+                "it did not finish within "
+                f"{self.cleanup_timeout_seconds} seconds. {queued} entries "
+                "were left in the queue and discarded.")
+        self.thread_pool.shutdown(wait=False)
+
+    def _send_remaining(self, deadline, done):
+        """!
+        Send the entries still queued when closing, even if there are fewer
+        than the requested package size. A send already running finishes
+        first, so only one message goes out at a time. Nothing is sent while
+        paused, after a message fails, or once deadline has passed, and the
+        entries left are discarded. Closing logs the ones left when the time
+        ran out, and this logs the ones left for the other two reasons.
+
+        @type deadline: float
+        @param deadline: The monotonic time sending has to stop at.
+        @type done: threading.Event
+        @param done: Set when sending stops for a reason other than the
+        deadline.
+        """
+
+        while time.monotonic() < deadline:
+            with self._lock:
+                if not self._sending:
                     break
-                share_data = self.share_data[:self._message_size]
-                del self.share_data[:self._message_size]
-            data = devices_message(share_data)
-            if not self.send_thread(self.endpoint, data):
+            time.sleep(CLEANUP_POLL_SECONDS)
+        while True:
+            # None while sending is paused, so nothing is sent.
+            share_data = None
+            with self._lock:
+                queued = len(self.share_data)
+                if time.monotonic() >= deadline:
+                    return
+                if queued == 0:
+                    done.set()
+                    return
+                if self.backoff.remaining(time.monotonic()) == 0:
+                    share_data = self.share_data[:self._message_size]
+                    del self.share_data[:self._message_size]
+            if share_data is None:
+                self._log(
+                    "info",
+                    f"{queued} usage sharing entries were not sent, as "
+                    "sending was paused after failed sends when usage "
+                    "sharing closed.")
+                done.set()
+                return
+            if not self.send_thread(self.endpoint, devices_message(
+                    share_data)):
                 with self._lock:
                     queued = len(self.share_data)
-                break
-        if queued > 0:
-            self._log(
-                "info",
-                f"{queued} usage sharing entries were not sent, as sending "
-                "had failed when usage sharing closed.")
+                if queued > 0:
+                    self._log(
+                        "info",
+                        f"{queued} usage sharing entries were not sent, as "
+                        "sending had failed when usage sharing closed.")
+                done.set()
+                return
 
     def get_constant_xml(self):
         if self.constant_xml is None:
@@ -462,7 +535,7 @@ class ShareUsage(Engine):
                     pause = self.backoff.failed(time.monotonic())
                     if pause > 0:
                         self._schedule_resume(pause)
-                done = pause > 0 or \
+                done = pause > 0 or self._closing.is_set() or \
                     len(self.share_data) < self.requested_package_size
                 if done:
                     self._sending = False
