@@ -50,7 +50,10 @@ class JsonBuilderSequenceTests(unittest.TestCase):
         flowdata = pipeline.create_flowdata()
         with self.assertRaises(Exception) as caught:
             flowdata.process()
-        self.assertIn("Sequence Element", str(caught.exception))
+        self.assertEqual(
+            "The JSON Builder needs a sequence number. Place a Sequence "
+            "Element before the JSON Builder in the Pipeline.",
+            str(caught.exception))
 
     def test_no_json_is_set_when_the_error_is_suppressed(self):
         pipeline = bundler_only(suppress=True)
