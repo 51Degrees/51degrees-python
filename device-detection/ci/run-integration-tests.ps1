@@ -33,9 +33,9 @@ if ($env:GITHUB_JOB -eq "Test") {
 }
 
 # Resource key environment variables follow the 51Degrees convention, which
-# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'. The name
-# used before the convention was adopted is set by common-ci and is still
-# read as a fallback, so anything not yet moved over keeps working.
+# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'. The tests
+# and examples read the key from no other name, and common-ci sets only the
+# older resource_key, so the key is set here.
 $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
 
 ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys

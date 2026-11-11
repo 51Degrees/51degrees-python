@@ -378,7 +378,4 @@ class ExampleUtils:
 
     @staticmethod
     def __get_env_variable(name):
-        value = os.environ.get(name)
-        if not value:
-            value = os.environ.get(name.upper())
-        return value
+        return os.environ.get(name)
