@@ -33,10 +33,11 @@ def client_ips(evidence):
     the evidence, query.client-ip first, then server.client-ip, then any
     other value that is an address as given. An IPv4-mapped IPv6 address,
     such as ::ffff:8.8.8.8, is its IPv4 address and is reported as Ip, as
-    the native code looks it up.
+    the native code looks it up. A value holding a zone index, such as
+    fe80::1%eth0, is not read at all.
 
     @type evidence: dict
-    @param evidence: evidence key to value
+    @param evidence: every evidence key and value
     @rtype: tuple
     @returns: (ipv4 or None, ipv6 or None)
     """
@@ -52,8 +53,15 @@ def client_ips(evidence):
     ipv4 = None
     ipv6 = None
     for value in ordered:
+        text = str(value)
+        # ipaddress reads a zone index, such as fe80::1%eth0, and the
+        # engine must refuse the whole value rather than read the address
+        # and drop the zone. The percent sign only ever starts a zone
+        # index here, in the plain and the %25 encoded form alike.
+        if "%" in text:
+            continue
         try:
-            parsed = ipaddress.ip_address(str(value))
+            parsed = ipaddress.ip_address(text)
         except ValueError:
             continue
         if parsed.version == 6 and parsed.ipv4_mapped is not None:

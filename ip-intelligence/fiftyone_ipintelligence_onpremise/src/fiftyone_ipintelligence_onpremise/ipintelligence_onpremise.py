@@ -348,8 +348,8 @@ class IpIntelligenceOnPremise(Engine):
 
         """!
 
-        Get the IPv4 and IPv6 addresses from the evidence accepted by the
-        engine, as client_ips reads them.
+        Get the IPv4 and IPv6 addresses from every evidence key and value
+        the flow data holds, as client_ips reads them.
 
         @rtype: tuple
         @returns: (ipv4 or None, ipv6 or None)
