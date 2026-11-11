@@ -114,6 +114,61 @@ class TestAllEvidenceSent(CloudRequestEngineTestsBase):
 
         self.assertEqual("from the query", content["my-own-thing"])
 
+    def test_each_prefix_wins_over_every_later_one(self):
+        """
+        evidence.md lists query, header, cookie, server, fiftyone and
+        location from highest to lowest precedence, and ranks any other
+        prefix alphabetically after them. Each pair of prefixes gives one
+        name, added higher first so the order added cannot decide it, and
+        the higher prefix's value is the one sent.
+        """
+
+        order = ("query", "header", "cookie", "server", "fiftyone",
+                 "location", "apple", "zebra")
+        evidence = {}
+        for i, higher in enumerate(order):
+            for lower in order[i + 1:]:
+                name = "n-" + higher + "-" + lower
+                evidence[higher + "." + name] = higher
+                evidence[lower + "." + name] = lower
+
+        content = self.send(evidence)
+
+        wrong = []
+        for i, higher in enumerate(order):
+            for lower in order[i + 1:]:
+                name = "n-" + higher + "-" + lower
+                if content.get(name) != higher:
+                    wrong.append(name + " sent " + str(content.get(name)))
+        self.assertEqual([], wrong)
+
+    def test_a_prefix_ranks_the_same_in_any_letter_case(self):
+        """
+        Evidence keys ignore letter case, so Location ranks as location and
+        SERVER as server.
+        """
+
+        content = self.send({
+            "fiftyone.b": "fiftyone",
+            "Location.b": "location",
+            "SERVER.c": "server",
+            "Location.c": "location",
+        })
+
+        self.assertEqual("fiftyone", content["b"])
+        self.assertEqual("server", content["c"])
+
+    def test_other_prefixes_rank_by_the_prefix_alone(self):
+        """
+        Other prefixes rank alphabetically by the prefix, so ab comes
+        before ab-c, although the key ab-c.n sorts before ab.n because a
+        hyphen sorts before a dot.
+        """
+
+        content = self.send({"ab.n": "ab", "ab-c.n": "ab-c"})
+
+        self.assertEqual("ab", content["n"])
+
     def test_a_reserved_name_is_never_sent_from_evidence(self):
         """
         The service reads its credentials and the property list from these
