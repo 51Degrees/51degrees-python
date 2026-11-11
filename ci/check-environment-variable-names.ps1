@@ -50,7 +50,12 @@ $script:DigitInitialPattern = [regex]::new(
 # parameters and the fake resource key the cloud request engine's tests send,
 # so those four are matched only where the line reads or sets a variable, or
 # names one in a constant whose own name says so.
-$plainOld = '(?:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
+#
+# Those four keep their case, unlike every other pattern here, because the
+# IP Intelligence data file's old name differs from the class name
+# IpIntelligenceDataFile by case alone, and a class is not a variable. They
+# are gone from the repository, so only an exact return of one matters.
+$plainOld = '(?-i:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
     'ipintelligence' + 'testkey|run_performance' + '_tests)'
 $sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|cloud_endpoint|cloud_request_origin)'
 $script:FallbackPattern = [regex]::new(

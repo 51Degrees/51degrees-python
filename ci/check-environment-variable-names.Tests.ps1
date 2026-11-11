@@ -57,6 +57,8 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'os.environ.get("_51DEGREES_RESOURCE_KEY")' }
         @{ Line = 'pipeline_settings["cloud_endpoint"] = cloud_endpoint' }
         @{ Line = 'resourceKey = "resource_key"' }
+        @{ Line = 'class IpIntelligenceDataFile(DataFile):' }
+        @{ Line = 'if isinstance(datafile, IpIntelligenceDataFile):' }
         @{ Line = 'RESOURCE_KEY = "resource_key"' }
         @{ Line = 'testResourceKey = "resource_key"' }
         @{ Line = 'def __init__(self, resource_key, cloud_request_origin=None):' }
