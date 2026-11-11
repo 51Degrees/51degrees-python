@@ -58,6 +58,14 @@ class UpdateStatus(Enum):
     AUTO_UPDATE_NEW_FILE_CANT_RENAME = 9
     # Refreshing the engine with the new data caused an error to occur.
     AUTO_UPDATE_REFRESH_FAILED = 10
+    # The data file is checking for updates but has no temporary file path.
+    AUTO_UPDATE_TEMP_PATH_NOT_SET = 11
+    # Writing the new data to the data file failed. The engine is still
+    # refreshed from the data, so this status never reaches a caller and
+    # marks only that the file on disk still holds the old data.
+    AUTO_UPDATE_WRITE_FAILED = 14
+    # Any other error during a check for an update.
+    AUTO_UPDATE_UNKNOWN_ERROR = 15
 
 # The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
 GZIP_MAGIC = b"\x1f\x8b"
@@ -140,18 +148,21 @@ class DataFileUpdateService():
             "Checking for update from '" + shown_url + "' for Engine '" +
             engine + "'")
 
-        retry = self._retry_text(data_file)
-
         try:
             response = requests.get(url, headers=headers)
-        except requests.RequestException as e:
-            # The message of a failed request names the URL, key included.
+        except requests.RequestException:
             self._log(
-                "warning",
-                "An error occurred when connecting to " + shown_url +
-                " in order to check for data file updates for " + engine +
-                "." + retry + " Error detail: " +
-                mask_licence_keys_in_text(e))
+                "error",
+                "Error accessing data update service at '" + shown_url +
+                "' for engine '" + engine + "'")
+            return self._update_failed(
+                data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+
+        if response is None:
+            self._log(
+                "error",
+                "No response from data update service at '" + shown_url +
+                "' for engine '" + engine + "'")
             return self._update_failed(
                 data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
 
@@ -166,21 +177,25 @@ class DataFileUpdateService():
 
         if response.status_code != 200:
 
-            # Handle errors
+            # Each response that is not a success and not a 304 carries the
+            # message and status of the matching row of the errors table.
 
             if response.status_code == 429:
                 status = UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS
+                message = ("Too many requests to '" + shown_url +
+                           "' for engine '" + engine + "'")
             elif response.status_code == 403:
                 status = UpdateStatus.AUTO_UPDATE_ERR_403_FORBIDDEN
+                message = ("Access denied to data update service at '" +
+                           shown_url + "' for engine '" + engine + "'")
             else:
                 status = UpdateStatus.AUTO_UPDATE_HTTPS_ERR
+                message = ("HTTP status code '" +
+                           str(response.status_code) +
+                           "' from data update service at '" + shown_url +
+                           "' for engine '" + engine + "'")
 
-            self._log(
-                "warning",
-                "An error occurred while downloading a data file update "
-                "for " + engine + " from " + shown_url + "." + retry +
-                " Error detail: HTTP status code " +
-                str(response.status_code))
+            self._log("error", message)
             return self._update_failed(data_file, status)
 
         # Verify the MD5 hash if enabled and the answer gives one.
@@ -201,11 +216,11 @@ class DataFileUpdateService():
 
             if header_md5 != hash_md5.hexdigest():
                 self._log(
-                    "warning",
-                    "An error occurred during the integrity check of new "
-                    "data file for " + engine + "." + retry +
-                    " Error detail: The MD5 hash of the data does not "
-                    "match the content-md5 header.")
+                    "error",
+                    "Integrity check failed. MD5 hash in HTTP response '" +
+                    str(header_md5) + "' for '" + engine + "' data update "
+                    "does not match calculated hash for the downloaded "
+                    "file '" + hash_md5.hexdigest() + "'.")
                 return self._update_failed(
                     data_file,
                     UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED)
@@ -221,20 +236,26 @@ class DataFileUpdateService():
         if data_file.decompress and data[:2] == GZIP_MAGIC:
             try:
                 data = gzip.decompress(data)
-            except (OSError, EOFError, zlib.error) as e:
+            except (OSError, EOFError, zlib.error):
+                # Content that cannot be read is any other error, which
+                # carries the last row of the errors table.
                 self._log(
-                    "warning",
-                    "An error occurred during the integrity check of new "
-                    "data file for " + engine + "." + retry +
-                    " Error detail: " + str(e))
+                    "error",
+                    "An unhandled error occurred while checking for "
+                    "automatic updates for engine '" + engine + "'")
                 return self._update_failed(
-                    data_file, UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM)
+                    data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR)
 
         # Download datafile if needed, or pass through memory
         if data_file.download:
             failed = self._write_data_file(data_file, data)
-            if failed is not None:
+            # A write that failed is only a warning, so the engine is still
+            # refreshed from the data just downloaded.
+            if (failed is not None and
+                    failed != UpdateStatus.AUTO_UPDATE_WRITE_FAILED):
                 return self._update_failed(data_file, failed)
+            if failed == UpdateStatus.AUTO_UPDATE_WRITE_FAILED:
+                data_file.data = data
 
         else:
 
@@ -281,7 +302,11 @@ class DataFileUpdateService():
             data_file.updating = True
             try:
                 status = self._write_data_file(data_file, data)
-                if status is None:
+                # A write that failed is only a warning, so the engine is
+                # still refreshed from the data held in memory.
+                if (status is None or
+                        status == UpdateStatus.AUTO_UPDATE_WRITE_FAILED):
+                    data_file.data = data
                     status = self._refresh(data_file)
             finally:
                 data_file.updating = False
@@ -306,8 +331,18 @@ class DataFileUpdateService():
     def _write_data_file(self, data_file, data):
         # Write new data to the data file's path, through a temporary copy
         # when the data file asks for one. None when written, or the status
-        # of the failure, which is logged.
+        # of the failure, which is logged. A write that fails is a warning
+        # and leaves the caller free to refresh the Engine from the data in
+        # memory, whilst a temporary path that is not set and a copy that
+        # cannot replace the file stop the update.
         if data_file.create_temp_copy:
+            if not getattr(data_file, "temp_directory", None):
+                self._log(
+                    "error",
+                    "The data file '" + str(data_file.identifier) +
+                    "' is checking for updates but does not have a "
+                    "temporary file path configured.")
+                return UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET
             filename = os.path.join(
                 data_file.temp_directory,
                 data_file.identifier + str(time.time()))
@@ -317,12 +352,13 @@ class DataFileUpdateService():
         try:
             with open(filename, 'wb') as f:
                 f.write(data)
-        except OSError as e:
+        except OSError:
             self._log(
-                "error",
-                "An error occurred when writing to " + filename +
-                ". Error detail: " + str(e))
-            return UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM
+                "warning",
+                "An error occurred when writing to '" + str(filename) +
+                "'. The engine will be updated to use the new data but "
+                "the file on disk will still contain old data.")
+            return UpdateStatus.AUTO_UPDATE_WRITE_FAILED
 
         if data_file.create_temp_copy:
             try:
@@ -344,11 +380,11 @@ class DataFileUpdateService():
             "Attempting to refresh Engine '" + engine + "' with new data")
         try:
             data_file.refresh()
-        except Exception as e:
+        except Exception:
             self._log(
                 "error",
-                "An error occurred while applying a data file update to " +
-                engine + ". Error detail: " + str(e))
+                "An error occurred when applying a data update to engine '" +
+                engine + "'")
             return UpdateStatus.AUTO_UPDATE_REFRESH_FAILED
         return UpdateStatus.AUTO_UPDATE_SUCCESS
 
@@ -368,13 +404,6 @@ class DataFileUpdateService():
     @staticmethod
     def _engine_type(data_file):
         return type(getattr(data_file, "flow_element", data_file)).__name__
-
-    @staticmethod
-    def _retry_text(data_file):
-        # Only an automatic update is tried again.
-        if getattr(data_file, "auto_update", False):
-            return " Update will be attempted again later."
-        return ""
 
     @staticmethod
     def _http_date(moment):
@@ -451,7 +480,7 @@ class DataFileUpdateService():
             return
 
         if data_file.update_on_start and not data_file.updated_on_start and not run_after_error:
-            self._log("info", "Updating on start-up")
+            self._log("info", "Updating on startup")
             self.update_data_file(data_file)
 
         elif data_file.auto_update:
@@ -535,12 +564,18 @@ class DataFileUpdateService():
             # replaced, is looked for again at the next check.
             changed_time = None
         try:
-            # Don't change if data_file is updating
-            if (changed_time is not None and
-                    changed_time > data_file.last_changed_time and
-                    not data_file.updating):
+            # Every event is reported once it ends. An event that arrived
+            # whilst another was being applied is reported as in progress,
+            # and one with no newer file as not needed.
+            if data_file.updating:
+                status = UpdateStatus.AUTO_UPDATE_IN_PROGRESS
+            elif (changed_time is not None and
+                    changed_time > data_file.last_changed_time):
                 data_file.last_changed_time = changed_time
-                self.__emit(self._refresh(data_file), data_file)
+                status = self._refresh(data_file)
+            else:
+                status = UpdateStatus.AUTO_UPDATE_NOT_NEEDED
+            self.__emit(status, data_file)
         finally:
             if self.__is_registered(data_file):
                 t = threading.Timer(

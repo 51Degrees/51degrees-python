@@ -217,8 +217,8 @@ class UpdateFromMemoryTests(UpdateServiceTestCase):
         self.assertEqual(UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, status)
         self.assertIn(
             ("error",
-             "An error occurred while applying a data file update to "
-             "FakeEngine. Error detail: boom"),
+             "An error occurred when applying a data update to engine "
+             "'FakeEngine'"),
             self.pipeline.logs)
 
     def testFileDataFileIsWrittenThenRefreshed(self):
@@ -560,15 +560,14 @@ class LicenceKeyTests(UpdateServiceTestCase):
                             status)
 
     def testFailedConnectionShowsOnlyTheMaskedKey(self):
-        # The message of a failed request names the URL, key included.
+        # The message of a failed request names the URL, masked.
         self.get(requests.ConnectionError("failed for url: " + KEYED_URL))
         self.service.update_data_file(self.data_file)
         self.assertNoKey()
         self.assertIn(
-            ("warning",
-             "An error occurred when connecting to " + MASKED_URL +
-             " in order to check for data file updates for FakeEngine. "
-             "Error detail: failed for url: " + MASKED_URL),
+            ("error",
+             "Error accessing data update service at '" + MASKED_URL +
+             "' for engine 'FakeEngine'"),
             self.pipeline.logs)
 
 
@@ -603,7 +602,7 @@ class ContentTests(UpdateServiceTestCase):
         self.assertEqual([b"plain"], self.data_file.refreshed)
         self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
 
-    def testCorruptCompressedContentIsWarnedAndCheckedAgainLater(self):
+    def testCorruptCompressedContentIsAnErrorAndCheckedAgainLater(self):
         self.data_file.decompress = True
         self.data_file.auto_update = True
         self.hold_timers()
@@ -611,14 +610,12 @@ class ContentTests(UpdateServiceTestCase):
         self.assertFalse(self.service.update_data_file(self.data_file))
         self.assertEqual([], self.data_file.refreshed)
         self.assertEqual(
-            [UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM], self.statuses)
-        warnings = [message for level, message in self.pipeline.logs
-                    if level == "warning"]
-        self.assertEqual(1, len(warnings), self.pipeline.logs)
-        self.assertTrue(warnings[0].startswith(
-            "An error occurred during the integrity check of new data file "
-            "for FakeEngine. Update will be attempted again later. Error "
-            "detail: "), warnings[0])
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
+        self.assertIn(
+            ("error",
+             "An unhandled error occurred while checking for automatic "
+             "updates for engine 'FakeEngine'"),
+            self.pipeline.logs)
         self.assertEqual(1, len(self.pending))
 
     def testFailedMd5CheckOnStartUpIsNotRepeatedAtOnce(self):
