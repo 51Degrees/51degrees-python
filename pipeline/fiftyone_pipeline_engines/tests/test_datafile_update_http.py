@@ -85,6 +85,12 @@ def response(status, content=b"new"):
     return reply
 
 
+# The entry an error from a row of the errors table is logged under, with
+# the error, being the row's text and then its cause, after it, as .NET logs
+# a DataUpdateException.
+CHECK_ERROR = "Error during check for data update. "
+
+
 class UpdateServiceTestCase(unittest.TestCase):
 
     def setUp(self):
@@ -217,8 +223,8 @@ class UpdateFromMemoryTests(UpdateServiceTestCase):
         self.assertEqual(UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, status)
         self.assertIn(
             ("error",
-             "An error occurred when applying a data update to engine "
-             "'FakeEngine'"),
+             CHECK_ERROR + "An error occurred when applying a data update "
+             "to engine 'FakeEngine'. Error detail: boom"),
             self.pipeline.logs)
 
     def testFileDataFileIsWrittenThenRefreshed(self):
@@ -300,8 +306,8 @@ class LoggingTests(UpdateServiceTestCase):
         self.service.update_data_file(self.data_file)
         self.assertIn(
             ("error",
-             "Access denied to data update service at '" + URL +
-             "' for engine 'FakeEngine'"),
+             CHECK_ERROR + "Access denied to data update service at '" +
+             URL + "' for engine 'FakeEngine'"),
             self.pipeline.logs)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_ERR_403_FORBIDDEN], self.statuses)
@@ -311,7 +317,8 @@ class LoggingTests(UpdateServiceTestCase):
         self.service.update_data_file(self.data_file)
         self.assertIn(
             ("error",
-             "Too many requests to '" + URL + "' for engine 'FakeEngine'"),
+             CHECK_ERROR + "Too many requests to '" + URL +
+             "' for engine 'FakeEngine'"),
             self.pipeline.logs)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS],
@@ -324,8 +331,8 @@ class LoggingTests(UpdateServiceTestCase):
         self.service.update_data_file(self.data_file)
         self.assertIn(
             ("error",
-             "HTTP status code '500' from data update service at '" + URL +
-             "' for engine 'FakeEngine'"),
+             CHECK_ERROR + "HTTP status code '500' from data update service "
+             "at '" + URL + "' for engine 'FakeEngine'"),
             self.pipeline.logs)
         self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
 
@@ -334,8 +341,8 @@ class LoggingTests(UpdateServiceTestCase):
         self.assertFalse(self.service.update_data_file(self.data_file))
         self.assertIn(
             ("error",
-             "Error accessing data update service at '" + URL +
-             "' for engine 'FakeEngine'"),
+             CHECK_ERROR + "Error accessing data update service at '" +
+             URL + "' for engine 'FakeEngine'. Error detail: boom"),
             self.pipeline.logs)
         self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
 
@@ -345,8 +352,8 @@ class LoggingTests(UpdateServiceTestCase):
         self.service.update_data_file(self.data_file)
         self.assertIn(
             ("error",
-             "An error occurred when applying a data update to engine "
-             "'FakeEngine'"),
+             CHECK_ERROR + "An error occurred when applying a data update "
+             "to engine 'FakeEngine'. Error detail: boom"),
             self.pipeline.logs)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_REFRESH_FAILED], self.statuses)
@@ -362,7 +369,7 @@ class LoggingTests(UpdateServiceTestCase):
                   if level == "error"]
         self.assertEqual(1, len(errors), self.pipeline.logs)
         self.assertTrue(errors[0].startswith(
-            "Integrity check failed. MD5 hash in HTTP response "
+            CHECK_ERROR + "Integrity check failed. MD5 hash in HTTP response "
             "'not the hash' for 'FakeEngine' data update does not match "
             "calculated hash for the downloaded file '"), errors[0])
         self.assertEqual(
@@ -432,8 +439,9 @@ class FileReplacementTests(UpdateServiceTestCase):
             UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME, status)
         self.assertIn(
             ("error",
-             "An error occurred when copying a data file to replace the "
-             "existing one at '" + self.path + "'."),
+             CHECK_ERROR + "An error occurred when copying a data file to "
+             "replace the existing one at '" + self.path +
+             "'. Error detail: in use"),
             self.pipeline.logs)
 
     def testNoTemporaryPathIsReported(self):
@@ -443,7 +451,7 @@ class FileReplacementTests(UpdateServiceTestCase):
             UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET, status)
         self.assertIn(
             ("error",
-             "The data file '" + self.data_file.identifier +
+             CHECK_ERROR + "The data file '" + self.data_file.identifier +
              "' is checking for updates but does not have a temporary "
              "file path configured."),
             self.pipeline.logs)
@@ -500,7 +508,8 @@ class ReportingEachCheckTests(UpdateServiceTestCase):
 class CallbackTests(UpdateServiceTestCase):
 
     UNHANDLED = ("An unhandled error occurred while checking for automatic "
-                 "updates for engine 'FakeEngine'")
+                 "updates for engine 'FakeEngine'. Error detail: "
+                 "callback failed")
 
     def fail_first(self):
         def fails(status, data_file):
@@ -592,8 +601,9 @@ class LicenceKeyTests(UpdateServiceTestCase):
         self.assertNoKey()
         self.assertIn(
             ("error",
-             "Error accessing data update service at '" + MASKED_URL +
-             "' for engine 'FakeEngine'"),
+             CHECK_ERROR + "Error accessing data update service at '" +
+             MASKED_URL + "' for engine 'FakeEngine'. Error detail: "
+             "failed for url: " + MASKED_URL),
             self.pipeline.logs)
 
 
@@ -637,11 +647,12 @@ class ContentTests(UpdateServiceTestCase):
         self.assertEqual([], self.data_file.refreshed)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
-        self.assertIn(
-            ("error",
-             "An unhandled error occurred while checking for automatic "
-             "updates for engine 'FakeEngine'"),
-            self.pipeline.logs)
+        errors = [message for level, message in self.pipeline.logs
+                  if level == "error"]
+        self.assertEqual(1, len(errors), self.pipeline.logs)
+        self.assertTrue(errors[0].startswith(
+            "An unhandled error occurred while checking for automatic "
+            "updates for engine 'FakeEngine'. Error detail: "), errors[0])
         self.assertEqual(1, len(self.pending))
 
     def testFailedMd5CheckOnStartUpIsNotRepeatedAtOnce(self):
