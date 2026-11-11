@@ -87,8 +87,8 @@ def response(status, content=b"new"):
 
 # The entry an error from a row of the errors table is logged under, with
 # the error, being the row's text and then its cause, after it, as .NET logs
-# a DataUpdateException.
-CHECK_ERROR = "Error during check for data update. "
+# a DataUpdateException. The text is the one 51degrees-node writes.
+CHECK_ERROR = "Error during check for data update. Error detail: "
 
 
 class UpdateServiceTestCase(unittest.TestCase):
@@ -300,6 +300,24 @@ class LoggingTests(UpdateServiceTestCase):
             self.pipeline.logs)
         for level in ("warn", "warning", "error"):
             self.assertNotIn(level, self.levels())
+
+    def testTheErrorEntryIsWrittenExactly(self):
+        # Written out in full, so a change to any character fails.
+        self.get(response(403))
+        self.service.update_data_file(self.data_file)
+        self.get(requests.ConnectionError("boom"))
+        self.service.update_data_file(self.data_file)
+        errors = [message for level, message in self.pipeline.logs
+                  if level == "error"]
+        self.assertEqual(
+            ["Error during check for data update. Error detail: Access "
+             "denied to data update service at "
+             "'https://example.com/update' for engine 'FakeEngine'",
+             "Error during check for data update. Error detail: Error "
+             "accessing data update service at "
+             "'https://example.com/update' for engine 'FakeEngine'. "
+             "Error detail: boom"],
+            errors)
 
     def testRefusedDownloadIsError(self):
         self.get(response(403))
