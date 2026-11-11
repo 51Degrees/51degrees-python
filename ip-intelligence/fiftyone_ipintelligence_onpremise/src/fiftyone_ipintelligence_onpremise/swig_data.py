@@ -226,37 +226,41 @@ class SwigData(AspectData):
         if this_property:
 
             results = self.swig_results
-            name = this_property["name"]
+            # Read by the property's index from the engine's build-time
+            # table. A name outside the table is read by name, which gives
+            # the native no value message.
+            target = getattr(self.flow_element, "property_indexes", {}).get(
+                key, this_property["name"])
             property_type = this_property["type"].lower()
 
             # Mcc is weighted even though its metadata type is "string"
             # (ip-intelligence-dotnet parity).
 
-            if property_type == "string" and name.lower() == "mcc":
+            if property_type == "string" and key == "mcc":
                 property_type = "weightedstring"
 
             if property_type in ("weightedstring", "weightedwkbr", "weightedwkb"):
                 return self.weighted_list_to_value(
-                    results.getValuesAsWeightedUTF8StringList(name),
+                    results.getValuesAsWeightedUTF8StringList(target),
                     convert=self.utf8_string_to_str)
 
             if property_type == "weightedint":
                 return self.weighted_list_to_value(
-                    results.getValuesAsWeightedIntegerList(name))
+                    results.getValuesAsWeightedIntegerList(target))
 
             # Only the coordinates are rounded.
             round_coordinate = (
-                self.round_coordinate if name.lower() in COORDINATE_PROPERTIES
+                self.round_coordinate if key in COORDINATE_PROPERTIES
                 else None)
 
             if property_type in ("weighteddouble", "weightedsingle"):
                 return self.weighted_list_to_value(
-                    results.getValuesAsWeightedDoubleList(name),
+                    results.getValuesAsWeightedDoubleList(target),
                     convert=round_coordinate)
 
             if property_type == "weightedbool":
                 return self.weighted_list_to_value(
-                    results.getValuesAsWeightedBoolList(name))
+                    results.getValuesAsWeightedBoolList(target))
 
             if property_type in ("wkb", "wkbr"):
                 # WKB geometry properties (e.g. Areas) are exposed as their
@@ -264,36 +268,36 @@ class SwigData(AspectData):
                 # matching the .NET binding. The weighted-WKT list getter
                 # (getValuesAsWeightedWKTStringList) is not used as it is not
                 # safely exposed through the Python SWIG wrapper.
-                return self.single_value(results.getValueAsString(name))
+                return self.single_value(results.getValueAsString(target))
 
             if property_type == "ipaddress":
                 # IP address properties (e.g. IpRangeStart / IpRangeEnd) are
                 # read as their string form. This matches the .NET binding,
                 # which reads IP properties via getValueAsString rather than
                 # the lower-level getValueAsIpAddress accessor.
-                return self.single_value(results.getValueAsString(name))
+                return self.single_value(results.getValueAsString(target))
 
             if property_type in ("string", "javascript"):
                 return self.single_value(
-                    results.getValueAsUTF8String(name),
+                    results.getValueAsUTF8String(target),
                     convert=self.utf8_string_to_str)
 
             if property_type == "int":
-                return self.single_value(results.getValueAsInteger(name))
+                return self.single_value(results.getValueAsInteger(target))
 
             if property_type in ("double", "single"):
                 return self.single_value(
-                    results.getValueAsDouble(name), convert=round_coordinate)
+                    results.getValueAsDouble(target), convert=round_coordinate)
 
             if property_type == "bool":
-                return self.single_value(results.getValueAsBool(name))
+                return self.single_value(results.getValueAsBool(target))
 
             if property_type == "string[]":
-                value = results.getValues(name)
+                value = results.getValues(target)
                 if value.hasValue():
                     return AspectPropertyValue(value=list(value.getValue()))
                 return AspectPropertyValue(no_value_message=value.getNoValueMessage())
 
             # Unknown type, fall back to string
 
-            return self.single_value(results.getValueAsString(name))
+            return self.single_value(results.getValueAsString(target))

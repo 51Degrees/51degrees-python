@@ -43,14 +43,13 @@ the Enterprise data file.
 
 The cloud tests need a valid 51Degrees resource key (see above), and fail
 without one. They read it from the environment variable
-`_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`, then
-`resource_key`.
+`_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`.
 
-For example, use following command to set resource_key on Linux:
-`export resource_key=MY-RESOURCE-KEY`
+For example, use following command to set the resource key on Linux:
+`export _51DEGREES_RESOURCE_KEY=MY-RESOURCE-KEY`
 
 On Microsoft Windows use:
-`$env:resource_key = "MY-RESOURCE-KEY"`
+`$env:_51DEGREES_RESOURCE_KEY = "MY-RESOURCE-KEY"`
 
 As the performance and offline processing tests take longer than the others, there is another environment variable flag to run those:
 

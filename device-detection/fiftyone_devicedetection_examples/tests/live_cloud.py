@@ -32,12 +32,11 @@ without calling the cloud has proved nothing.
 import os
 
 # Tried in this order. _51DEGREES_RESOURCE_KEY is first because the Cloud
-# 51Did workflow sets it to each key in turn, and resource_key last because
-# it is the older name, which common-ci still sets.
+# 51Did workflow sets it to each key in turn, and each product's
+# integration test script sets it too.
 RESOURCE_KEY_NAMES = (
     "_51DEGREES_RESOURCE_KEY",
     "_51DEGREES_RESOURCE_KEY_BESPOKE",
-    "resource_key",
 )
 
 ACCESSIBLE_PROPERTIES_URL = (

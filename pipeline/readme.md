@@ -51,7 +51,7 @@ and examples that are available. To run tests:
 * Go to each directory (for example `fiftyone_pipeline_core`)
 * Run `tox -e py`
 
-The tests that call the 51Degrees cloud service read a resource key from the `resource_key` environment variable. Without one, those tests fail in `fiftyone_pipeline_cloudrequestengine` and are skipped in `fiftyone_pipeline_did`.
+The tests that call the 51Degrees cloud service need a resource key. The cloud request engine's own tests read it from the `_51DEGREES_RESOURCE_KEY` environment variable, and its examples' tests and the 51Did tests from `_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`. Without one, those tests fail.
 
 ## Examples
 
