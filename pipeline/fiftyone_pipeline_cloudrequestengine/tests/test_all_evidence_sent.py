@@ -126,18 +126,33 @@ class TestAllEvidenceSent(CloudRequestEngineTestsBase):
         MUST be left out.
         """
 
-        content = self.send({
+        evidence = {
             "query.resource": "evidence_resource",
             "query.License": "evidence_license",
             "header.LICENCE": "evidence_licence",
             "cookie.values": "evidence_values",
             "query.my-own-thing": "a value",
-        }, {
+        }
+
+        # A resource key and a licence key, with no property list, so
+        # nothing the engine sends is called values.
+        content = self.send(evidence, {"license_key": LICENSE_KEY})
+        self.assertEqual(RESOURCE_KEY, content[Constants.RESOURCE_PARAMETER])
+        self.assertEqual(LICENSE_KEY, content[Constants.LICENSE_PARAMETER])
+        self.assertNotIn(Constants.VALUES_PARAMETER, content)
+        self.assertNotIn(Constants.LICENCE_SPELLING, content)
+        for name, value in content.items():
+            self.assertNotIn("evidence_", str(value), name)
+        self.assertEqual("a value", content["my-own-thing"])
+
+        # A licence key alone, with the property list it needs, so nothing
+        # the engine sends is called resource.
+        content = self.send(evidence, {
+            "resource_key": "",
             "license_key": LICENSE_KEY,
             "requested_properties": ["device.ismobile"],
         })
-
-        self.assertEqual(RESOURCE_KEY, content[Constants.RESOURCE_PARAMETER])
+        self.assertNotIn(Constants.RESOURCE_PARAMETER, content)
         self.assertEqual(LICENSE_KEY, content[Constants.LICENSE_PARAMETER])
         self.assertEqual(
             "device.ismobile", content[Constants.VALUES_PARAMETER])
