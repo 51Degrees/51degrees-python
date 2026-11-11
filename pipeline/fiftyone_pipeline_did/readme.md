@@ -387,7 +387,7 @@ from fiftyone_pipeline_did import DidClient, FodId
 client = DidClient(
     os.environ["_51DEGREES_RESOURCE_KEY"],
     os.environ.get("_51DEGREES_LICENSE_KEY"),   # optional, see below
-    # endpoint defaults to FOD_CLOUD_API_URL, then the public cloud
+    # endpoint defaults to _51DEGREES_CLOUD_ENDPOINT, then the public cloud
 )
 
 async def check(text):
@@ -424,7 +424,7 @@ client = DidClient(resource_key, licence_key, transport=httpx_transport)
 | --- | --- |
 | `resource_key` | Required. The page's resource key, public by nature. It travels in the route of the key and verify requests and in the form body of the redeem request |
 | `licence_key` | Optional. A licence key of the same account, server side only. Needed to redeem where the account holds licence keys. Sent only in the body of the redeem request, never in a URL |
-| `endpoint` | Optional. The API base including the `/api/v4/` segment. Defaults to the `FOD_CLOUD_API_URL` environment variable, the same variable the cloud request engine honours, then to `https://cloud.51degrees.com/api/v4/`. A value without a trailing slash gains one |
+| `endpoint` | Optional. The API base including the `/api/v4/` segment. Defaults to the `_51DEGREES_CLOUD_ENDPOINT` environment variable, the same variable the cloud request engine honours, then to `https://cloud.51degrees.com/api/v4/`. A value without a trailing slash gains one |
 | `transport` | Optional. The HTTP transport, either an async callable taking the prepared `urllib.request.Request` and answering `(status, body_bytes)`, or an `urllib.request.OpenerDirector`, whose blocking `open` runs on a worker thread. Defaults to `urllib.request.urlopen` on a worker thread. Tests inject one |
 | `timeout` | Optional. Seconds the default transport waits for the cloud, 30 by default |
 | `now` | Optional. The clock, returning an aware UTC `datetime`. Tests inject one |
@@ -659,7 +659,7 @@ unreachable cloud answers 502 with `{ "error": ... }`.
 | --- | --- |
 | `_51DEGREES_RESOURCE_KEY` | Required. The page's resource key, public by nature |
 | `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, held server side only. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it |
-| `FOD_CLOUD_API_URL` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. A host other than cloud.51degrees.com would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons, which is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
+| `_51DEGREES_CLOUD_ENDPOINT` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. A host other than cloud.51degrees.com would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons, which is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
 | `PORT` | The port to listen on, defaulting to `5100` |
 
 ### Running

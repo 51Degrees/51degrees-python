@@ -31,18 +31,53 @@ $script:DigitInitialPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable,
-# or given as a second name after a _51DEGREES_ one, or a constant holding a
-# legacy name to fall back to. Only those are matched, so the builder setting
-# resource_key, placeholder text such as YOUR_RESOURCE_KEY, and longer names
-# that end in the same words, are left alone.
+# An old name read or set as an environment variable, or given as a second
+# name after a _51DEGREES_ one, or a constant holding a legacy name to fall
+# back to. Only those are matched, so the builder setting resource_key or
+# cloud_endpoint, placeholder text such as YOUR_RESOURCE_KEY, and longer names
+# that end in the same words, are left alone. cloud_endpoint in particular is
+# a pipeline setting as well as an old environment variable name, and only the
+# environment variable moves.
+#
+# Two kinds of old name. The old cloud endpoint name, the old IP Intelligence
+# data file name, the name the shared key helper's test set and the name that
+# turned the performance examples on are never anything but an environment
+# variable, so they are matched wherever they appear. Each is built from two
+# pieces below so that this file does not name one itself.
+#
+# Those four, the ones $plainOld holds, keep their case, unlike every other
+# pattern here, because the IP Intelligence data file's old name differs from
+# the class name IpIntelligenceDataFile by case alone, and a class is not a
+# variable. They are gone from the repository, so only an exact return of one
+# matters.
+#
+# RESOURCE_KEY, LICENSE_KEY, cloud_endpoint and cloud_request_origin also name
+# things that are not environment variables, being pipeline settings, builder
+# parameters and the fake resource key the cloud request engine's tests send,
+# so those four, the ones $sharedOld holds, are matched only where the line
+# reads or sets a variable, or names one in a constant whose own name says so.
+# They are matched in any case, because the line having to read or set a
+# variable is what keeps a settings name out.
+$plainOld = '(?-i:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
+    'ipintelligence' + 'testkey|run_performance' + '_tests)'
+$sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|cloud_endpoint|cloud_request_origin)'
 $script:FallbackPattern = [regex]::new(
-    '(?:environ(?:\.get)?\s*[\(\[]\s*|getenv\(\s*|' +
-    'SetEnvironmentVariable\(\s*)[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]|' +
-    '\$env:(?:RESOURCE_KEY|LICENSE_KEY)(?![A-Za-z0-9_])|' +
-    '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]\s+in\s+os\.environ|' +
-    '[''"]_51DEGREES_[A-Za-z0-9_]*[''"]\s*,\s*' +
-    '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]|' +
+    "(?<![A-Za-z0-9_])$plainOld(?![A-Za-z0-9_])|" +
+    '(?:environ(?:\.get|\.pop|\.setdefault)?\s*[\(\[]\s*|getenv\(\s*|' +
+    "SetEnvironmentVariable\(\s*)['`"]$sharedOld['`"]|" +
+    # The env token on its own, with a following backslash allowed, rather
+    # than next to a dollar sign, because PowerShell braces a name as well as
+    # prefixing it and reads one through the Env: drive, and a workflow
+    # expression braces one too.
+    "env[:.]\\?$sharedOld(?![A-Za-z0-9_])|" +
+    "['`"]$sharedOld['`"]\s+in\s+os\.environ|" +
+    "['`"]_51DEGREES_[A-Za-z0-9_]*['`"]\s*,\s*['`"]$sharedOld['`"]|" +
+    # A constant whose own name says it holds a variable name, which is how
+    # the cloud request engine and the example helpers name the one they then
+    # read. A fixture value such as resourceKey = "resource_key" is left
+    # alone, because that name goes on the wire and not in the environment.
+    "[A-Za-z_][A-Za-z0-9_]*(?:ENV_VAR|ENVIRONMENT_VARIABLE|_VARIABLE)" +
+    "[A-Za-z0-9_]*\s*=\s*['`"]$sharedOld['`"]|" +
     '\bLEGACY_[A-Z_]*ENV_VARS?\b',
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 

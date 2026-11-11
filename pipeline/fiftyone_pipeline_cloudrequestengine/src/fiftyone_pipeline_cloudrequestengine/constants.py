@@ -22,7 +22,7 @@
  
 class Constants:
     # Environment variable to set cloud end point
-    FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"
+    CLOUD_ENDPOINT = "_51DEGREES_CLOUD_ENDPOINT"
     # Default cloud end point
     BASE_URL_DEFAULT = "https://cloud.51degrees.com/api/v4/"
 	

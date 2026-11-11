@@ -47,8 +47,8 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
     testEnvVarEndPoint = "http://testEnvVarEndPoint/"
 
     def setUp(self):
-        if os.environ.get(Constants.FOD_CLOUD_API_URL) is not None:
-            del os.environ[Constants.FOD_CLOUD_API_URL]
+        if os.environ.get(Constants.CLOUD_ENDPOINT) is not None:
+            del os.environ[Constants.CLOUD_ENDPOINT]
 
     def testConfigEndPoint_ExplicitSetting(self):
         """!
@@ -56,7 +56,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         method interface take precedence over everything else
         """
 
-        os.environ[Constants.FOD_CLOUD_API_URL] = TestCloudRequestEngine.testEnvVarEndPoint
+        os.environ[Constants.CLOUD_ENDPOINT] = TestCloudRequestEngine.testEnvVarEndPoint
         cloud_request_engine = CloudRequestEngine({
             "resource_key": TestCloudRequestEngine.testResourceKey,
             "cloud_endpoint": TestCloudRequestEngine.testEndPoint,
@@ -70,7 +70,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         variable take precedence over the default value
         """
 
-        os.environ[Constants.FOD_CLOUD_API_URL] = TestCloudRequestEngine.testEnvVarEndPoint
+        os.environ[Constants.CLOUD_ENDPOINT] = TestCloudRequestEngine.testEnvVarEndPoint
         cloud_request_engine = CloudRequestEngine({
             "resource_key": TestCloudRequestEngine.testResourceKey,
             "http_client": self.mock_http()

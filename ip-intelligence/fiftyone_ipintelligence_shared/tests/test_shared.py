@@ -40,11 +40,11 @@ class SharedTests(unittest.TestCase):
 
     def test_get_named_key(self):
         import os
-        os.environ["ipintelligencetestkey"] = "value"
+        os.environ["_51DEGREES_TEST_NAMED_KEY"] = "value"
         try:
-            self.assertEqual(KeyUtils.get_named_key("ipintelligencetestkey"), "value")
+            self.assertEqual(KeyUtils.get_named_key("_51DEGREES_TEST_NAMED_KEY"), "value")
         finally:
-            del os.environ["ipintelligencetestkey"]
+            del os.environ["_51DEGREES_TEST_NAMED_KEY"]
 
 
 if __name__ == "__main__":

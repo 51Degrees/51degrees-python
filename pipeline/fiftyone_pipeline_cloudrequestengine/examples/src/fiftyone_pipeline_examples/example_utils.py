@@ -42,12 +42,12 @@ class ExampleUtils:
     # The environment variable naming a cloud service other than the public
     # one, for example one hosted privately. The value includes the api/v4
     # path, as in https://cloud.51degrees.com/api/v4/.
-    ENDPOINT_ENV_VAR = "cloud_endpoint"
+    ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
 
     # The environment variable holding the origin to send with each request
     # to the cloud service, for a resource key limited to particular
     # domains, which only answers a request whose origin is one of them.
-    ORIGIN_ENV_VAR = "cloud_request_origin"
+    ORIGIN_ENV_VAR = "_51DEGREES_CLOUD_REQUEST_ORIGIN"
 
     # The text shown for a value the results do not hold.
     UNKNOWN = "Unknown"

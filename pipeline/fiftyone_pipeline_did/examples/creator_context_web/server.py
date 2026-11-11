@@ -64,7 +64,7 @@ key list the offline check needs is fetched once and cached for a day.
 Environment variables. ``_51DEGREES_RESOURCE_KEY`` is required.
 ``_51DEGREES_LICENSE_KEY`` is optional, and the comment in ``run`` says
 why.
-``FOD_CLOUD_API_URL`` is the cloud API base including the ``/api/v4/``
+``_51DEGREES_CLOUD_ENDPOINT`` is the cloud API base including the ``/api/v4/``
 segment, defaulting to ``https://cloud.51degrees.com/api/v4/``, and is
 the same variable the cloud request engine and the ``DidClient`` honour.
 ``PORT`` is the port to listen on, defaulting to 5100.
@@ -119,7 +119,7 @@ LICENCE = env("_51DEGREES_LICENSE_KEY") or ""
 # 51Degrees cloud for performance reasons. That is the private hosting
 # option of the cloud service, and both run the same service, so this
 # demo works unchanged against either.
-API = (env("FOD_CLOUD_API_URL") or DEFAULT_API).rstrip("/") + "/"
+API = (env("_51DEGREES_CLOUD_ENDPOINT") or DEFAULT_API).rstrip("/") + "/"
 PORT = int(os.environ.get("PORT", "5100"))
 
 

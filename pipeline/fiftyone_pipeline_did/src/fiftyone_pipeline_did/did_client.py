@@ -69,12 +69,12 @@ from .fod_id import DATE_EPOCH, FodId, _date_minutes, _trim_white_space
 from .id_type import IdType
 
 #: The public cloud API base, used when neither the ``endpoint`` argument
-#: nor the ``FOD_CLOUD_API_URL`` environment variable is set.
+#: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable is set.
 DEFAULT_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 
 #: The environment variable the cloud request engine reads for the API
 #: base, honoured here when no endpoint argument is given.
-ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"
+ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
 
 _BOUNDARY_TOLERANCE = timedelta(minutes=15)
 
@@ -453,7 +453,7 @@ class DidClient:
         only. Needed to redeem where the account holds licence keys, and
         sent only in the body of the redeem request, never in a URL.
     :param endpoint: the API base including the ``/api/v4/`` segment.
-        Defaults to the ``FOD_CLOUD_API_URL`` environment variable, then to
+        Defaults to the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable, then to
         the public cloud. A value without a trailing slash gains one.
     :param transport: the HTTP transport, either an async callable taking
         the prepared :class:`urllib.request.Request` and answering

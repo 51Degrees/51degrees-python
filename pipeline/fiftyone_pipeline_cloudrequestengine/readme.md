@@ -57,7 +57,7 @@ and the rules in
 ## Pointing the engine at another host
 
 The engine calls `https://cloud.51degrees.com/api/v4/` unless told
-otherwise. Set the `FOD_CLOUD_API_URL` environment variable, or pass
+otherwise. Set the `_51DEGREES_CLOUD_ENDPOINT` environment variable, or pass
 `cloud_endpoint` in the engine settings, to the API base of another
 host including the `/api/v4/` segment. A host other than
 cloud.51degrees.com would be used to (a) use an on premise web server,
