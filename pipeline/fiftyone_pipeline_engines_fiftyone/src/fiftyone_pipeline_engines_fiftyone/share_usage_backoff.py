@@ -130,7 +130,13 @@ class ShareUsageBackOff:
                     self.max_recovery_delay_seconds)
             else:
                 self._failures.append(now)
-                while self._failures[0] < now - self.failures_window_seconds:
+                # The emptiness check comes first so that nothing is read
+                # from an empty deque. The constructor refuses a window
+                # below one second, so the deque always keeps the failure
+                # just added.
+                while (self._failures
+                       and self._failures[0]
+                       < now - self.failures_window_seconds):
                     self._failures.popleft()
                 if len(self._failures) < self.failures_to_enter_recovery:
                     return 0
