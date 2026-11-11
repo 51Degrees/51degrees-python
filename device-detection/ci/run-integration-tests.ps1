@@ -37,6 +37,9 @@ if ($env:GITHUB_JOB -eq "Test") {
 # and examples read the key from no other name, and common-ci sets only the
 # older resource_key, so the key is set here.
 $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+# The data file update example's test reads the licence key for the data
+# files from _51DEGREES_LICENSE_KEY, which common-ci sets as license_key.
+$env:_51DEGREES_LICENSE_KEY = $Keys.DeviceDetection
 
 ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
 $failures = @()

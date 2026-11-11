@@ -4,10 +4,9 @@
 # every file git tracks, which leaves out build output and the submodules, and
 # fails on any name that starts with the digit and on any fallback name.
 #
-# The digit-initial names are matched in any case. The fallback names are
-# matched with case, because the lower case resource_key and license_key are
-# still the one name some examples and tests read, so ignoring case would fail
-# on names that are not fallbacks.
+# Names are matched in any case, because Windows reads an environment
+# variable name in any case, so a lower case old name is still the old name
+# there.
 #
 # Dot-sourcing the script defines Find-EnvironmentNameProblem without reading
 # the repository, which is how its tests use it.
@@ -32,16 +31,20 @@ $script:DigitInitialPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable or
-# held in a string by itself, or a constant holding a legacy name to fall back
-# to. Only those are matched, so placeholder text such as YOUR_RESOURCE_KEY,
-# and longer names that end in the same words, are left alone.
+# A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable,
+# or given as a second name after a _51DEGREES_ one, or a constant holding a
+# legacy name to fall back to. Only those are matched, so the builder setting
+# resource_key, placeholder text such as YOUR_RESOURCE_KEY, and longer names
+# that end in the same words, are left alone.
 $script:FallbackPattern = [regex]::new(
-    '(?:environ(?:\.get)?\s*[\(\[]\s*[''"]|getenv\(\s*[''"]|\$env:|' +
-    'SetEnvironmentVariable\(\s*[''"])' +
-    '(?:RESOURCE_KEY|LICENSE_KEY)(?![A-Za-z0-9_])|' +
+    '(?:environ(?:\.get)?\s*[\(\[]\s*|getenv\(\s*|' +
+    'SetEnvironmentVariable\(\s*)[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]|' +
+    '\$env:(?:RESOURCE_KEY|LICENSE_KEY)(?![A-Za-z0-9_])|' +
+    '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]\s+in\s+os\.environ|' +
+    '[''"]_51DEGREES_[A-Za-z0-9_]*[''"]\s*,\s*' +
     '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]|' +
-    '\bLEGACY_[A-Z_]*ENV_VARS?\b')
+    '\bLEGACY_[A-Z_]*ENV_VARS?\b',
+    [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
 # The problems on one line, each as its kind, 'digit' or 'fallback', and the
 # text matched.

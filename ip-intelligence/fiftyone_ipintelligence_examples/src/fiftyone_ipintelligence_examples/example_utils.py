@@ -38,7 +38,7 @@ class ExampleUtils:
 
     # The default environment variable used to get the resource key
     # to use when running examples.
-    RESOURCE_KEY_ENV_VAR = "resource_key"
+    RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
     ENDPOINT_ENV_VAR = "cloud_endpoint"
 

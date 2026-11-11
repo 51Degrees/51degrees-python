@@ -170,7 +170,7 @@ from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
 from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = "license_key"
+UPDATE_EXAMPLE_LICENSE_KEY_NAME = "_51DEGREES_LICENSE_KEY"
 # Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
