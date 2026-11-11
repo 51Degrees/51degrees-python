@@ -37,6 +37,7 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'legacy_license_key_env_var = "x"' }
         @{ Line = 'self.baseURL = os.environ.get("FOD_CLOUD_API_URL")' }
         @{ Line = 'FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"' }
+        @{ Line = 'RESOURCE_KEY_ENV_VAR = "resource_key"' }
         @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"' }
         @{ Line = 'ORIGIN_ENV_VAR = "cloud_request_origin"' }
         @{ Line = '$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"' }
@@ -54,6 +55,9 @@ Describe 'Find-EnvironmentNameProblem' {
     It 'leaves <Line> alone' -ForEach @(
         @{ Line = 'os.environ.get("_51DEGREES_RESOURCE_KEY")' }
         @{ Line = 'pipeline_settings["cloud_endpoint"] = cloud_endpoint' }
+        @{ Line = 'resourceKey = "resource_key"' }
+        @{ Line = 'RESOURCE_KEY = "resource_key"' }
+        @{ Line = 'testResourceKey = "resource_key"' }
         @{ Line = 'cloudRequestEngineSettings["cloud_endpoint"] = cloudEndPoint' }
         @{ Line = 'def run(self, resource_key, logger, cloud_endpoint = None):' }
         @{ Line = 'ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"' }

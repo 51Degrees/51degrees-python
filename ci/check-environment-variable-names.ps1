@@ -38,20 +38,31 @@ $script:DigitInitialPattern = [regex]::new(
 # that end in the same words, are left alone. cloud_endpoint in particular is
 # a pipeline setting as well as an old environment variable name, and only the
 # environment variable moves.
-$oldNames = '(?:RESOURCE_KEY|LICENSE_KEY|FOD_CLOUD_API_URL|cloud_endpoint|' +
-    'cloud_request_origin|IPINTELLIGENCEDATAFILE|ipintelligencetestkey|' +
-    'run_performance_tests)'
+#
+# Two kinds of old name. FOD_CLOUD_API_URL, IPINTELLIGENCEDATAFILE,
+# cloud_request_origin, ipintelligencetestkey and run_performance_tests are
+# never anything but an environment variable, so they are matched wherever
+# they appear. RESOURCE_KEY, LICENSE_KEY and cloud_endpoint also name things
+# that are not environment variables, being pipeline settings, builder
+# parameters and the fake resource key the cloud request engine's tests send,
+# so those three are matched only where the line reads or sets a variable, or
+# names one in a constant whose own name says so.
+$plainOld = '(?:FOD_CLOUD_API_URL|IPINTELLIGENCEDATAFILE|cloud_request_origin|' +
+    'ipintelligencetestkey|run_performance_tests)'
+$sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|cloud_endpoint)'
 $script:FallbackPattern = [regex]::new(
+    "(?<![A-Za-z0-9_])$plainOld(?![A-Za-z0-9_])|" +
     '(?:environ(?:\.get|\.pop|\.setdefault)?\s*[\(\[]\s*|getenv\(\s*|' +
-    "SetEnvironmentVariable\(\s*)['`"]$oldNames['`"]|" +
-    "\`$env:$oldNames(?![A-Za-z0-9_])|" +
-    "['`"]$oldNames['`"]\s+in\s+os\.environ|" +
-    "['`"]_51DEGREES_[A-Za-z0-9_]*['`"]\s*,\s*['`"]$oldNames['`"]|" +
-    # A constant that holds an old name, which is how the cloud request
-    # engine and the example helpers name the variable they then read. The
-    # name is on the right of the assignment, so a pipeline setting written
-    # as settings["cloud_endpoint"] = value is left alone.
-    "=\s*['`"]$oldNames['`"]|" +
+    "SetEnvironmentVariable\(\s*)['`"]$sharedOld['`"]|" +
+    "\`$env:$sharedOld(?![A-Za-z0-9_])|" +
+    "['`"]$sharedOld['`"]\s+in\s+os\.environ|" +
+    "['`"]_51DEGREES_[A-Za-z0-9_]*['`"]\s*,\s*['`"]$sharedOld['`"]|" +
+    # A constant whose own name says it holds a variable name, which is how
+    # the cloud request engine and the example helpers name the one they then
+    # read. A fixture value such as resourceKey = "resource_key" is left
+    # alone, because that name goes on the wire and not in the environment.
+    "[A-Za-z_][A-Za-z0-9_]*(?:ENV_VAR|ENVIRONMENT_VARIABLE|_VARIABLE)" +
+    "[A-Za-z0-9_]*\s*=\s*['`"]$sharedOld['`"]|" +
     '\bLEGACY_[A-Z_]*ENV_VARS?\b',
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
