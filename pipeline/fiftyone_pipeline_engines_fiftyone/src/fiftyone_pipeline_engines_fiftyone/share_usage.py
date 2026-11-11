@@ -26,6 +26,8 @@ import json
 import gzip
 import platform
 import datetime
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from importlib.metadata import version
 
@@ -34,6 +36,10 @@ from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
     BasicListEvidenceKeyFilter
 from fiftyone_pipeline_engines.engine import Engine
 
+from .share_usage_backoff import ShareUsageBackOff, \
+    FAILURES_TO_ENTER_RECOVERY_DEFAULT, FAILURES_WINDOW_SECONDS_DEFAULT, \
+    INITIAL_RECOVERY_DELAY_SECONDS_DEFAULT, \
+    MAX_RECOVERY_DELAY_SECONDS_DEFAULT, RECOVERY_MULTIPLIER_DEFAULT
 from .share_usage_evidencekeyfilter import ShareUsageEvidenceKeyFilter, \
     ShareUsageTrackerEvidenceKeyFilter
 from .share_usage_tracker import ShareUsageTracker
@@ -52,6 +58,30 @@ SHARE_USAGE_VERSION = '1.1'
 # The default number of seconds to wait for the server connection before failing the request when sending usage data
 REQUEST_TIMEOUT = 60
 
+# The default maximum number of entries waiting to be sent, unless ten
+# times the requested package size is larger.
+MAX_QUEUE_SIZE_DEFAULT = 1000
+
+# While the queue is full, a message is logged for the first entry discarded
+# and then once for every this many more, never one for each entry.
+QUEUE_FULL_LOG_EVERY_ENTRIES = 1000
+
+# The most characters of an answer's content that are logged.
+LOGGED_CONTENT_CHARACTERS = 500
+
+# The longest single wait during a pause. Longer pauses are waited out in
+# parts, as a timer cannot wait for any length of time on every platform.
+LONGEST_WAIT_SECONDS = 86400
+
+
+def devices_message(entries):
+    """!
+    The text of one message, being the queued Device entries inside the
+    Devices element.
+    """
+    return (f'<Devices version="{SHARE_USAGE_VERSION}">'
+            f'{"".join(entries)}</Devices>')
+
 
 class ShareUsage(Engine):
     def __init__(
@@ -65,7 +95,13 @@ class ShareUsage(Engine):
         endpoint = "https://devices-v4.51degrees.com/new.ashx",
         request_timeout=REQUEST_TIMEOUT,
         share_all = False,
-        track_session = False):
+        track_session = False,
+        max_queue_size = None,
+        failures_to_enter_recovery = FAILURES_TO_ENTER_RECOVERY_DEFAULT,
+        failures_window_seconds = FAILURES_WINDOW_SECONDS_DEFAULT,
+        initial_recovery_delay_seconds = INITIAL_RECOVERY_DELAY_SECONDS_DEFAULT,
+        max_recovery_delay_seconds = MAX_RECOVERY_DELAY_SECONDS_DEFAULT,
+        recovery_multiplier = RECOVERY_MULTIPLIER_DEFAULT):
         """!
         Constructor for ShareUsage element
         
@@ -107,6 +143,26 @@ class ShareUsage(Engine):
         @param share_all: If True, all evidence is shared apart from the
         email address, the salt used for hashed email identifiers, and the
         request's query string and path. False by default.
+        @type max_queue_size: int
+        @param max_queue_size: The most entries held while waiting to be
+        sent. When the queue is full, new entries are dropped. The default
+        is 1000, or ten times requested_package_size if that is larger.
+        @type failures_to_enter_recovery: int
+        @param failures_to_enter_recovery: The number of failed sends within
+        failures_window_seconds that pauses sending, from 1 to 100. Usage
+        data is still queued while sending is paused. 10 by default.
+        @type failures_window_seconds: int
+        @param failures_window_seconds: The time in seconds over which
+        failed sends are counted. 100 by default.
+        @type initial_recovery_delay_seconds: float
+        @param initial_recovery_delay_seconds: The length in seconds of the
+        first pause after failed sends. 2.0 by default.
+        @type max_recovery_delay_seconds: float
+        @param max_recovery_delay_seconds: The longest a pause can be, in
+        seconds. 300.0 by default.
+        @type recovery_multiplier: float
+        @param recovery_multiplier: What the pause is multiplied by each time
+        the send tried when a pause ends fails. 2.0 by default.
         """
 
         super(ShareUsage, self).__init__()
@@ -150,30 +206,100 @@ class ShareUsage(Engine):
 
         self.tracker = ShareUsageTracker(interval = interval)
 
-        # Initialise share data list 
+        # The entries waiting to be sent, oldest first.
         self.share_data = []
+
+        # The entries discarded since the queue last had room.
+        self._discarded = 0
+
+        # A message holds at most twice the requested package size.
+        self._message_size = 2 * requested_package_size
+
+        self.max_queue_size = max_queue_size if max_queue_size is not None \
+            else max(MAX_QUEUE_SIZE_DEFAULT, 10 * requested_package_size)
+        if self.max_queue_size < requested_package_size:
+            raise ValueError(
+                "max_queue_size cannot be smaller than "
+                "requested_package_size.")
+
+        # Pauses sending after repeated failed sends.
+        self.backoff = ShareUsageBackOff(
+            failures_to_enter_recovery,
+            failures_window_seconds,
+            initial_recovery_delay_seconds,
+            max_recovery_delay_seconds,
+            recovery_multiplier)
+
+        # Guards the queue, the sending flag and the resume timer.
+        self._lock = threading.Lock()
+        # True while a thread is sending.
+        self._sending = False
+        # Starts sending again when a pause ends.
+        self._resume_timer = None
+        # Set when the element closes.
+        self._closing = threading.Event()
 
         self.constant_xml = None
 
-        # Reusable thread pool for sending usage in background
-        # According to the doc on ThreadPoolExecutor - all threads will be joined before the interpreter can exit
-        # this ensures that all the data will be sent correctly before the actual exit happens
+        # One thread sends at a time, so a failing service gets one request
+        # at a time. According to the doc on ThreadPoolExecutor - all threads
+        # will be joined before the interpreter can exit, so a message being
+        # sent is finished before the actual exit happens.
 
-        self.thread_pool = ThreadPoolExecutor(thread_name_prefix='ShareUsage')
+        self.thread_pool = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix='ShareUsage')
 
     def __del__(self):
-        self.thread_pool.shutdown(wait=True)
+        thread_pool = getattr(self, "thread_pool", None)
+        if thread_pool is not None:
+            thread_pool.shutdown(wait=True)
 
     def close(self):
 
         """!
-        Wait for any usage data already being sent, then stop the threads
-        that send it. The pipeline calls this when it is closed.
+        Wait for any usage data already being sent, then send what is still
+        queued and stop the threads that send it. The pipeline calls this
+        when it is closed. Closing does not wait for a pause after failed
+        sends, and sends nothing while paused.
 
         """
 
         super(ShareUsage, self).close()
+        self._closing.set()
+        with self._lock:
+            if self._resume_timer is not None:
+                self._resume_timer.cancel()
+                self._resume_timer = None
         self.thread_pool.shutdown(wait=True)
+        self._send_remaining()
+
+    def _send_remaining(self):
+        """!
+        Send the entries still queued when closing, even if there are fewer
+        than the requested package size. Nothing is sent while paused, or
+        after a message fails, and the entries left are discarded and
+        counted in the log.
+        """
+
+        while True:
+            with self._lock:
+                queued = len(self.share_data)
+                if queued == 0:
+                    return
+                if self.backoff.remaining(time.monotonic()) > 0:
+                    break
+                share_data = self.share_data[:self._message_size]
+                del self.share_data[:self._message_size]
+            data = devices_message(share_data)
+            if not self.send_thread(self.endpoint, data):
+                with self._lock:
+                    queued = len(self.share_data)
+                break
+        if queued > 0:
+            self._log(
+                "info",
+                f"{queued} usage sharing entries were not sent, as sending "
+                "had failed when usage sharing closed.")
 
     def get_constant_xml(self):
         if self.constant_xml is None:
@@ -260,29 +386,126 @@ class ShareUsage(Engine):
 
     def share_send_usage(self):
         """!
-        Internal method to send the share usage bundle to the 51Degrees servers
+        Internal method to start sending the queued usage data to the
+        51Degrees servers. Nothing starts if a thread is already sending,
+        if fewer than requested_package_size entries are queued, or while
+        sending is paused after failed sends, in which case a timer starts
+        sending when the pause ends.
         """
 
-        share_data = self.share_data
-        self.share_data = []
+        with self._lock:
+            if self._sending or self._closing.is_set():
+                return
+            pause = self.backoff.remaining(time.monotonic())
+            if pause > 0:
+                self._schedule_resume(pause)
+                return
+            if len(self.share_data) < self.requested_package_size:
+                return
+            self._sending = True
+        try:
+            self.thread_pool.submit(self._send_while_queued)
+        except RuntimeError:
+            # The thread pool has been shut down, so nothing more is sent.
+            with self._lock:
+                self._sending = False
 
-        data = f'<Devices version="{SHARE_USAGE_VERSION}">{"".join(share_data)}</Devices>'
+    def _schedule_resume(self, pause):
+        """!
+        Start sending when the pause ends. Called with the lock held.
+        """
 
-        self.thread_pool.submit(self.send_thread, self.endpoint, data)
+        if self._resume_timer is None and not self._closing.is_set():
+            self._resume_timer = threading.Timer(
+                min(pause, LONGEST_WAIT_SECONDS), self._resume)
+            # The timer does not keep the process running.
+            self._resume_timer.daemon = True
+            self._resume_timer.start()
+
+    def _resume(self):
+        with self._lock:
+            self._resume_timer = None
+        self.share_send_usage()
+
+    def _send_while_queued(self):
+        """!
+        Send messages of up to twice requested_package_size entries until
+        fewer than requested_package_size are queued, or a failed send pauses
+        sending.
+        """
+
+        try:
+            self._send_messages()
+        except Exception as e:
+            with self._lock:
+                self._sending = False
+            self._log("error", f"ShareUsage failed sending data: {e}")
+
+    def _send_messages(self):
+        while True:
+            with self._lock:
+                share_data = self.share_data[:self._message_size]
+                del self.share_data[:self._message_size]
+                if not share_data:
+                    self._sending = False
+                    return
+
+            data = devices_message(share_data)
+            accepted = self.send_thread(self.endpoint, data)
+
+            with self._lock:
+                resumed = False
+                pause = 0
+                if accepted:
+                    resumed = self.backoff.succeeded()
+                else:
+                    pause = self.backoff.failed(time.monotonic())
+                    if pause > 0:
+                        self._schedule_resume(pause)
+                done = pause > 0 or \
+                    len(self.share_data) < self.requested_package_size
+                if done:
+                    self._sending = False
+
+            if resumed:
+                self._log("info", "Usage sharing resumed after a send succeeded.")
+            if pause > 0:
+                self._log(
+                    "warning",
+                    f"Usage sharing paused for {pause} seconds after failed "
+                    "sends. Usage data is still queued, up to the maximum "
+                    "queue size, and sending starts again when the pause "
+                    "ends.")
+            if done:
+                return
 
     def send_thread(self, endpoint, data):
+        """!
+        Send one message of usage data.
+
+        @return: True if the service accepted it
+        """
+
         data = gzip.compress(bytearray(data, encoding='utf8'))
 
         # setting a reasonable time out and catching any exceptions
         try:
-            requests.post(endpoint, headers={"Content-Encoding": "gzip", "Content-Type": "text/xml"}, data=data,
+            response = requests.post(endpoint, headers={"Content-Encoding": "gzip", "Content-Type": "text/xml"}, data=data,
                           timeout=self.request_timeout)
         except Exception as e:
-            print(e)
             self._log(
                 "error",
                 f"ShareUsage failed sending {len(data)} bytes of data: {e}"
             )
+            return False
+        if response.status_code != 200:
+            self._log(
+                "warning",
+                f"ShareUsage sent {len(data)} bytes of data and the service "
+                f"answered {response.status_code} with content "
+                f"'{response.text[:LOGGED_CONTENT_CHARACTERS]}'.")
+            return False
+        return True
 
     def add_to_share_usage(self, data):
         """!
@@ -325,13 +548,33 @@ class ShareUsage(Engine):
                     xml += record_element(entry_key, entry_value)
 
         xml += "</Device>"
- 
-        self.share_data.append(xml)
+
+        with self._lock:
+            # When the queue is full, the newest entries are dropped.
+            if len(self.share_data) >= self.max_queue_size:
+                self._discarded += 1
+                discarded = self._discarded
+                log_full = (discarded == 1 or
+                            discarded % QUEUE_FULL_LOG_EVERY_ENTRIES == 0)
+            else:
+                discarded = 0
+                log_full = False
+                self._discarded = 0
+                self.share_data.append(xml)
+
+        if discarded > 0:
+            if log_full:
+                self._log(
+                    "warning",
+                    f"The usage sharing queue is full at "
+                    f"{self.max_queue_size} entries, so usage data is being "
+                    f"discarded. Discarded since the queue last had room: "
+                    f"{discarded}.")
+            return
 
         # Send share usage data if data size greater than requested
         # package size
-        if len(self.share_data) >= self.requested_package_size:
-            self.share_send_usage()
+        self.share_send_usage()
 
     def process_internal(self, flow_data):
 
