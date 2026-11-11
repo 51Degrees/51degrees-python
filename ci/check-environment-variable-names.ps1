@@ -39,17 +39,20 @@ $script:DigitInitialPattern = [regex]::new(
 # a pipeline setting as well as an old environment variable name, and only the
 # environment variable moves.
 #
-# Two kinds of old name. FOD_CLOUD_API_URL, IPINTELLIGENCEDATAFILE,
-# cloud_request_origin, ipintelligencetestkey and run_performance_tests are
-# never anything but an environment variable, so they are matched wherever
-# they appear. RESOURCE_KEY, LICENSE_KEY and cloud_endpoint also name things
-# that are not environment variables, being pipeline settings, builder
+# Two kinds of old name. The old cloud endpoint name, the old IP Intelligence
+# data file name, the name the shared key helper's test set and the name that
+# turned the performance examples on are never anything but an environment
+# variable, so they are matched wherever they appear. Each is built from two
+# pieces below so that this file does not name one itself.
+#
+# RESOURCE_KEY, LICENSE_KEY, cloud_endpoint and cloud_request_origin also name
+# things that are not environment variables, being pipeline settings, builder
 # parameters and the fake resource key the cloud request engine's tests send,
-# so those three are matched only where the line reads or sets a variable, or
+# so those four are matched only where the line reads or sets a variable, or
 # names one in a constant whose own name says so.
-$plainOld = '(?:FOD_CLOUD_API_URL|IPINTELLIGENCEDATAFILE|cloud_request_origin|' +
-    'ipintelligencetestkey|run_performance_tests)'
-$sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|cloud_endpoint)'
+$plainOld = '(?:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
+    'ipintelligence' + 'testkey|run_performance' + '_tests)'
+$sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|cloud_endpoint|cloud_request_origin)'
 $script:FallbackPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$plainOld(?![A-Za-z0-9_])|" +
     '(?:environ(?:\.get|\.pop|\.setdefault)?\s*[\(\[]\s*|getenv\(\s*|' +

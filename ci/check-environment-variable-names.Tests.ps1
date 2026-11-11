@@ -40,6 +40,7 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'RESOURCE_KEY_ENV_VAR = "resource_key"' }
         @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"' }
         @{ Line = 'ORIGIN_ENV_VAR = "cloud_request_origin"' }
+        @{ Line = 'os.environ.get("cloud_request_origin")' }
         @{ Line = '$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"' }
         @{ Line = 'env = os.environ.get("IPINTELLIGENCEDATAFILE")' }
         @{ Line = 'os.environ["ipintelligencetestkey"] = "value"' }
@@ -58,6 +59,8 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'resourceKey = "resource_key"' }
         @{ Line = 'RESOURCE_KEY = "resource_key"' }
         @{ Line = 'testResourceKey = "resource_key"' }
+        @{ Line = 'def __init__(self, resource_key, cloud_request_origin=None):' }
+        @{ Line = '"cloud_request_origin": cloud_request_origin,' }
         @{ Line = 'cloudRequestEngineSettings["cloud_endpoint"] = cloudEndPoint' }
         @{ Line = 'def run(self, resource_key, logger, cloud_endpoint = None):' }
         @{ Line = 'ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"' }
