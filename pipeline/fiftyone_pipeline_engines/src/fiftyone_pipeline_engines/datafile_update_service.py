@@ -517,10 +517,12 @@ class DataFileUpdateService():
     def track_local_data_file_changes(self, data_file):
         """!
         Check for local changes to a datafile. Used by
-        the file system watcher. A refresh that fails is logged, and
-        reported with AUTO_UPDATE_REFRESH_FAILED as on the update route.
-        The next check is scheduled whatever happens, so that a later file
-        is still picked up, until the data file is unregistered.
+        the file system watcher. The refresh takes the same route as the
+        polling one, so the attempt is logged, a failure carries the
+        errors table's message and level, and the result is reported to
+        the update complete callbacks either way. The next check is
+        scheduled whatever happens, so that a later file is still picked
+        up, until the data file is unregistered.
         @type data_file: DataFile
         @param data_file: Datafile to check updates for
         """
@@ -538,13 +540,7 @@ class DataFileUpdateService():
                     changed_time > data_file.last_changed_time and
                     not data_file.updating):
                 data_file.last_changed_time = changed_time
-                data_file.refresh()
-        except Exception as e:
-            self.pipeline.log(
-                "error",
-                "Refreshing from the changed data file '" + data_file.path +
-                "' failed. " + str(e))
-            self.__emit(UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, data_file)
+                self.__emit(self._refresh(data_file), data_file)
         finally:
             if self.__is_registered(data_file):
                 t = threading.Timer(
