@@ -141,7 +141,9 @@ class FileSystemWatcherTests(unittest.TestCase):
         errors = [log for log in self.pipeline.logs if log[0] == "error"]
         self.assertEqual(1, len(errors))
         self.assertIn(
-            "An error occurred when applying a data update to engine",
+            "Error during check for data update. Error detail: An error "
+            "occurred when applying a data update to engine 'StandInDataFile' "
+            "after 1 tries.",
             errors[0][1])
         self.assertEqual(1, len(self.pending))
 
@@ -178,7 +180,9 @@ class FileSystemWatcherTests(unittest.TestCase):
         errors = [log for log in self.pipeline.logs if log[0] == "error"]
         self.assertEqual(1, len(errors))
         self.assertIn(
-            "An error occurred when applying a data update to engine",
+            "Error during check for data update. Error detail: An error "
+            "occurred when applying a data update to engine 'StandInDataFile' "
+            "after 1 tries.",
             errors[0][1])
 
     # A file that is missing at a check, for example part way through being

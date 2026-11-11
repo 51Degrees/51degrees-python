@@ -368,10 +368,12 @@ class LoggingTests(UpdateServiceTestCase):
         self.get(response(200))
         self.data_file.refresh_error = Exception("boom")
         self.service.update_data_file(self.data_file)
+        # A refresh after a check names the one try made, as the row for a
+        # refresh from the data file does.
         self.assertIn(
             ("error",
              CHECK_ERROR + "An error occurred when applying a data update "
-             "to engine 'FakeEngine'. Error detail: boom"),
+             "to engine 'FakeEngine' after 1 tries. Error detail: boom"),
             self.pipeline.logs)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_REFRESH_FAILED], self.statuses)
@@ -388,7 +390,7 @@ class LoggingTests(UpdateServiceTestCase):
         self.assertEqual(1, len(errors), self.pipeline.logs)
         self.assertTrue(errors[0].startswith(
             CHECK_ERROR + "Integrity check failed. MD5 hash in HTTP response "
-            "'not the hash' for 'FakeEngine' data update does not match "
+            "'not the hash' for 'FakeEngine'data update does not match "
             "calculated hash for the downloaded file '"), errors[0])
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED],
@@ -399,7 +401,7 @@ class LoggingTests(UpdateServiceTestCase):
         self.data_file.updated_on_start = False
         with mock.patch.object(self.service, "update_data_file"):
             self.service.register_data_file(self.data_file)
-        self.assertIn(("info", "Updating on startup"), self.pipeline.logs)
+        self.assertIn(("info", "Updating on start-up"), self.pipeline.logs)
 
     def testFileSystemWatcherIsLogged(self):
         folder = tempfile.mkdtemp()
