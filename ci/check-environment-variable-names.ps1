@@ -65,7 +65,11 @@ $script:FallbackPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$plainOld(?![A-Za-z0-9_])|" +
     '(?:environ(?:\.get|\.pop|\.setdefault)?\s*[\(\[]\s*|getenv\(\s*|' +
     "SetEnvironmentVariable\(\s*)['`"]$sharedOld['`"]|" +
-    "\`$env:$sharedOld(?![A-Za-z0-9_])|" +
+    # The env token on its own, with a following backslash allowed, rather
+    # than next to a dollar sign, because PowerShell braces a name as well as
+    # prefixing it and reads one through the Env: drive, and a workflow
+    # expression braces one too.
+    "env[:.]\\?$sharedOld(?![A-Za-z0-9_])|" +
     "['`"]$sharedOld['`"]\s+in\s+os\.environ|" +
     "['`"]_51DEGREES_[A-Za-z0-9_]*['`"]\s*,\s*['`"]$sharedOld['`"]|" +
     # A constant whose own name says it holds a variable name, which is how
