@@ -28,15 +28,15 @@ $digitInitial = '5' + '1DEGREES_'
 $pattern = [regex]::new("(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable,
-# or a constant holding a legacy name to fall back to. Only a read, a set or
-# such a constant is matched, so placeholder text such as YOUR_RESOURCE_KEY,
+# A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable or
+# held in a string by itself, or a constant holding a legacy name to fall back
+# to. Only those are matched, so placeholder text such as YOUR_RESOURCE_KEY,
 # and longer names that end in the same words, are left alone.
 $fallback = [regex]::new(
     '(?:environ(?:\.get)?\s*[\(\[]\s*[''"]|getenv\(\s*[''"]|\$env:|' +
     'SetEnvironmentVariable\(\s*[''"])' +
     '(?:RESOURCE_KEY|LICENSE_KEY)(?![A-Za-z0-9_])|' +
-    '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]\s+in\s+os\.environ|' +
+    '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]|' +
     '\bLEGACY_[A-Z_]*ENV_VARS?\b')
 
 $root = (Resolve-Path $RepoRoot).Path
