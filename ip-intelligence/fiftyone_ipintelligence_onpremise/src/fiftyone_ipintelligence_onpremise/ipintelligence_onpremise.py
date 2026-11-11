@@ -32,7 +32,7 @@ from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenc
 
 from .IpIntelligenceEngineModule import *
 
-from .client_ip import client_ips
+from .client_ip import client_ip_keys, client_ips, readable_client_ips
 from .swig_data import SwigData
 from .ipintelligence_datafile import IpIntelligenceDataFile
 
@@ -247,9 +247,13 @@ class IpIntelligenceOnPremise(Engine):
         evidence_keys_list = []
 
         for x in range(evidence_keys.size()):
-            evidence_keys_list.append(evidence_keys.__getitem__(x).lower())
+            evidence_keys_list.append(evidence_keys.__getitem__(x))
 
-        self.evidence_keys_list = evidence_keys_list
+        # The client IP keys in the order the native code reads them, with
+        # the engine's own spelling, which the native code matches.
+        self.client_ip_keys = client_ip_keys(evidence_keys_list)
+
+        self.evidence_keys_list = [key.lower() for key in evidence_keys_list]
 
         # Get properties list
 
@@ -348,15 +352,15 @@ class IpIntelligenceOnPremise(Engine):
 
         """!
 
-        Get the IPv4 and IPv6 addresses from every evidence key and value
-        the flow data holds, as client_ips reads them.
+        The address the engine reports in Ip or IpV6 for the flow data's
+        evidence, which is the one the native code looks up.
 
         @rtype: tuple
-        @returns: (ipv4 or None, ipv6 or None)
+        @returns: (ipv4 or None, ipv6 or None), with at most one set
 
         """
 
-        return client_ips(flow_data.evidence.get_all())
+        return client_ips(flow_data.evidence.get_all(), self.client_ip_keys)
 
     def process_internal(self, flow_data):
 
@@ -374,14 +378,27 @@ class IpIntelligenceOnPremise(Engine):
         if getattr(self, "engine", None) is None:
             raise Exception(ENGINE_CLOSED)
 
+        # Only the client IP values that are read reach the native code,
+        # each as its address alone, so the first of them is the address
+        # the native code looks up and the one reported in Ip or IpV6.
+        found = readable_client_ips(
+            flow_data.evidence.get_all(), self.client_ip_keys)
+
         evidence = EvidenceIpiSwig()
 
-        for key, value in flow_data.evidence.get_all().items():
-            evidence.__setitem__(key, value)
+        for key, address in found:
+            evidence.__setitem__(key, str(address))
 
         result = self.engine.process(evidence)
 
-        ipv4, ipv6 = self.get_client_ips(flow_data)
+        ipv4 = None
+        ipv6 = None
+        if found:
+            address = found[0][1]
+            if address.version == 4:
+                ipv4 = str(address)
+            else:
+                ipv6 = str(address)
 
         data = SwigData(self, result, echo_ip=ipv4, echo_ipv6=ipv6)
 

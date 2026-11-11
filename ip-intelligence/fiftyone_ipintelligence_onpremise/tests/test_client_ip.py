@@ -29,6 +29,12 @@ import unittest
 from fiftyone_ipintelligence_onpremise.client_ip import client_ips
 
 
+# The client IP keys as an engine might list them, in the data file's order
+# with both prefixes mixed together.
+KEYS = ["server.true-client-ip-51d", "query.true-client-ip-51d",
+        "server.client-ip", "query.client-ip"]
+
+
 class ClientIpTests(unittest.TestCase):
 
     def test_an_ipv4_mapped_address_is_its_ipv4_address(self):
@@ -36,19 +42,19 @@ class ClientIpTests(unittest.TestCase):
                      "0:0:0:0:0:ffff:808:808"):
             self.assertEqual(
                 ("8.8.8.8", None),
-                client_ips({"query.client-ip": text}), text)
+                client_ips({"query.client-ip": text}, KEYS), text)
 
     def test_ipv4_compatible_and_embedded_addresses_stay_ipv6(self):
         self.assertEqual(
             (None, "::808:808"),
-            client_ips({"query.client-ip": "::8.8.8.8"}))
+            client_ips({"query.client-ip": "::8.8.8.8"}, KEYS))
         self.assertEqual(
             (None, "64:ff9b::808:808"),
-            client_ips({"query.client-ip": "64:ff9b::8.8.8.8"}))
+            client_ips({"query.client-ip": "64:ff9b::8.8.8.8"}, KEYS))
 
     def test_an_address_with_spaces_is_not_read(self):
         self.assertEqual(
-            (None, None), client_ips({"query.client-ip": " 8.8.8.8 "}))
+            (None, None), client_ips({"query.client-ip": " 8.8.8.8 "}, KEYS))
 
     def test_a_zone_index_is_not_read(self):
         for text in ("fe80::1%eth0", "fe80::1%1", "[fe80::1%eth0]",
@@ -56,19 +62,19 @@ class ClientIpTests(unittest.TestCase):
                      "::ffff:8.8.8.8%eth0"):
             self.assertEqual(
                 (None, None),
-                client_ips({"query.client-ip": text}), text)
+                client_ips({"query.client-ip": text}, KEYS), text)
 
     def test_a_zone_index_does_not_hide_a_later_value(self):
         self.assertEqual(
             ("1.2.3.4", None),
             client_ips({"query.client-ip": "fe80::1%eth0",
-                        "server.client-ip": "1.2.3.4"}))
+                        "server.client-ip": "1.2.3.4"}, KEYS))
 
     def test_the_client_ip_query_comes_first(self):
         self.assertEqual(
             ("1.2.3.4", None),
             client_ips({"server.client-ip": "5.6.7.8",
-                        "query.client-ip": "1.2.3.4"}))
+                        "query.client-ip": "1.2.3.4"}, KEYS))
 
     def test_a_leading_zero_is_not_read(self):
         # The rule is kept by ipaddress, which refuses a leading zero, so
@@ -77,15 +83,9 @@ class ClientIpTests(unittest.TestCase):
                      "::ffff:01.2.3.4"):
             self.assertEqual(
                 (None, None),
-                client_ips({"query.client-ip": text}), text)
+                client_ips({"query.client-ip": text}, KEYS), text)
         self.assertEqual(
-            ("0.0.0.0", None), client_ips({"query.client-ip": "0.0.0.0"}))
-
-
-# The client IP keys as an engine might list them, in the data file's order
-# with both prefixes mixed together.
-KEYS = ["server.true-client-ip-51d", "query.true-client-ip-51d",
-        "server.client-ip", "query.client-ip"]
+            ("0.0.0.0", None), client_ips({"query.client-ip": "0.0.0.0"}, KEYS))
 
 
 class ClientIpChoiceTests(unittest.TestCase):
