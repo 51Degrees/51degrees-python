@@ -99,11 +99,8 @@ class DataFileUpdateService():
         try:
             for method in self.on_complete_methods:
                 method(status, data_file)
-        except Exception:
-            self._log(
-                "error",
-                "An unhandled error occurred while checking for automatic "
-                "updates for engine '" + self._engine_type(data_file) + "'")
+        except Exception as e:
+            self._log_unhandled(data_file, e)
 
     def update_data_file(self, data_file):
 
@@ -150,17 +147,17 @@ class DataFileUpdateService():
 
         try:
             response = requests.get(url, headers=headers)
-        except requests.RequestException:
-            self._log(
-                "error",
+        except requests.RequestException as e:
+            # The message of a failed request names the URL, key included.
+            self._log_check_error(
                 "Error accessing data update service at '" + shown_url +
-                "' for engine '" + engine + "'")
+                "' for engine '" + engine + "'",
+                mask_licence_keys_in_text(e))
             return self._update_failed(
                 data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
 
         if response is None:
-            self._log(
-                "error",
+            self._log_check_error(
                 "No response from data update service at '" + shown_url +
                 "' for engine '" + engine + "'")
             return self._update_failed(
@@ -195,7 +192,7 @@ class DataFileUpdateService():
                            "' from data update service at '" + shown_url +
                            "' for engine '" + engine + "'")
 
-            self._log("error", message)
+            self._log_check_error(message)
             return self._update_failed(data_file, status)
 
         # Verify the MD5 hash if enabled and the answer gives one.
@@ -215,8 +212,7 @@ class DataFileUpdateService():
                 hash_md5.update(data)
 
             if header_md5 != hash_md5.hexdigest():
-                self._log(
-                    "error",
+                self._log_check_error(
                     "Integrity check failed. MD5 hash in HTTP response '" +
                     str(header_md5) + "' for '" + engine + "' data update "
                     "does not match calculated hash for the downloaded "
@@ -236,13 +232,10 @@ class DataFileUpdateService():
         if data_file.decompress and data[:2] == GZIP_MAGIC:
             try:
                 data = gzip.decompress(data)
-            except (OSError, EOFError, zlib.error):
+            except (OSError, EOFError, zlib.error) as e:
                 # Content that cannot be read is any other error, which
                 # carries the last row of the errors table.
-                self._log(
-                    "error",
-                    "An unhandled error occurred while checking for "
-                    "automatic updates for engine '" + engine + "'")
+                self._log_unhandled(data_file, e)
                 return self._update_failed(
                     data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR)
 
@@ -337,8 +330,7 @@ class DataFileUpdateService():
         # cannot replace the file stop the update.
         if data_file.create_temp_copy:
             if not getattr(data_file, "temp_directory", None):
-                self._log(
-                    "error",
+                self._log_check_error(
                     "The data file '" + str(data_file.identifier) +
                     "' is checking for updates but does not have a "
                     "temporary file path configured.")
@@ -363,12 +355,11 @@ class DataFileUpdateService():
         if data_file.create_temp_copy:
             try:
                 shutil.move(filename, data_file.path)
-            except (OSError, shutil.Error):
-                self._log(
-                    "error",
+            except (OSError, shutil.Error) as e:
+                self._log_check_error(
                     "An error occurred when copying a data file to "
                     "replace the existing one at '" + data_file.path +
-                    "'.")
+                    "'.", e)
                 return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
         return None
 
@@ -380,11 +371,10 @@ class DataFileUpdateService():
             "Attempting to refresh Engine '" + engine + "' with new data")
         try:
             data_file.refresh()
-        except Exception:
-            self._log(
-                "error",
+        except Exception as e:
+            self._log_check_error(
                 "An error occurred when applying a data update to engine '" +
-                engine + "'")
+                engine + "'", e)
             return UpdateStatus.AUTO_UPDATE_REFRESH_FAILED
         return UpdateStatus.AUTO_UPDATE_SUCCESS
 
@@ -400,6 +390,32 @@ class DataFileUpdateService():
         pipeline = getattr(self, "pipeline", None)
         if pipeline is not None:
             pipeline.log(level, message)
+
+    def _log_check_error(self, text, cause=None):
+        # An error from a row of the errors table at Error level is logged
+        # as .NET logs a DataUpdateException, under .NET's entry text with
+        # the error, being the row's text and then its cause, after it.
+        self._log(
+            "error",
+            "Error during check for data update. " +
+            self._with_cause(text, cause))
+
+    def _log_unhandled(self, data_file, cause):
+        # Any other error is logged with the last row's message, and the
+        # error after it.
+        self._log(
+            "error",
+            self._with_cause(
+                "An unhandled error occurred while checking for automatic "
+                "updates for engine '" + self._engine_type(data_file) + "'",
+                cause))
+
+    @staticmethod
+    def _with_cause(text, cause):
+        if cause is None:
+            return text
+        return (text + ("" if text.endswith(".") else ".") +
+                " Error detail: " + str(cause))
 
     @staticmethod
     def _engine_type(data_file):
