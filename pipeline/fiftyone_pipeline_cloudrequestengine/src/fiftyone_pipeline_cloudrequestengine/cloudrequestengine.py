@@ -30,6 +30,7 @@ from json import JSONDecodeError
 
 import requests
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.evidence import HTTP_REQUEST_KEY
 from fiftyone_pipeline_core.keymask import mask_licence_key
 from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 from fiftyone_pipeline_engines.engine import Engine
@@ -504,14 +505,19 @@ class CloudRequestEngine(Engine):
     def get_content(self, flowData):
 
         """!
-        Generate the Content to send in the POST request. The evidence keys
-        e.g. 'query.' and 'header.' have an order of precedence. These are
-        added to the evidence in reverse order, if there is conflict then 
-        the queryData value is overwritten. 
+        Generate the Content to send in the POST request. One name under
+        several prefixes is sent once, with the value of the prefix that
+        evidence.md ranks highest, being query, header, cookie, server,
+        fiftyone and location, then any other prefix alphabetically. The
+        groups are added lowest precedence first, so a later value replaces
+        an earlier one, and a replacement by a key other than a query key
+        is logged as a warning.
 
-        'query.' evidence should take precedence over all other evidence.
-        If there are evidence keys other than 'query.' that conflict then
-        this is unexpected so a warning will be logged.
+        The engine sends every evidence value in the flow data, including
+        the values no element in the pipeline accepts, because what the
+        cloud service uses changes over time and knowing about the other
+        evidence is important to continued optimization. The reserved names
+        and the web request view are left out.
 
         @param: flowData: FlowData
         @return: Evidence Dictionary
@@ -519,8 +525,8 @@ class CloudRequestEngine(Engine):
 
         queryData = {}
 
-        evidence = flowData.evidence.get_all()
-        # Add evidence in reverse alphabetical order, excluding special keys. 
+        evidence = self.sendable_evidence(flowData.evidence)
+        # Add the other evidence lowest precedence first.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_OTHER))
         # Add cookie evidence.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_COOKIE_PREFIX))
@@ -529,6 +535,28 @@ class CloudRequestEngine(Engine):
         # Add query evidence.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_QUERY_PREFIX))
         return queryData
+
+    def sendable_evidence(self, evidence):
+
+        """!
+        The evidence the engine sends, being every value in the flow data,
+        whether an element accepted it or not, apart from the web request
+        view. The reserved names are left out by add_query_data, which
+        warns as it does so. An accepted value wins over a set aside one of
+        the same key.
+
+        @param evidence: The flow data's Evidence
+        @return: The evidence keys and values to send
+        """
+
+        sendable = {}
+        # An older fiftyone_pipeline_core sets nothing aside.
+        unaccepted = getattr(evidence, "get_unaccepted", dict)()
+        for source in (unaccepted, evidence.get_all()):
+            for key, value in source.items():
+                if str(key).lower() != HTTP_REQUEST_KEY:
+                    sendable[key] = value
+        return sendable
 
     def add_query_data(self, query_data, all_evidence, evidence):
 
@@ -543,10 +571,14 @@ class CloudRequestEngine(Engine):
 
         for evidenceKey, evidenceValue in evidence.items():
 
-            # Get the key parts
-            evidenceKeyParts = evidenceKey.split(Constants.EVIDENCE_SEPERATOR)
-            prefix = evidenceKeyParts[0].lower()
-            suffix = evidenceKeyParts[-1].lower()
+            # The prefix is the text before the first separator, and the
+            # name sent is the rest of the key in the letter case given, as
+            # .NET's AddQueryData takes it. A key with no separator is both.
+            prefix, separator, suffix = evidenceKey.partition(
+                Constants.EVIDENCE_SEPERATOR)
+            if not separator:
+                suffix = evidenceKey
+            prefix = prefix.lower()
 
             # The service reads its credentials and the list of requested
             # properties from these names, so evidence carrying one of them
@@ -555,13 +587,19 @@ class CloudRequestEngine(Engine):
             # say so as the conflict case below does, so a caller who set
             # it expecting an effect can see why there was none. The value
             # is not logged, as it may be a credential.
-            if suffix in Constants.RESERVED_EVIDENCE_SUFFIXES:
+            if suffix.lower() in Constants.RESERVED_EVIDENCE_SUFFIXES:
                 warnings.warn(
                     Constants.WARNING_RESERVED_EVIDENCE.format(evidenceKey))
                 continue
 
+            # Evidence keys ignore letter case, so a name already added in
+            # other letters is the same name, and the later, higher
+            # precedence value replaces it under its own spelling.
+            existing = next((name for name in query_data
+                             if name.lower() == suffix.lower()), None)
+
             # Check and add the evidence to the query parameters.
-            if (not suffix in query_data.keys()):
+            if existing is None:
                 query_data[suffix] = evidenceValue
             # If the queryParameter exists already.
             else:
@@ -572,7 +610,7 @@ class CloudRequestEngine(Engine):
                 if (prefix.lower() != Constants.EVIDENCE_QUERY_PREFIX):
                     conflicts = {}
                     for key, value in all_evidence.items(): 
-                        if(key.lower() != evidenceKey.lower() and suffix in key.lower()):
+                        if(key.lower() != evidenceKey.lower() and suffix.lower() in key.lower()):
                             conflicts[key] = value
 
                     warningMessage = Constants.WARNING_MESSAGE \
@@ -585,6 +623,7 @@ class CloudRequestEngine(Engine):
                         warnings.warn(warningMessage + conflictStr)
                     
                 # Overwrite the existing queryParameter value.
+                del query_data[existing]
                 query_data[suffix] = evidenceValue
 
     def get_selected_evidence(self, evidence, type):
@@ -604,15 +643,37 @@ class CloudRequestEngine(Engine):
                         not self.key_has_prefix(key, Constants.EVIDENCE_HTTPHEADER_PREFIX) and \
                             not self.key_has_prefix(key, Constants.EVIDENCE_COOKIE_PREFIX)):
                     selected_evidence[key] = value
-            selected_evidence = dict(sorted(selected_evidence.items(), reverse=True))
-            
+            # Lowest precedence first, so the value added last wins.
+            selected_evidence = dict(sorted(
+                selected_evidence.items(),
+                key=lambda item: self.other_prefix_rank(item[0]),
+                reverse=True))
+
         else:
             for key, value in evidence.items():
                 if self.key_has_prefix(key, type):
                     selected_evidence[key] = value
             
         return selected_evidence
-        
+
+    def other_prefix_rank(self, key):
+
+        """!
+        The sort key of an evidence key that is not query, header or cookie
+        evidence, where a lower one wins. server, fiftyone and location
+        come first, in the order evidence.md lists them, then any other
+        prefix alphabetically, all ignoring letter case.
+
+        @param key: The evidence key
+        @return: A tuple that sorts higher precedence first
+        """
+
+        prefix = key.partition(Constants.EVIDENCE_SEPERATOR)[0].lower()
+        if prefix in Constants.OTHER_PREFIX_PRECEDENCE:
+            return (Constants.OTHER_PREFIX_PRECEDENCE.index(prefix), "",
+                    key.lower())
+        return (len(Constants.OTHER_PREFIX_PRECEDENCE), prefix, key.lower())
+
     def key_has_prefix(self, itemKey, prefix):
 
         """!

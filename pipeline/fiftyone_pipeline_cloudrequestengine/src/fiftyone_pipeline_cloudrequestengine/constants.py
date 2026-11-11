@@ -53,6 +53,11 @@ class Constants:
     # processing.
     EVIDENCE_QUERY_PREFIX = "query"
 
+    # The prefixes after query, header and cookie, highest precedence
+    # first, as evidence.md lists them. Any other prefix ranks after these,
+    # alphabetically.
+    OTHER_PREFIX_PRECEDENCE = ("server", "fiftyone", "location")
+
     # other evidence constant
     EVIDENCE_OTHER = "other"
     

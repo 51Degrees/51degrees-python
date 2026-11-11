@@ -202,7 +202,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
 
         result = engine.get_content(data)
 
-        self.assertEqual(expected_value, result["user-agent"])
+        self.assertEqual(expected_value, result["User-Agent"])
 
     def test_no_exception_on_cloud_request_engine_init(self):
         """
