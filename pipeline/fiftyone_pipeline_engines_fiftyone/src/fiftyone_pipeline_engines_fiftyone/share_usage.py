@@ -286,12 +286,10 @@ class ShareUsage(Engine):
                 queued = len(self.share_data)
                 if queued == 0:
                     return
-                paused = self.backoff.remaining(time.monotonic()) > 0
-                if not paused:
-                    share_data = self.share_data[:self._message_size]
-                    del self.share_data[:self._message_size]
-            if paused:
-                break
+                if self.backoff.remaining(time.monotonic()) > 0:
+                    break
+                share_data = self.share_data[:self._message_size]
+                del self.share_data[:self._message_size]
             data = devices_message(share_data)
             if not self.send_thread(self.endpoint, data):
                 with self._lock:
