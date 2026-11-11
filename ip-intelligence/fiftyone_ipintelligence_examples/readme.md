@@ -10,7 +10,7 @@ Usage examples for the 51Degrees IP intelligence engines.
 
 ## Cloud examples
 
-Require a resource key in the `resource_key` environment variable.
+Require a resource key in the `_51DEGREES_RESOURCE_KEY` environment variable.
 Obtain one from the [51Degrees Configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=cloud-examples).
 
 - `cloud/gettingstarted_console.py` - resolve IP addresses using the

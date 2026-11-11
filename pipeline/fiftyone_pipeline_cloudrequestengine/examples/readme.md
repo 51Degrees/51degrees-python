@@ -32,13 +32,13 @@ The examples call the cloud service with a resource key or a licence key.
 A resource key carries the list of properties it returns. Create one
 carrying device detection and IP intelligence properties for free with the
 [configurator](https://configure.51degrees.com?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=resource-key),
-and set the `_51DEGREES_RESOURCE_KEY` environment variable to it. The older
-name `resource_key` is also read. A resource key limited to particular
+and set the `_51DEGREES_RESOURCE_KEY` environment variable to it. A
+resource key limited to particular
 domains only answers a request whose origin is one of them, so set
 `cloud_request_origin` to one of its domains.
 
 A licence key can be used on its own instead, by setting
-`_51DEGREES_LICENSE_KEY`, or the older name `license_key`. A licence key
+`_51DEGREES_LICENSE_KEY`. A licence key
 carries no list of properties, so the examples ask the cloud service for
 exactly the properties they show, and the web example also asks for the
 properties its client-side script needs. A licence key identifies an
@@ -91,8 +91,8 @@ then open <http://localhost:5000>. Set `PORT` to listen on another port.
 ```
 
 The tests that call the cloud service with a resource key fail when none is
-set, naming the variables they read, which are `_51DEGREES_RESOURCE_KEY`,
-`_51DEGREES_RESOURCE_KEY_BESPOKE` and `resource_key`, in that order. The
+set, naming the variables they read, which are `_51DEGREES_RESOURCE_KEY`
+and `_51DEGREES_RESOURCE_KEY_BESPOKE`, in that order. The
 tests that use a licence key skip themselves when none is set.
 
 In CI the examples are run by [ci/run-integration-tests.ps1](../../ci/run-integration-tests.ps1)

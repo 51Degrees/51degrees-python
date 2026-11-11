@@ -33,7 +33,7 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 class CloudEngineTests(unittest.TestCase):
     def setUp(self):
-        self.resource_key = os.environ.get("resource_key")
+        self.resource_key = os.environ.get("_51DEGREES_RESOURCE_KEY")
 
         self.assertIsNotNone(
             self.resource_key,

@@ -26,7 +26,7 @@ The resource key is read from the names in ``live_cloud.py``, and every
 test fails when none is set. The key has to carry the FODid product, and
 the CloudV5FODiD product for the marketing usages, which
 ``test_did_tier_live.py`` shows a Basic key does not get. An optional
-licence key is read from ``license_key`` or ``_51DEGREES_LICENSE_KEY``, and
+licence key is read from ``_51DEGREES_LICENSE_KEY``, and
 the endpoint from ``FOD_CLOUD_API_URL`` as everywhere else. Every test here
 costs uses against the resource key.
 """
@@ -56,8 +56,7 @@ from .live_cloud import answered_without, find_resource_key, no_resource_key
 pytestmark = pytest.mark.live
 
 RESOURCE_KEY = find_resource_key()
-LICENCE_KEY = os.environ.get("license_key") \
-    or os.environ.get("_51DEGREES_LICENSE_KEY")
+LICENCE_KEY = os.environ.get("_51DEGREES_LICENSE_KEY")
 
 FODID = "the FODid product"
 MARKETING = "the CloudV5FODiD product"
