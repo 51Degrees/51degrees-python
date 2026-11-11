@@ -35,7 +35,7 @@ carrying device detection and IP intelligence properties for free with the
 and set the `_51DEGREES_RESOURCE_KEY` environment variable to it. A
 resource key limited to particular
 domains only answers a request whose origin is one of them, so set
-`cloud_request_origin` to one of its domains.
+`_51DEGREES_CLOUD_REQUEST_ORIGIN` to one of its domains.
 
 A licence key can be used on its own instead, by setting
 `_51DEGREES_LICENSE_KEY`. A licence key
@@ -52,8 +52,8 @@ only one of the two products still runs, and the web example shows the list
 of countries only when the key carries the translated country names.
 
 The examples use the public cloud service at `https://cloud.51degrees.com`.
-Set `cloud_endpoint`, or `FOD_CLOUD_API_URL`, to the address of another
-cloud service, including the `api/v4/` path, to use that instead.
+Set `_51DEGREES_CLOUD_ENDPOINT` to the address of another cloud service,
+including the `api/v4/` path, to use that instead.
 
 ### Running the examples
 

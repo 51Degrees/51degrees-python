@@ -42,7 +42,7 @@ class ExampleUtils:
     # resource key variable starts with "_51DEGREES_RESOURCE_KEY".
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    ENDPOINT_ENV_VAR = "cloud_endpoint"
+    ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
 
     # The environment variable an on-premise example reads the path of its
     # device detection data file from, when one is given, in place of the

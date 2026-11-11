@@ -54,7 +54,7 @@ On Microsoft Windows use:
 As the performance and offline processing tests take longer than the others, there is another environment variable flag to run those:
 
 Linux:
-`export run_performance_tests=true`
+`export _51DEGREES_RUN_PERFORMANCE_TESTS=true`
 
 Microsoft Windows:
-`$env:run_performance_tests = "true"`
+`$env:_51DEGREES_RUN_PERFORMANCE_TESTS = "true"`

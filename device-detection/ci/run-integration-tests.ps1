@@ -131,7 +131,7 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
 
 # The cloud example, pointed at the live cloud.
 $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"
+$env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 $failures += Test-Example -Name 'cloud' `
     -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097
 

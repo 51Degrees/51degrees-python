@@ -106,7 +106,7 @@ class CloudRequestEngine(Engine):
         self.reported_not_covered = set()
 
         # The endpoint is the cloud_endpoint setting, then the
-        # FOD_CLOUD_API_URL environment variable, then
+        # _51DEGREES_CLOUD_ENDPOINT environment variable, then
         # cloud.51degrees.com. A host other than cloud.51degrees.com
         # would be used to (a) use an on premise web server, or (b) use
         # a privately hosted version of the 51Degrees cloud for
@@ -116,7 +116,7 @@ class CloudRequestEngine(Engine):
         if "cloud_endpoint" in settings:
             self.baseURL = settings["cloud_endpoint"]
         else:
-            self.baseURL = os.environ.get(Constants.FOD_CLOUD_API_URL)
+            self.baseURL = os.environ.get(Constants.CLOUD_ENDPOINT)
             if self.baseURL is None or (self.baseURL is not None and self.baseURL == ""):
                 self.baseURL = Constants.BASE_URL_DEFAULT
 

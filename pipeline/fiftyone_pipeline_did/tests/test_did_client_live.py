@@ -27,7 +27,7 @@ test fails when none is set. The key has to carry the FODid product, and
 the CloudV5FODiD product for the marketing usages, which
 ``test_did_tier_live.py`` shows a Basic key does not get. An optional
 licence key is read from ``_51DEGREES_LICENSE_KEY``, and
-the endpoint from ``FOD_CLOUD_API_URL`` as everywhere else. Every test here
+the endpoint from ``_51DEGREES_CLOUD_ENDPOINT`` as everywhere else. Every test here
 costs uses against the resource key.
 """
 
@@ -84,7 +84,7 @@ def no_creator_context(endpoint, detail):
     """What to fail with when the host does not offer the creator context,
     which the 51Degrees cloud does."""
     return ("The cloud service at {0} {1}, so the creator context could not "
-            "be checked. Point FOD_CLOUD_API_URL at a service that offers "
+            "be checked. Point _51DEGREES_CLOUD_ENDPOINT at a service that offers "
             "it, or leave it unset for the 51Degrees cloud.").format(
                 endpoint, detail)
 
