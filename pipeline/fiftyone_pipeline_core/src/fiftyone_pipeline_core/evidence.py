@@ -20,6 +20,11 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+# The key the web integration gives the web request itself, which the usage
+# sharing element reads. No element uses it as evidence, so filter() always
+# sets it aside, whatever the elements' filters accept.
+HTTP_REQUEST_KEY = "server.http-request"
+
 
 class Evidence:
     def __init__(self, flowdata):
@@ -32,6 +37,7 @@ class Evidence:
         self.evidence = {}
         self.evidence_filtered = False
         self.flowdata = flowdata
+        self.unaccepted = {}
 
     def add(self, key, value):
         """!
@@ -89,21 +95,37 @@ class Evidence:
 
         return self.evidence
 
+    def get_unaccepted(self):
+        """!
+        The evidence filter() set aside, being the keys no FlowElement in
+        the pipeline accepts and the web request itself. The usage sharing
+        element accepts no evidence, and shares what it finds here and in
+        get_all().
+
+        @rtype: dict
+        @return: The evidence set aside, empty until filter() runs
+        """
+
+        return self.unaccepted
+
     def filter(self) -> None:
         """!
         Filter evidence using `filter_evidence_key` and
-        `filter_evidence` methods of each FlowElement in the pipeline
+        `filter_evidence` methods of each FlowElement in the pipeline. The
+        keys that do not pass, and the web request under HTTP_REQUEST_KEY,
+        move to get_unaccepted().
         """
 
         if self.evidence_filtered:
             return
 
-        for key in self.evidence:
-            if not any([
+        # Loop over a copy of the keys, as keys are removed on the way.
+        for key in list(self.evidence):
+            if str(key).lower() == HTTP_REQUEST_KEY or not any([
                 flow_element.filter_evidence_key(key)
                 for flow_element
                 in self.flowdata.pipeline.flow_elements
             ]):
-                del self.evidence[key]
+                self.unaccepted[key] = self.evidence.pop(key)
 
         self.evidence_filtered = True

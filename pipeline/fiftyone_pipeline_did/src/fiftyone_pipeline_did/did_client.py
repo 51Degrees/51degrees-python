@@ -65,7 +65,7 @@ from typing import (
 from ._owid import Version
 
 from ._layout import GUID_LENGTH, HEADER_LENGTH, MATCH_KEY_LENGTH
-from .fod_id import DATE_EPOCH, FodId, _date_minutes
+from .fod_id import DATE_EPOCH, FodId, _date_minutes, _trim_white_space
 from .id_type import IdType
 
 #: The public cloud API base, used when neither the ``endpoint`` argument
@@ -174,7 +174,7 @@ class FactorResult(str, Enum):
     """The outcome of one factor in a mismatch or a partly misconfigured
     result. The cloud reports ``null`` for a factor that was not compared,
     which is passed through as ``None``, and a word this package does not
-    list is read the same way."""
+    list is read as :attr:`MISMATCH`."""
 
     VERIFIED = "verified"
     MISMATCH = "mismatch"
@@ -415,6 +415,12 @@ def _context_of(text: str) -> ContextResult:
 
 
 def _factor_of(value: Any) -> FactorValue:
+    # Nothing was compared.
+    if value is None:
+        return None
+    # The cloud writes lower case words, and the comparison ignores case.
+    if isinstance(value, str):
+        value = value.lower()
     if value == "verified":
         return FactorResult.VERIFIED
     if value == "mismatch":
@@ -425,7 +431,10 @@ def _factor_of(value: Any) -> FactorValue:
         return FactorResult.MISCONFIGURED
     if value == "notrecorded":
         return FactorResult.NOT_RECORDED
-    return None
+    # A word this package does not list, such as one a newer service sends,
+    # is a mismatch, so it never reads as a factor that matched or one that
+    # could not be compared.
+    return FactorResult.MISMATCH
 
 
 class DidClient:
@@ -934,10 +943,10 @@ def _ensure_parses(value: str) -> None:
 
 def _ensure_encoded_size(value: str) -> None:
     """Refuses obviously malformed text before it is parsed, a key is
-    fetched or the cloud is called. Surrounding whitespace is stripped
-    before measuring, as the reader strips it before decoding, so the two
-    measure the same characters."""
-    if len(value.strip()) > _MAXIMUM_ENCODED_LENGTH:
+    fetched or the cloud is called. White space around the value is
+    removed before measuring, as the reader removes it before decoding,
+    so the two measure the same characters."""
+    if len(_trim_white_space(value)) > _MAXIMUM_ENCODED_LENGTH:
         raise ValueError(
             "The identifier is far longer than any 51Did the cloud "
             "issues.")

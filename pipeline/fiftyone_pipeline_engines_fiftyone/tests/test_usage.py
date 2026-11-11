@@ -304,20 +304,17 @@ class UsageTests(unittest.TestCase):
             requested_package_size=1,
             endpoint=testEndpoint)
 
-        replacementChar = chr(int("0xFFFD", 16))
-
         pipeline = (PipelineBuilder())\
             .add(usage)\
             .build()
         flowdata = pipeline.create_flowdata()
-        flowdata.evidence.add("header.user-agent", "1ƌ2")
+        flowdata.evidence.add("header.user-agent", "1" + chr(0x1f) + "2")
         flowdata.process()
 
         self.waitForUsageThreads()
         self.assertEqual(len(app.received), 1)
-        self.assertNotIn("ƌ", app.received[0])
-        self.assertIn(replacementChar, app.received[0])
-        self.assertIn(f"<header Name=\"user-agent\" replaced=\"true\">1{replacementChar}2</header>", app.received[0])
+        self.assertNotIn(chr(0x1f), app.received[0])
+        self.assertIn('<header Name="user-agent" escaped="true">1\\x001f2</header>', app.received[0])
 
     def test_truncated_value(self):
         """!
@@ -328,7 +325,7 @@ class UsageTests(unittest.TestCase):
             requested_package_size=1,
             endpoint=testEndpoint)
 
-        ua = "X" * 1000
+        ua = "X" * 10001
 
         pipeline = (PipelineBuilder())\
             .add(usage)\
@@ -341,7 +338,7 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(len(app.received), 1)
         self.assertIn("truncated=\"true\"", app.received[0])
         self.assertNotIn(ua, app.received[0])
-        self.assertIn(f'<header Name="user-agent" truncated="true">{"X" * 512}</header>', app.received[0])
+        self.assertIn(f'<header Name="user-agent" truncated="true">{"X" * 10000}</header>', app.received[0])
 
     def test_send_more_than_once(self):
         """!
@@ -430,6 +427,305 @@ class UsageTests(unittest.TestCase):
         self.assertIn('&gt;', app.received[0])
         self.assertIn('&amp;', app.received[0])
 
+
+    def test_default_shares_only_accepted_evidence(self):
+        """!
+        Check that with no options the element shares headers and the
+        51Degrees cookies and parameters, and leaves out other cookies, the
+        Cookie header, and other query string and form parameters.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint)
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("header.user-agent", "some user agent")
+        flowdata.evidence.add("cookie.51d_screenpixelswidth", "1080")
+        flowdata.evidence.add("query.51d_gethighentropyvalues", "hev")
+        flowdata.evidence.add("cookie.sessionid", "cookie value")
+        flowdata.evidence.add("header.cookie", "sessionid=header value")
+        flowdata.evidence.add("query.password", "password value")
+        flowdata.evidence.add("query.id.email", "email value")
+        flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertIn('<header Name="user-agent">some user agent</header>', app.received[0])
+        self.assertIn('<cookie Name="51d_screenpixelswidth">1080</cookie>', app.received[0])
+        self.assertIn('<query Name="51d_gethighentropyvalues">hev</query>', app.received[0])
+        self.assertNotIn("cookie value", app.received[0])
+        self.assertNotIn("header value", app.received[0])
+        self.assertNotIn("password value", app.received[0])
+        self.assertNotIn("email value", app.received[0])
+
+    def test_never_shared_evidence(self):
+        """!
+        Check that the email address, the salt for hashed email
+        identifiers, the query string and the path are not shared, though
+        the rules for their prefixes would share them.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint)
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("header.user-agent", "some user agent")
+        flowdata.evidence.add("id.email", "email value")
+        flowdata.evidence.add("header.id.salt", "salt value")
+        flowdata.evidence.add("server.request-query", "query string value")
+        flowdata.evidence.add("server.request-path", "path value")
+        flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertIn("some user agent", app.received[0])
+        self.assertNotIn("email value", app.received[0])
+        self.assertNotIn("salt value", app.received[0])
+        self.assertNotIn("query string value", app.received[0])
+        self.assertNotIn("path value", app.received[0])
+
+    def test_share_all(self):
+        """!
+        Check that sharing all evidence shares what the other rules leave
+        out, but not the evidence that is never shared.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            share_all=True)
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("cookie.sessionid", "cookie value")
+        flowdata.evidence.add("query.campaign", "campaign value")
+        flowdata.evidence.add("query.id.email", "email value")
+        flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertIn('<cookie Name="sessionid">cookie value</cookie>', app.received[0])
+        self.assertIn('<query Name="campaign">campaign value</query>', app.received[0])
+        self.assertNotIn("email value", app.received[0])
+
+    def test_parameter_names_with_dots(self):
+        """!
+        Check that a query string parameter whose name contains a dot is
+        matched by its whole name against the parameters to share.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            query_whitelist=["valid.email"])
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("query.valid.email", "valid value")
+        flowdata.evidence.add("query.valid", "first part value")
+        flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertIn('<query Name="valid.email">valid value</query>', app.received[0])
+        self.assertNotIn("first part value", app.received[0])
+
+    def test_empty_query_whitelist(self):
+        """!
+        Check that an empty list of parameters to share shares only those
+        starting 51D_, and that None shares every parameter.
+        """
+
+        for query_whitelist, shared in (([], False), (None, True)):
+            app.received = []
+            usage = ShareUsage(
+                requested_package_size=1,
+                endpoint=testEndpoint,
+                query_whitelist=query_whitelist,
+                header_blacklist=["x-secret"])
+
+            pipeline = (PipelineBuilder())\
+                .add(usage)\
+                .build()
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("query.51d_param", "fiftyone value")
+            flowdata.evidence.add("query.campaign", "campaign value")
+            flowdata.process()
+
+            self.waitForUsageThreads()
+            self.assertEqual(len(app.received), 1)
+            self.assertIn("fiftyone value", app.received[0])
+            self.assertEqual("campaign value" in app.received[0], shared)
+
+    def test_session_cookie(self):
+        """!
+        Check that with session tracking on the tracker reads the session
+        cookie, which the element does not accept as evidence, and that
+        neither it nor any other ordinary cookie is shared.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            cookie="sessionid",
+            track_session=True)
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("header.user-agent", "some user agent")
+        flowdata.evidence.add("cookie.sessionid", "session value")
+        flowdata.evidence.add("cookie._ga", "analytics value")
+        flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertFalse(usage.get_evidence_key_filter()
+                         .filter_evidence_key("cookie.sessionid"))
+        self.assertTrue(usage.tracker_evidence_key_filter
+                        .filter_evidence_key("cookie.sessionid"))
+        self.assertEqual(len(app.received), 1)
+        self.assertIn("some user agent", app.received[0])
+        self.assertNotIn("session value", app.received[0])
+        self.assertNotIn("analytics value", app.received[0])
+
+    def test_session_cookie_without_session_tracking(self):
+        """!
+        Check that session tracking is off by default, and that naming the
+        session cookie then has no effect. The cookie is not kept, and
+        evidence already shared is not shared again for a new session.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            cookie="sessionid")
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        for session in ("session value 1", "session value 2"):
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("header.user-agent", "repeated user agent")
+            flowdata.evidence.add("cookie.sessionid", session)
+            flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertNotIn("session value", app.received[0])
+        self.assertFalse(usage.get_evidence_key_filter().filter_evidence_key("cookie.sessionid"))
+        self.assertFalse(usage.track_session)
+
+    def test_session_tracking(self):
+        """!
+        Check that with session tracking on, evidence already shared is
+        shared again for a new session but not for a repeat in the same
+        session, and that the session cookie is not shared.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            cookie="sessionid",
+            track_session=True)
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        for session in ("session value 1", "session value 1", "session value 2"):
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("header.user-agent", "repeated user agent")
+            flowdata.evidence.add("cookie.sessionid", session)
+            flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 2)
+        received = "\n".join(app.received)
+        self.assertEqual(received.count("repeated user agent"), 2)
+        self.assertNotIn("session value", received)
+
+    def test_ordinary_cookie_with_header_blacklist(self):
+        """!
+        Check that an ordinary cookie is left out without an error when
+        some headers are not to be shared.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            header_blacklist=["x-secret"])
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("header.user-agent", "some user agent")
+        flowdata.evidence.add("header.x-secret", "secret value")
+        flowdata.evidence.add("cookie.csrftoken", "token value")
+        flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertIn("some user agent", app.received[0])
+        self.assertNotIn("secret value", app.received[0])
+        self.assertNotIn("token value", app.received[0])
+
+    def test_repeat_with_new_sequence_not_shared(self):
+        """!
+        Check that a request differing from one already shared only in
+        its session id and sequence number is not shared again.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint)
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        for session, sequence in (("session 1", "1"), ("session 2", "2")):
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("header.user-agent", "repeated user agent")
+            flowdata.evidence.add("query.session-id", session)
+            flowdata.evidence.add("query.sequence", sequence)
+            flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertIn("<SessionId>session 1</SessionId>", app.received[0])
+
+    def test_evidence_without_a_prefix(self):
+        """!
+        Check that evidence whose key has no prefix is shared without an
+        error.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint)
+
+        pipeline = (PipelineBuilder())\
+            .add(usage)\
+            .build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("nodot", "no prefix value")
+        flowdata.process()
+
+        self.waitForUsageThreads()
+        self.assertEqual(len(app.received), 1)
+        self.assertIn("<nodot>no prefix value</nodot>", app.received[0])
 
     # zzz is to make this test run last so no other tests depend on the receiver anymore
     # we depend on python unittests ordering tests alphabetically, which is not ideal, but works for now

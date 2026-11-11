@@ -31,6 +31,11 @@ foreach ($asset in $assets) {
 
 # The ASN file is not an asset, so the data repository's script downloads it
 # beside its link in cxx/data/ip-intelligence, where the tests look for it.
+# The examples look for the Lite data file in the data repository, under the
+# name its script saves it as, so the asset is linked there too rather than
+# downloaded again.
+New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/51Degrees-LiteIpiV41.ipi" -Path "$PSScriptRoot/../../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
+
 $global:LASTEXITCODE = 0
 & "$PSScriptRoot/../../cxx/data/get-data-files.ps1" 51Degrees-IPIV4AsnIpiV41.ipi
 if ($LASTEXITCODE -ne 0) {

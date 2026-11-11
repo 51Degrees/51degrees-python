@@ -175,15 +175,15 @@ python -m pip install -e fiftyone_devicedetection_shared/
 
 ### Running examples
 To run an example - run a corresponding Python module specifying its full namespace.  
-For cloud examples please provide a `resource_key` as an environment variable, f.e.:
+For cloud examples please provide a `_51DEGREES_RESOURCE_KEY` as an environment variable, f.e.:
 
 ```bash
-resource_key=<your_resource_key> python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console
+_51DEGREES_RESOURCE_KEY=<your_resource_key> python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console
 ```
 
-For some of the onpremise examples you might need to provide a `license_key` as an environment variable, f.e.:
+For some of the onpremise examples you might need to provide a `_51DEGREES_LICENSE_KEY` as an environment variable, f.e.:
 ```bash
-license_key=<your_license_key> python -m fiftyone_devicedetection_examples.onpremise.datafileupdate_console
+_51DEGREES_LICENSE_KEY=<your_license_key> python -m fiftyone_devicedetection_examples.onpremise.datafileupdate_console
 ```
 
 ```bash

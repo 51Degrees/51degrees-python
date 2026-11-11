@@ -61,8 +61,8 @@ class DeviceDetectionOnPremise(Engine):
         polling_interval=30,
         update_time_maximum_randomisation=10,
         create_temp_data_copy=True,
-        update_matched_useragent=False,
-        performance_profile="LowMemory",
+        update_matched_useragent=None,
+        performance_profile="Balanced",
         reuse_temp_file=False,
         concurrency=multiprocessing.cpu_count(),
         update_on_start=False,
@@ -90,10 +90,20 @@ class DeviceDetectionOnPremise(Engine):
         @param licence_keys: licencekeys to use for the data file update service
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
-        @type max_matched_useragents_length : int
-        @param Number of characters to consider in the matched User-Agent. Ignored if update_matched_useragent is false
-        @type update_matched_useragent:
-        @param: update_matched_useragent: True if the detection should record the matched characters from the target User-Agent
+        @type max_matched_useragent_length: int
+        @param max_matched_useragent_length: Limit in bytes on the length of
+        a single header such as User-Agent, of a pseudo header including the
+        separators between its values, and of the matched User-Agent. A value
+        longer than the limit is ignored and detection moves on to the next
+        header. The limit applies whether or not update_matched_useragent is
+        on. Left unset, the native default of 500 applies. A larger limit
+        raises the memory each set of results holds.
+        @type update_matched_useragent: bool
+        @param update_matched_useragent: True if the detection should record
+        the matched characters from the target User-Agent, which the
+        UserAgents property returns. On by default, as the native code sets
+        it. Set it to False when UserAgents is not needed, which saves
+        recording the characters.
         @type drift: int
         @param drift: Set maximum drift in hash position to allow when processing HTTP headers
         @type difference: int
@@ -101,7 +111,9 @@ class DeviceDetectionOnPremise(Engine):
         @type allow_unmatched : bool
         @param allow_unmatched:  True if there should be at least one matched node in order for the results to be considered valid. By default, this is false
         @type performance_profile: string
-        @param performance_profile: options are: LowMemory, MaxPerformance, Balanced, BalancedTemp, HighPerformance
+        @param performance_profile: options are: LowMemory, MaxPerformance,
+        Balanced, BalancedTemp, HighPerformance. Balanced by default, as in
+        the native code.
         @type reuse_temp_file: bool
         @param reuse_temp_file: Indicates that an existing temp file may be used. This should be selected if multiple instances wish to use the same file to prevent high disk usage.
         @type concurrency: int
@@ -168,6 +180,10 @@ class DeviceDetectionOnPremise(Engine):
 
         properties_list = RequiredPropertiesConfigSwig(restricted_properties_vector)
 
+        # The property names the engine is built with. A property's index is
+        # its place in this list, which is fixed at build.
+        self.build_property_names = list(restricted_properties_vector)
+
         #  Assemble configuration
 
         config = ConfigHashSwig()
@@ -209,7 +225,10 @@ class DeviceDetectionOnPremise(Engine):
             config.setUseTempFile(True)
 
         config.setReuseTempFile(reuse_temp_file)
-        config.setUpdateMatchedUserAgent(update_matched_useragent)
+
+        # Left unset, the native default applies, which is on.
+        if update_matched_useragent is not None:
+            config.setUpdateMatchedUserAgent(update_matched_useragent)
 
         if allow_unmatched == True or allow_unmatched == False:
             config.setAllowUnmatched(allow_unmatched)
@@ -284,6 +303,12 @@ class DeviceDetectionOnPremise(Engine):
 
         self.engine = engine
 
+        # The table from each build-time name to its index, made once here
+        # so every read goes by index. An engine built with no names has no
+        # build-time list, so the table is empty and every read goes by
+        # name, which is the native behaviour it has today.
+        self.property_indexes = self.read_property_indexes()
+
         # Get keys and add to evidenceKey filter
 
         evidence_keys = engine.getKeys()
@@ -318,6 +343,21 @@ class DeviceDetectionOnPremise(Engine):
         # Special properties
         for key, property in self.get_metric_properties().items():
             self.properties[key] = property
+
+    def read_property_indexes(self):
+
+        """!
+        The index of each property the engine was built with, keyed by its
+        name in lower case. The native code gives a property the place of
+        its name among the names the engine was built with, the first place
+        where a name is given twice. An engine built with no names has an
+        empty table, so every read of its properties goes by name.
+        """
+
+        indexes = {}
+        for index, name in enumerate(self.build_property_names):
+            indexes.setdefault(name.lower(), index)
+        return indexes
 
     def get_metric_properties(self):
         return { "deviceid": {

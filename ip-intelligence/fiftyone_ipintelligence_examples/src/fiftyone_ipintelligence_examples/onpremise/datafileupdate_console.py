@@ -32,10 +32,11 @@
 # - Daily auto-update
 #
 # ## License Key
-# In order to run this example you will need a 51Degrees Enterprise license,
-# which can be purchased from our pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=top.
-# Supply the license key as the first command line argument or in the
-# 'license_key' environment variable.
+# Updating the data file needs a 51Degrees licence key for the Enterprise
+# data file. Without one, the example shows the free ASN data file and says
+# where to ask for a key. Supply the licence key as the first command line
+# argument or in the '_51DEGREES_LICENSE_KEY' environment variable. Contact us for a key:
+# https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=header
 #
 # ## Update on start-up
 # Configure the pipeline to download an Enterprise data file on start-up.
@@ -69,12 +70,17 @@ from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligenc
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
 from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
 # Environment variable checked for the license key if one is not supplied as
 # a command line argument.
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = "license_key"
+UPDATE_EXAMPLE_LICENSE_KEY_NAME = "_51DEGREES_LICENSE_KEY"
+
+# Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
 
 # The product type passed to the 51Degrees distributor. This identifies the
 # IP intelligence Enterprise product and may need to be adjusted to match
@@ -100,6 +106,33 @@ class UpdateEvent(threading.Event):
 
 
 class DataFileUpdateConsole():
+    def explain_license_key(self, data_file, output):
+        # Without a licence key the example cannot download a data file, so
+        # it shows the data file it would start from, the free ASN file
+        # unless another is given, and says what an update needs.
+        if not data_file:
+            data_file = ExampleUtils.find_file(ASN_DATAFILE_NAME)
+        if data_file and os.path.isfile(data_file):
+            pipeline = IpIntelligencePipelineBuilder(
+                data_file_path = data_file,
+                performance_profile = "LowMemory",
+                usage_sharing = False,
+                auto_update = False,
+                licence_keys = "").build()
+            with pipeline:
+                engine = pipeline.flow_elements_list["ip"].engine
+                published = engine.getPublishedTime()
+                date = datetime(published.getYear(), published.getMonth(),
+                                published.getDay())
+                output(f"The data file in use is the '{engine.getProduct()}' "
+                       f"file published on {date:%Y-%m-%d}, at '{data_file}'.")
+        output("")
+        output("Updating the data file downloads the Enterprise data file, "
+               "which needs a licence key. Give the key as the first command "
+               "line argument, or in the environment variable "
+               f"'{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'. Contact us for a key "
+               f"and a copy at {CONTACT_US}")
+
     def run(self, data_file, license_key, interactive, logger, output):
         logger.log("info", "Starting example")
 
@@ -108,14 +141,8 @@ class DataFileUpdateConsole():
             license_key = os.environ.get(UPDATE_EXAMPLE_LICENSE_KEY_NAME)
 
         if not license_key:
-            logger.log("error",
-                "In order to run this example you will need a 51Degrees "
-                "Enterprise license, which can be obtained on a trial basis "
-                "or purchased from our pricing page https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=run. "
-                "You must supply the license key as an argument to this "
-                "program, or in an environment variable named "
-                f"'{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'")
-            raise Exception("No license key available")
+            self.explain_license_key(data_file, output)
+            return
 
         # Work out where the downloaded file will be put. The directory must
         # exist; the file itself need not.
@@ -161,6 +188,9 @@ class DataFileUpdateConsole():
             # is configured to use a temporary copy.
             data_file_path = data_file,
             create_temp_data_copy = True,
+            # The Enterprise data file is large, so the LowMemory profile
+            # reads it from disk rather than holding parts of it in memory.
+            performance_profile = "LowMemory",
             # The update listener notifies us when an update is complete.
             data_file_update_service = update_service,
             # A license key is required for automatic updates.
