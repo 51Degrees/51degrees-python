@@ -70,6 +70,10 @@ class UpdateStatus(Enum):
 # The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
 GZIP_MAGIC = b"\x1f\x8b"
 
+# The tries made to refresh an engine from a data file, which the message
+# for a failed refresh names.
+REFRESH_TRIES = 1
+
 
 class DataFileUpdateService():
 
@@ -214,7 +218,7 @@ class DataFileUpdateService():
             if header_md5 != hash_md5.hexdigest():
                 self._log_check_error(
                     "Integrity check failed. MD5 hash in HTTP response '" +
-                    str(header_md5) + "' for '" + engine + "' data update "
+                    str(header_md5) + "' for '" + engine + "'data update "
                     "does not match calculated hash for the downloaded "
                     "file '" + hash_md5.hexdigest() + "'.")
                 return self._update_failed(
@@ -300,7 +304,7 @@ class DataFileUpdateService():
                 if (status is None or
                         status == UpdateStatus.AUTO_UPDATE_WRITE_FAILED):
                     data_file.data = data
-                    status = self._refresh(data_file)
+                    status = self._refresh(data_file, from_file=False)
             finally:
                 data_file.updating = False
             self.__emit(status, data_file)
@@ -310,7 +314,7 @@ class DataFileUpdateService():
         data_file.data = data
         data_file.updating = True
         try:
-            status = self._refresh(data_file)
+            status = self._refresh(data_file, from_file=False)
         finally:
             data_file.updating = False
 
@@ -363,8 +367,11 @@ class DataFileUpdateService():
                 return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
         return None
 
-    def _refresh(self, data_file):
-        # Refresh the engine with the data file's new content.
+    def _refresh(self, data_file, from_file=True):
+        # Refresh the engine with the data file's new content. A refresh
+        # after a check or a watched change is from the data file, and one
+        # from update_from_memory is not, as the two rows of the errors
+        # table say.
         engine = self._engine_type(data_file)
         self._log(
             "info",
@@ -374,7 +381,9 @@ class DataFileUpdateService():
         except Exception as e:
             self._log_check_error(
                 "An error occurred when applying a data update to engine '" +
-                engine + "'", e)
+                engine + "'" +
+                (" after " + str(REFRESH_TRIES) + " tries." if from_file
+                 else "."), e)
             return UpdateStatus.AUTO_UPDATE_REFRESH_FAILED
         return UpdateStatus.AUTO_UPDATE_SUCCESS
 
@@ -498,7 +507,7 @@ class DataFileUpdateService():
             return
 
         if data_file.update_on_start and not data_file.updated_on_start and not run_after_error:
-            self._log("info", "Updating on startup")
+            self._log("info", "Updating on start-up")
             self.update_data_file(data_file)
 
         elif data_file.auto_update:
