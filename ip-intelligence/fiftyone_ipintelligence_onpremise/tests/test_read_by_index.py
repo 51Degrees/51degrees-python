@@ -22,8 +22,8 @@
 
 """An engine built with a list of property names reads each one by its
 index in that list, with the native engine and the data file the tests use.
-An engine built with no names is not covered, because it keeps reading by
-name until the native change lands."""
+An engine built with no names keeps reading by name until the native
+change lands."""
 
 import os
 import unittest
@@ -70,8 +70,8 @@ def data_set_names(engine):
 class ReadByIndexTests(unittest.TestCase):
 
     def names_from_the_data_set(self):
-        """The first few property names the data set holds, read from an
-        engine built with no names, which still lists them all."""
+        """The property names the data set holds, read from an engine built
+        with no names, which still lists them all."""
         engine = IpIntelligenceOnPremise(
             data_file_path=data_file, licence_keys="")
         pipeline, flowdata = process(engine)
@@ -122,12 +122,14 @@ class ReadByIndexTests(unittest.TestCase):
                 shown(reversed_data.ip.get(name)), name)
 
     def test_a_superset_data_set_keeps_each_build_time_index(self):
-        """The engine is built with a short list of names and the data set
-        holds many more, which is the superset case. Each name keeps its
-        place in the list given, and reads the value the data set holds."""
+        """The engine is built with every other name, in reverse order, so
+        the data set holds names the engine was not given, which is the
+        superset case, and the second name sits between two given ones.
+        Each name keeps its place in the list given, and reads the value the
+        data set holds."""
         names, all_data = self.names_from_the_data_set()
-        self.assertGreater(len(names), 6, "data set must hold a superset")
-        chosen = list(reversed(names[:6]))
+        self.assertGreaterEqual(len(names), 3, "data set must hold a superset")
+        chosen = list(reversed(names[::2]))
         engine = IpIntelligenceOnPremise(
             data_file_path=data_file, licence_keys="",
             restricted_properties=list(chosen))

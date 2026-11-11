@@ -23,8 +23,7 @@
 """An engine built with a list of property names reads each one by its
 index in that list, with the native engine and the Lite data file. Also
 prints how long a read by name and a read by index take. An engine built
-with no names is not covered, because it keeps reading by name until the
-native change lands."""
+with no names keeps reading by name until the native change lands."""
 
 import time
 import unittest
