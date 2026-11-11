@@ -49,6 +49,20 @@ class ClientIpTests(unittest.TestCase):
         self.assertEqual(
             (None, None), client_ips({"query.client-ip": " 8.8.8.8 "}))
 
+    def test_a_zone_index_is_not_read(self):
+        for text in ("fe80::1%eth0", "fe80::1%1", "[fe80::1%eth0]",
+                     "[fe80::1%25eth0]", "::ffff:8.8.8.8%1",
+                     "::ffff:8.8.8.8%eth0"):
+            self.assertEqual(
+                (None, None),
+                client_ips({"query.client-ip": text}), text)
+
+    def test_a_zone_index_does_not_hide_a_later_value(self):
+        self.assertEqual(
+            ("1.2.3.4", None),
+            client_ips({"query.client-ip": "fe80::1%eth0",
+                        "server.client-ip": "1.2.3.4"}))
+
     def test_the_client_ip_query_comes_first(self):
         self.assertEqual(
             ("1.2.3.4", None),
