@@ -33,8 +33,7 @@ from wsgiref.simple_server import make_server
 import gzip
 
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
-from fiftyone_pipeline_engines_fiftyone.share_usage import ShareUsage, \
-    CLEANUP_TIMEOUT_SECONDS, REQUESTED_PACKAGE_SIZE_DEFAULT
+from fiftyone_pipeline_engines_fiftyone.share_usage import ShareUsage
 from flask import Flask, request, render_template
 import requests
 
@@ -43,6 +42,12 @@ testPort = 5000
 testEndpoint = f"http://{testHost}:{testPort}"
 
 shareUsageVersion = "1.1"
+
+# The numbers the specification gives, written out here rather than read
+# from the element, so that a test fails when the element does not keep to
+# them.
+CLEANUP_BOUND_SECONDS = 5
+MINIMUM_ENTRIES_PER_MESSAGE = 50
 
 
 class ReceiverThread(threading.Thread):
@@ -409,11 +414,7 @@ class UsageTests(unittest.TestCase):
         warning counting the entries it discarded.
         """
 
-        self.assertEqual(
-            5, CLEANUP_TIMEOUT_SECONDS,
-            "Cleanup is not bounded at the five seconds the specification "
-            "gives.")
-        app.delay = CLEANUP_TIMEOUT_SECONDS + 5
+        app.delay = CLEANUP_BOUND_SECONDS + 5
         # Let the held request go as soon as the test is done with it.
         self.addCleanup(app.delay_release.set)
         usage = ShareUsage(
@@ -435,11 +436,11 @@ class UsageTests(unittest.TestCase):
         took = time.monotonic() - start
 
         self.assertLess(
-            took, CLEANUP_TIMEOUT_SECONDS + 2,
+            took, CLEANUP_BOUND_SECONDS + 2,
             f"Closing took {took:.2f} seconds, so it waited for the service "
             "rather than stopping at the bound.")
         self.assertGreaterEqual(
-            took, CLEANUP_TIMEOUT_SECONDS - 0.5,
+            took, CLEANUP_BOUND_SECONDS - 0.5,
             f"Closing took {took:.2f} seconds, so it gave up before the "
             "bound.")
         warnings = [log for log in self.logs if "did not finish" in log[1]]
@@ -450,7 +451,7 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(
             ("warning",
              "Usage sharing stopped sending when closing down, because it "
-             f"did not finish within {CLEANUP_TIMEOUT_SECONDS} seconds. 5 "
+             f"did not finish within {CLEANUP_BOUND_SECONDS} seconds. 5 "
              "entries were left in the queue and discarded."),
             warnings[0])
 
@@ -467,15 +468,14 @@ class UsageTests(unittest.TestCase):
         gives, so no message is started before 50 entries are queued.
         """
 
-        self.assertEqual(
-            50, REQUESTED_PACKAGE_SIZE_DEFAULT,
-            "The default is not the 50 the specification gives.")
         usage = ShareUsage(endpoint=testEndpoint)
         pipeline = PipelineBuilder().add(usage).build()
         self.addCleanup(usage.close)
-        self.assertEqual(50, usage.requested_package_size)
+        self.assertEqual(
+            MINIMUM_ENTRIES_PER_MESSAGE, usage.requested_package_size,
+            "The default is not the 50 the specification gives.")
 
-        for i in range(49):
+        for i in range(MINIMUM_ENTRIES_PER_MESSAGE - 1):
             self.process_unique(pipeline)
         sleep(0.5)
         self.assertEqual(
@@ -484,7 +484,8 @@ class UsageTests(unittest.TestCase):
 
         self.process_unique(pipeline)
         self.wait_for(
-            lambda: len(client_ips(app.received)) == 50,
+            lambda: len(client_ips(app.received))
+            == MINIMUM_ENTRIES_PER_MESSAGE,
             lambda: "The fiftieth entry did not start a message. Sent: "
             f"{len(client_ips(app.received))}")
 
