@@ -572,10 +572,14 @@ class CloudRequestEngine(Engine):
 
         for evidenceKey, evidenceValue in evidence.items():
 
-            # Get the key parts
-            evidenceKeyParts = evidenceKey.split(Constants.EVIDENCE_SEPERATOR)
-            prefix = evidenceKeyParts[0].lower()
-            suffix = evidenceKeyParts[-1].lower()
+            # The prefix is the text before the first separator, and the
+            # name sent is the rest of the key in the letter case given, as
+            # .NET's AddQueryData takes it. A key with no separator is both.
+            prefix, separator, suffix = evidenceKey.partition(
+                Constants.EVIDENCE_SEPERATOR)
+            if not separator:
+                suffix = evidenceKey
+            prefix = prefix.lower()
 
             # The service reads its credentials and the list of requested
             # properties from these names, so evidence carrying one of them
@@ -584,13 +588,19 @@ class CloudRequestEngine(Engine):
             # say so as the conflict case below does, so a caller who set
             # it expecting an effect can see why there was none. The value
             # is not logged, as it may be a credential.
-            if suffix in Constants.RESERVED_EVIDENCE_SUFFIXES:
+            if suffix.lower() in Constants.RESERVED_EVIDENCE_SUFFIXES:
                 warnings.warn(
                     Constants.WARNING_RESERVED_EVIDENCE.format(evidenceKey))
                 continue
 
+            # Evidence keys ignore letter case, so a name already added in
+            # other letters is the same name, and the later, higher
+            # precedence value replaces it under its own spelling.
+            existing = next((name for name in query_data
+                             if name.lower() == suffix.lower()), None)
+
             # Check and add the evidence to the query parameters.
-            if (not suffix in query_data.keys()):
+            if existing is None:
                 query_data[suffix] = evidenceValue
             # If the queryParameter exists already.
             else:
@@ -601,7 +611,7 @@ class CloudRequestEngine(Engine):
                 if (prefix.lower() != Constants.EVIDENCE_QUERY_PREFIX):
                     conflicts = {}
                     for key, value in all_evidence.items(): 
-                        if(key.lower() != evidenceKey.lower() and suffix in key.lower()):
+                        if(key.lower() != evidenceKey.lower() and suffix.lower() in key.lower()):
                             conflicts[key] = value
 
                     warningMessage = Constants.WARNING_MESSAGE \
@@ -614,6 +624,7 @@ class CloudRequestEngine(Engine):
                         warnings.warn(warningMessage + conflictStr)
                     
                 # Overwrite the existing queryParameter value.
+                del query_data[existing]
                 query_data[suffix] = evidenceValue
 
     def get_selected_evidence(self, evidence, type):
