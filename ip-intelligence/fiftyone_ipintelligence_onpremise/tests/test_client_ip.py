@@ -69,6 +69,17 @@ class ClientIpTests(unittest.TestCase):
             client_ips({"server.client-ip": "5.6.7.8",
                         "query.client-ip": "1.2.3.4"}))
 
+    def test_a_leading_zero_is_not_read(self):
+        # The rule is kept by ipaddress, which refuses a leading zero, so
+        # this catches a Python that reads one.
+        for text in ("01.2.3.4", "1.02.3.4", "1.2.3.04", "00.0.0.0",
+                     "::ffff:01.2.3.4"):
+            self.assertEqual(
+                (None, None),
+                client_ips({"query.client-ip": text}), text)
+        self.assertEqual(
+            ("0.0.0.0", None), client_ips({"query.client-ip": "0.0.0.0"}))
+
 
 if __name__ == "__main__":
     unittest.main()
