@@ -38,6 +38,7 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'self.baseURL = os.environ.get("FOD_CLOUD_API_URL")' }
         @{ Line = 'FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"' }
         @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"' }
+        @{ Line = 'ORIGIN_ENV_VAR = "cloud_request_origin"' }
         @{ Line = '$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"' }
         @{ Line = 'env = os.environ.get("IPINTELLIGENCEDATAFILE")' }
         @{ Line = 'os.environ["ipintelligencetestkey"] = "value"' }

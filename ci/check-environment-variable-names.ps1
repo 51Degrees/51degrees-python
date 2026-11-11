@@ -39,7 +39,8 @@ $script:DigitInitialPattern = [regex]::new(
 # a pipeline setting as well as an old environment variable name, and only the
 # environment variable moves.
 $oldNames = '(?:RESOURCE_KEY|LICENSE_KEY|FOD_CLOUD_API_URL|cloud_endpoint|' +
-    'IPINTELLIGENCEDATAFILE|ipintelligencetestkey|run_performance_tests)'
+    'cloud_request_origin|IPINTELLIGENCEDATAFILE|ipintelligencetestkey|' +
+    'run_performance_tests)'
 $script:FallbackPattern = [regex]::new(
     '(?:environ(?:\.get|\.pop|\.setdefault)?\s*[\(\[]\s*|getenv\(\s*|' +
     "SetEnvironmentVariable\(\s*)['`"]$oldNames['`"]|" +
