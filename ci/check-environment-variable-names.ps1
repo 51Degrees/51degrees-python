@@ -8,6 +8,9 @@
 # matched with case, because the lower case resource_key and license_key are
 # still the one name some examples and tests read, so ignoring case would fail
 # on names that are not fallbacks.
+#
+# Dot-sourcing the script defines Find-EnvironmentNameProblem without reading
+# the repository, which is how its tests use it.
 
 [CmdletBinding()]
 param(
@@ -25,19 +28,35 @@ $digitInitial = '5' + '1DEGREES_'
 
 # A name is not matched when a name character comes before it, so a name with
 # a leading underscore is left alone.
-$pattern = [regex]::new("(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
+$script:DigitInitialPattern = [regex]::new(
+    "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
 # A bare RESOURCE_KEY or LICENSE_KEY read or set as an environment variable or
 # held in a string by itself, or a constant holding a legacy name to fall back
 # to. Only those are matched, so placeholder text such as YOUR_RESOURCE_KEY,
 # and longer names that end in the same words, are left alone.
-$fallback = [regex]::new(
+$script:FallbackPattern = [regex]::new(
     '(?:environ(?:\.get)?\s*[\(\[]\s*[''"]|getenv\(\s*[''"]|\$env:|' +
     'SetEnvironmentVariable\(\s*[''"])' +
     '(?:RESOURCE_KEY|LICENSE_KEY)(?![A-Za-z0-9_])|' +
     '[''"](?:RESOURCE_KEY|LICENSE_KEY)[''"]|' +
     '\bLEGACY_[A-Z_]*ENV_VARS?\b')
+
+# The problems on one line, each as its kind, 'digit' or 'fallback', and the
+# text matched.
+function Find-EnvironmentNameProblem([string]$Line) {
+    foreach ($match in $script:DigitInitialPattern.Matches($Line)) {
+        [pscustomobject]@{ Kind = 'digit'; Value = $match.Value }
+    }
+    foreach ($match in $script:FallbackPattern.Matches($Line)) {
+        [pscustomobject]@{ Kind = 'fallback'; Value = $match.Value }
+    }
+}
+
+if ($MyInvocation.InvocationName -eq '.') {
+    return
+}
 
 $root = (Resolve-Path $RepoRoot).Path
 # Paths are listed as they are, so a path holding a non-ASCII character is not
@@ -47,11 +66,17 @@ if ($LASTEXITCODE -ne 0) {
     throw "git ls-files failed in $root"
 }
 
+# The tests of this script name every form it fails on, on purpose.
+$ownTests = 'ci/check-environment-variable-names.Tests.ps1'
+
 $found = @()
 $fallbacks = @()
 $read = 0
 $skipped = @()
 foreach ($relative in $tracked) {
+    if ($relative -eq $ownTests) {
+        continue
+    }
     $path = Join-Path $root $relative
     # A submodule is tracked as a directory, and its files belong to another
     # repository.
@@ -63,16 +88,19 @@ foreach ($relative in $tracked) {
     $lineNumber = 0
     foreach ($line in [IO.File]::ReadLines($path)) {
         $lineNumber++
-        foreach ($match in $pattern.Matches($line)) {
-            $found += "${relative}:${lineNumber}: $($match.Value)"
-        }
-        foreach ($match in $fallback.Matches($line)) {
-            $fallbacks += "${relative}:${lineNumber}: $($match.Value)"
+        foreach ($problem in Find-EnvironmentNameProblem $line) {
+            $text = "${relative}:${lineNumber}: $($problem.Value)"
+            if ($problem.Kind -eq 'digit') {
+                $found += $text
+            } else {
+                $fallbacks += $text
+            }
         }
     }
 }
 
-Write-Output "$read paths read, $($skipped.Count) skipped as not files: $($skipped -join ', ')"
+Write-Output ("$read paths read, $($skipped.Count) skipped as not files: " +
+    "$($skipped -join ', '), and $ownTests left out")
 
 if ($found.Count -gt 0 -or $fallbacks.Count -gt 0) {
     Write-Output $found
