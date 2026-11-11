@@ -394,11 +394,13 @@ class DataFileUpdateService():
     def _log_check_error(self, text, cause=None):
         # An error from a row of the errors table at Error level is logged
         # as .NET logs a DataUpdateException, under .NET's entry text with
-        # the error, being the row's text and then its cause, after it.
+        # the error, being the row's text and then its cause, after it, in
+        # the words 51degrees-node writes.
         self._log(
             "error",
-            "Error during check for data update. " +
-            self._with_cause(text, cause))
+            self._with_cause(
+                self._with_cause("Error during check for data update", text),
+                cause))
 
     def _log_unhandled(self, data_file, cause):
         # Any other error is logged with the last row's message, and the
