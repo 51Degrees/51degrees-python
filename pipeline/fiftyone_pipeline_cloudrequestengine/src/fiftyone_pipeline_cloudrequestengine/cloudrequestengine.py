@@ -30,6 +30,7 @@ from json import JSONDecodeError
 
 import requests
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.evidence import HTTP_REQUEST_KEY
 from fiftyone_pipeline_core.keymask import mask_licence_key
 from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 from fiftyone_pipeline_engines.engine import Engine
@@ -513,14 +514,20 @@ class CloudRequestEngine(Engine):
         If there are evidence keys other than 'query.' that conflict then
         this is unexpected so a warning will be logged.
 
+        The engine sends every evidence value in the flow data, including
+        the values no element in the pipeline accepts, because what the
+        cloud service uses changes over time and knowing about the other
+        evidence is important to continued optimization. The reserved names
+        and the web request view are left out.
+
         @param: flowData: FlowData
         @return: Evidence Dictionary
         """
 
         queryData = {}
 
-        evidence = flowData.evidence.get_all()
-        # Add evidence in reverse alphabetical order, excluding special keys. 
+        evidence = self.sendable_evidence(flowData.evidence)
+        # Add evidence in reverse alphabetical order, excluding special keys.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_OTHER))
         # Add cookie evidence.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_COOKIE_PREFIX))
@@ -529,6 +536,28 @@ class CloudRequestEngine(Engine):
         # Add query evidence.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_QUERY_PREFIX))
         return queryData
+
+    def sendable_evidence(self, evidence):
+
+        """!
+        The evidence the engine sends, being every value in the flow data,
+        whether an element accepted it or not, apart from the web request
+        view. The reserved names are left out by add_query_data, which
+        warns as it does so. An accepted value wins over a set aside one of
+        the same key.
+
+        @param evidence: The flow data's Evidence
+        @return: The evidence keys and values to send
+        """
+
+        sendable = {}
+        # An older fiftyone_pipeline_core sets nothing aside.
+        unaccepted = getattr(evidence, "get_unaccepted", dict)()
+        for source in (unaccepted, evidence.get_all()):
+            for key, value in source.items():
+                if str(key).lower() != HTTP_REQUEST_KEY:
+                    sendable[key] = value
+        return sendable
 
     def add_query_data(self, query_data, all_evidence, evidence):
 
