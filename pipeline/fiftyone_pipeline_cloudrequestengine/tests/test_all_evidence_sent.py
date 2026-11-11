@@ -84,9 +84,7 @@ class TestAllEvidenceSent(CloudRequestEngineTestsBase):
 
         self.assertEqual("a value", content["my-own-thing"])
         self.assertEqual("Windows", content["sec-ch-ua-platform"])
-        # add_query_data lowercases the name it sends, which is how the
-        # engine behaved before this change and is not part of it.
-        self.assertEqual("b", content["51d_experiment"])
+        self.assertEqual("b", content["51D_experiment"])
 
     def test_evidence_the_service_lists_is_still_sent(self):
         """
@@ -99,7 +97,7 @@ class TestAllEvidenceSent(CloudRequestEngineTestsBase):
             "query.my-own-thing": "a value",
         })
 
-        self.assertEqual("a browser", content["user-agent"])
+        self.assertEqual("a browser", content["User-Agent"])
         self.assertEqual("a value", content["my-own-thing"])
 
     def test_query_evidence_wins_whether_listed_or_not(self):
@@ -192,3 +190,55 @@ class TestAllEvidenceSent(CloudRequestEngineTestsBase):
 
         for name, value in content.items():
             self.assertNotIn("evidence_", str(value), name)
+
+    def test_the_name_sent_is_everything_after_the_first_dot(self):
+        """
+        The prefix is the text before the first dot, and removing it leaves
+        the rest of the key, dots included. So a.license is not the
+        reserved name license, and a key with no dot is sent whole.
+        """
+
+        content = self.send({
+            "query.a.license": "after the first dot",
+            "header.x.y.z": "three parts",
+            "nodot": "no prefix",
+        })
+
+        self.assertEqual("after the first dot", content["a.license"])
+        self.assertEqual("three parts", content["x.y.z"])
+        self.assertEqual("no prefix", content["nodot"])
+        self.assertNotIn("z", content)
+
+    def test_the_name_sent_keeps_the_letter_case_given(self):
+        """
+        The name is sent in the letter case of the evidence key, as .NET
+        sends it, rather than lower-cased.
+        """
+
+        content = self.send({
+            "cookie.51D_Experiment": "b",
+            "header.Sec-CH-UA-Platform": "Windows",
+        })
+
+        self.assertEqual("b", content["51D_Experiment"])
+        self.assertEqual("Windows", content["Sec-CH-UA-Platform"])
+        self.assertNotIn("51d_experiment", content)
+        self.assertNotIn("sec-ch-ua-platform", content)
+
+    def test_one_name_in_two_letter_cases_is_sent_once(self):
+        """
+        Evidence keys ignore letter case, so header.User-Agent and
+        query.user-agent name the same value, and the query value wins
+        under the precedence order. The name is sent once, spelled as the
+        winning key spells it.
+        """
+
+        content = self.send({
+            "header.User-Agent": "from the header",
+            "query.user-agent": "from the query",
+        })
+
+        self.assertEqual(
+            ["user-agent"],
+            [name for name in content if name.lower() == "user-agent"])
+        self.assertEqual("from the query", content["user-agent"])

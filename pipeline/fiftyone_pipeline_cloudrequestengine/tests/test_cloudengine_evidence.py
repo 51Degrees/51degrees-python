@@ -21,8 +21,8 @@
 # *********************************************************************
 
 """A cloud engine reads only the cloud request engine's results, so it
-accepts no evidence, and a cloud pipeline sends the service only the
-evidence the service lists and the elements the builder adds read."""
+accepts no evidence, and a cloud pipeline still sends the service every
+evidence value apart from the reserved names."""
 
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
@@ -44,10 +44,10 @@ class CloudEngineEvidenceTests(CloudRequestEngineTestsBase):
                     "server.client-ip"):
             self.assertFalse(engine.filter_evidence_key(key), key)
 
-    def test_a_cloud_pipeline_sends_only_the_evidence_the_service_lists(self):
+    def test_a_cloud_pipeline_sends_every_evidence_value(self):
         """
-        The stand-in service lists query.User-Agent alone, so of this
-        evidence only the user agent reaches it.
+        The stand-in service lists query.User-Agent alone, and no element
+        accepts the header or the cookie, yet all three reach it.
         """
         cloud = CloudRequestEngine({
             "license_key": LICENSE_KEY,
@@ -65,6 +65,6 @@ class CloudEngineEvidenceTests(CloudRequestEngineTestsBase):
         data.process()
 
         request_type, url, content = cloud.http_client.requests[-1]
-        self.assertEqual("iPhone", content["user-agent"])
-        self.assertNotIn("x-test", content)
-        self.assertNotIn("other", content)
+        self.assertEqual("a header", content["x-test"])
+        self.assertEqual("a cookie", content["other"])
+        self.assertEqual("iPhone", content["User-Agent"])
