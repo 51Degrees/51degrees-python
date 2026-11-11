@@ -394,7 +394,11 @@ class CallbackTests(UpdateServiceTestCase):
         errors = [message for level, message in self.pipeline.logs
                   if level == "error"]
         self.assertEqual(1, len(errors), self.pipeline.logs)
-        self.assertIn("callback failed", errors[0])
+        # The callback's error is any other error, logged with .NET's
+        # message for it.
+        self.assertEqual(
+            "An unhandled error occurred while checking for automatic "
+            "updates for engine 'FakeEngine'", errors[0])
 
     def testAConnectionFailureKeepsPolling(self):
         self.data_file.auto_update = True
