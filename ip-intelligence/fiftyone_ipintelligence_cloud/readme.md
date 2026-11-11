@@ -32,7 +32,7 @@ print(flowdata.ip.registeredname.value())
 - `fiftyone_ipintelligence_cloud` - the IP intelligence cloud engine and
   pipeline builder.
 - `tests` - unit tests. These mock the cloud service so no resource key is
-  required; set the `resource_key` environment variable to also run the live
+  required; set the `_51DEGREES_RESOURCE_KEY` environment variable to also run the live
   cloud integration test.
 
 ## Find out more

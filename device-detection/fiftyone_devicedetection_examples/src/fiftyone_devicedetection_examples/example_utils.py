@@ -42,17 +42,12 @@ class ExampleUtils:
     # resource key variable starts with "_51DEGREES_RESOURCE_KEY".
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    # The environment variable this repository used before the convention
-    # above was adopted. It is still read, so an existing setup keeps
-    # working, but new setups should use RESOURCE_KEY_ENV_VAR.
-    LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
-
     ENDPOINT_ENV_VAR = "cloud_endpoint"
 
     # The environment variable an on-premise example reads the path of its
     # device detection data file from, when one is given, in place of the
     # file named in its configuration.
-    DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"
+    DATA_FILE_ENV_VAR = "_51DEGREES_DD_PATH"
 
     # The data repository's device detection folder, from the root of a
     # checkout of this repository. Each file the data repository links to
@@ -166,13 +161,7 @@ class ExampleUtils:
 
     @staticmethod
     def get_resource_key():
-        key = ExampleUtils.__get_env_variable(ExampleUtils.RESOURCE_KEY_ENV_VAR)
-
-        if not key:
-            key = ExampleUtils.__get_env_variable(
-                ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR)
-
-        return key
+        return ExampleUtils.__get_env_variable(ExampleUtils.RESOURCE_KEY_ENV_VAR)
 
     @staticmethod
     def get_missing_resource_key_message():
@@ -182,9 +171,7 @@ class ExampleUtils:
         """
 
         return (f"No resource key found. Set the environment variable "
-                f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}' (the older name "
-                f"'{ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR}' is still "
-                "read). Create a resource key for free at "
+                f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. Create a resource key for free at "
                 "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=resource-key-required")
 
     @staticmethod
