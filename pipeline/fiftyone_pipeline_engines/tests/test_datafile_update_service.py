@@ -147,6 +147,38 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.run_next_check()
         self.assertEqual("version 2", data_file.data)
 
+    # The watcher's refresh takes the same route as the polling one, so it
+    # logs the attempt, uses the table's failure message and level, and
+    # reports success to the update complete callbacks.
+    def testFileSystemWatcherRefreshIsRoutedAsPollingIs(self):
+        data_file = StandInDataFile(self.path)
+        self.register_watched(data_file)
+
+        self.write("version 2")
+        self.run_next_check()
+
+        self.assertEqual("version 2", data_file.data)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+        attempts = [log for log in self.pipeline.logs
+                    if "Attempting to refresh Engine" in log[1]]
+        self.assertEqual(1, len(attempts))
+        self.assertEqual("info", attempts[0][0])
+
+    # A refresh that fails from the watcher carries the message and level of
+    # the specification's errors table, as the polling route's does.
+    def testFileSystemWatcherFailedRefreshUsesTheTableMessage(self):
+        data_file = StandInDataFile(self.path)
+        self.register_watched(data_file)
+
+        self.write("unusable")
+        self.run_next_check()
+
+        errors = [log for log in self.pipeline.logs if log[0] == "error"]
+        self.assertEqual(1, len(errors))
+        self.assertIn(
+            "An error occurred while applying a data file update to",
+            errors[0][1])
+
     # A file that is missing at a check, for example part way through being
     # replaced, is looked for again at the next check.
     def testFileSystemWatcherKeepsWatchingWhileFileIsMissing(self):
