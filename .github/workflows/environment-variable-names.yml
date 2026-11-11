@@ -21,6 +21,10 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Test the check
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/check-environment-variable-names.Tests.ps1 -CI
+
       - name: Check the names
         shell: pwsh
         run: ./ci/check-environment-variable-names.ps1
