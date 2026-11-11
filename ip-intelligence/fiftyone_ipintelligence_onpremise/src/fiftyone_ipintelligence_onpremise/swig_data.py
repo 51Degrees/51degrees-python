@@ -20,6 +20,9 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import math
+from decimal import Decimal, ROUND_HALF_UP
+
 from fiftyone_pipeline_engines.aspectdata import AspectData
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
@@ -30,6 +33,10 @@ from .constants import RESULTS_CLOSED
 # Latitude and Longitude are given to this many decimal places, as the
 # native code gives them in text and in the WKT of Areas.
 COORDINATE_DECIMAL_PLACES = 3
+
+# The step a coordinate is rounded to, worked out from the places above so
+# that the number of places is written down once.
+COORDINATE_QUANTUM = Decimal(1).scaleb(-COORDINATE_DECIMAL_PLACES)
 
 COORDINATE_PROPERTIES = ("latitude", "longitude")
 
@@ -172,10 +179,21 @@ class SwigData(AspectData):
     def round_coordinate(value):
 
         """!
-        A latitude or longitude to COORDINATE_DECIMAL_PLACES places
+        A latitude or longitude to COORDINATE_DECIMAL_PLACES places.
+
+        A value half way between two places rounds away from zero, as the
+        native code rounds it, where Python's own round() would round it to
+        the nearer even place. A value that rounds to zero from below is
+        given as zero without a sign, because the native code writes the
+        same value as text without one. A value that is not finite is given
+        as it is, having no places to round.
         """
 
-        return round(value, COORDINATE_DECIMAL_PLACES)
+        if math.isfinite(value) is False:
+            return value
+        rounded = float(Decimal(value).quantize(
+            COORDINATE_QUANTUM, rounding=ROUND_HALF_UP))
+        return 0.0 if rounded == 0 else rounded
 
     def single_value(self, value, convert=None):
 
