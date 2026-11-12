@@ -566,7 +566,7 @@ class DownloadedFileTests(UpdateServiceTestCase):
         self.service.update_data_file(self.data_file)
         self.assertEqual([], self.data_file.refreshed)
         self.assertEqual(
-            [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
         self.assertTrue(
             [message for message in self.errors()
              if message.startswith(
