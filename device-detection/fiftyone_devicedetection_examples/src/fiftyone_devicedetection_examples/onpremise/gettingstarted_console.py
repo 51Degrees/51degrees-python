@@ -174,9 +174,9 @@ def main(argv):
     # somewhere in the project space, or you may specify another file as
     # a command line parameter.
     #
-    # Note that the Lite data file is only used for illustration, and has a small
-    # number of Properties. The example shows the properties
-    # only the Enterprise data file has as needing it. Contact us for a copy
+    # Note that the Lite data file is only used for illustration, and has
+    # a small number of Properties. The example shows the properties only
+    # the Enterprise data file has as needing it. Contact us for a copy
     # of the Enterprise data file:
     # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_console.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)

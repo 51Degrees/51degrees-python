@@ -52,7 +52,8 @@
 # ```
 #
 # ## Lite Data File
-# Lite data files (free-to-use, limited capabilities, no license key required) are created roughly
+# Lite data files (free-to-use, with a small number of Properties, no
+# license key required) are created roughly
 # once a month and cannot be updated using auto-update, they may be downloaded with the
 # scripts in the [data](https://github.com/51Degrees/data) repository on GitHub.
 #
