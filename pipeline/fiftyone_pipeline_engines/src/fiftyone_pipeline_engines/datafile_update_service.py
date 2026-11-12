@@ -98,7 +98,8 @@ class DataFileUpdateService():
         # A callback that raises stops the callbacks after it, as .NET's service
         # does, and its error is logged with .NET's message for any other
         # error and the error itself after it, so that the next check still
-        # runs.
+        # runs. The error is a caller's, so it is masked as any other text
+        # that may name the update URL is.
         try:
             for method in self.on_complete_methods:
                 method(status, data_file)
@@ -422,10 +423,13 @@ class DataFileUpdateService():
 
     @staticmethod
     def _with_cause(text, cause):
+        # The cause may be a caller's error or a request's, either of which
+        # can name the update URL, so every key in it is masked here rather
+        # than at each call.
         if cause is None:
             return text
         return (text + ("" if text.endswith(".") else ".") +
-                " Error detail: " + str(cause))
+                " Error detail: " + mask_licence_keys_in_text(cause))
 
     @staticmethod
     def _engine_type(data_file):
