@@ -28,6 +28,7 @@ import random
 import threading
 import time
 import requests
+from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 # gzip decompress alternative for python 2
 from io import StringIO
 
@@ -102,6 +103,8 @@ class DataFileUpdateService():
         # Get the update url
 
         url = data_file.get_update_url()
+        # The URL carries the licence key, so only a masked copy is logged.
+        shown_url = mask_licence_keys_in_text(url)
 
         headers = {}
 
@@ -114,23 +117,28 @@ class DataFileUpdateService():
             except:
                 pass
     
-        response = requests.get(url, headers=headers)
+        try:
+            response = requests.get(url, headers=headers)
+        except requests.RequestException as e:
+            # The message of a failed request names the URL, key included.
+            raise requests.RequestException(
+                mask_licence_keys_in_text(e)) from None
 
         if response.status_code != 200:
 
             # Handle errors
 
             if response.status_code == 429:
-                self.pipeline.log("error", "Too many requests to " + url + "for engine " + data_file.flow_element.datakey)
+                self.pipeline.log("error", "Too many requests to " + shown_url + "for engine " + data_file.flow_element.datakey)
                 status = UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS
             elif response.status_code == 304:
-                self.pipeline.log("warn", "No data update available from " + url + "for engine " + data_file.flow_element.datakey)
+                self.pipeline.log("warn", "No data update available from " + shown_url + "for engine " + data_file.flow_element.datakey)
                 status = UpdateStatus.AUTO_UPDATE_NOT_NEEDED
             elif response.status_code == 403:
-                self.pipeline.log("error", "Access denied from " + url + "for engine " + data_file.flow_element.datakey)
+                self.pipeline.log("error", "Access denied from " + shown_url + "for engine " + data_file.flow_element.datakey)
                 status = UpdateStatus.AUTO_UPDATE_ERR_403_FORBIDDEN
             else:
-                self.pipeline.log("error", str(response.status_code) + url + "for engine " + data_file.flow_element.datakey)
+                self.pipeline.log("error", str(response.status_code) + shown_url + "for engine " + data_file.flow_element.datakey)
                 status = UpdateStatus.AUTO_UPDATE_HTTPS_ERR
 
             data_file.updating = False
@@ -150,7 +158,7 @@ class DataFileUpdateService():
                 hash_md5.update(data)
             
             if header_md5 != hash_md5.hexdigest():
-                self.pipeline.log("error", "MD5 doesn't match from " + url + "for engine " + data_file.flow_element.datakey)
+                self.pipeline.log("error", "MD5 doesn't match from " + shown_url + "for engine " + data_file.flow_element.datakey)
                 status = UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED
                 data_file.updating = False
                 self.__emit(status, data_file)

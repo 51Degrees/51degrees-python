@@ -12,6 +12,10 @@
                 }
             },
             {
+                "elementName": "SequenceElement",
+                "elementPath": "fiftyone_pipeline_core.sequenceelement"
+            },
+            {
                 "elementName": "JSONBundlerElement",
                 "elementPath": "fiftyone_pipeline_core.jsonbundler"
             },

@@ -1,8 +1,8 @@
 # Cloud Request Engine
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=cloud-request-engine "Data rewards the curious") **Python Pipeline Cloud Request Engine**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python Pipeline Cloud Request Engine**
 
-[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=cloud-request-engine "Developer Documentation")
+[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=cloud-request-engine "Developer Documentation")
 
 ## Introduction
 
@@ -60,7 +60,7 @@ and the rules in
 ## Pointing the engine at another host
 
 The engine calls `https://cloud.51degrees.com/api/v4/` unless told
-otherwise. Set the `FOD_CLOUD_API_URL` environment variable, or pass
+otherwise. Set the `_51DEGREES_CLOUD_ENDPOINT` environment variable, or pass
 `cloud_endpoint` in the engine settings, to the API base of another
 host including the `/api/v4/` segment. A host other than
 cloud.51degrees.com would be used to (a) use an on premise web server,
@@ -86,7 +86,7 @@ It is used by the cloud versions of the following 51Degrees engines:
 ## Find out more
 
 - [Build your own](https://51degrees.com/build-your-own?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-build-your-own)
-- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-documentation)
+- [Pipeline API documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-documentation)
 - [Pipeline API examples](https://51degrees.com/documentation/_pipeline_api__examples__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-examples)
 - [Cloud service documentation](https://51degrees.com/documentation/_services__cloud__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=find-out-more-cloud-service)
 - https://github.com/51Degrees/51degrees-python

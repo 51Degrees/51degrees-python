@@ -86,7 +86,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
         self.assertEqual(RESOURCE_KEY, content[Constants.RESOURCE_PARAMETER])
         self.assertNotIn(Constants.LICENSE_PARAMETER, content)
         self.assertNotIn(Constants.VALUES_PARAMETER, content)
-        self.assertEqual("iPhone", content["user-agent"])
+        self.assertEqual("iPhone", content["User-Agent"])
 
     def test_resource_key_with_licence_key_is_accepted(self):
         """
@@ -307,7 +307,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
         self.assertEqual(
             "device.ismobile,device.istablet",
             content[Constants.VALUES_PARAMETER])
-        self.assertEqual("iPhone", content["user-agent"])
+        self.assertEqual("iPhone", content["User-Agent"])
 
         # Each piece of evidence left out is named once, without its
         # value, as the value may be a credential.
@@ -323,11 +323,93 @@ class TestCredentials(CloudRequestEngineTestsBase):
         for message in messages:
             self.assertNotIn("another-key", message)
 
-    def test_evidence_no_element_accepts_is_not_sent(self):
+    def send_with_reserved_evidence(self, settings):
         """
-        A default pipeline keeps only the evidence one of its elements
-        accepts, so a header or cookie the service does not ask for is not
-        sent to it.
+        Process one flow data holding evidence named resource, license, licence
+        and values in mixed case under each prefix, with other evidence beside
+        it, and give back the body of the data request.
+        """
+
+        settings["http_client"] = self.mock_http()
+        engine = CloudRequestEngine(settings)
+        # The stand-in service lists query.User-Agent alone, so an element
+        # that accepts every key keeps the other evidence for the engine.
+        pipeline = PipelineBuilder().add(AcceptEveryKeyElement()) \
+            .add(engine).build()
+        data = pipeline.create_flowdata()
+        data.evidence.add("query.Resource", "evidence_resource")
+        data.evidence.add("query.LICENSE", "evidence_license")
+        data.evidence.add("query.Licence", "evidence_licence")
+        data.evidence.add("query.Values", "evidence_values")
+        data.evidence.add("header.resource", "header_resource")
+        data.evidence.add("cookie.License", "cookie_license")
+        data.evidence.add("query.other", "query_other")
+        data.evidence.add("header.other", "header_other")
+        data.evidence.add("cookie.cookie-only", "cookie_only")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            data.process()
+
+        return engine.http_client.requests[-1][2]
+
+    def assert_other_evidence_sent(self, content):
+        self.assertEqual("query_other", content["other"])
+        self.assertEqual("cookie_only", content["cookie-only"])
+        for value in content.values():
+            self.assertNotIn("evidence_", str(value))
+            self.assertNotIn("header_resource", str(value))
+            self.assertNotIn("cookie_license", str(value))
+
+    def test_evidence_never_supplies_resource_or_license(self):
+        """
+        With a Resource Key and a License Key configured, the body carries
+        those two and none of the evidence named resource, license or
+        values, in any case and under any prefix.
+        """
+
+        content = self.send_with_reserved_evidence({
+            "resource_key": RESOURCE_KEY,
+            "license_key": LICENSE_KEY,
+        })
+
+        self.assertEqual(RESOURCE_KEY, content[Constants.RESOURCE_PARAMETER])
+        self.assertEqual(LICENSE_KEY, content[Constants.LICENSE_PARAMETER])
+        self.assertNotIn(Constants.VALUES_PARAMETER, content)
+        self.assertEqual(
+            [], [name for name in content if name.lower() in (
+                "resource", "license", "licence", "values") and name not in (
+                Constants.RESOURCE_PARAMETER, Constants.LICENSE_PARAMETER)])
+        self.assert_other_evidence_sent(content)
+
+    def test_evidence_never_supplies_values(self):
+        """
+        With a License Key and Requested Properties configured, the body
+        carries the configured list as values and the License Key as
+        license, and no resource, whatever the evidence holds.
+        """
+
+        content = self.send_with_reserved_evidence({
+            "license_key": LICENSE_KEY,
+            "requested_properties": REQUESTED,
+        })
+
+        self.assertEqual(LICENSE_KEY, content[Constants.LICENSE_PARAMETER])
+        self.assertEqual(
+            "device.ismobile,device.istablet",
+            content[Constants.VALUES_PARAMETER])
+        self.assertNotIn(Constants.RESOURCE_PARAMETER, content)
+        self.assertEqual(
+            [], [name for name in content if name.lower() in (
+                "resource", "license", "licence", "values") and name not in (
+                Constants.LICENSE_PARAMETER, Constants.VALUES_PARAMETER)])
+        self.assert_other_evidence_sent(content)
+
+    def test_evidence_no_element_accepts_is_sent(self):
+        """
+        The engine sends every evidence value in the flow data apart from
+        the reserved names, so a header and a cookie that no element in a
+        default pipeline accepts are sent as well.
         """
         engine = CloudRequestEngine({
             "license_key": LICENSE_KEY,
@@ -343,9 +425,9 @@ class TestCredentials(CloudRequestEngineTestsBase):
         data.process()
 
         request_type, url, content = engine.http_client.requests[-1]
-        self.assertEqual("iPhone", content["user-agent"])
-        self.assertNotIn("x-test", content)
-        self.assertNotIn("other", content)
+        self.assertEqual("a header", content["x-test"])
+        self.assertEqual("a cookie", content["other"])
+        self.assertEqual("iPhone", content["User-Agent"])
 
     def test_properties_added_later_are_normalised_and_sent(self):
         """
