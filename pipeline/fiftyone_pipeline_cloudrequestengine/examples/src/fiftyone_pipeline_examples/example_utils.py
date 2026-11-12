@@ -26,6 +26,7 @@ environment and for turning property values into text.
 """
 
 import os
+import sys
 
 
 class ExampleUtils:
@@ -35,38 +36,89 @@ class ExampleUtils:
     # "_51DEGREES_RESOURCE_KEY".
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
+    # Deprecated. Use RESOURCE_KEY_ENV_VAR. The name the resource key
+    # variable had before, read when RESOURCE_KEY_ENV_VAR is not set.
+    LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
+
     # The environment variable the examples read a licence key from, to use
     # in place of a resource key.
     LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
 
+    # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
+    # variable had before, read when LICENSE_KEY_ENV_VAR is not set.
+    LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
+
     # The environment variable naming a cloud service other than the public
     # one, for example one hosted privately. The value includes the api/v4
     # path, as in https://cloud.51degrees.com/api/v4/.
-    ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
+    CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
+
+    # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
+    # before, read when CLOUD_ENDPOINT_ENV_VAR is not set.
+    ENDPOINT_ENV_VAR = "cloud_endpoint"
 
     # The environment variable holding the origin to send with each request
     # to the cloud service, for a resource key limited to particular
     # domains, which only answers a request whose origin is one of them.
-    ORIGIN_ENV_VAR = "_51DEGREES_CLOUD_REQUEST_ORIGIN"
+    CLOUD_REQUEST_ORIGIN_ENV_VAR = "_51DEGREES_CLOUD_REQUEST_ORIGIN"
+
+    # Deprecated. Use CLOUD_REQUEST_ORIGIN_ENV_VAR. The name that variable
+    # had before, read when CLOUD_REQUEST_ORIGIN_ENV_VAR is not set.
+    ORIGIN_ENV_VAR = "cloud_request_origin"
 
     # The text shown for a value the results do not hold.
     UNKNOWN = "Unknown"
 
     @staticmethod
     def get_resource_key():
-        return os.environ.get(ExampleUtils.RESOURCE_KEY_ENV_VAR) or ""
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.RESOURCE_KEY_ENV_VAR,
+            ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR)
 
     @staticmethod
     def get_license_key():
-        return os.environ.get(ExampleUtils.LICENSE_KEY_ENV_VAR) or ""
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.LICENSE_KEY_ENV_VAR,
+            ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR)
 
     @staticmethod
     def get_cloud_endpoint():
-        return os.environ.get(ExampleUtils.ENDPOINT_ENV_VAR) or ""
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
+            ExampleUtils.ENDPOINT_ENV_VAR)
 
     @staticmethod
     def get_cloud_request_origin():
-        return os.environ.get(ExampleUtils.ORIGIN_ENV_VAR) or ""
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.CLOUD_REQUEST_ORIGIN_ENV_VAR,
+            ExampleUtils.ORIGIN_ENV_VAR)
+
+    # The old names already reported as deprecated, so each is reported
+    # once.
+    __reported_old_names = set()
+
+    @staticmethod
+    def __get_env_variable(name, old_name):
+        """!
+        The value of the environment variable name, or an empty string.
+        When name is unset or empty the name the variable had before is
+        read, and using it prints once that the old name is deprecated.
+        """
+
+        value = os.environ.get(name)
+        if value:
+            return value
+        value = os.environ.get(old_name)
+        if not value:
+            return ""
+        if old_name not in ExampleUtils.__reported_old_names:
+            ExampleUtils.__reported_old_names.add(old_name)
+            print(
+                f"The {old_name} environment variable is deprecated and {name} "
+                f"replaces it. The value was read from {old_name} because {name} "
+                f"is not set, so set {name} to the same value.",
+                file=sys.stderr)
+        return value
 
     @staticmethod
     def name_values(section, property_names):
