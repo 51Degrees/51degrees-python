@@ -51,6 +51,11 @@ from .callback_url import callback_url, is_scheme
 # reference for this behaviour.
 EXCLUDED_PARAMETERS = ["query.session-id", "query.sequence"]
 
+# The data key of the SequenceElement, which is the element that produces the
+# session id and the sequence. A pipeline that does not hold it renders the
+# defaults below.
+SEQUENCE_ELEMENT_DATA_KEY = "sequence"
+
 # The object name is written into the script as the name of a global
 # variable, a session storage key and a property name, all without any
 # escaping. A name that is not a plain JavaScript identifier would therefore
@@ -228,14 +233,17 @@ def url_encode(value):
 class JavaScriptBuilderEvidenceKeyFilter(EvidenceKeyFilter):
 
     # The query string, which the script sends back to the callback, and the
-    # host and protocol the callback URL is built from.
+    # host and protocol the callback URL is built from. Evidence keys ignore
+    # letter case, so each is matched in lower case.
     def filter_evidence_key(self, key):
-        if key.startswith("query."):
+        folded = str(key).lower()
+
+        if folded.startswith("query."):
             return True
 
-        if key == "header.host" or key == "header.protocol":
+        if folded == "header.host" or folded == "header.protocol":
             return True
-            
+
         return False
 
 
@@ -413,19 +421,28 @@ class JavascriptBuilderElement(FlowElement):
                     + self.settings["_objName"] + "' is used.")
 
         query_params = self.get_evidence_key_filter().filter_evidence(flowdata.evidence.get_all())
+        # Evidence keys ignore letter case, and get_all gives each key in
+        # the letters it was added with, so a key is matched here in lower
+        # case and keeps those letters where it is sent on.
+        folded = {str(key).lower(): key for key in query_params}
+
+        def query_param(name):
+            key = folded.get(name)
+            return None if key is None else query_params[key]
+
         # Both are written into the script, so each always has a safe value.
         # The session id is written inside quotes and is empty when absent or
         # not safe, and the sequence is written as bare code, so it is always
-        # a positive number. With no Sequence Element the sequence is 1 and
-        # the session id empty, whatever the evidence holds.
-        if "sequence" in flowdata.pipeline.flow_elements_list:
+        # a positive number. The Sequence Element writes both values, so
+        # with no Sequence Element in the pipeline the sequence is 1 and the
+        # session id empty, whatever the request asked for.
+        if SEQUENCE_ELEMENT_DATA_KEY in flowdata.pipeline.flow_elements_list:
             variables["_sessionId"] = get_session_id(
-                query_params.get("query.session-id"))
-            variables["_sequence"] = get_sequence(
-                query_params.get("query.sequence"))
+                query_param("query.session-id"))
+            variables["_sequence"] = get_sequence(query_param("query.sequence"))
         else:
             variables["_sessionId"] = ""
-            variables["_sequence"] = 1
+            variables["_sequence"] = DEFAULT_SEQUENCE
 
         # The session id and the sequence are left out, because the script
         # appends both to its own request after it has taken the record of
@@ -442,8 +459,8 @@ class JavascriptBuilderElement(FlowElement):
             (url_encode(param.split(".", 1)[1]),
              url_encode(query_params[param]))
             for param in query_params.keys()
-            if param.startswith("query.")
-            and param not in EXCLUDED_PARAMETERS
+            if str(param).lower().startswith("query.")
+            and str(param).lower() not in EXCLUDED_PARAMETERS
         ])
         # Written without spaces, as the .NET builder writes it.
         variables["_parameters"] = json.dumps(

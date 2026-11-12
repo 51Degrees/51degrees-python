@@ -1,8 +1,8 @@
 # 51Degrees Device Detection Engines - Examples
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-readme.md&utm_term=51degrees-device-detection-engines-examples "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **v4 Device Detection Python**
 
-[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-readme.md&utm_term=51degrees-device-detection-engines-examples "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-readme.md&utm_term=51degrees-device-detection-engines-examples "View all available properties and values")
+[Developer Documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-readme.md&utm_term=51degrees-device-detection-engines-examples "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-readme.md&utm_term=51degrees-device-detection-engines-examples "View all available properties and values")
 
 ## Introduction
 
@@ -43,19 +43,18 @@ the Enterprise data file.
 
 The cloud tests need a valid 51Degrees resource key (see above), and fail
 without one. They read it from the environment variable
-`_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`, then
-`resource_key`.
+`_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`.
 
-For example, use following command to set resource_key on Linux:
-`export resource_key=MY-RESOURCE-KEY`
+For example, use following command to set the resource key on Linux:
+`export _51DEGREES_RESOURCE_KEY=MY-RESOURCE-KEY`
 
 On Microsoft Windows use:
-`$env:resource_key = "MY-RESOURCE-KEY"`
+`$env:_51DEGREES_RESOURCE_KEY = "MY-RESOURCE-KEY"`
 
 As the performance and offline processing tests take longer than the others, there is another environment variable flag to run those:
 
 Linux:
-`export run_performance_tests=true`
+`export _51DEGREES_RUN_PERFORMANCE_TESTS=true`
 
 Microsoft Windows:
-`$env:run_performance_tests = "true"`
+`$env:_51DEGREES_RUN_PERFORMANCE_TESTS = "true"`

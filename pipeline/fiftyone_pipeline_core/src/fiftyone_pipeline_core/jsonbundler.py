@@ -108,9 +108,8 @@ class JSONBundlerElement(FlowElement):
         sequence = flowdata.evidence.get("query.sequence")
         if isinstance(sequence, bool) or not isinstance(sequence, int):
             raise Exception(
-                "The JSON Builder needs the sequence number that a Sequence "
-                "Element produces. A Sequence Element needs to be placed "
-                "before it in the Pipeline.")
+                "The JSON Builder needs a sequence number. Place a Sequence "
+                "Element before the JSON Builder in the Pipeline.")
 
         # Get every property on every FlowElement
         # Storing JavaScript properties in an extra section

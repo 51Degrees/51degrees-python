@@ -35,6 +35,9 @@ class Evidence:
         @param flowdata: Parent FlowData
         """
         self.evidence = {}
+        # Each key in lower case to the key as first added, because keys
+        # ignore letter case.
+        self.keys = {}
         self.evidence_filtered = False
         self.flowdata = flowdata
         self.unaccepted = {}
@@ -50,6 +53,11 @@ class Evidence:
         @param value: a piece of evidence
         """
 
+        folded = str(key).lower()
+        if folded in self.keys:
+            key = self.keys[folded]
+        else:
+            self.keys[folded] = key
         self.evidence[key] = value
 
     def add_from_dict(self, evidence_dictionary):
@@ -77,9 +85,10 @@ class Evidence:
         @return: A piece of evidence
         """
 
-        if key in self.evidence:
+        found = self.keys.get(str(key).lower())
+        if found is not None and found in self.evidence:
 
-            return self.evidence[key]
+            return self.evidence[found]
 
         else:
 
@@ -127,5 +136,6 @@ class Evidence:
                 in self.flowdata.pipeline.flow_elements
             ]):
                 self.unaccepted[key] = self.evidence.pop(key)
+                del self.keys[str(key).lower()]
 
         self.evidence_filtered = True

@@ -30,12 +30,12 @@ class TestConstants:
     IPV4_ADDRESS = "185.28.167.78"
     IPV6_ADDRESS = "2001:4860:4860::8888"
 
-    # The data file can be supplied via the IPINTELLIGENCEDATAFILE
+    # The data file can be supplied via the _51DEGREES_IPI_PATH
     # environment variable. By default the Lite file downloaded to the
     # repository's assets folder by ci/fetch-assets.ps1 is used.
     @staticmethod
     def get_data_file_path():
-        env = os.environ.get("IPINTELLIGENCEDATAFILE")
+        env = os.environ.get("_51DEGREES_IPI_PATH")
         if env:
             return env
         return os.path.join(
