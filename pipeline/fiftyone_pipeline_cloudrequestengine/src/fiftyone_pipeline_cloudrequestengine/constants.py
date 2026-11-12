@@ -115,18 +115,23 @@ class Constants:
         "properties it wants. Set requested_properties to the fully "
         "qualified names wanted, for example "
         "['device.ismobile', 'device.iscrawler'].")
-    MESSAGE_PROPERTIES_IGNORED_WITH_RESOURCE_KEY = (
-        "CloudRequestEngine has requested_properties and a resource key. "
-        "The cloud service ignores the list whenever a resource key is "
-        "present and answers with everything the resource key carries, so "
-        "the caller would believe the response had narrowed when it had "
-        "not. Either leave out requested_properties, or authenticate with "
-        "a licence key alone.")
 
-    # Logged once when a request named properties and the response left
-    # some of them out without saying so.
+    # Logged once when a request with a licence key named properties and
+    # the response left some of them out without saying so. Both the
+    # licence behind a resource key and a licence key beside it decide
+    # what comes back, so the message names the keys rather than one key.
     MESSAGE_PROPERTIES_NOT_COVERED = (
         "The cloud service did not return the requested properties {} in "
-        "its answer. They are not covered by the licence key in use, so "
-        "they will be missing from every result. The other requested "
+        "its answer. They are not covered by the keys in use, so they "
+        "will be missing from every result. The other requested "
         "properties came back and are usable.")
+    # Logged once when a request with a resource key and no licence key
+    # named properties and the response left some of them out. Without a
+    # licence key a property no licence grants comes back as null with a
+    # reason, so a name left out is not a property.
+    MESSAGE_PROPERTIES_NOT_KNOWN = (
+        "The cloud service did not return the requested properties {} in "
+        "its answer. Every property is answered, with a reason when it has "
+        "no value, so these names are not properties. Check the spelling "
+        "of each one. The other requested properties came back and are "
+        "usable.")
