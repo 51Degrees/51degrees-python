@@ -61,10 +61,10 @@ makes two, verify-full from the page and redeem from this server, so
 two uses every time. The creation call is a further use. The public
 key list the offline check needs is fetched once and cached for a day.
 
-Environment variables. ``_51DEGREES_RESOURCE_KEY`` (or the older
-``RESOURCE_KEY``) is required. ``_51DEGREES_LICENSE_KEY`` (or
-``LICENSE_KEY``) is optional, and the comment in ``run`` says why.
-``FOD_CLOUD_API_URL`` is the cloud API base including the ``/api/v4/``
+Environment variables. ``_51DEGREES_RESOURCE_KEY`` is required.
+``_51DEGREES_LICENSE_KEY`` is optional, and the comment in ``run`` says
+why.
+``_51DEGREES_CLOUD_ENDPOINT`` is the cloud API base including the ``/api/v4/``
 segment, defaulting to ``https://cloud.51degrees.com/api/v4/``, and is
 the same variable the cloud request engine and the ``DidClient`` honour.
 ``PORT`` is the port to listen on, defaulting to 5100.
@@ -102,18 +102,14 @@ except ImportError:
 DEFAULT_API = "https://cloud.51degrees.com/api/v4/"
 
 
-def env(*names):
-    """The first of the named environment variables that is set and not
-    empty, so the aligned name is tried before the older one."""
-    for name in names:
-        value = os.environ.get(name)
-        if value:
-            return value
-    return None
+def env(name):
+    """The named environment variable when it is set and not empty,
+    otherwise None."""
+    return os.environ.get(name) or None
 
 
-RESOURCE = env("_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY")
-LICENCE = env("_51DEGREES_LICENSE_KEY", "LICENSE_KEY") or ""
+RESOURCE = env("_51DEGREES_RESOURCE_KEY")
+LICENCE = env("_51DEGREES_LICENSE_KEY") or ""
 # The cloud API base, normalised to end in exactly one slash so that
 # every URL is the base followed by its path. The page receives the same
 # value through its __API__ placeholder and builds its two cloud calls
@@ -123,7 +119,7 @@ LICENCE = env("_51DEGREES_LICENSE_KEY", "LICENSE_KEY") or ""
 # 51Degrees cloud for performance reasons. That is the private hosting
 # option of the cloud service, and both run the same service, so this
 # demo works unchanged against either.
-API = (env("FOD_CLOUD_API_URL") or DEFAULT_API).rstrip("/") + "/"
+API = (env("_51DEGREES_CLOUD_ENDPOINT") or DEFAULT_API).rstrip("/") + "/"
 PORT = int(os.environ.get("PORT", "5100"))
 
 
@@ -281,8 +277,8 @@ def _is_json(text):
 
 def run():
     if not RESOURCE:
-        sys.exit("Set _51DEGREES_RESOURCE_KEY (or RESOURCE_KEY) to the "
-                 "resource key of the page.")
+        sys.exit("Set _51DEGREES_RESOURCE_KEY to the resource key of the "
+                 "page.")
     if not LICENCE:
         # Only an account that holds licence keys needs one to redeem,
         # because the licence key is what keeps redemption to the acting

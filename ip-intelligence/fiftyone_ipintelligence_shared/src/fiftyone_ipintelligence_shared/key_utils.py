@@ -24,8 +24,7 @@ import os
 
 
 class KeyUtils:
-	# Obtain a key either from environment variable or from a property.
-	# Try resource key as env var, then as upper case env var, the system property
+	# A key from the environment variable of exactly that name.
 	@staticmethod
 	def get_named_key(key_name):
-		return os.environ.get(key_name) or os.environ.get(key_name.upper())
+		return os.environ.get(key_name)

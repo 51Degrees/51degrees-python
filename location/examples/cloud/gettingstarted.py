@@ -38,10 +38,10 @@ from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
 
 # You need to create a resource key at https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-gettingstarted.py&utm_term=top
 # and paste it into the code, replacing !!YOUR_RESOURCE_KEY!! below.
-# Alternatively, add a resource_key environment variable
+# Alternatively, add a _51DEGREES_RESOURCE_KEY environment variable
 import os
-if "resource_key" in os.environ:
-    resource_key = os.environ["resource_key"]
+if "_51DEGREES_RESOURCE_KEY" in os.environ:
+    resource_key = os.environ["_51DEGREES_RESOURCE_KEY"]
 else:
     resource_key = "!!YOUR_RESOURCE_KEY!!"
 
