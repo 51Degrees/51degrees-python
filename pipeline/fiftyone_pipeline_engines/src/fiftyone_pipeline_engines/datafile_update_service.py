@@ -88,7 +88,8 @@ class DataFileUpdateService():
         # A callback that raises stops the callbacks after it, as .NET's service
         # does, and its error is logged with .NET's message for any other
         # error and the error itself after it, so that the next check still
-        # runs.
+        # runs. The error is a caller's, so it is masked as any other text
+        # that may name the update URL is.
         try:
             for method in self.on_complete_methods:
                 method(status, data_file)
@@ -97,7 +98,7 @@ class DataFileUpdateService():
                 "error",
                 "An unhandled error occurred while checking for automatic "
                 "updates for engine '" + self._engine_type(data_file) +
-                "'. Error detail: " + str(e))
+                "'. Error detail: " + mask_licence_keys_in_text(e))
 
     def update_data_file(self, data_file):
 
