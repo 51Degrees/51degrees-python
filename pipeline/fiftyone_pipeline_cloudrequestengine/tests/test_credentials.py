@@ -86,7 +86,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
         self.assertEqual(RESOURCE_KEY, content[Constants.RESOURCE_PARAMETER])
         self.assertNotIn(Constants.LICENSE_PARAMETER, content)
         self.assertNotIn(Constants.VALUES_PARAMETER, content)
-        self.assertEqual("iPhone", content["user-agent"])
+        self.assertEqual("iPhone", content["User-Agent"])
 
     def test_resource_key_with_licence_key_is_accepted(self):
         """
@@ -291,7 +291,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
         self.assertEqual(
             "device.ismobile,device.istablet",
             content[Constants.VALUES_PARAMETER])
-        self.assertEqual("iPhone", content["user-agent"])
+        self.assertEqual("iPhone", content["User-Agent"])
 
         # Each piece of evidence left out is named once, without its
         # value, as the value may be a credential.
@@ -389,11 +389,11 @@ class TestCredentials(CloudRequestEngineTestsBase):
                 Constants.LICENSE_PARAMETER, Constants.VALUES_PARAMETER)])
         self.assert_other_evidence_sent(content)
 
-    def test_evidence_no_element_accepts_is_not_sent(self):
+    def test_evidence_no_element_accepts_is_sent(self):
         """
-        A default pipeline keeps only the evidence one of its elements
-        accepts, so a header or cookie the service does not ask for is not
-        sent to it.
+        The engine sends every evidence value in the flow data apart from
+        the reserved names, so a header and a cookie that no element in a
+        default pipeline accepts are sent as well.
         """
         engine = CloudRequestEngine({
             "license_key": LICENSE_KEY,
@@ -409,9 +409,9 @@ class TestCredentials(CloudRequestEngineTestsBase):
         data.process()
 
         request_type, url, content = engine.http_client.requests[-1]
-        self.assertEqual("iPhone", content["user-agent"])
-        self.assertNotIn("x-test", content)
-        self.assertNotIn("other", content)
+        self.assertEqual("a header", content["x-test"])
+        self.assertEqual("a cookie", content["other"])
+        self.assertEqual("iPhone", content["User-Agent"])
 
     def test_properties_added_later_are_normalised_and_checked(self):
         """

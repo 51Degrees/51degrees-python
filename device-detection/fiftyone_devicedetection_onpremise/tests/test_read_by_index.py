@@ -23,7 +23,8 @@
 """An engine built with a list of property names reads each one by its
 index in that list, with the native engine and the Lite data file. Also
 prints how long a read by name and a read by index take. An engine built
-with no names keeps reading by name until the native change lands."""
+with no names takes the names the native code gives after the first load as
+its list, and reads by index too."""
 
 import time
 import unittest
@@ -39,6 +40,8 @@ mobile_ua = ("Mozilla/5.0 (iPhone; CPU iPhone OS 7_1 like Mac OS X) "
              "/11D167 Safari/9537.53")
 # Reads timed for the figures in the warnings.
 TIMED_READS = 20000
+# Builds of the index table timed for the figures in the warnings.
+TIMED_TABLE_BUILDS = 200
 
 
 def shown(value):
@@ -56,6 +59,15 @@ def process(engine):
     flowdata.evidence.add("header.user-agent", mobile_ua)
     flowdata.process()
     return pipeline, flowdata
+
+
+def first_places(names):
+    """Each name in lower case against its first place in the list, which
+    is the index the native code gives."""
+    indexes = {}
+    for index, name in enumerate(names):
+        indexes.setdefault(name.lower(), index)
+    return indexes
 
 
 def data_set_names(engine):
@@ -80,18 +92,94 @@ class ReadByIndexTests(unittest.TestCase):
         self.addCleanup(flowdata.close)
         return data_set_names(engine), flowdata
 
-    def test_an_engine_with_no_names_keeps_reading_by_name(self):
-        """An engine built with no names has an empty table, so nothing
-        about it changes until the native change lands."""
+    def no_names_engine(self):
         engine = DeviceDetectionOnPremise(
             data_file_path=data_file, licence_keys="", auto_update=False)
         pipeline, flowdata = process(engine)
         self.addCleanup(pipeline.close)
         self.addCleanup(flowdata.close)
-        self.assertEqual([], engine.build_property_names)
-        self.assertEqual({}, engine.property_indexes)
-        # Reading still works, by name, exactly as before.
+        return engine, pipeline, flowdata
+
+    def test_an_engine_with_no_names_reads_by_index(self):
+        """An engine built with no names takes the names the native code
+        gives after the first load as its list, so its table holds every
+        one of them and each index names its property."""
+        engine, _, flowdata = self.no_names_engine()
+        required = list(engine.engine.getRequiredProperties())
+        self.assertIn("IsMobile", required)
+        self.assertEqual(first_places(required), engine.property_indexes)
+        results = flowdata.device.swig_results
+        for name, index in engine.property_indexes.items():
+            self.assertEqual(name, results.getPropertyName(index).lower())
+        # Reading through the table gives what an engine built with the
+        # same names gives.
+        named = DeviceDetectionOnPremise(
+            data_file_path=data_file, licence_keys="", auto_update=False,
+            restricted_properties=list(required))
+        second, named_data = process(named)
+        self.addCleanup(second.close)
+        self.addCleanup(named_data.close)
+        for name in ("ismobile", "browsername", "platformname"):
+            self.assertEqual(
+                shown(named_data.device.get(name)),
+                shown(flowdata.device.get(name)), name)
         self.assertTrue(flowdata.device.ismobile.value())
+
+    def test_a_reload_keeps_the_table_of_an_engine_with_no_names(self):
+        """A reload leaves an engine built with no names with its table,
+        and each index still names the same property."""
+        engine, pipeline, _ = self.no_names_engine()
+        required = list(engine.engine.getRequiredProperties())
+        table = dict(engine.property_indexes)
+        self.assertEqual(first_places(required), table)
+        engine.engine.refreshData()
+        self.assertEqual(required, list(engine.engine.getRequiredProperties()))
+        self.assertEqual(table, engine.property_indexes)
+        flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
+        flowdata.evidence.add("header.user-agent", mobile_ua)
+        flowdata.process()
+        results = flowdata.device.swig_results
+        for name, index in table.items():
+            self.assertEqual(name, results.getPropertyName(index).lower())
+        self.assertTrue(flowdata.device.ismobile.value())
+
+    def test_an_engine_with_no_names_times_each_read(self):
+        """With no names, a read by name, a read by index and the typed
+        read give the same value, with the time each read takes and the
+        time to build the index table, for the figures."""
+        engine, _, flowdata = self.no_names_engine()
+        results = flowdata.device.swig_results
+        index = list(engine.engine.getRequiredProperties()).index("IsMobile")
+        self.assertEqual(
+            results.getValueAsBool("IsMobile").getValue(),
+            results.getValueAsBool(index).getValue())
+        self.assertEqual(
+            results.getValueAsBool("IsMobile").getValue(),
+            flowdata.device.ismobile.value())
+
+        start = time.perf_counter()
+        for _ in range(TIMED_READS):
+            results.getValueAsBool("IsMobile")
+        by_name = time.perf_counter() - start
+        start = time.perf_counter()
+        for _ in range(TIMED_READS):
+            results.getValueAsBool(index)
+        by_index = time.perf_counter() - start
+        start = time.perf_counter()
+        for _ in range(TIMED_READS):
+            flowdata.device.get("ismobile")
+        typed = time.perf_counter() - start
+        start = time.perf_counter()
+        for _ in range(TIMED_TABLE_BUILDS):
+            engine.read_property_indexes()
+        table = time.perf_counter() - start
+        warnings.warn(
+            f"No names, IsMobile read {TIMED_READS} times, native by name "
+            f"{by_name * 1e9 / TIMED_READS:.0f} ns a read, native by index "
+            f"{by_index * 1e9 / TIMED_READS:.0f} ns a read, typed read "
+            f"{typed * 1e9 / TIMED_READS:.0f} ns a read, index table "
+            f"{table * 1e9 / TIMED_TABLE_BUILDS:.0f} ns a build")
 
     def test_the_table_follows_the_order_the_names_were_given_in(self):
         names, _ = self.names_from_the_data_set()

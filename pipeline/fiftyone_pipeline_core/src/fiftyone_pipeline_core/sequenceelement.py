@@ -29,12 +29,15 @@ import uuid
 class SequenceElementEvidenceKeyFilter(EvidenceKeyFilter):
 
     # The session id and the sequence. The result changes as the sequence
-    # grows, so they are part of the ETag.
+    # grows, so they are part of the ETag. Evidence keys ignore letter case,
+    # so each is matched in lower case.
     def filter_evidence_key(self, key):
-    
-        if (key == "query.sequence" or key == "query.session-id"):
+
+        folded = str(key).lower()
+
+        if (folded == "query.sequence" or folded == "query.session-id"):
             return True
-            
+
         return False
 
 

@@ -29,11 +29,11 @@ from .test_helper import *
 location_LAT = '51.4578261';
 location_LON = '-0.975922996290084';
 
-if "resource_key" in os.environ:
-    resource_key = os.environ["resource_key"]
+if "_51DEGREES_RESOURCE_KEY" in os.environ:
+    resource_key = os.environ["_51DEGREES_RESOURCE_KEY"]
 else:
     raise Exception("To run the cloud tests, please set a valid 51Degrees "
-                    "cloud resource key as the resource_key environment variable.")
+                    "cloud resource key as the _51DEGREES_RESOURCE_KEY environment variable.")
 
 # Create a simple pipeline to access the engine with and process it with flow data
 pipeline = LocationPipelineBuilder(resource_key = resource_key, location_provider =  "fiftyonedegrees").build()

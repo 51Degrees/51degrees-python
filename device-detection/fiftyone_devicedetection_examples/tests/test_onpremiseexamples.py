@@ -64,7 +64,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
     def test_onpremise_offline_processing(self):
         # Only run if environment variable set
-        if "run_performance_tests" in os.environ:
+        if "_51DEGREES_RUN_PERFORMANCE_TESTS" in os.environ:
             example = OfflineProcessing()
             with open(self.evidence_file, "r") as input:
                 with open("./offlineprocessing-output.yml", "w") as output:
@@ -88,5 +88,5 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
     def test_onpremise_performance(self):
         # Only run if environment variable set
-        if "run_performance_tests" in os.environ:
+        if "_51DEGREES_RUN_PERFORMANCE_TESTS" in os.environ:
             import fiftyone_devicedetection_examples.onpremise.performance

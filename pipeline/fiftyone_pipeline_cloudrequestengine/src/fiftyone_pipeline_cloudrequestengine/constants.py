@@ -22,7 +22,7 @@
  
 class Constants:
     # Environment variable to set cloud end point
-    FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"
+    CLOUD_ENDPOINT = "_51DEGREES_CLOUD_ENDPOINT"
     # Default cloud end point
     BASE_URL_DEFAULT = "https://cloud.51degrees.com/api/v4/"
 	
@@ -52,6 +52,11 @@ class Constants:
     # query string or is passed into the pipeline for off-line 
     # processing.
     EVIDENCE_QUERY_PREFIX = "query"
+
+    # The prefixes after query, header and cookie, highest precedence
+    # first, as evidence.md lists them. Any other prefix ranks after these,
+    # alphabetically.
+    OTHER_PREFIX_PRECEDENCE = ("server", "fiftyone", "location")
 
     # other evidence constant
     EVIDENCE_OTHER = "other"

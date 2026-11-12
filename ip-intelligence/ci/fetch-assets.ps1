@@ -45,5 +45,5 @@ if ($LASTEXITCODE -ne 0) {
 # If the Enterprise file was downloaded, prefer it for tests by exposing
 # it through the environment variable used by the test suites.
 if ($IpIntelligenceUrl) {
-    Write-Output "IPINTELLIGENCEDATAFILE=$assetsDir/51Degrees-EnterpriseIpiV41.ipi" | Out-File -Append -FilePath $env:GITHUB_ENV -ErrorAction SilentlyContinue
+    Write-Output "_51DEGREES_IPI_PATH=$assetsDir/51Degrees-EnterpriseIpiV41.ipi" | Out-File -Append -FilePath $env:GITHUB_ENV -ErrorAction SilentlyContinue
 }
