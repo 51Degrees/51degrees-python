@@ -77,6 +77,22 @@ class HttpDataFile:
         self.refreshed.append(self.data)
 
 
+class FileDataFile(HttpDataFile):
+    """Stands in for a data file kept on disk, whose engine reads the file
+    rather than the data held in memory, as the on-premise engines do."""
+
+    def __init__(self, path):
+        super(FileDataFile, self).__init__(path)
+        self.download = True
+
+    def refresh(self):
+        if self.refresh_error:
+            raise self.refresh_error
+        with open(self.path, "rb") as file:
+            self.data = file.read()
+        self.refreshed.append(self.data)
+
+
 def response(status, content=b"new"):
     reply = mock.Mock()
     reply.status_code = status
@@ -233,33 +249,36 @@ class UpdateFromMemoryTests(UpdateServiceTestCase):
         path = os.path.join(folder, "data.dat")
         with open(path, "wb") as file:
             file.write(b"old")
-        self.data_file = HttpDataFile(path)
-        self.data_file.download = True
+        self.data_file = FileDataFile(path)
         status = self.service.update_from_memory(self.data_file, b"fresh")
         self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, status)
         with open(path, "rb") as file:
             self.assertEqual(b"fresh", file.read())
-        self.assertEqual(1, len(self.data_file.refreshed))
+        self.assertEqual([b"fresh"], self.data_file.refreshed)
         self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
 
-    # A write that fails whilst updating from memory is a warning, and the
-    # Engine is still refreshed with the new data, as .NET does.
-    def testFailedWriteIsAWarningAndTheEngineIsStillRefreshed(self):
+    # The engine of a data file kept on disk reads that file, so a write
+    # that failed leaves it with the data it had. The update ends with the
+    # failure rather than reporting a success the engine did not have.
+    def testAFailedWriteFromMemoryEndsTheUpdate(self):
         folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
         path = os.path.join(folder, "missing", "data.dat")
-        self.data_file = HttpDataFile(path)
-        self.data_file.download = True
+        self.data_file = FileDataFile(path)
         status = self.service.update_from_memory(self.data_file, b"fresh")
-        self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, status)
-        self.assertEqual([b"fresh"], self.data_file.refreshed)
-        self.assertEqual([], [message for level, message
-                              in self.pipeline.logs if level == "error"])
-        self.assertIn(
-            ("warning",
-             "An error occurred when writing to '" + path +
-             "'. The engine will be updated to use the new data but the "
-             "file on disk will still contain old data."),
+        self.assertEqual(
+            UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME, status)
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
+        self.assertEqual(
+            [], [message for level, message
+                 in self.pipeline.logs if level == "warning"])
+        self.assertTrue(
+            [message for level, message in self.pipeline.logs
+             if level == "error" and message.startswith(
+                 CHECK_ERROR + "An error occurred when copying a data file "
+                 "to replace the existing one at '" + path + "'.")],
             self.pipeline.logs)
 
     def testUnregisteredDataFileIsLeftAlone(self):
@@ -477,9 +496,71 @@ class FileReplacementTests(UpdateServiceTestCase):
             self.pipeline.logs)
 
 
+# A download is written to the data file's path and the engine then reads
+# that file, so a write that failed leaves the engine with the data it had
+# and the update ends there, as it does in .NET and 51degrees-node.
+class DownloadedFileTests(UpdateServiceTestCase):
+
+    def setUp(self):
+        super(DownloadedFileTests, self).setUp()
+        self.folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.folder, ignore_errors=True)
+        self.path = os.path.join(self.folder, "data.dat")
+        with open(self.path, "wb") as file:
+            file.write(b"old")
+        self.data_file = FileDataFile(self.path)
+
+    def errors(self):
+        return [message for level, message in self.pipeline.logs
+                if level == "error"]
+
+    def testADownloadedFileIsWrittenAndReadBackByTheEngine(self):
+        self.get(response(200, b"new"))
+        self.service.update_data_file(self.data_file)
+        with open(self.path, "rb") as file:
+            self.assertEqual(b"new", file.read())
+        self.assertEqual([b"new"], self.data_file.refreshed)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+
+    def testAFailedWriteEndsTheUpdateAndLeavesTheEngineAlone(self):
+        self.data_file = FileDataFile(
+            os.path.join(self.folder, "missing", "data.dat"))
+        self.get(response(200, b"new"))
+        self.service.update_data_file(self.data_file)
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
+        self.assertTrue(
+            [message for message in self.errors()
+             if message.startswith(
+                 CHECK_ERROR + "An error occurred when copying a data file "
+                 "to replace the existing one at '" +
+                 self.data_file.path + "'.")],
+            self.pipeline.logs)
+
+    def testAFailedTemporaryCopyIsAnyOtherError(self):
+        self.data_file.create_temp_copy = True
+        self.data_file.temp_directory = os.path.join(self.folder, "missing")
+        self.get(response(200, b"new"))
+        self.service.update_data_file(self.data_file)
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
+        self.assertTrue(
+            [message for message in self.errors()
+             if message.startswith(
+                 "An unhandled error occurred while checking for automatic "
+                 "updates for engine 'FakeEngine'.")],
+            self.pipeline.logs)
+        with open(self.path, "rb") as file:
+            self.assertEqual(b"old", file.read())
+
+
 # Every check is reported to the update complete callbacks once it ends, and
 # a check that needed no update is reported as not needed, as the Reporting
-# each check section says and as .NET does.
+# each check section says and as .NET does. The watcher's checks are the
+# changes it finds, as they are in .NET and 51degrees-node, so a look that
+# finds the file untouched is not a check and is not reported.
 class ReportingEachCheckTests(UpdateServiceTestCase):
 
     def testNotModifiedIsReportedAsNotNeeded(self):
@@ -488,7 +569,12 @@ class ReportingEachCheckTests(UpdateServiceTestCase):
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_NOT_NEEDED], self.statuses)
 
-    def testAWatcherEventWithNothingToDoIsReportedAsNotNeeded(self):
+    # A watched file nobody has written to is not an event, so the watcher
+    # reports nothing, as the watchers of .NET and 51degrees-node do. Both
+    # are told by the operating system, where this one looks every ten
+    # seconds, so reporting each look would tell every callback that no
+    # update was needed six times a minute for ever.
+    def testAnUnchangedWatchedFileIsNotReported(self):
         folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
         path = os.path.join(folder, "data.dat")
@@ -497,12 +583,11 @@ class ReportingEachCheckTests(UpdateServiceTestCase):
         data_file = HttpDataFile(path)
         data_file.last_changed_time = os.stat(path).st_mtime
         data_file.registered = True
-        self.service.on_complete(
-            lambda status, df: None)
         self.hold_timers()
         self.service.track_local_data_file_changes(data_file)
-        self.assertEqual(
-            [UpdateStatus.AUTO_UPDATE_NOT_NEEDED], self.statuses)
+        self.service.track_local_data_file_changes(data_file)
+        self.assertEqual([], self.statuses)
+        self.assertEqual([], self.pipeline.logs)
 
     def testAWatcherEventWhilstUpdatingIsReportedAsInProgress(self):
         folder = tempfile.mkdtemp()
