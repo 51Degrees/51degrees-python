@@ -20,44 +20,16 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
  
-import warnings
-
-# The name the cloud end point environment variable had before
-# Constants.CLOUD_ENDPOINT. The engine reads it when the new name is not
-# set, without going through the deprecated constant that also holds it.
-_OLD_CLOUD_ENDPOINT = "FOD_CLOUD_API_URL"
-
-
-class _DeprecatedConstant:
-    """!
-    A constant kept under a deprecated name. Reading it from its class
-    gives the value and a DeprecationWarning that says what to use in its
-    place.
-    """
-
-    def __init__(self, value, message):
-        self.value = value
-        self.message = message
-
-    def __get__(self, instance, owner=None):
-        warnings.warn(self.message, DeprecationWarning, stacklevel=2)
-        return self.value
-
-
 class Constants:
     # Environment variable to set cloud end point
     CLOUD_ENDPOINT = "_51DEGREES_CLOUD_ENDPOINT"
 
     # @deprecated Use Constants.CLOUD_ENDPOINT. This holds the old name of
     # the cloud end point environment variable, which the engine reads
-    # when CLOUD_ENDPOINT is not set, so code that passes this constant to
-    # the environment reads and sets the old variable. Reading it gives a
-    # DeprecationWarning.
-    FOD_CLOUD_API_URL = _DeprecatedConstant(
-        _OLD_CLOUD_ENDPOINT,
-        "Constants.FOD_CLOUD_API_URL is deprecated. Use "
-        "Constants.CLOUD_ENDPOINT, which names the environment variable "
-        "that replaces FOD_CLOUD_API_URL.")
+    # through this constant when CLOUD_ENDPOINT is not set, so code that
+    # passes this constant to the environment reads and sets the old
+    # variable.
+    FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"
 
     # Message when the cloud end point came from the old environment
     # variable. The first value is the old name and the second the new one.

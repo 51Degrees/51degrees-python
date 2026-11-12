@@ -40,7 +40,6 @@ from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 from .requestclient import RequestClient
 from .cloudrequestexception import CloudRequestException
 from .constants import Constants
-from .constants import _OLD_CLOUD_ENDPOINT
 
 try:
     #python2
@@ -62,10 +61,10 @@ def _endpoint_from_environment():
     The cloud end point the environment gives, or None when it gives none.
 
     Constants.CLOUD_ENDPOINT is read first. When it is unset or empty the
-    variable's old name is read, and the first use of the old name is
-    reported as deprecated. The report is a FutureWarning, which Python
-    shows by default, because the people who set the variable are the ones
-    running the application.
+    variable Constants.FOD_CLOUD_API_URL names is read, which is the old
+    name, and the first use of it is reported as deprecated. The report is
+    a FutureWarning, which Python shows by default, because the people who
+    set the variable are the ones running the application.
 
     @rtype: string
     @return: the end point, or None
@@ -77,7 +76,8 @@ def _endpoint_from_environment():
     if endpoint:
         return endpoint
 
-    endpoint = os.environ.get(_OLD_CLOUD_ENDPOINT)
+    old_name = Constants.FOD_CLOUD_API_URL
+    endpoint = os.environ.get(old_name)
     if not endpoint:
         return None
 
@@ -88,7 +88,7 @@ def _endpoint_from_environment():
         # The third frame is the code that built the engine.
         warnings.warn(
             Constants.MESSAGE_OLD_ENDPOINT_VARIABLE.format(
-                _OLD_CLOUD_ENDPOINT, Constants.CLOUD_ENDPOINT),
+                old_name, Constants.CLOUD_ENDPOINT),
             FutureWarning, stacklevel=3)
     return endpoint
 
