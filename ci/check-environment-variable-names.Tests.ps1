@@ -35,8 +35,6 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'LICENCE = env("_51DEGREES_LICENSE_KEY", "license_key")' }
         @{ Line = 'LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"' }
         @{ Line = 'legacy_license_key_env_var = "x"' }
-        @{ Line = 'self.baseURL = os.environ.get("FOD_CLOUD_API_URL")' }
-        @{ Line = 'FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"' }
         @{ Line = 'RESOURCE_KEY_ENV_VAR = "resource_key"' }
         @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"' }
         @{ Line = 'ORIGIN_ENV_VAR = "cloud_request_origin"' }
@@ -49,7 +47,6 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'env = os.environ.get("IPINTELLIGENCEDATAFILE")' }
         @{ Line = 'os.environ["ipintelligencetestkey"] = "value"' }
         @{ Line = 'if "run_performance_tests" in os.environ:' }
-        @{ Line = 'saved = os.environ.pop("FOD_CLOUD_API_URL", None)' }
     ) {
         Get-Kind $Line | Should -Contain 'fallback'
     }
@@ -79,6 +76,19 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = '${env:_51DEGREES_RESOURCE_KEY} = $Keys.TestResourceKey' }
         @{ Line = '  PAID_RESOURCE_KEY: ${{ env.PAID_RESOURCE_KEY }}' }
         @{ Line = 'Set the 51D_ cookie for the 51Did example.' }
+    ) {
+        Get-Kind $Line | Should -BeNullOrEmpty
+    }
+
+    # The cloud endpoint's old name is still read when the new name is not
+    # set, and the constant that held it keeps its value, so it is left alone
+    # wherever it is written.
+    It 'leaves the old cloud endpoint name alone in <Line>' -ForEach @(
+        @{ Line = 'endpoint = os.environ.get("FOD_CLOUD_API_URL")' }
+        @{ Line = 'FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"' }
+        @{ Line = 'saved = os.environ.pop("FOD_CLOUD_API_URL", None)' }
+        @{ Line = '_OLD_ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"' }
+        @{ Line = '$env:FOD_CLOUD_API_URL = "https://cloud.51degrees.com/api/v4/"' }
     ) {
         Get-Kind $Line | Should -BeNullOrEmpty
     }

@@ -29,6 +29,7 @@ import threading
 import unittest
 import urllib.error
 import urllib.parse
+import warnings
 from datetime import datetime, timedelta, timezone
 from unittest import mock
 
@@ -50,6 +51,7 @@ from fiftyone_pipeline_did import (
     SignatureReason,
     SignatureResult,
 )
+from fiftyone_pipeline_did import did_client
 from fiftyone_pipeline_did.did_client import (
     KEY_LIST_MAX_AGE, USER_AGENT, parse_iso8601)
 # The byte layout is not part of the package's public surface. These tests
@@ -171,31 +173,112 @@ class ClientConstructionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             DidClient(None)
 
+    # The two names of the endpoint environment variable, written out so
+    # that these tests pin the names themselves. The old one is still read
+    # when the new one is not set.
+    NEW_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
+    OLD_VARIABLE = "FOD_CLOUD_API_URL"
+
+    def setUp(self):
+        # Each test starts with neither name set and with the old name not
+        # yet reported as deprecated, and what it sets is put back
+        # afterwards.
+        environment = mock.patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop(self.NEW_VARIABLE, None)
+        os.environ.pop(self.OLD_VARIABLE, None)
+        reported = mock.patch.object(
+            did_client, "_old_endpoint_reported", False, create=True)
+        reported.start()
+        self.addCleanup(reported.stop)
+
+    def old_name_reports(self, caught):
+        """The warnings in a recorded list that say the old endpoint
+        variable is deprecated and name the one that replaces it."""
+        return [
+            warning for warning in caught
+            if issubclass(warning.category, FutureWarning)
+            and self.OLD_VARIABLE in str(warning.message)
+            and self.NEW_VARIABLE in str(warning.message)]
+
     def test_endpoint_defaults_to_the_public_cloud(self):
-        saved = os.environ.pop("_51DEGREES_CLOUD_ENDPOINT", None)
-        try:
-            self.assertEqual(DEFAULT_ENDPOINT, DidClient(RESOURCE).endpoint)
-        finally:
-            if saved is not None:
-                os.environ["_51DEGREES_CLOUD_ENDPOINT"] = saved
+        self.assertEqual(DEFAULT_ENDPOINT, DidClient(RESOURCE).endpoint)
 
     def test_endpoint_read_from_the_environment(self):
-        saved = os.environ.get("_51DEGREES_CLOUD_ENDPOINT")
-        os.environ["_51DEGREES_CLOUD_ENDPOINT"] = "https://private.example/api/v4"
-        try:
-            self.assertEqual("https://private.example/api/v4/",
-                             DidClient(RESOURCE).endpoint)
-        finally:
-            if saved is None:
-                del os.environ["_51DEGREES_CLOUD_ENDPOINT"]
-            else:
-                os.environ["_51DEGREES_CLOUD_ENDPOINT"] = saved
+        os.environ[self.NEW_VARIABLE] = "https://private.example/api/v4"
+        self.assertEqual("https://private.example/api/v4/",
+                         DidClient(RESOURCE).endpoint)
+
+    def test_endpoint_read_from_the_old_variable(self):
+        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            client = DidClient(RESOURCE)
+        self.assertEqual("https://old.example/api/v4/", client.endpoint)
+
+    def test_old_variable_read_when_the_new_one_is_empty(self):
+        os.environ[self.NEW_VARIABLE] = ""
+        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            client = DidClient(RESOURCE)
+        self.assertEqual("https://old.example/api/v4/", client.endpoint)
+
+    def test_empty_old_variable_gives_the_public_cloud(self):
+        os.environ[self.OLD_VARIABLE] = ""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            client = DidClient(RESOURCE)
+        self.assertEqual(DEFAULT_ENDPOINT, client.endpoint)
+        self.assertEqual([], self.old_name_reports(caught))
+
+    def test_new_variable_wins_over_the_old_one(self):
+        os.environ[self.NEW_VARIABLE] = "https://private.example/api/v4"
+        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            client = DidClient(RESOURCE)
+        self.assertEqual("https://private.example/api/v4/", client.endpoint)
+        # The old name was not used, so it is not reported.
+        self.assertEqual([], self.old_name_reports(caught))
+
+    def test_old_variable_is_reported_as_deprecated_once(self):
+        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            first = DidClient(RESOURCE)
+            second = DidClient(RESOURCE)
+        self.assertEqual("https://old.example/api/v4/", first.endpoint)
+        self.assertEqual("https://old.example/api/v4/", second.endpoint)
+        self.assertEqual(1, len(self.old_name_reports(caught)))
 
     def test_endpoint_argument_wins_and_is_normalised(self):
         self.assertEqual(ENDPOINT, DidClient(
             RESOURCE, endpoint="https://cloud.example/api/v4").endpoint)
         self.assertEqual(ENDPOINT, DidClient(
             RESOURCE, endpoint="https://cloud.example/api/v4//").endpoint)
+
+    def test_endpoint_argument_wins_over_the_old_variable(self):
+        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            client = DidClient(RESOURCE, endpoint=ENDPOINT)
+        self.assertEqual(ENDPOINT, client.endpoint)
+        self.assertEqual([], self.old_name_reports(caught))
+
+    def test_old_constant_keeps_its_old_value_and_is_deprecated(self):
+        # Code that passes ENDPOINT_VARIABLE to the environment has to keep
+        # reading the variable it read before, and is told which constant
+        # to move to.
+        with self.assertWarns(DeprecationWarning) as warned:
+            value = did_client.ENDPOINT_VARIABLE
+        self.assertEqual(self.OLD_VARIABLE, value)
+        self.assertIn("CLOUD_ENDPOINT_VARIABLE", str(warned.warning))
+
+    def test_new_constant_holds_the_new_name(self):
+        self.assertEqual(
+            self.NEW_VARIABLE, did_client.CLOUD_ENDPOINT_VARIABLE)
 
 
 class PublicKeyTests(unittest.TestCase):
