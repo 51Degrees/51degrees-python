@@ -456,23 +456,27 @@ class CloudRequestEngine(Engine):
 
         return
 
-    def is_cacheable(self, flowdata):
+    def is_cacheable(self, data):
 
         """!
-        A response with a top-level member named fodid, in any case, holds a
-        51Did created for the one request, so it is neither stored in the
-        cache nor served from it.
+        A response whose JSON has a top-level member named fodid, in any
+        case, holds a 51Did created for the one request that asked for it,
+        so it is neither stored in the cache nor served from it. A fodid
+        below the top level is not one, and a response that cannot be read
+        as a JSON object is cached as before.
 
-        @type flowdata: FlowData
-        @param flowdata: The flowdata the engine has processed
+        @type data: ElementData
+        @param data: A response the engine has just made, or one found in
+        the cache
 
         @rtype: bool
         @return: False if the response holds a fodid
         """
 
         try:
-            answer = json.loads(flowdata.get(self.datakey).get("cloud"))
-        except (JSONDecodeError, TypeError, ValueError):
+            answer = json.loads(data.get("cloud"))
+        except (AttributeError, JSONDecodeError, KeyError, TypeError,
+                ValueError):
             return True
         if not isinstance(answer, dict):
             return True
