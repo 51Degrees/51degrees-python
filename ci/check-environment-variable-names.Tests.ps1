@@ -97,23 +97,58 @@ Describe 'Find-EnvironmentNameProblem' {
     }
 }
 
-Describe 'Test-FallbackPath' {
+Describe 'Find-EnvironmentNameProblem with the old names a file may hold' {
 
-    It 'lets <Path> name an old variable' -ForEach @(
-        @{ Path = 'pipeline/fiftyone_pipeline_did/tox.ini' }
-        @{ Path = 'location/tox.ini' }
-        @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py' }
-        @{ Path = 'ip-intelligence/fiftyone_ipintelligence_examples/tests/test_environment_names.py' }
-        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/constants.py' }
-        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/readme.md' }
-        @{ Path = 'pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client.py' }
-        @{ Path = 'pipeline/fiftyone_pipeline_did/examples/creator_context_web/server.py' }
-        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_live_cloud.py' }
+    It 'leaves <Line> alone when the file may hold <Allowed>' -ForEach @(
+        @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"'; Allowed = @('cloud_endpoint') }
+        @{ Line = 'os.environ["resource_key"] = "old-key"'; Allowed = @('resource_key', 'license_key') }
+        @{ Line = 'DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"'; Allowed = @('51DEGREES_DD_PATH') }
+        @{ Line = '    FOD_CLOUD_API_URL'; Allowed = @('FOD_CLOUD_API_URL') }
+        @{ Line = 'os.environ["RESOURCE_KEY"] = "old-resource-key"'; Allowed = @('RESOURCE_KEY') }
     ) {
-        Test-FallbackPath $Path | Should -BeTrue
+        @(Find-EnvironmentNameProblem $Line $Allowed) | Should -BeNullOrEmpty
     }
 
-    It 'does not let <Path> name an old variable' -ForEach @(
+    It 'finds <Kind> in <Line> when the file may hold only <Allowed>' -ForEach @(
+        @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"'; Allowed = @('resource_key'); Kind = 'fallback' }
+        @{ Line = 'os.environ["license_key"] = "old-key"'; Allowed = @('resource_key'); Kind = 'fallback' }
+        @{ Line = 'os.environ["RESOURCE_KEY"] = "old-key"'; Allowed = @('resource_key'); Kind = 'fallback' }
+        @{ Line = '    IPINTELLIGENCEDATAFILE'; Allowed = @('FOD_CLOUD_API_URL'); Kind = 'fallback' }
+        @{ Line = 'DATA_FILE_ENV_VAR = "51DEGREES_IPI_PATH"'; Allowed = @('51DEGREES_DD_PATH'); Kind = 'digit' }
+        @{ Line = '    51DEGREES_DD_PATH_OTHER'; Allowed = @('51DEGREES_DD_PATH'); Kind = 'digit' }
+        @{ Line = 'DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"'; Allowed = @(); Kind = 'digit' }
+    ) {
+        @(Find-EnvironmentNameProblem $Line $Allowed | ForEach-Object { $_.Kind }) |
+            Should -Contain $Kind
+    }
+}
+
+Describe 'Get-FallbackName' {
+
+    It 'lets <Path> hold <Name>' -ForEach @(
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tox.ini'; Name = 'FOD_CLOUD_API_URL' }
+        @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py'; Name = '51DEGREES_DD_PATH' }
+        @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py'; Name = 'cloud_endpoint' }
+        @{ Path = 'ip-intelligence/fiftyone_ipintelligence_examples/src/fiftyone_ipintelligence_examples/example_utils.py'; Name = 'IPINTELLIGENCEDATAFILE' }
+        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/constants.py'; Name = 'FOD_CLOUD_API_URL' }
+        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/readme.md'; Name = 'FOD_CLOUD_API_URL' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client.py'; Name = 'FOD_CLOUD_API_URL' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_live_cloud.py'; Name = 'resource_key' }
+    ) {
+        @(Get-FallbackName $Path) | Should -Contain $Name
+    }
+
+    It 'does not let <Path> hold <Name>' -ForEach @(
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tox.ini'; Name = '51DEGREES_DD_PATH' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client.py'; Name = 'resource_key' }
+        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/constants.py'; Name = '51DEGREES_DD_PATH' }
+        @{ Path = 'ip-intelligence/fiftyone_ipintelligence_examples/src/fiftyone_ipintelligence_examples/example_utils.py'; Name = '51DEGREES_DD_PATH' }
+        @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py'; Name = 'IPINTELLIGENCEDATAFILE' }
+    ) {
+        @(Get-FallbackName $Path) | Should -Not -Contain $Name
+    }
+
+    It 'lets <Path> hold no old name' -ForEach @(
         @{ Path = 'ci/run-unit-tests.ps1' }
         @{ Path = 'readme.md' }
         @{ Path = 'pipeline/fiftyone_pipeline_core/src/fiftyone_pipeline_core/pipeline.py' }
@@ -122,7 +157,9 @@ Describe 'Test-FallbackPath' {
         @{ Path = 'device-detection/ci/run-integration-tests.ps1' }
         @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_did_client_live.py' }
         @{ Path = 'location/examples/cloud/gettingstarted.py' }
+        @{ Path = 'some/new/package/tox.ini' }
+        @{ Path = 'some/new/example_utils.py' }
     ) {
-        Test-FallbackPath $Path | Should -BeFalse
+        @(Get-FallbackName $Path) | Should -BeNullOrEmpty
     }
 }

@@ -141,6 +141,29 @@ class OldNameTests(unittest.TestCase):
         self.assertIsNone(value)
         self.assertEqual("", errors)
 
+    def test_old_name_set_to_nothing_still_counts_as_set(self):
+        # A switch is on when its variable is set, whatever it holds.
+        os.environ["license_key"] = ""
+        value, errors = self.printed(lambda: live_cloud.is_set(
+            "_51DEGREES_LICENSE_KEY", "license_key"))
+        self.assertTrue(value)
+        self.assertEqual(
+            1, errors.count("license_key environment variable is deprecated"))
+        self.assertIn("_51DEGREES_LICENSE_KEY", errors)
+
+    def test_new_name_set_to_nothing_counts_as_set(self):
+        os.environ["_51DEGREES_LICENSE_KEY"] = ""
+        value, errors = self.printed(lambda: live_cloud.is_set(
+            "_51DEGREES_LICENSE_KEY", "license_key"))
+        self.assertTrue(value)
+        self.assertEqual("", errors)
+
+    def test_neither_name_is_not_set(self):
+        value, errors = self.printed(lambda: live_cloud.is_set(
+            "_51DEGREES_LICENSE_KEY", "license_key"))
+        self.assertFalse(value)
+        self.assertEqual("", errors)
+
 
 class CopiesTests(unittest.TestCase):
 

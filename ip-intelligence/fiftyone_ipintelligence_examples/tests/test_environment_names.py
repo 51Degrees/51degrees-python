@@ -131,6 +131,31 @@ class OldNameTests(unittest.TestCase):
             with self.subTest(constant=constant):
                 self.assertEqual(value, getattr(ExampleUtils, constant))
 
+    def test_key_and_endpoint_are_read_from_the_old_names_in_upper_case(self):
+        # Windows reads a variable name in any case, so the name the
+        # message gives is compared without regard to case.
+        for getter, upper_name in (
+                ("get_resource_key", "RESOURCE_KEY"),
+                ("get_cloud_endpoint", "CLOUD_ENDPOINT")):
+            with self.subTest(getter=getter):
+                os.environ[upper_name] = "old-value"
+                value, errors = self.printed(getattr(ExampleUtils, getter))
+                self.assertEqual("old-value", value)
+                self.assertIn(
+                    upper_name.lower()
+                    + " environment variable is deprecated", errors.lower())
+                del os.environ[upper_name]
+
+    def test_licence_key_is_not_read_in_upper_case(self):
+        # The licence key was only ever read under the lower case name.
+        # Windows reads a name in any case, so this holds elsewhere.
+        if os.name == "nt":
+            self.skipTest("Windows reads a variable name in any case")
+        os.environ["LICENSE_KEY"] = "old-value"
+        value, errors = self.printed(ExampleUtils.get_license_key)
+        self.assertFalse(value)
+        self.assertEqual("", errors)
+
     def test_data_file_is_found_under_the_old_name(self):
         for name in DATA_FILE:
             os.environ.pop(name, None)
