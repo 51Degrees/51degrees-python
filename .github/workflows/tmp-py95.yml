@@ -18,7 +18,7 @@ jobs:
       - name: Install
         run: |
           cd pipeline
-          pip install pytest flask parameterized
+          pip install pytest flask parameterized requests_mock
           pip install -e fiftyone_pipeline_core -e fiftyone_pipeline_engines -e fiftyone_pipeline_cloudrequestengine -e fiftyone_pipeline_engines_fiftyone
       - name: Evidence key case tests
         run: |
