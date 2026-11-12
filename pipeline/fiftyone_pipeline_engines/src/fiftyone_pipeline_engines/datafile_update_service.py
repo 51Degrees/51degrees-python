@@ -87,15 +87,17 @@ class DataFileUpdateService():
     def __emit(self, status, data_file):
         # A callback that raises stops the callbacks after it, as .NET's service
         # does, and its error is logged with .NET's message for any other
-        # error, so that the next check still runs.
+        # error and the error itself after it, so that the next check still
+        # runs.
         try:
             for method in self.on_complete_methods:
                 method(status, data_file)
-        except Exception:
+        except Exception as e:
             self._log(
                 "error",
                 "An unhandled error occurred while checking for automatic "
-                "updates for engine '" + self._engine_type(data_file) + "'")
+                "updates for engine '" + self._engine_type(data_file) +
+                "'. Error detail: " + str(e))
 
     def update_data_file(self, data_file):
 
