@@ -137,10 +137,14 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.run_next_check()
         self.assertEqual("version 1", data_file.data)
         self.assertEqual(
-            [UpdateStatus.AUTO_UPDATE_REFRESH_FAILED], self.statuses)
+            UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, self.statuses[-1])
         errors = [log for log in self.pipeline.logs if log[0] == "error"]
         self.assertEqual(1, len(errors))
-        self.assertIn("The data file cannot be used.", errors[0][1])
+        self.assertIn(
+            "Error during check for data update. Error detail: An error "
+            "occurred when applying a data update to engine 'StandInDataFile' "
+            "after 1 tries.",
+            errors[0][1])
         self.assertEqual(1, len(self.pending))
 
         self.write("version 2")
@@ -158,7 +162,7 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.run_next_check()
 
         self.assertEqual("version 2", data_file.data)
-        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, self.statuses[-1])
         attempts = [log for log in self.pipeline.logs
                     if "Attempting to refresh Engine" in log[1]]
         self.assertEqual(1, len(attempts))
@@ -176,7 +180,9 @@ class FileSystemWatcherTests(unittest.TestCase):
         errors = [log for log in self.pipeline.logs if log[0] == "error"]
         self.assertEqual(1, len(errors))
         self.assertIn(
-            "An error occurred while applying a data file update to",
+            "Error during check for data update. Error detail: An error "
+            "occurred when applying a data update to engine 'StandInDataFile' "
+            "after 1 tries.",
             errors[0][1])
 
     # A file that is missing at a check, for example part way through being

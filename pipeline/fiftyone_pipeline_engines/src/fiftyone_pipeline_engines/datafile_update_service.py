@@ -58,9 +58,19 @@ class UpdateStatus(Enum):
     AUTO_UPDATE_NEW_FILE_CANT_RENAME = 9
     # Refreshing the engine with the new data caused an error to occur.
     AUTO_UPDATE_REFRESH_FAILED = 10
+    # 11 is .NET's AUTO_UPDATE_NO_CONFIGURATION, which this service has no
+    # route to, so the two below keep the numbers .NET gives them.
+    # The data file is checking for updates but has no temporary file path.
+    AUTO_UPDATE_TEMP_PATH_NOT_SET = 12
+    # Any other error during a check for an update.
+    AUTO_UPDATE_UNKNOWN_ERROR = 13
 
 # The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
 GZIP_MAGIC = b"\x1f\x8b"
+
+# The tries made to refresh an engine from a data file, which the message
+# for a failed refresh names.
+REFRESH_TRIES = 1
 
 
 class DataFileUpdateService():
@@ -94,11 +104,7 @@ class DataFileUpdateService():
             for method in self.on_complete_methods:
                 method(status, data_file)
         except Exception as e:
-            self._log(
-                "error",
-                "An unhandled error occurred while checking for automatic "
-                "updates for engine '" + self._engine_type(data_file) +
-                "'. Error detail: " + mask_licence_keys_in_text(e))
+            self._log_unhandled(data_file, e)
 
     def update_data_file(self, data_file):
 
@@ -143,18 +149,21 @@ class DataFileUpdateService():
             "Checking for update from '" + shown_url + "' for Engine '" +
             engine + "'")
 
-        retry = self._retry_text(data_file)
-
         try:
             response = requests.get(url, headers=headers)
         except requests.RequestException as e:
             # The message of a failed request names the URL, key included.
-            self._log(
-                "warning",
-                "An error occurred when connecting to " + shown_url +
-                " in order to check for data file updates for " + engine +
-                "." + retry + " Error detail: " +
+            self._log_check_error(
+                "Error accessing data update service at '" + shown_url +
+                "' for engine '" + engine + "'",
                 mask_licence_keys_in_text(e))
+            return self._update_failed(
+                data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+
+        if response is None:
+            self._log_check_error(
+                "No response from data update service at '" + shown_url +
+                "' for engine '" + engine + "'")
             return self._update_failed(
                 data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
 
@@ -169,21 +178,25 @@ class DataFileUpdateService():
 
         if response.status_code != 200:
 
-            # Handle errors
+            # Each response that is not a success and not a 304 carries the
+            # message and status of the matching row of the errors table.
 
             if response.status_code == 429:
                 status = UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS
+                message = ("Too many requests to '" + shown_url +
+                           "' for engine '" + engine + "'")
             elif response.status_code == 403:
                 status = UpdateStatus.AUTO_UPDATE_ERR_403_FORBIDDEN
+                message = ("Access denied to data update service at '" +
+                           shown_url + "' for engine '" + engine + "'")
             else:
                 status = UpdateStatus.AUTO_UPDATE_HTTPS_ERR
+                message = ("HTTP status code '" +
+                           str(response.status_code) +
+                           "' from data update service at '" + shown_url +
+                           "' for engine '" + engine + "'")
 
-            self._log(
-                "warning",
-                "An error occurred while downloading a data file update "
-                "for " + engine + " from " + shown_url + "." + retry +
-                " Error detail: HTTP status code " +
-                str(response.status_code))
+            self._log_check_error(message)
             return self._update_failed(data_file, status)
 
         # Verify the MD5 hash if enabled and the answer gives one.
@@ -203,12 +216,11 @@ class DataFileUpdateService():
                 hash_md5.update(data)
 
             if header_md5 != hash_md5.hexdigest():
-                self._log(
-                    "warning",
-                    "An error occurred during the integrity check of new "
-                    "data file for " + engine + "." + retry +
-                    " Error detail: The MD5 hash of the data does not "
-                    "match the content-md5 header.")
+                self._log_check_error(
+                    "Integrity check failed. MD5 hash in HTTP response '" +
+                    str(header_md5) + "' for '" + engine + "'data update "
+                    "does not match calculated hash for the downloaded "
+                    "file '" + hash_md5.hexdigest() + "'.")
                 return self._update_failed(
                     data_file,
                     UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED)
@@ -225,16 +237,18 @@ class DataFileUpdateService():
             try:
                 data = gzip.decompress(data)
             except (OSError, EOFError, zlib.error) as e:
-                self._log(
-                    "warning",
-                    "An error occurred during the integrity check of new "
-                    "data file for " + engine + "." + retry +
-                    " Error detail: " + str(e))
+                # Content that cannot be read is any other error, which
+                # carries the last row of the errors table.
+                self._log_unhandled(data_file, e)
                 return self._update_failed(
-                    data_file, UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM)
+                    data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR)
 
         # Download datafile if needed, or pass through memory
         if data_file.download:
+            # The engine of a data file kept on disk reads that file, so a
+            # write that failed leaves it with the data it already had and
+            # the update ends there, as it does in .NET and
+            # 51degrees-node.
             failed = self._write_data_file(data_file, data)
             if failed is not None:
                 return self._update_failed(data_file, failed)
@@ -273,7 +287,8 @@ class DataFileUpdateService():
         @rtype: UpdateStatus
         @return: AUTO_UPDATE_SUCCESS, AUTO_UPDATE_REFRESH_FAILED if the
         engine could not use the data (the data it had is kept), the status
-        of a failed write for a data file kept on disk, or
+        of a failed write for a data file kept on disk, which is not
+        refreshed because its engine reads the file, or
         AUTO_UPDATE_NOT_NEEDED if the data file's engine has been closed
         """
 
@@ -295,7 +310,7 @@ class DataFileUpdateService():
         data_file.data = data
         data_file.updating = True
         try:
-            status = self._refresh(data_file)
+            status = self._refresh(data_file, from_file=False)
         finally:
             data_file.updating = False
 
@@ -309,8 +324,15 @@ class DataFileUpdateService():
     def _write_data_file(self, data_file, data):
         # Write new data to the data file's path, through a temporary copy
         # when the data file asks for one. None when written, or the status
-        # of the failure, which is logged.
+        # of the failure, which is logged. Every failure leaves the file on
+        # disk as it was, so the caller ends the update.
         if data_file.create_temp_copy:
+            if not getattr(data_file, "temp_directory", None):
+                self._log_check_error(
+                    "The data file '" + str(data_file.identifier) +
+                    "' is checking for updates but does not have a "
+                    "temporary file path configured.")
+                return UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET
             filename = os.path.join(
                 data_file.temp_directory,
                 data_file.identifier + str(time.time()))
@@ -321,26 +343,35 @@ class DataFileUpdateService():
             with open(filename, 'wb') as f:
                 f.write(data)
         except OSError as e:
-            self._log(
-                "error",
-                "An error occurred when writing to " + filename +
-                ". Error detail: " + str(e))
-            return UpdateStatus.AUTO_UPDATE_ERR_READING_STREAM
+            if filename == data_file.path:
+                # Writing straight to the data file is the copy that
+                # replaces it, so it carries that row of the errors table.
+                self._log_check_error(
+                    "An error occurred when copying a data file to replace "
+                    "the existing one at '" + str(data_file.path) + "'.", e)
+                return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
+            # A temporary copy that cannot be written has no row of its own,
+            # so it is any other error, as 51degrees-node writes it, with
+            # the status that row of the table gives.
+            self._log_unhandled(data_file, e)
+            return UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR
 
         if data_file.create_temp_copy:
             try:
                 shutil.move(filename, data_file.path)
-            except (OSError, shutil.Error):
-                self._log(
-                    "error",
+            except (OSError, shutil.Error) as e:
+                self._log_check_error(
                     "An error occurred when copying a data file to "
                     "replace the existing one at '" + data_file.path +
-                    "'.")
+                    "'.", e)
                 return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
         return None
 
-    def _refresh(self, data_file):
-        # Refresh the engine with the data file's new content.
+    def _refresh(self, data_file, from_file=True):
+        # Refresh the engine with the data file's new content. A refresh
+        # after a check or a watched change is from the data file, and one
+        # from update_from_memory is not, as the two rows of the errors
+        # table say.
         engine = self._engine_type(data_file)
         self._log(
             "info",
@@ -348,10 +379,11 @@ class DataFileUpdateService():
         try:
             data_file.refresh()
         except Exception as e:
-            self._log(
-                "error",
-                "An error occurred while applying a data file update to " +
-                engine + ". Error detail: " + str(e))
+            self._log_check_error(
+                "An error occurred when applying a data update to engine '" +
+                engine + "'" +
+                (" after " + str(REFRESH_TRIES) + " tries." if from_file
+                 else "."), e)
             return UpdateStatus.AUTO_UPDATE_REFRESH_FAILED
         return UpdateStatus.AUTO_UPDATE_SUCCESS
 
@@ -368,16 +400,40 @@ class DataFileUpdateService():
         if pipeline is not None:
             pipeline.log(level, message)
 
+    def _log_check_error(self, text, cause=None):
+        # An error from a row of the errors table at Error level is logged
+        # as .NET logs a DataUpdateException, under .NET's entry text with
+        # the error, being the row's text and then its cause, after it, in
+        # the words 51degrees-node writes.
+        self._log(
+            "error",
+            self._with_cause(
+                self._with_cause("Error during check for data update", text),
+                cause))
+
+    def _log_unhandled(self, data_file, cause):
+        # Any other error is logged with the last row's message, and the
+        # error after it.
+        self._log(
+            "error",
+            self._with_cause(
+                "An unhandled error occurred while checking for automatic "
+                "updates for engine '" + self._engine_type(data_file) + "'",
+                cause))
+
+    @staticmethod
+    def _with_cause(text, cause):
+        # The cause may be a caller's error or a request's, either of which
+        # can name the update URL, so every key in it is masked here rather
+        # than at each call.
+        if cause is None:
+            return text
+        return (text + ("" if text.endswith(".") else ".") +
+                " Error detail: " + mask_licence_keys_in_text(cause))
+
     @staticmethod
     def _engine_type(data_file):
         return type(getattr(data_file, "flow_element", data_file)).__name__
-
-    @staticmethod
-    def _retry_text(data_file):
-        # Only an automatic update is tried again.
-        if getattr(data_file, "auto_update", False):
-            return " Update will be attempted again later."
-        return ""
 
     @staticmethod
     def _http_date(moment):
@@ -520,12 +576,13 @@ class DataFileUpdateService():
     def track_local_data_file_changes(self, data_file):
         """!
         Check for local changes to a datafile. Used by
-        the file system watcher. The refresh takes the same route as the
-        polling one, so the attempt is logged, a failure carries the
-        errors table's message and level, and the result is reported to
-        the update complete callbacks either way. The next check is
-        scheduled whatever happens, so that a later file is still picked
-        up, until the data file is unregistered.
+        the file system watcher. A file that has been written to is an
+        event, and the refresh takes the same route as the polling one, so
+        the attempt is logged, a failure carries the errors table's message
+        and level, and the result is reported to the update complete
+        callbacks either way. The next check is scheduled whatever happens,
+        so that a later file is still picked up, until the data file is
+        unregistered.
         @type data_file: DataFile
         @param data_file: Datafile to check updates for
         """
@@ -538,12 +595,21 @@ class DataFileUpdateService():
             # replaced, is looked for again at the next check.
             changed_time = None
         try:
-            # Don't change if data_file is updating
-            if (changed_time is not None and
-                    changed_time > data_file.last_changed_time and
-                    not data_file.updating):
-                data_file.last_changed_time = changed_time
-                self.__emit(self._refresh(data_file), data_file)
+            if (changed_time is None or
+                    changed_time <= data_file.last_changed_time):
+                # A file nobody has written to is not an event, so nothing
+                # is reported. The watchers of .NET and 51degrees-node are
+                # told by the operating system and say nothing whilst a
+                # file is untouched, and this check stands in for that.
+                return
+            if data_file.updating:
+                # A newer file found whilst an update is being applied is
+                # reported as in progress, and the time is not taken, so
+                # the next check looks at the file again.
+                self.__emit(UpdateStatus.AUTO_UPDATE_IN_PROGRESS, data_file)
+                return
+            data_file.last_changed_time = changed_time
+            self.__emit(self._refresh(data_file), data_file)
         finally:
             if self.__is_registered(data_file):
                 t = threading.Timer(
