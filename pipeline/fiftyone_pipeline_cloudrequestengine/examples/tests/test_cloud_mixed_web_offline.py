@@ -315,6 +315,17 @@ def test_licence_key_never_reaches_the_page(cloud):
     assert "a-licence-key" not in page_for(license_key="a-licence-key")
 
 
+def test_the_web_request_is_not_sent_to_the_cloud(cloud):
+    # The web integration adds the request itself as server.http-request for
+    # the usage sharing element, and it is never evidence another element
+    # reads.
+    stub = cloud(EVERY_SECTION)
+    page_for(resource_key="a-resource-key")
+
+    url, data = stub.requests[-1]
+    assert not any("http-request" in key for key in data), data
+
+
 # The cache headers of the client-side script and the client-side callback,
 # as the cache header detail of the web integration specification sets them.
 DESKTOP_CHROME = (

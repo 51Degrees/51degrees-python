@@ -48,10 +48,10 @@
 # stays on this server. The page and its script only ever talk to this
 # server, never to the cloud service.
 #
-# The pipeline talks to cloud.51degrees.com unless the cloud_endpoint or
-# FOD_CLOUD_API_URL environment variable names another cloud service. A
+# The pipeline talks to cloud.51degrees.com unless the
+# _51DEGREES_CLOUD_ENDPOINT environment variable names another cloud service. A
 # resource key limited to particular domains needs one of them in the
-# cloud_request_origin environment variable.
+# _51DEGREES_CLOUD_REQUEST_ORIGIN environment variable.
 #
 # Run it from the examples folder, once the requirements there are
 # installed, with

@@ -20,8 +20,13 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
+
+# The property types that hold a shape in well-known text. The JSON holds such
+# a value as an object with one member, value, holding the text.
+WKT_TYPES = ("wkt", "wktstring", "wkb", "wkbr")
 
 class JSONBundlerElement(FlowElement):
 
@@ -47,6 +52,46 @@ class JSONBundlerElement(FlowElement):
 
         self.property_cache = {}
 
+    def get_evidence_key_filter(self):
+
+        """!
+        The element reads only the results of other elements, so it accepts
+        no evidence.
+        """
+
+        return BasicListEvidenceKeyFilter([])
+
+    @staticmethod
+    def record_json(record):
+
+        """!
+        A record, being the Properties of one Element Data in a list, as an
+        object. A Property that has been assigned no value is null with its
+        nullreason beside it, and a Property that is null without one has no
+        entry.
+        @type record: dict
+        @param record: Property name to value or aspect property value
+        @rtype: dict
+        @return: The record as it is written to JSON
+        """
+
+        written = {}
+
+        for key, value in record.items():
+            key = str(key).lower()
+
+            if hasattr(value, "has_value"):
+                if value.has_value():
+                    written[key] = value.value()
+                else:
+                    written[key] = None
+                    written[key + "nullreason"] = (
+                        value.no_value_message() or "Unknown")
+            elif value is not None:
+                written[key] = value
+
+        return written
+
     def process_internal(self, flowdata):
 
         """!
@@ -57,6 +102,15 @@ class JSONBundlerElement(FlowElement):
     
         """
    
+        # The sequence number is the one the Sequence Element has put in the
+        # Evidence as a whole number. Text in the query string does not
+        # count, and without a number no JSON is set.
+        sequence = flowdata.evidence.get("query.sequence")
+        if isinstance(sequence, bool) or not isinstance(sequence, int):
+            raise Exception(
+                "The JSON Builder needs a sequence number. Place a Sequence "
+                "Element before the JSON Builder in the Pipeline.")
+
         # Get every property on every FlowElement
         # Storing JavaScript properties in an extra section
 
@@ -103,7 +157,7 @@ class JSONBundlerElement(FlowElement):
                         if len(delayed_evidence_properties_list):
                             
                             delayed_evidence_properties[propertykey] = list(map(lambda x:
-                                flow_element.datakey + '.' + x, delayed_evidence_properties_list))
+                                flow_element.datakey.lower() + '.' + x, delayed_evidence_properties_list))
 
 
                 self.property_cache[flow_element.datakey] = {
@@ -115,23 +169,24 @@ class JSONBundlerElement(FlowElement):
 
             # Create empty area for FlowElement properties to go
 
-            output[flow_element.datakey] = {}
+            output[flow_element.datakey.lower()] = {}
 
             for propertykey, propertymeta in properties.items():
                 value = None
                 null_reason = "Unknown"
+                no_value = False
 
                 # Check if property has delayed execution and set in JSON if yes
 
 
                 if propertykey in property_cache["delayExecutionList"]:
-                    output[flow_element.datakey][propertykey.lower() + "delayexecution"] = True
+                    output[flow_element.datakey.lower()][propertykey.lower() + "delayexecution"] = True
                 
 
                 # Check if property has any delayed execution evidence properties and set in JSON if yes
 
                 if propertykey in property_cache["evidenceProperties"]:
-                    output[flow_element.datakey][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
+                    output[flow_element.datakey.lower()][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
                 
 
                 try:
@@ -148,21 +203,28 @@ class JSONBundlerElement(FlowElement):
                             value = value_container.value()
                         else:
                             value = None
-                            null_reason = value_container.no_value_message()
+                            no_value = True
+                            null_reason = (
+                                value_container.no_value_message()
+                                or null_reason)
                         
-                    # Check if list of aspect property values
+                    # A list of records, such as the profiles of a hardware
+                    # profile lookup, or of aspect property values
 
-                    elif isinstance(value_container, list) and isinstance(value_container[0], object):
+                    elif isinstance(value_container, list):
 
-                        output = []
+                        items = []
 
                         for item in value_container:
-                            if item.has_value():
-                                output.append(item.value())
+                            if isinstance(item, dict):
+                                items.append(self.record_json(item))
+                            elif hasattr(item, "has_value"):
+                                if item.has_value():
+                                    items.append(item.value())
                             else:
-                                null_reason = item.no_value_message
+                                items.append(item)
 
-                        value = output
+                        value = items
 
                     else:
 
@@ -173,14 +235,20 @@ class JSONBundlerElement(FlowElement):
                     # Catching missing property exceptions and other errors
 
                     continue
-        
-                output[flow_element.datakey.lower()][propertykey.lower()] = value
-                if value is None:
-                    output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
 
-                sequence = flowdata.evidence.get("query.sequence")
+                if (isinstance(value, str)
+                        and str(propertymeta.get("type", "")).lower() in WKT_TYPES):
+                    value = {"value": value}
 
-                if sequence is None or sequence < 10: 
+                # A null that was not assigned 'no value', which an element
+                # that is not an engine can give, has no entry of its own. A
+                # JavaScript Property is still listed below.
+                if value is not None or no_value:
+                    output[flow_element.datakey.lower()][propertykey.lower()] = value
+                    if value is None:
+                        output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
+
+                if sequence < 10:
 
                     if "type" in propertymeta and propertymeta["type"].lower() == "javascript":
 

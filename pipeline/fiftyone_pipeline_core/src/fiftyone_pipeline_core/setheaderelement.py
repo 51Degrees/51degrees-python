@@ -20,6 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
 from .messages import Messages
@@ -45,6 +46,15 @@ class SetHeaderElement(FlowElement):
         self.setheader_properties = {}
 		
         self.exclude_from_messages = True
+
+    def get_evidence_key_filter(self):
+
+        """!
+        The element reads only the results of other elements, so it accepts
+        no evidence.
+        """
+
+        return BasicListEvidenceKeyFilter([])
 
     def process_internal(self, flowdata):
     

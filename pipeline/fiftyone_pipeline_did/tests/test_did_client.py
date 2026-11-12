@@ -172,24 +172,24 @@ class ClientConstructionTests(unittest.TestCase):
             DidClient(None)
 
     def test_endpoint_defaults_to_the_public_cloud(self):
-        saved = os.environ.pop("FOD_CLOUD_API_URL", None)
+        saved = os.environ.pop("_51DEGREES_CLOUD_ENDPOINT", None)
         try:
             self.assertEqual(DEFAULT_ENDPOINT, DidClient(RESOURCE).endpoint)
         finally:
             if saved is not None:
-                os.environ["FOD_CLOUD_API_URL"] = saved
+                os.environ["_51DEGREES_CLOUD_ENDPOINT"] = saved
 
     def test_endpoint_read_from_the_environment(self):
-        saved = os.environ.get("FOD_CLOUD_API_URL")
-        os.environ["FOD_CLOUD_API_URL"] = "https://private.example/api/v4"
+        saved = os.environ.get("_51DEGREES_CLOUD_ENDPOINT")
+        os.environ["_51DEGREES_CLOUD_ENDPOINT"] = "https://private.example/api/v4"
         try:
             self.assertEqual("https://private.example/api/v4/",
                              DidClient(RESOURCE).endpoint)
         finally:
             if saved is None:
-                del os.environ["FOD_CLOUD_API_URL"]
+                del os.environ["_51DEGREES_CLOUD_ENDPOINT"]
             else:
-                os.environ["FOD_CLOUD_API_URL"] = saved
+                os.environ["_51DEGREES_CLOUD_ENDPOINT"] = saved
 
     def test_endpoint_argument_wins_and_is_normalised(self):
         self.assertEqual(ENDPOINT, DidClient(
@@ -1188,9 +1188,41 @@ class RedeemTests(unittest.TestCase):
             json.loads(REDEEMED_WITH_NOT_RECORDED_FACTORS)["factors"],
             result.to_dict()["factors"])
 
-    def test_a_factor_value_this_package_does_not_list_reads_as_none(self):
+    # A word this package does not list is a mismatch, so a value a newer
+    # service sends never reads as a factor that matched or one that could
+    # not be compared.
+    def test_a_factor_word_this_package_does_not_list_is_a_mismatch(self):
         result = self.redeem(200, REDEEMED_WITH_AN_UNKNOWN_FACTOR_VALUE)
+        self.assertIs(FactorResult.MISMATCH, result.factors["transport"])
+        self.assertEqual("mismatch", result.to_dict()["factors"]["transport"])
+
+    def test_a_factor_that_was_not_compared_is_still_none(self):
+        body = json.dumps({
+            "signature": "verified", "context": "mismatch",
+            "factors": {"transport": None}})
+        result = self.redeem(200, body)
         self.assertIsNone(result.factors["transport"])
+
+    def test_each_listed_factor_word_is_read_only_from_its_own_word(self):
+        for word, expected in (
+                ("verified", FactorResult.VERIFIED),
+                ("mismatch", FactorResult.MISMATCH),
+                ("misconfigured", FactorResult.MISCONFIGURED),
+                ("notrecorded", FactorResult.NOT_RECORDED),
+                # The words are compared without regard to case.
+                ("Verified", FactorResult.VERIFIED),
+                ("MISMATCH", FactorResult.MISMATCH),
+                ("Misconfigured", FactorResult.MISCONFIGURED),
+                ("NotRecorded", FactorResult.NOT_RECORDED),
+                ("", FactorResult.MISMATCH),
+                ("not recorded", FactorResult.MISMATCH),
+                (7, FactorResult.MISMATCH),
+                (True, FactorResult.MISMATCH)):
+            body = json.dumps({
+                "signature": "verified", "context": "mismatch",
+                "factors": {"transport": word}})
+            result = self.redeem(200, body)
+            self.assertIs(expected, result.factors["transport"], repr(word))
 
     def test_the_factor_outcomes_are_the_words_the_cloud_writes(self):
         self.assertEqual(

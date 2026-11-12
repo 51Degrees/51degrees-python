@@ -60,9 +60,12 @@ OBJECT_NAME_PATTERN = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
 
 # Names the object cannot have. These are the reserved words of the language,
 # including those reserved only in strict mode and the literals null, true
-# and false, plus the three global values a top level var cannot replace, so
-# the object would silently never be created, and the name of the constructor
-# the script itself defines.
+# and false. Then eval and arguments, which strict mode code cannot declare,
+# and eval would also replace the page's own eval function. Then the three
+# global values and the properties of the browser's Window object that a
+# top level var cannot replace, so the object would never be created, and
+# location, which would navigate the page away. Last, the name of the
+# constructor the script itself defines.
 RESERVED_WORDS = frozenset([
     "await", "break", "case", "catch", "class", "const", "continue",
     "debugger", "default", "delete", "do", "else", "enum", "export",
@@ -71,7 +74,16 @@ RESERVED_WORDS = frozenset([
     "package", "private", "protected", "public", "return", "static",
     "super", "switch", "this", "throw", "true", "try", "typeof", "var",
     "void", "while", "with", "yield",
-    "Infinity", "NaN", "undefined", "fiftyoneDegreesManager"])
+    "Infinity", "NaN", "undefined",
+    "eval", "arguments",
+    "window", "document", "top", "name", "status", "history", "navigator",
+    "closed", "location", "frameElement", "isSecureContext",
+    "crossOriginIsolated", "trustedTypes", "crypto", "indexedDB",
+    "localStorage", "sessionStorage", "caches", "cookieStore",
+    "speechSynthesis", "styleMedia", "crashReport", "credentialless",
+    "customElements", "documentPictureInPicture", "fence", "launchQueue",
+    "originAgentCluster",
+    "fiftyoneDegreesManager"])
 
 
 def is_valid_object_name(name):
@@ -215,13 +227,18 @@ def url_encode(value):
 
 class JavaScriptBuilderEvidenceKeyFilter(EvidenceKeyFilter):
 
-    def filter(self, key):
-        if "query" in key:
+    # The query string, which the script sends back to the callback, and the
+    # host and protocol the callback URL is built from. Evidence keys ignore
+    # letter case, so each is matched in lower case.
+    def filter_evidence_key(self, key):
+        folded = str(key).lower()
+
+        if folded.startswith("query."):
             return True
 
-        if key == "header.host" or key == "header.protocol":
+        if folded == "header.host" or folded == "header.protocol":
             return True
-            
+
         return False
 
 
@@ -399,12 +416,22 @@ class JavascriptBuilderElement(FlowElement):
                     + self.settings["_objName"] + "' is used.")
 
         query_params = self.get_evidence_key_filter().filter_evidence(flowdata.evidence.get_all())
+        # Evidence keys ignore letter case, and get_all gives each key in
+        # the letters it was added with, so a key is matched here in lower
+        # case and keeps those letters where it is sent on.
+        folded = {str(key).lower(): key for key in query_params}
+
+        def query_param(name):
+            key = folded.get(name)
+            return None if key is None else query_params[key]
+
         # Both are written into the script, so each always has a safe value.
         # The session id is written inside quotes and is empty when absent or
         # not safe, and the sequence is written as bare code, so it is always
         # a positive number.
-        variables["_sessionId"] = get_session_id(query_params.get("query.session-id"))
-        variables["_sequence"] = get_sequence(query_params.get("query.sequence"))
+        variables["_sessionId"] = get_session_id(
+            query_param("query.session-id"))
+        variables["_sequence"] = get_sequence(query_param("query.sequence"))
 
         # The session id and the sequence are left out, because the script
         # appends both to its own request after it has taken the record of
@@ -421,8 +448,8 @@ class JavascriptBuilderElement(FlowElement):
             (url_encode(param.split(".", 1)[1]),
              url_encode(query_params[param]))
             for param in query_params.keys()
-            if param.startswith("query.")
-            and param not in EXCLUDED_PARAMETERS
+            if str(param).lower().startswith("query.")
+            and str(param).lower() not in EXCLUDED_PARAMETERS
         ])
         # Written without spaces, as the .NET builder writes it.
         variables["_parameters"] = json.dumps(

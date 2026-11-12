@@ -35,7 +35,7 @@
 # Updating the data file needs a 51Degrees licence key for the Enterprise
 # data file. Without one, the example shows the free ASN data file and says
 # where to ask for a key. Supply the licence key as the first command line
-# argument or in the 'license_key' environment variable. Contact us for a key:
+# argument or in the '_51DEGREES_LICENSE_KEY' environment variable. Contact us for a key:
 # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=header
 #
 # ## Update on start-up
@@ -76,7 +76,7 @@ from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
 # Environment variable checked for the license key if one is not supplied as
 # a command line argument.
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = "license_key"
+UPDATE_EXAMPLE_LICENSE_KEY_NAME = "_51DEGREES_LICENSE_KEY"
 
 # Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
 # example.

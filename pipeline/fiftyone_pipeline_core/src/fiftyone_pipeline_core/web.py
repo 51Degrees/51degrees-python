@@ -23,8 +23,11 @@
 import hashlib
 import json
 import re
+from types import MappingProxyType
 
-from flask import make_response, request
+from flask import has_request_context, make_response, request, session
+
+from .evidence import HTTP_REQUEST_KEY
 
 # How long the browser alone may keep a client-side response to a request
 # whose processing recorded no errors, unless the caller gives another time.
@@ -52,11 +55,24 @@ _ENTITY_TAG = re.compile(r'(W/)?"([\x21\x23-\x7e\x80-\xff]*)"')
 # 5.6.3.
 _OWS = " \t"
 
+def request_line_path(request):
+
+    """!
+    The path of the request line as the server received it, when the server
+    says what that was, and otherwise the path Flask decoded.
+    """
+
+    raw = request.environ.get("RAW_URI") or request.environ.get("REQUEST_URI")
+    if raw:
+        return raw.split("?", 1)[0].split("#", 1)[0]
+    return request.path
+
 def webevidence(request):
 
     """!
-    Get evidence from a web request (gets headers, cookies, query parameters
-    and the fields of a posted form)
+    Get evidence from a web request (gets headers, cookies, session values,
+    query parameters and the fields of a posted form, and the request itself
+    as server.http-request)
     
     @type request: Request 
     @param request: A Request object
@@ -89,6 +105,15 @@ def webevidence(request):
 
             webevidence["query." + field] = value
 
+    # Values stored in the session. They are read without marking the session
+    # as accessed, which would add a Vary: Cookie header to the response, and
+    # only plain values are taken. Numbers and booleans are added as text,
+    # because the on-premise engines take evidence values as text only.
+    if has_request_context():
+        for name, value in dict.items(session._get_current_object()):
+            if isinstance(value, (str, int, float, bool)):
+                webevidence["session." + name] = str(value)
+
     webevidence["server.client-ip"] =  request.remote_addr
 
     webevidence["server.host-ip"] =  request.host
@@ -97,6 +122,17 @@ def webevidence(request):
         webevidence["header.protocol"] = "https"
     else:
         webevidence["header.protocol"] = "http"
+
+    # The request itself, for the usage sharing element, which accepts no
+    # evidence and shares what it finds. A read-only view of the parts above
+    # and the method and path of the request line, keyed as evidence is. It
+    # leaves out the Cookie header, which cookies already cover. Evidence
+    # keeps it from every other element.
+    view = {key: value for key, value in webevidence.items()
+            if key not in ("header.cookie", "server.host-ip")}
+    view["server.request-method"] = request.method
+    view["server.request-path"] = request_line_path(request)
+    webevidence[HTTP_REQUEST_KEY] = MappingProxyType(view)
 
     return webevidence
 
@@ -232,7 +268,7 @@ def _uses(pipeline, key):
     # Whether the key is evidence one of the pipeline's elements accepts. The
     # web request itself, which the usage sharing element reads, is evidence
     # no element uses, whatever the filters accept.
-    if key.lower() == "server.http-request":
+    if key.lower() == HTTP_REQUEST_KEY:
         return False
     if key.startswith("header.") and \
             key[len("header."):] in _REVALIDATION_HEADERS:

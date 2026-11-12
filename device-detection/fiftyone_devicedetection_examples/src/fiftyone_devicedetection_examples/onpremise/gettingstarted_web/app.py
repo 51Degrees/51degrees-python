@@ -190,7 +190,7 @@ class GettingStartedWeb():
         configFile = Path(__file__).resolve().parent.joinpath("config.json").read_text()
         config = json.loads(configFile)
 
-        # A data file named in the 51DEGREES_DD_PATH environment variable takes
+        # A data file named in the _51DEGREES_DD_PATH environment variable takes
         # the place of the one in config.json. This lets the example run
         # against a paid data file without editing the configuration.
         envDataFile = ExampleUtils.get_data_file_path()
