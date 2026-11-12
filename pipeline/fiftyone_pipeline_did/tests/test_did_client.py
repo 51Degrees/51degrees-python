@@ -172,24 +172,24 @@ class ClientConstructionTests(unittest.TestCase):
             DidClient(None)
 
     def test_endpoint_defaults_to_the_public_cloud(self):
-        saved = os.environ.pop("FOD_CLOUD_API_URL", None)
+        saved = os.environ.pop("_51DEGREES_CLOUD_ENDPOINT", None)
         try:
             self.assertEqual(DEFAULT_ENDPOINT, DidClient(RESOURCE).endpoint)
         finally:
             if saved is not None:
-                os.environ["FOD_CLOUD_API_URL"] = saved
+                os.environ["_51DEGREES_CLOUD_ENDPOINT"] = saved
 
     def test_endpoint_read_from_the_environment(self):
-        saved = os.environ.get("FOD_CLOUD_API_URL")
-        os.environ["FOD_CLOUD_API_URL"] = "https://private.example/api/v4"
+        saved = os.environ.get("_51DEGREES_CLOUD_ENDPOINT")
+        os.environ["_51DEGREES_CLOUD_ENDPOINT"] = "https://private.example/api/v4"
         try:
             self.assertEqual("https://private.example/api/v4/",
                              DidClient(RESOURCE).endpoint)
         finally:
             if saved is None:
-                del os.environ["FOD_CLOUD_API_URL"]
+                del os.environ["_51DEGREES_CLOUD_ENDPOINT"]
             else:
-                os.environ["FOD_CLOUD_API_URL"] = saved
+                os.environ["_51DEGREES_CLOUD_ENDPOINT"] = saved
 
     def test_endpoint_argument_wins_and_is_normalised(self):
         self.assertEqual(ENDPOINT, DidClient(

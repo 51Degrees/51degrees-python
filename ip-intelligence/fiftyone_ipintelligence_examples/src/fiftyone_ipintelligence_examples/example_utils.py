@@ -38,13 +38,13 @@ class ExampleUtils:
 
     # The default environment variable used to get the resource key
     # to use when running examples.
-    RESOURCE_KEY_ENV_VAR = "resource_key"
+    RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    ENDPOINT_ENV_VAR = "cloud_endpoint"
+    ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
 
     # The default environment variable used to get the data file path
     # to use when running examples.
-    DATA_FILE_ENV_VAR = "IPINTELLIGENCEDATAFILE"
+    DATA_FILE_ENV_VAR = "_51DEGREES_IPI_PATH"
 
     # The data repository's IP intelligence folder, from the root of a
     # checkout of this repository. Each file the data repository links to
@@ -378,7 +378,4 @@ class ExampleUtils:
 
     @staticmethod
     def __get_env_variable(name):
-        value = os.environ.get(name)
-        if not value:
-            value = os.environ.get(name.upper())
-        return value
+        return os.environ.get(name)
