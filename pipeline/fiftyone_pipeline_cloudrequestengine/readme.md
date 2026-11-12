@@ -29,10 +29,11 @@ property names to ask for, is also needed:
 | `resource_key` | `license_key` | `requested_properties` | Accepted |
 | --- | --- | --- | --- |
 | Yes | No | No | Yes. The resource key states which properties it carries. |
-| Yes | Yes | No | Yes. The licence key adds the products it grants. |
+| Yes | Yes | No | Yes. The answer holds what the resource key carries. |
+| Yes | Yes | Yes | Yes. The service adds the listed properties the licence key grants. |
+| Yes | No | Yes | Yes. The service adds the listed properties, as null with a reason where no licence grants one. |
 | No | Yes | Yes | Yes. A licence key names no properties, so the list says which are wanted. |
 | No | Yes | No | No. The service answers 400 to every such request. |
-| Yes | Either | Yes | No. The service ignores the list while a resource key is present. |
 | No | No | Either | No. There is nothing to authenticate with. |
 
 A combination that is not accepted raises `ValueError` when the engine is
@@ -47,8 +48,11 @@ key and name the properties it wants, so the credential stays on the
 server and each answer carries only what that caller needs. A licence key
 is sent in the body of every request, never in a URL. Where a request
 named properties and the answer left some out, the engine warns once that
-they are not covered by the licence key; the properties that came back
-are usable as normal.
+they are not covered by the keys in use, and the properties that came back
+are usable as normal. With a resource key and no licence key, a property no
+licence grants comes back as null with a reason, so the warning says instead
+that every property is answered and these names are not properties, and
+asks the caller to check the spelling of each one.
 
 See the [Credentials section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials)
 and the rules in

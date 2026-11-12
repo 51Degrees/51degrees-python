@@ -52,7 +52,8 @@
 # ```
 #
 # ## Lite Data File
-# Lite data files (free-to-use, limited capabilities, no license key required) are created roughly
+# Lite data files (free-to-use, with a small number of Properties, no
+# license key required) are created roughly
 # once a month and cannot be updated using auto-update, they may be downloaded with the
 # scripts in the [data](https://github.com/51Degrees/data) repository on GitHub.
 #
@@ -354,6 +355,9 @@ class DataFileUpdateConsole():
 					output(f"Update on file modification complete, status: {update_event.status}")
 				else:
 					output("Update on file modification timed out")
+			elif update_event.status == UpdateStatus.AUTO_UPDATE_NOT_NEEDED:
+				output("The data file is already the latest published, "
+				       "so there is nothing to download")
 			else:
 				logger.log("error", "Auto update was not successful, abandoning example")
 				error_message = f"Auto update failed: {update_event.status}"

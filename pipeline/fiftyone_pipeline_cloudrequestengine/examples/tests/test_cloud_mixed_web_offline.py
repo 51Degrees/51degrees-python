@@ -27,6 +27,10 @@ in the shapes the cloud service uses.
 """
 
 import json
+import os
+import re
+import subprocess
+import sys
 
 import pytest
 import requests
@@ -113,6 +117,9 @@ class StubCloud:
     def __init__(self, sections):
         self.sections = sections
         self.requests = []
+        # While set, a request for results fails as it does when the service
+        # cannot be reached.
+        self.failing = False
         # The Origin header of each request, kept apart from the body.
         self.origins = []
 
@@ -130,6 +137,10 @@ class StubCloud:
 
         if "evidencekeys" in url:
             return StubResponse(["header.user-agent", "query.client-ip"])
+
+        if self.failing:
+            raise requests.exceptions.ConnectionError(
+                "The stand-in service cannot be reached.")
 
         # A request that names the properties it wants gets those alone,
         # and no section it named nothing from.
@@ -313,3 +324,101 @@ def test_the_web_request_is_not_sent_to_the_cloud(cloud):
 
     url, data = stub.requests[-1]
     assert not any("http-request" in key for key in data), data
+
+
+# The cache headers of the client-side script and the client-side callback,
+# as the cache header detail of the web integration specification sets them.
+DESKTOP_CHROME = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+CACHEABLE = "max-age=1800, private"
+NOT_CACHEABLE = "private, no-cache"
+
+# A weak entity tag of RFC 9110 section 8.8.3, because the ETag depends on
+# the evidence alone.
+WEAK_ETAG = re.compile(r'W/"[0-9a-f]{32}"\Z')
+
+
+def client_side(client, path, **headers):
+    """The response of one of the client-side endpoints."""
+
+    headers.setdefault("User-Agent", DESKTOP_CHROME)
+    if path == "/json":
+        return client.post(path, headers=headers)
+    return client.get(path, headers=headers)
+
+
+def example_client():
+    pipeline = create_pipeline(
+        Logger(min_level="error"), resource_key="a-resource-key")
+    return create_app(pipeline).test_client()
+
+
+def script_etag():
+    """The ETag of the client-side script for a fixed request, with the
+    stand-in answering. Run in a process of its own by the test that
+    compares processes, because it replaces requests.request for good."""
+
+    requests.request = StubCloud(EVERY_SECTION).request
+    response = client_side(example_client(), "/51Degrees.core.js")
+    return response.headers.get("ETag")
+
+
+@pytest.mark.parametrize("path", ["/51Degrees.core.js", "/json"])
+def test_a_good_response_may_be_kept_by_the_browser_alone(cloud, path):
+    cloud(EVERY_SECTION)
+    response = client_side(example_client(), path)
+
+    assert response.status_code == 200
+    assert response.headers.get("Cache-Control") == CACHEABLE
+    assert WEAK_ETAG.match(response.headers.get("ETag", ""))
+    assert "User-Agent" in response.headers.get("Vary", "")
+
+
+def test_the_etag_is_the_same_in_every_process():
+    """Python seeds the hash of a string afresh in each process, so the two
+    processes are given different seeds."""
+
+    tests = os.path.dirname(os.path.abspath(__file__))
+    code = ("import sys; sys.path.insert(0, sys.argv[1]); "
+            "from test_cloud_mixed_web_offline import script_etag; "
+            "print(script_etag())")
+    etags = []
+    for seed in ("1", "2"):
+        finished = subprocess.run(
+            [sys.executable, "-c", code, tests], capture_output=True,
+            text=True, timeout=120, env=dict(os.environ, PYTHONHASHSEED=seed))
+        assert finished.returncode == 0, finished.stderr
+        etags.append(finished.stdout.strip().splitlines()[-1])
+    assert WEAK_ETAG.match(etags[0]), etags
+    assert etags[0] == etags[1]
+
+
+@pytest.mark.parametrize("path", ["/51Degrees.core.js", "/json"])
+def test_a_response_to_a_failed_request_carries_no_etag(cloud, path):
+    stub = cloud(EVERY_SECTION)
+    client = example_client()
+    stub.failing = True
+    response = client_side(client, path)
+
+    assert response.status_code == 200
+    assert response.headers.get("Cache-Control") == NOT_CACHEABLE
+    assert "ETag" not in response.headers
+
+
+# A 304 for the script, which is a GET, and a 412 for the callback, which is
+# a POST, as RFC 9110 section 13.1.2 asks.
+@pytest.mark.parametrize("path, status", [
+    ("/51Degrees.core.js", 304), ("/json", 412)])
+def test_a_matching_etag_is_answered_while_processing_fails(
+        cloud, path, status):
+    stub = cloud(EVERY_SECTION)
+    client = example_client()
+    etag = client_side(client, path).headers.get("ETag")
+    assert etag, "a good response carries an ETag"
+    stub.failing = True
+    response = client_side(client, path, **{"If-None-Match": etag})
+
+    assert response.status_code == status
+    if status == 304:
+        assert response.headers.get("ETag") == etag

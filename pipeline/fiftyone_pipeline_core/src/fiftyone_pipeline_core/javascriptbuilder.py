@@ -372,7 +372,13 @@ class JavascriptBuilderElement(FlowElement):
         for key, value in self.settings.items():
             variables[key] = value
 
-        variables["_jsonObject"] = json.dumps(flowdata.jsonbundler.json)
+        # The JSON is written into a script element, so the characters that
+        # could end the element or the script are written as escapes.
+        variables["_jsonObject"] = (
+            json.dumps(flowdata.jsonbundler.json)
+            .replace("<", "\\u003c")
+            .replace(">", "\\u003e")
+            .replace("&", "\\u0026"))
 
         # Generate URL and autoUpdate params
 
