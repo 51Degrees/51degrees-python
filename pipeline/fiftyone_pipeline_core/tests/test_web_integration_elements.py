@@ -177,8 +177,41 @@ class SequenceElementProcessTests(unittest.TestCase):
             self.process({"query.session-id": "0", "query.sequence": "2"}))
 
     def testSequenceThatIsNotWholeDigitsIsAbsent(self):
-        for value in ("abc", "", " 5 ", "+5", "-5", "5.0", "0", True, 0,
-                      2 ** 31, "2147483648", "٣", None):
+        for value in ("abc", "", " 5 ", "+5", "-5", "5.0", True, "٣", None):
+            self.assertEqual(
+                ("abc", 1),
+                self.process(
+                    {"query.session-id": "abc", "query.sequence": value}),
+                repr(value))
+
+    def testLeadingZerosAreAllowed(self):
+        self.assertEqual(
+            ("abc", 6),
+            self.process({"query.session-id": "abc",
+                          "query.sequence": "00005"}))
+
+    def testSequenceOfZeroGivesOne(self):
+        # "A sequence of 0 gives an output of 1, as an absent one does."
+        for value in (0, "0", "000"):
+            self.assertEqual(
+                ("abc", 1),
+                self.process(
+                    {"query.session-id": "abc", "query.sequence": value}),
+                repr(value))
+
+    def testLargestSequenceCountsUp(self):
+        for value in (2147483646, "2147483646"):
+            self.assertEqual(
+                ("abc", 2147483647),
+                self.process(
+                    {"query.session-id": "abc", "query.sequence": value}),
+                repr(value))
+
+    def testSequenceAboveTheLargestIsAbsent(self):
+        # Above 2,147,483,646 adding one would leave a 32 bit integer, so the
+        # value is not one the element can use and the output is 1.
+        for value in (2147483647, "2147483647", 2 ** 31, "2147483648",
+                      10 ** 400, "1" + "0" * 400):
             self.assertEqual(
                 ("abc", 1),
                 self.process(
