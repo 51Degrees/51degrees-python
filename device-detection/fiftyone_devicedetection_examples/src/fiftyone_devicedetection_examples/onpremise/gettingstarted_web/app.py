@@ -82,7 +82,8 @@ from flask.helpers import make_response
 from flask import Flask, request, render_template
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
-from fiftyone_pipeline_core.web import webevidence, set_response_header
+from fiftyone_pipeline_core.web import (
+    javascript_response, json_response, webevidence, set_response_header)
 import json
 
 class GettingStartedWeb():
@@ -108,60 +109,28 @@ class GettingStartedWeb():
             GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5001)))
 
     # First we make a JSON route that will be called from the client side and will return
-    # a JSON encoded property database using any additional evidence provided by the client 
+    # a JSON encoded property database using any additional evidence provided by the client.
+    # json_response processes the request and sets the cache headers, so a browser keeps a
+    # good answer for 30 minutes and never keeps one made while processing failed.
 
     @staticmethod
     @app.route('/json', methods=['POST'])
     def jsonroute():
 
-        # Create the flowdata object for the JSON route. It is closed when the
-        # route returns, which releases the results of the detection straight
-        # away rather than when the garbage collector next runs.
-        with GettingStartedWeb.pipeline.create_flowdata() as flowdata:
-
-            # Add any information from the request (headers, cookies and additional 
-            # client side provided information)
-
-            flowdata.evidence.add_from_dict(webevidence(request))
-
-            # Process the flowdata
-
-            flowdata.process()
-
-            # Return the JSON from the JSONBundler engine
-
-            return json.dumps(flowdata.jsonbundler.json)
+        return json_response(GettingStartedWeb.pipeline, request)
 
     # Next we serve the client-side JavaScript from its own route. The other
     # Pipeline APIs ship a web integration that intercepts '/51Degrees.core.js'
     # for this, so the page can reference the script by that name. There is no
     # such integration for Flask, so the example wires up the route itself.
+    # Query parameters are evidence, so the per-request 'fod-js-enable-cookies'
+    # override is picked up and applied by the JavaScriptBuilder engine.
 
     @staticmethod
     @app.route('/51Degrees.core.js')
     def core_js():
 
-        # Create the flowdata object for the JavaScript route. It is closed
-        # when the route returns.
-        with GettingStartedWeb.pipeline.create_flowdata() as flowdata:
-
-            # Add any information from the request (headers, cookies and additional
-            # client side provided information). Query parameters are included, so
-            # the per-request 'fod-js-enable-cookies' override is picked up here and
-            # applied by the JavaScriptBuilder engine.
-
-            flowdata.evidence.add_from_dict(webevidence(request))
-
-            # Process the flowdata
-
-            flowdata.process()
-
-            # Return the JavaScript from the JavaScriptBuilder engine
-
-            response = make_response(flowdata.javascriptbuilder.javascript)
-            response.headers["Content-Type"] = "application/x-javascript"
-
-            return response
+        return javascript_response(GettingStartedWeb.pipeline, request)
 
     # In the main route we dynamically update the screen's device property display
     # using the above JSON route

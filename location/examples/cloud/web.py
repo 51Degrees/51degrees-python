@@ -32,8 +32,7 @@
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/location/examples/cloud/web.py)
 
 from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
-from fiftyone_pipeline_core.web import webevidence
-import json
+from fiftyone_pipeline_core.web import json_response, webevidence
 
 # First create the location pipeline with the desired settings.
 
@@ -68,24 +67,14 @@ else:
     app = Flask(__name__)
 
     # First we make a JSON route that will be called from the client side and will return
-    # a JSON encoded property database using any additional evidence provided by the client
+    # a JSON encoded property database using any additional evidence provided by the client.
+    # json_response processes the request and sets the cache headers, so a browser keeps a
+    # good answer for 30 minutes and never keeps one made while processing failed.
 
     @app.route('/json', methods=['POST'])
     def jsonroute():
 
-        # Create the flowData object for the JSON route
-        flowData = pipeline.create_flowdata()
-
-        # Add any information from the request (headers, cookies and additional
-        # client side provided information)
-
-        flowData.evidence.add_from_dict(webevidence(request))
-
-        # Process the flowData
-        flowData.process()
-
-        # Return the JSON from the JSONBundler engine
-        return json.dumps(flowData.jsonbundler.json)
+        return json_response(pipeline, request)
 
     # Helper function to get a property value if it exists and return
     # the reason why if it doesn't
