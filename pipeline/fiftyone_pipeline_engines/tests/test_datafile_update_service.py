@@ -119,31 +119,71 @@ class FileSystemWatcherTests(unittest.TestCase):
         check = self.pending.pop(0)
         check.function(*check.args)
 
+    def register_watched(self, data_file):
+        # The watcher runs only with automatic updates on. The update checks
+        # those would schedule are left out, so only the watcher's are
+        # pending.
+        data_file.auto_update = True
+        with mock.patch.object(self.service, "check_next_update"):
+            self.service.register_data_file(data_file)
+
     # A refresh that fails is logged and reported, the data in use is kept,
     # and a later good file is picked up.
     def testFileSystemWatcherKeepsWatchingAfterFailedRefresh(self):
         data_file = StandInDataFile(self.path)
-        self.service.register_data_file(data_file)
+        self.register_watched(data_file)
 
         self.write("unusable")
         self.run_next_check()
         self.assertEqual("version 1", data_file.data)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_REFRESH_FAILED], self.statuses)
-        self.assertEqual(1, len(self.pipeline.logs))
-        self.assertEqual("error", self.pipeline.logs[0][0])
-        self.assertIn("The data file cannot be used.", self.pipeline.logs[0][1])
+        errors = [log for log in self.pipeline.logs if log[0] == "error"]
+        self.assertEqual(1, len(errors))
+        self.assertIn("The data file cannot be used.", errors[0][1])
         self.assertEqual(1, len(self.pending))
 
         self.write("version 2")
         self.run_next_check()
         self.assertEqual("version 2", data_file.data)
 
+    # The watcher's refresh takes the same route as the polling one, so it
+    # logs the attempt, uses the table's failure message and level, and
+    # reports success to the update complete callbacks.
+    def testFileSystemWatcherRefreshIsRoutedAsPollingIs(self):
+        data_file = StandInDataFile(self.path)
+        self.register_watched(data_file)
+
+        self.write("version 2")
+        self.run_next_check()
+
+        self.assertEqual("version 2", data_file.data)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+        attempts = [log for log in self.pipeline.logs
+                    if "Attempting to refresh Engine" in log[1]]
+        self.assertEqual(1, len(attempts))
+        self.assertEqual("info", attempts[0][0])
+
+    # A refresh that fails from the watcher carries the message and level of
+    # the specification's errors table, as the polling route's does.
+    def testFileSystemWatcherFailedRefreshUsesTheTableMessage(self):
+        data_file = StandInDataFile(self.path)
+        self.register_watched(data_file)
+
+        self.write("unusable")
+        self.run_next_check()
+
+        errors = [log for log in self.pipeline.logs if log[0] == "error"]
+        self.assertEqual(1, len(errors))
+        self.assertIn(
+            "An error occurred while applying a data file update to",
+            errors[0][1])
+
     # A file that is missing at a check, for example part way through being
     # replaced, is looked for again at the next check.
     def testFileSystemWatcherKeepsWatchingWhileFileIsMissing(self):
         data_file = StandInDataFile(self.path)
-        self.service.register_data_file(data_file)
+        self.register_watched(data_file)
 
         os.remove(self.path)
         self.run_next_check()
@@ -160,7 +200,7 @@ class FileSystemWatcherTests(unittest.TestCase):
     # nothing is left holding the data file.
     def testUnregisterStopsFileSystemWatcher(self):
         data_file = StandInDataFile(self.path)
-        self.service.register_data_file(data_file)
+        self.register_watched(data_file)
         check = self.pending[0]
 
         self.service.unregister_data_file(data_file)
