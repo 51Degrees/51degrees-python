@@ -97,7 +97,8 @@ class DataFileUpdateService():
     def __emit(self, status, data_file):
         # A callback that raises stops the callbacks after it, as .NET's service
         # does, and its error is logged with .NET's message for any other
-        # error, so that the next check still runs.
+        # error and the error itself after it, so that the next check still
+        # runs.
         try:
             for method in self.on_complete_methods:
                 method(status, data_file)

@@ -1,3 +1,24 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
 
 import datetime
 import gzip
@@ -608,13 +629,17 @@ class ReportingEachCheckTests(UpdateServiceTestCase):
 # No message holds a licence key in full, as the Logging section of the data
 # updates specification and the License keys section of logging.md say.
 # A callback that raises stops the callbacks after it, as data-updates.md
-# says, and its error is logged with .NET's message for any other error.
-# Polling carries on.
+# says, and its error is logged with .NET's message for any other error,
+# with the error the callback raised attached. Polling carries on.
 class CallbackTests(UpdateServiceTestCase):
 
     UNHANDLED = ("An unhandled error occurred while checking for automatic "
                  "updates for engine 'FakeEngine'. Error detail: "
                  "callback failed")
+
+    # The error the callback raised is attached, as the errors table asks
+    # and as .NET, Node.js and Go each write it.
+    UNHANDLED_WITH_CAUSE = UNHANDLED + ". Error detail: callback failed"
 
     def fail_first(self):
         def fails(status, data_file):
@@ -634,7 +659,7 @@ class CallbackTests(UpdateServiceTestCase):
         self.service.async_update_data_file(self.data_file).join()
         self.assertEqual([], self.statuses)
         self.assertEqual(1, len(self.pending))
-        self.assertEqual([self.UNHANDLED], self.errors())
+        self.assertEqual([self.UNHANDLED_WITH_CAUSE], self.errors())
 
     def testACallbackErrorOnAProgrammaticCheckIsLoggedAndStopsTheCallbacks(
             self):
@@ -645,14 +670,14 @@ class CallbackTests(UpdateServiceTestCase):
         self.service.update_data_file(self.data_file)
         self.assertEqual([], self.statuses)
         self.assertEqual(1, len(self.pending))
-        self.assertEqual([self.UNHANDLED], self.errors())
+        self.assertEqual([self.UNHANDLED_WITH_CAUSE], self.errors())
 
     def testACallbackErrorOnAnUpdateFromMemoryIsLoggedAndStopsTheCallbacks(
             self):
         self.fail_first()
         self.service.update_from_memory(self.data_file, b"fresh")
         self.assertEqual([], self.statuses)
-        self.assertEqual([self.UNHANDLED], self.errors())
+        self.assertEqual([self.UNHANDLED_WITH_CAUSE], self.errors())
 
     def testAConnectionFailureKeepsPolling(self):
         self.data_file.auto_update = True
