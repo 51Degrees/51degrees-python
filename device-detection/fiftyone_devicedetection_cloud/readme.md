@@ -12,7 +12,7 @@
 
 You can confirm this is working with the following micro-example.
 
-* Create a resource key for free with the 51Degrees [configurator](https://51degrees.com/configure/np5M4nlF?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=from-pypi). This defines the properties you want to access.
+* Create a resource key for free with the 51Degrees [configuration page](https://51degrees.com/configure/np5M4nlF?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud&utm_term=from-pypi). This defines the properties you want to access.
 * On the 'implement' page of the configurator, copy the resource key and replace YOUR_RESOURCE_KEY in the example below. Save this as exampledd.py
 * Run the example with `python exampledd.py`
 * Feel free to try different user-agents and property values.

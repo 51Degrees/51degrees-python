@@ -205,7 +205,7 @@ Device Detection cloud example uses can be made
 [here](https://51degrees.com/configure/1QWJwHxl?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples),
 which is the configuration the example's own message names, and a key for IP
 Intelligence in the
-[configurator](https://51degrees.com/configure/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
+[configuration page](https://51degrees.com/configure/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
 
 The Device Detection and IP Intelligence cloud examples take the key as
 their first argument, or from `_51DEGREES_RESOURCE_KEY`.
