@@ -300,8 +300,11 @@ The data files come through cxx's own `data` submodule, at
 `cxx/data/device-detection` and `cxx/data/ip-intelligence`, where each free
 file is a `<file>.link` that `cxx/data/get-data-files.ps1` or
 `cxx/data/get-data-files.sh` downloads. Each product's `ci/fetch-assets.ps1`
-gets the files its tests need, and the examples' `example_utils.py` runs the
-script for a file that is missing. The IP Intelligence on-premise package must
+gets the files its tests need from common-ci's assets, which each run caches
+once, so no test job downloads a data file. A file added to the data
+repository needs an entry in common-ci's `steps/fetch-assets.ps1` before CI
+can use it. The examples' `example_utils.py` runs the script for a file
+that is missing. The IP Intelligence on-premise package must
 compile its own copy of the common C library with large data file support;
 the Device Detection one without it.
 
