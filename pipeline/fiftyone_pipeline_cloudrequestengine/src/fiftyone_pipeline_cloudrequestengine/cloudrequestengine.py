@@ -500,9 +500,15 @@ class CloudRequestEngine(Engine):
 
         try:
             answer = json.loads(result)
-        except JSONDecodeError:
+        except (AttributeError, JSONDecodeError, TypeError, ValueError):
             # validate_response has already dealt with an answer that is
             # not JSON, so there is nothing to compare here.
+            return
+
+        # An answer that parses but is not an object, such as an array,
+        # has no sections to look in. Reporting must not fail the request,
+        # which succeeded, so there is nothing to say.
+        if isinstance(answer, dict) == False:
             return
 
         not_covered = []

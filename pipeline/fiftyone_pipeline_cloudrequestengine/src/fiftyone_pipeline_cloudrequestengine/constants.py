@@ -131,7 +131,7 @@ class Constants:
     # reason, so a name left out is not a property.
     MESSAGE_PROPERTIES_NOT_KNOWN = (
         "The cloud service did not return the requested properties {} in "
-        "its answer. They are not properties the cloud service knows, so "
-        "they will be missing from every result. Check the spelling of "
-        "each one. The other requested properties came back and are "
+        "its answer. Every property is answered, with a reason when it has "
+        "no value, so these names are not properties. Check the spelling "
+        "of each one. The other requested properties came back and are "
         "usable.")

@@ -51,7 +51,8 @@ named properties and the answer left some out, the engine warns once that
 they are not covered by the keys in use, and the properties that came back
 are usable as normal. With a resource key and no licence key, a property no
 licence grants comes back as null with a reason, so the warning says instead
-that a name left out is not a property the cloud service knows.
+that every property is answered and these names are not properties, and
+asks the caller to check the spelling of each one.
 
 See the [Credentials section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials)
 and the rules in
