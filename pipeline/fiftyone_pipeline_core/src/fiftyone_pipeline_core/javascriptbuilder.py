@@ -51,6 +51,13 @@ from .callback_url import callback_url, is_scheme
 # reference for this behaviour.
 EXCLUDED_PARAMETERS = ["query.session-id", "query.sequence"]
 
+# The data key of the SequenceElement, which is the element that produces the
+# session id and the sequence, and the two names its Element Data holds them
+# under. A pipeline without that element renders the defaults below.
+SEQUENCE_ELEMENT_DATA_KEY = "sequence"
+SESSION_ID_NAME = "session-id"
+SEQUENCE_NAME = "sequence"
+
 # The object name is written into the script as the name of a global
 # variable, a session storage key and a property name, all without any
 # escaping. A name that is not a plain JavaScript identifier would therefore
@@ -135,7 +142,7 @@ def parse_sequence(value):
     A sequence as a positive 32 bit integer.
 
     @type value: object
-    @param value: The query.sequence evidence, or None
+    @param value: A sequence value, from Evidence or Element Data, or None
     @rtype: int
     @return: The sequence, or None when the value is not a whole number from
     1 to 2147483647. Any value at all can be passed, including one a page
@@ -172,13 +179,11 @@ def get_sequence(value):
 
     The template writes the sequence as bare code (var sequence = ...;), so
     anything other than a whole number would stop the script parsing, or
-    change what it does. A pipeline without a SequenceElement passes the
-    query string's value, or nothing at all, straight through. As the
-    pipeline specification says, a value that is not a positive 32 bit
-    integer becomes 1.
+    change what it does. As the pipeline specification says, a value that is
+    not a positive 32 bit integer becomes 1.
 
     @type value: object
-    @param value: The query.sequence evidence, or None
+    @param value: The SequenceElement's sequence, or None
     @rtype: int
     @return: The sequence to render
     """
@@ -194,11 +199,10 @@ def get_session_id(value):
 
     The template writes the session id inside quotes without any escaping.
     As the pipeline specification says, a session id that is not 1 to 64
-    ASCII letters, digits and hyphens is rendered as an empty string, whether
-    it came from the SequenceElement or from the query string.
+    ASCII letters, digits and hyphens is rendered as an empty string.
 
     @type value: object
-    @param value: The query.session-id evidence, or None
+    @param value: The SequenceElement's session id, or None
     @rtype: str
     @return: The session id to render, or an empty string
     """
@@ -422,22 +426,22 @@ class JavascriptBuilderElement(FlowElement):
                     + self.settings["_objName"] + "' is used.")
 
         query_params = self.get_evidence_key_filter().filter_evidence(flowdata.evidence.get_all())
-        # Evidence keys ignore letter case, and get_all gives each key in
-        # the letters it was added with, so a key is matched here in lower
-        # case and keeps those letters where it is sent on.
-        folded = {str(key).lower(): key for key in query_params}
 
-        def query_param(name):
-            key = folded.get(name)
-            return None if key is None else query_params[key]
-
-        # Both are written into the script, so each always has a safe value.
-        # The session id is written inside quotes and is empty when absent or
-        # not safe, and the sequence is written as bare code, so it is always
-        # a positive number.
-        variables["_sessionId"] = get_session_id(
-            query_param("query.session-id"))
-        variables["_sequence"] = get_sequence(query_param("query.sequence"))
+        # Both come from the Sequence Element's Element Data, and with no
+        # Sequence Element in the pipeline the sequence is 1 and the session
+        # id empty, whatever the request asked for. Both are written into the
+        # script, so each always has a safe value. The session id is written
+        # inside quotes and is empty when absent or not safe, and the sequence
+        # is written as bare code, so it is always a positive number.
+        sequence_data = flowdata.data.get(SEQUENCE_ELEMENT_DATA_KEY)
+        if sequence_data is None:
+            variables["_sessionId"] = ""
+            variables["_sequence"] = DEFAULT_SEQUENCE
+        else:
+            variables["_sessionId"] = get_session_id(
+                sequence_data.get(SESSION_ID_NAME))
+            variables["_sequence"] = get_sequence(
+                sequence_data.get(SEQUENCE_NAME))
 
         # The session id and the sequence are left out, because the script
         # appends both to its own request after it has taken the record of
