@@ -67,6 +67,8 @@ why.
 ``_51DEGREES_CLOUD_ENDPOINT`` is the cloud API base including the ``/api/v4/``
 segment, defaulting to ``https://cloud.51degrees.com/api/v4/``, and is
 the same variable the cloud request engine and the ``DidClient`` honour.
+``FOD_CLOUD_API_URL`` is that variable's old name. It is deprecated, and
+is read only when ``_51DEGREES_CLOUD_ENDPOINT`` is not set.
 ``PORT`` is the port to listen on, defaulting to 5100.
 
 Standard library plus this package. Run ``python server.py`` then open
@@ -79,6 +81,7 @@ import os
 import secrets
 import sys
 import urllib.parse
+import warnings
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -108,6 +111,25 @@ def env(name):
     return os.environ.get(name) or None
 
 
+def cloud_api_base():
+    """The cloud API base the environment gives, or None when it gives
+    none. ``_51DEGREES_CLOUD_ENDPOINT`` is read first, then its
+    deprecated old name ``FOD_CLOUD_API_URL``, with a warning when the old
+    name is the one used, as the ``DidClient`` does."""
+    base = env("_51DEGREES_CLOUD_ENDPOINT")
+    if base is None:
+        base = env("FOD_CLOUD_API_URL")
+        if base is not None:
+            warnings.warn(
+                "The FOD_CLOUD_API_URL environment variable is deprecated "
+                "and _51DEGREES_CLOUD_ENDPOINT replaces it. The cloud "
+                "endpoint was read from FOD_CLOUD_API_URL because "
+                "_51DEGREES_CLOUD_ENDPOINT is not set, so set "
+                "_51DEGREES_CLOUD_ENDPOINT to the same value.",
+                FutureWarning, stacklevel=2)
+    return base
+
+
 RESOURCE = env("_51DEGREES_RESOURCE_KEY")
 LICENCE = env("_51DEGREES_LICENSE_KEY") or ""
 # The cloud API base, normalised to end in exactly one slash so that
@@ -119,7 +141,7 @@ LICENCE = env("_51DEGREES_LICENSE_KEY") or ""
 # 51Degrees cloud for performance reasons. That is the private hosting
 # option of the cloud service, and both run the same service, so this
 # demo works unchanged against either.
-API = (env("_51DEGREES_CLOUD_ENDPOINT") or DEFAULT_API).rstrip("/") + "/"
+API = (cloud_api_base() or DEFAULT_API).rstrip("/") + "/"
 PORT = int(os.environ.get("PORT", "5100"))
 
 

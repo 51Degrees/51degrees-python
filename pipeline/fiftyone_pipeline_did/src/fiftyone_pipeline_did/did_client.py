@@ -53,9 +53,11 @@ import inspect
 import json
 import os
 import re
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -69,12 +71,74 @@ from .fod_id import DATE_EPOCH, FodId, _date_minutes, _trim_white_space
 from .id_type import IdType
 
 #: The public cloud API base, used when neither the ``endpoint`` argument
-#: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable is set.
+#: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable, nor that
+#: variable's deprecated old name ``FOD_CLOUD_API_URL``, is set.
 DEFAULT_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 
 #: The environment variable the cloud request engine reads for the API
 #: base, honoured here when no endpoint argument is given.
-ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
+CLOUD_ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
+
+# The name that variable had before, read when CLOUD_ENDPOINT_VARIABLE is
+# not set. The deprecated module attribute ENDPOINT_VARIABLE gives this
+# value, through __getattr__ below.
+_OLD_ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"
+
+# Whether the old variable has been reported as deprecated, so that it is
+# reported once however many clients are made.
+_old_endpoint_reported = False
+_old_endpoint_lock = threading.Lock()
+
+
+def __getattr__(name: str) -> Any:
+    """Gives the deprecated module attribute ``ENDPOINT_VARIABLE``.
+
+    .. deprecated::
+        Use :data:`CLOUD_ENDPOINT_VARIABLE`. ``ENDPOINT_VARIABLE`` holds
+        ``FOD_CLOUD_API_URL``, the old name of the environment variable,
+        so code that passes it to the environment reads and sets the old
+        variable. Reading it gives a :class:`DeprecationWarning`.
+    """
+    if name == "ENDPOINT_VARIABLE":
+        warnings.warn(
+            "did_client.ENDPOINT_VARIABLE is deprecated. Use "
+            "did_client.CLOUD_ENDPOINT_VARIABLE, which names the "
+            "environment variable that replaces FOD_CLOUD_API_URL.",
+            DeprecationWarning, stacklevel=2)
+        return _OLD_ENDPOINT_VARIABLE
+    raise AttributeError(
+        "module {0!r} has no attribute {1!r}".format(__name__, name))
+
+
+def _endpoint_from_environment() -> Optional[str]:
+    """The API base the environment gives, or None when it gives none.
+
+    :data:`CLOUD_ENDPOINT_VARIABLE` is read first. When it is unset or
+    empty the variable's old name is read, and the first use of the old
+    name is reported as deprecated. The report is a
+    :class:`FutureWarning`, which Python shows by default, because the
+    people who set the variable are the ones running the application.
+    """
+    global _old_endpoint_reported
+    endpoint = os.environ.get(CLOUD_ENDPOINT_VARIABLE)
+    if endpoint:
+        return endpoint
+    endpoint = os.environ.get(_OLD_ENDPOINT_VARIABLE)
+    if not endpoint:
+        return None
+    with _old_endpoint_lock:
+        report = not _old_endpoint_reported
+        _old_endpoint_reported = True
+    if report:
+        # The third frame is the code that made the client.
+        warnings.warn(
+            "The {0} environment variable is deprecated and {1} replaces "
+            "it. The cloud endpoint was read from {0} because {1} is not "
+            "set, so set {1} to the same value.".format(
+                _OLD_ENDPOINT_VARIABLE, CLOUD_ENDPOINT_VARIABLE),
+            FutureWarning, stacklevel=3)
+    return endpoint
+
 
 _BOUNDARY_TOLERANCE = timedelta(minutes=15)
 
@@ -453,8 +517,10 @@ class DidClient:
         only. Needed to redeem where the account holds licence keys, and
         sent only in the body of the redeem request, never in a URL.
     :param endpoint: the API base including the ``/api/v4/`` segment.
-        Defaults to the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable, then to
-        the public cloud. A value without a trailing slash gains one.
+        Defaults to the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable,
+        then to that variable's deprecated old name ``FOD_CLOUD_API_URL``,
+        then to the public cloud. A value without a trailing slash gains
+        one.
     :param transport: the HTTP transport, either an async callable taking
         the prepared :class:`urllib.request.Request` and answering
         ``(status, body_bytes)``, or an
@@ -478,7 +544,7 @@ class DidClient:
             raise ValueError("resource_key is required")
         self._resource_key = resource_key
         self._licence_key = licence_key if licence_key else None
-        base = endpoint or os.environ.get(ENDPOINT_VARIABLE) or \
+        base = endpoint or _endpoint_from_environment() or \
             DEFAULT_ENDPOINT
         # Normalised to end in exactly one slash so every URL is the base
         # plus a relative path, as the cloud request engine treats the same

@@ -4,6 +4,10 @@
 # every file git tracks, which leaves out build output and the submodules, and
 # fails on any name that starts with the digit and on any fallback name.
 #
+# The cloud endpoint is the one variable with a second name. Its deprecated
+# old name, FOD_CLOUD_API_URL, is read when _51DEGREES_CLOUD_ENDPOINT is not
+# set, so that name is left alone wherever it is written.
+#
 # Names are matched in any case, because Windows reads an environment
 # variable name in any case, so a lower case old name is still the old name
 # there.
@@ -39,13 +43,13 @@ $script:DigitInitialPattern = [regex]::new(
 # a pipeline setting as well as an old environment variable name, and only the
 # environment variable moves.
 #
-# Two kinds of old name. The old cloud endpoint name, the old IP Intelligence
-# data file name, the name the shared key helper's test set and the name that
-# turned the performance examples on are never anything but an environment
-# variable, so they are matched wherever they appear. Each is built from two
-# pieces below so that this file does not name one itself.
+# Two kinds of old name. The old IP Intelligence data file name, the name the
+# shared key helper's test set and the name that turned the performance
+# examples on are never anything but an environment variable, so they are
+# matched wherever they appear. Each is built from two pieces below so that
+# this file does not name one itself.
 #
-# Those four, the ones $plainOld holds, keep their case, unlike every other
+# Those three, the ones $plainOld holds, keep their case, unlike every other
 # pattern here, because the IP Intelligence data file's old name differs from
 # the class name IpIntelligenceDataFile by case alone, and a class is not a
 # variable. They are gone from the repository, so only an exact return of one
@@ -58,7 +62,7 @@ $script:DigitInitialPattern = [regex]::new(
 # reads or sets a variable, or names one in a constant whose own name says so.
 # They are matched in any case, because the line having to read or set a
 # variable is what keeps a settings name out.
-$plainOld = '(?-i:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
+$plainOld = '(?-i:IPINTELLIGENCE' + 'DATAFILE|' +
     'ipintelligence' + 'testkey|run_performance' + '_tests)'
 $sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|cloud_endpoint|cloud_request_origin)'
 $script:FallbackPattern = [regex]::new(
