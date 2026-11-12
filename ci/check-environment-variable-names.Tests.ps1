@@ -87,7 +87,7 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'endpoint = os.environ.get("FOD_CLOUD_API_URL")' }
         @{ Line = 'FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"' }
         @{ Line = 'saved = os.environ.pop("FOD_CLOUD_API_URL", None)' }
-        @{ Line = '_OLD_ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"' }
+        @{ Line = 'ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"' }
         @{ Line = '$env:FOD_CLOUD_API_URL = "https://cloud.51degrees.com/api/v4/"' }
     ) {
         Get-Kind $Line | Should -BeNullOrEmpty

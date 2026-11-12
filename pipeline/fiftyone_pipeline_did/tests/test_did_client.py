@@ -267,14 +267,34 @@ class ClientConstructionTests(unittest.TestCase):
         self.assertEqual(ENDPOINT, client.endpoint)
         self.assertEqual([], self.old_name_reports(caught))
 
-    def test_old_constant_keeps_its_old_value_and_is_deprecated(self):
+    def test_old_constant_keeps_its_old_value(self):
         # Code that passes ENDPOINT_VARIABLE to the environment has to keep
-        # reading the variable it read before, and is told which constant
-        # to move to.
-        with self.assertWarns(DeprecationWarning) as warned:
-            value = did_client.ENDPOINT_VARIABLE
-        self.assertEqual(self.OLD_VARIABLE, value)
-        self.assertIn("CLOUD_ENDPOINT_VARIABLE", str(warned.warning))
+        # reading the variable it read before.
+        self.assertEqual(self.OLD_VARIABLE, did_client.ENDPOINT_VARIABLE)
+
+    def test_old_constant_is_given_by_dir_and_a_star_import(self):
+        # The old constant is a plain attribute of the module, so every
+        # way of finding it still does.
+        self.assertIn("ENDPOINT_VARIABLE", dir(did_client))
+        self.assertEqual(
+            self.OLD_VARIABLE, vars(did_client).get("ENDPOINT_VARIABLE"))
+        names = {}
+        exec("from fiftyone_pipeline_did.did_client import *", names)
+        self.assertEqual(self.OLD_VARIABLE, names.get("ENDPOINT_VARIABLE"))
+        self.assertEqual(
+            self.NEW_VARIABLE, names.get("CLOUD_ENDPOINT_VARIABLE"))
+
+    def test_client_reads_the_variable_the_old_constant_names(self):
+        # The client reads the old name through the constant, as it did
+        # before, so code that points the constant at another variable
+        # still decides what is read.
+        os.environ["ANOTHER_VARIABLE"] = "https://other.example/api/v4"
+        with mock.patch.object(
+                did_client, "ENDPOINT_VARIABLE", "ANOTHER_VARIABLE"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", FutureWarning)
+                client = DidClient(RESOURCE)
+        self.assertEqual("https://other.example/api/v4/", client.endpoint)
 
     def test_new_constant_holds_the_new_name(self):
         self.assertEqual(
