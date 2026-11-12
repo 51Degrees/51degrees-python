@@ -1,0 +1,31 @@
+name: Temporary evidence key case tests
+
+on:
+  push:
+    branches:
+      - 'tmp/py95-**'
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Submodules
+        run: git submodule update --init pipeline/fiftyone_pipeline_core/src/fiftyone_pipeline_core/js_templates
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          cd pipeline
+          pip install pytest flask parameterized requests_mock
+          pip install -e fiftyone_pipeline_core -e fiftyone_pipeline_engines -e fiftyone_pipeline_cloudrequestengine -e fiftyone_pipeline_engines_fiftyone
+      - name: Evidence key case tests
+        run: |
+          cd pipeline/fiftyone_pipeline_core
+          python -m pytest -p no:cacheprovider -v tests/test_evidence_key_case.py
+      - name: Core tests
+        if: ${{ always() }}
+        run: |
+          cd pipeline/fiftyone_pipeline_core
+          python -m pytest -p no:cacheprovider -q tests
