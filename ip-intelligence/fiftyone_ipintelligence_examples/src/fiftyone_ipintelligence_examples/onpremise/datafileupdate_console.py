@@ -76,7 +76,11 @@ from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
 # Environment variable checked for the license key if one is not supplied as
 # a command line argument.
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = "_51DEGREES_LICENSE_KEY"
+UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
+
+# Deprecated. Use UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE. The name that
+# variable had before, read when the new one is not set.
+UPDATE_EXAMPLE_LICENSE_KEY_NAME = ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR
 
 # Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
 # example.
@@ -130,7 +134,7 @@ class DataFileUpdateConsole():
         output("Updating the data file downloads the Enterprise data file, "
                "which needs a licence key. Give the key as the first command "
                "line argument, or in the environment variable "
-               f"'{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'. Contact us for a key "
+               f"'{UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE}'. Contact us for a key "
                f"and a copy at {CONTACT_US}")
 
     def run(self, data_file, license_key, interactive, logger, output):
@@ -138,7 +142,7 @@ class DataFileUpdateConsole():
 
         # Try to find a license key in the environment if not supplied.
         if not license_key:
-            license_key = os.environ.get(UPDATE_EXAMPLE_LICENSE_KEY_NAME)
+            license_key = ExampleUtils.get_license_key()
 
         if not license_key:
             self.explain_license_key(data_file, output)

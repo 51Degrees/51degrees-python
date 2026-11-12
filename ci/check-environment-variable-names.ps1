@@ -1,12 +1,16 @@
 # Every 51Degrees environment variable name in this repository starts with an
 # underscore, because a POSIX shell cannot set a name that starts with a digit,
-# and each variable has one name with nothing read in its place. This reads
-# every file git tracks, which leaves out build output and the submodules, and
-# fails on any name that starts with the digit and on any fallback name.
+# and everything documents that one name. This reads every file git tracks,
+# which leaves out build output and the submodules, and fails on any name
+# that starts with the digit and on any old name.
 #
-# The cloud endpoint is the one variable with a second name. Its deprecated
-# old name, FOD_CLOUD_API_URL, is read when _51DEGREES_CLOUD_ENDPOINT is not
-# set, so that name is left alone wherever it is written.
+# A variable whose name changed is still read under its old name when the new
+# one is not set, which is deprecated. So an old name is left alone in the two
+# places that read happens. One is a line where the old name is the argument
+# straight after its _51DEGREES_ name, which is how each deprecated read is
+# written. The other is the files $FallbackPaths lists, which hold the
+# deprecated constants, the tests that set an old name to check the read, and
+# the lists of names tox passes to the tests.
 #
 # Names are matched in any case, because Windows reads an environment
 # variable name in any case, so a lower case old name is still the old name
@@ -35,25 +39,23 @@ $script:DigitInitialPattern = [regex]::new(
     "(?<![A-Za-z0-9_])$digitInitial[A-Za-z0-9_]*",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# An old name read or set as an environment variable, or given as a second
-# name after a _51DEGREES_ one, or a constant holding a legacy name to fall
-# back to. Only those are matched, so the builder setting resource_key or
+# An old name read or set as an environment variable, or a constant holding
+# one. Only those are matched, so the builder setting resource_key or
 # cloud_endpoint, placeholder text such as YOUR_RESOURCE_KEY, and longer names
 # that end in the same words, are left alone. cloud_endpoint in particular is
 # a pipeline setting as well as an old environment variable name, and only the
 # environment variable moves.
 #
-# Two kinds of old name. The old IP Intelligence data file name, the name the
-# shared key helper's test set and the name that turned the performance
-# examples on are never anything but an environment variable, so they are
-# matched wherever they appear. Each is built from two pieces below so that
-# this file does not name one itself.
+# Two kinds of old name. The old cloud endpoint name, the old IP Intelligence
+# data file name, the name the shared key helper's test set and the name that
+# turned the performance examples on are never anything but an environment
+# variable, so they are matched wherever they appear. Each is built from two
+# pieces below so that this file does not name one itself.
 #
-# Those three, the ones $plainOld holds, keep their case, unlike every other
+# Those four, the ones $plainOld holds, keep their case, unlike every other
 # pattern here, because the IP Intelligence data file's old name differs from
 # the class name IpIntelligenceDataFile by case alone, and a class is not a
-# variable. They are gone from the repository, so only an exact return of one
-# matters.
+# variable.
 #
 # RESOURCE_KEY, LICENSE_KEY, cloud_endpoint and cloud_request_origin also name
 # things that are not environment variables, being pipeline settings, builder
@@ -62,7 +64,7 @@ $script:DigitInitialPattern = [regex]::new(
 # reads or sets a variable, or names one in a constant whose own name says so.
 # They are matched in any case, because the line having to read or set a
 # variable is what keeps a settings name out.
-$plainOld = '(?-i:IPINTELLIGENCE' + 'DATAFILE|' +
+$plainOld = '(?-i:FOD_CLOUD' + '_API_URL|IPINTELLIGENCE' + 'DATAFILE|' +
     'ipintelligence' + 'testkey|run_performance' + '_tests)'
 $sharedOld = '(?:RESOURCE_KEY|LICENSE_KEY|cloud_endpoint|cloud_request_origin)'
 $script:FallbackPattern = [regex]::new(
@@ -75,19 +77,54 @@ $script:FallbackPattern = [regex]::new(
     # expression braces one too.
     "env[:.]\\?$sharedOld(?![A-Za-z0-9_])|" +
     "['`"]$sharedOld['`"]\s+in\s+os\.environ|" +
-    "['`"]_51DEGREES_[A-Za-z0-9_]*['`"]\s*,\s*['`"]$sharedOld['`"]|" +
     # A constant whose own name says it holds a variable name, which is how
     # the cloud request engine and the example helpers name the one they then
     # read. A fixture value such as resourceKey = "resource_key" is left
     # alone, because that name goes on the wire and not in the environment.
     "[A-Za-z_][A-Za-z0-9_]*(?:ENV_VAR|ENVIRONMENT_VARIABLE|_VARIABLE)" +
-    "[A-Za-z0-9_]*\s*=\s*['`"]$sharedOld['`"]|" +
-    '\bLEGACY_[A-Z_]*ENV_VARS?\b',
+    "[A-Za-z0-9_]*\s*=\s*['`"]$sharedOld['`"]",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
+
+# A name given as the argument straight after a _51DEGREES_ name, which is how
+# a deprecated read of an old name is written. The old name is taken out of
+# the line before the line is checked.
+$script:DeprecatedReadPattern = [regex]::new(
+    "(['`"]_51DEGREES_[A-Za-z0-9_]*['`"]\s*,\s*)['`"][A-Za-z0-9_]+['`"]")
+
+# The files that may name an old variable anywhere, each as a pattern its
+# path from the root of the repository matches. They hold the deprecated
+# constants, the documentation and comments that say an old name is still
+# read, the tests that set an old name to check it is read, and the lists of
+# names tox passes to the tests.
+$script:FallbackPaths = @(
+    '(^|/)tox\.ini$'
+    '(^|/)example_utils\.py$'
+    '(^|/)test_environment_names\.py$'
+    '^pipeline/fiftyone_pipeline_cloudrequestengine/readme\.md$'
+    '^pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/(constants|cloudrequestengine)\.py$'
+    '^pipeline/fiftyone_pipeline_cloudrequestengine/tests/test_cloudrequestengine\.py$'
+    '^pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/test_example_utils\.py$'
+    '^pipeline/fiftyone_pipeline_did/readme\.md$'
+    '^pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client\.py$'
+    '^pipeline/fiftyone_pipeline_did/examples/creator_context_web/server\.py$'
+    '^pipeline/fiftyone_pipeline_did/tests/test_(did_client|creator_context_server|live_cloud)\.py$'
+)
+
+# Whether a path from the root of the repository, written with forward
+# slashes, is one of the files that may name an old variable.
+function Test-FallbackPath([string]$Relative) {
+    foreach ($pattern in $script:FallbackPaths) {
+        if ($Relative -match $pattern) {
+            return $true
+        }
+    }
+    return $false
+}
 
 # The problems on one line, each as its kind, 'digit' or 'fallback', and the
 # text matched.
 function Find-EnvironmentNameProblem([string]$Line) {
+    $Line = $script:DeprecatedReadPattern.Replace($Line, '$1""')
     foreach ($match in $script:DigitInitialPattern.Matches($Line)) {
         [pscustomobject]@{ Kind = 'digit'; Value = $match.Value }
     }
@@ -114,9 +151,11 @@ $ownTests = 'ci/check-environment-variable-names.Tests.ps1'
 $found = @()
 $fallbacks = @()
 $read = 0
+$allowed = 0
 $skipped = @()
 foreach ($relative in $tracked) {
-    if ($relative -eq $ownTests) {
+    if ($relative -eq $ownTests -or (Test-FallbackPath $relative)) {
+        $allowed++
         continue
     }
     $path = Join-Path $root $relative
@@ -142,15 +181,17 @@ foreach ($relative in $tracked) {
 }
 
 Write-Output ("$read paths read, $($skipped.Count) skipped as not files: " +
-    "$($skipped -join ', '), and $ownTests left out")
+    "$($skipped -join ', '), and $allowed left out, being $ownTests and " +
+    'the files that may name an old variable')
 
 if ($found.Count -gt 0 -or $fallbacks.Count -gt 0) {
     Write-Output $found
     Write-Output $fallbacks
     throw ("$($found.Count) names start with a digit, which a POSIX shell " +
         'cannot set, so each must start with an underscore, and ' +
-        "$($fallbacks.Count) fallback names are read, set or kept, where " +
-        'each variable has one name.')
+        "$($fallbacks.Count) old names are read, set or kept outside the " +
+        'deprecated reads and the files that may name one.')
 }
 
-Write-Output 'No tracked file names a variable starting with a digit or a fallback name.'
+Write-Output ('No tracked file names a variable starting with a digit, or ' +
+    'an old name outside the deprecated reads.')

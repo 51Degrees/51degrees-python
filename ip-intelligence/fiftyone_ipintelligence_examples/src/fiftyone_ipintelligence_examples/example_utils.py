@@ -25,6 +25,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -38,13 +39,35 @@ class ExampleUtils:
 
     # The default environment variable used to get the resource key
     # to use when running examples.
-    RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
+    CLOUD_RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
+    # Deprecated. Use CLOUD_RESOURCE_KEY_ENV_VAR. The name the resource key
+    # variable had before, read when CLOUD_RESOURCE_KEY_ENV_VAR is not set.
+    RESOURCE_KEY_ENV_VAR = "resource_key"
+
+    # The environment variable the data file update example reads a licence
+    # key from.
+    LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
+
+    # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
+    # variable had before, read when LICENSE_KEY_ENV_VAR is not set.
+    LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
+
+    # The environment variable naming a cloud service other than the public
+    # one.
+    CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
+
+    # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
+    # before, read when CLOUD_ENDPOINT_ENV_VAR is not set.
+    ENDPOINT_ENV_VAR = "cloud_endpoint"
 
     # The default environment variable used to get the data file path
     # to use when running examples.
-    DATA_FILE_ENV_VAR = "_51DEGREES_IPI_PATH"
+    IPI_PATH_ENV_VAR = "_51DEGREES_IPI_PATH"
+
+    # Deprecated. Use IPI_PATH_ENV_VAR. The name that variable had before,
+    # read when IPI_PATH_ENV_VAR is not set.
+    DATA_FILE_ENV_VAR = "IPINTELLIGENCEDATAFILE"
 
     # The data repository's IP intelligence folder, from the root of a
     # checkout of this repository. Each file the data repository links to
@@ -123,11 +146,21 @@ class ExampleUtils:
 
     @staticmethod
     def get_resource_key():
-        return ExampleUtils.__get_env_variable(ExampleUtils.RESOURCE_KEY_ENV_VAR)
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR,
+            ExampleUtils.RESOURCE_KEY_ENV_VAR)
+
+    @staticmethod
+    def get_license_key():
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.LICENSE_KEY_ENV_VAR,
+            ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR)
 
     @staticmethod
     def get_cloud_endpoint():
-        return ExampleUtils.__get_env_variable(ExampleUtils.ENDPOINT_ENV_VAR)
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
+            ExampleUtils.ENDPOINT_ENV_VAR)
 
     @staticmethod
     def find_file(file_name):
@@ -140,7 +173,8 @@ class ExampleUtils:
         when it is missing.
         """
 
-        env = os.environ.get(ExampleUtils.DATA_FILE_ENV_VAR)
+        env = ExampleUtils.__get_env_variable(
+            ExampleUtils.IPI_PATH_ENV_VAR, ExampleUtils.DATA_FILE_ENV_VAR)
         if env and os.path.basename(env) == file_name and os.path.isfile(env):
             return env
 
@@ -376,6 +410,29 @@ class ExampleUtils:
                     f"or cxx/data/get-data-files.ps1 ip-intelligence -Update "
                     f"on Windows.")
 
+    # The old names already reported as deprecated, so each is reported
+    # once.
+    __reported_old_names = set()
+
     @staticmethod
-    def __get_env_variable(name):
-        return os.environ.get(name)
+    def __get_env_variable(name, old_name):
+        """!
+        The value of the environment variable name, or None. When name is
+        unset or empty the name the variable had before is read, and using
+        it prints once that the old name is deprecated.
+        """
+
+        value = os.environ.get(name)
+        if value:
+            return value
+        value = os.environ.get(old_name)
+        if not value:
+            return None
+        if old_name not in ExampleUtils.__reported_old_names:
+            ExampleUtils.__reported_old_names.add(old_name)
+            print(
+                f"The {old_name} environment variable is deprecated and {name} "
+                f"replaces it. The value was read from {old_name} because {name} "
+                f"is not set, so set {name} to the same value.",
+                file=sys.stderr)
+        return value

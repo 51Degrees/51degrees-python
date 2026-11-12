@@ -22,7 +22,6 @@
 
 import os
 import unittest
-from fiftyone_devicedetection_shared.key_utils import KeyUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.onpremise.gettingstarted_console import GettingStartedConsole
@@ -30,7 +29,12 @@ from fiftyone_devicedetection_examples.onpremise.metadata_console import MetaDat
 from fiftyone_devicedetection_examples.onpremise.offlineprocessing import OfflineProcessing
 from fiftyone_devicedetection_examples.onpremise.match_metrics import MatchMetricsConsole
 from fiftyone_devicedetection_examples.onpremise.datafileupdate_console import DataFileUpdateConsole
-from fiftyone_devicedetection_examples.onpremise.datafileupdate_console import UPDATE_EXAMPLE_LICENSE_KEY_NAME
+
+from .live_cloud import read_environment
+
+# Deprecated old name, read when the new one is not set.
+RUN_PERFORMANCE_TESTS = (
+    "_51DEGREES_RUN_PERFORMANCE_TESTS", "run_performance_tests")
 
 
 class DeviceDetectionExampleTests(unittest.TestCase):
@@ -59,12 +63,12 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
     def test_onpremise_datafileupdate_console(self):
         example = DataFileUpdateConsole()
-        license_key = KeyUtils.get_named_key(UPDATE_EXAMPLE_LICENSE_KEY_NAME)
+        license_key = ExampleUtils.get_license_key()
         example.run("Enterprise-HashV41.hash", license_key, False, self.logger, print)
 
     def test_onpremise_offline_processing(self):
         # Only run if environment variable set
-        if "_51DEGREES_RUN_PERFORMANCE_TESTS" in os.environ:
+        if read_environment(*RUN_PERFORMANCE_TESTS):
             example = OfflineProcessing()
             with open(self.evidence_file, "r") as input:
                 with open("./offlineprocessing-output.yml", "w") as output:
@@ -88,5 +92,5 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
     def test_onpremise_performance(self):
         # Only run if environment variable set
-        if "_51DEGREES_RUN_PERFORMANCE_TESTS" in os.environ:
+        if read_environment(*RUN_PERFORMANCE_TESTS):
             import fiftyone_devicedetection_examples.onpremise.performance

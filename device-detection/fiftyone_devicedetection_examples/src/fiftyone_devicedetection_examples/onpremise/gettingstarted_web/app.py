@@ -199,7 +199,7 @@ class GettingStartedWeb():
             if not os.path.exists(envDataFile):
                 raise Exception("The device detection data file " +
                     f"'{envDataFile}' named in the environment variable " +
-                    f"'{ExampleUtils.DATA_FILE_ENV_VAR}' does not exist.")
+                    f"'{ExampleUtils.DD_PATH_ENV_VAR}' does not exist.")
             ExampleUtils.set_data_file_in_config(config, envDataFile)
             return config
 
@@ -226,7 +226,7 @@ class GettingStartedWeb():
                 "`git submodule update --init --recursive`, and run this " +
                 "example again to download the file. Otherwise, ensure that the filename " +
                 "is correct in config.json, or set the environment variable " +
-                f"'{ExampleUtils.DATA_FILE_ENV_VAR}' to the path of the data file.")
+                f"'{ExampleUtils.DD_PATH_ENV_VAR}' to the path of the data file.")
 
         return config
 

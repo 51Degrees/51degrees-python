@@ -38,11 +38,33 @@ from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
 
 # You need to create a resource key at https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-gettingstarted.py&utm_term=top
 # and paste it into the code, replacing !!YOUR_RESOURCE_KEY!! below.
-# Alternatively, add a _51DEGREES_RESOURCE_KEY environment variable
+# Alternatively, add a _51DEGREES_RESOURCE_KEY environment variable.
+# resource_key is the old name of that variable. It is deprecated, and is
+# read only when _51DEGREES_RESOURCE_KEY is not set.
 import os
-if "_51DEGREES_RESOURCE_KEY" in os.environ:
-    resource_key = os.environ["_51DEGREES_RESOURCE_KEY"]
-else:
+import sys
+
+
+def read_environment(name, old_name):
+    """The value of the environment variable name, or None when it has
+    none. When name is unset or empty the name the variable had before is
+    read, and using it prints that the old name is deprecated."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    value = os.environ.get(old_name)
+    if not value:
+        return None
+    print(
+        f"The {old_name} environment variable is deprecated and {name} "
+        f"replaces it. The value was read from {old_name} because {name} "
+        f"is not set, so set {name} to the same value.",
+        file=sys.stderr)
+    return value
+
+
+resource_key = read_environment("_51DEGREES_RESOURCE_KEY", "resource_key")
+if not resource_key:
     resource_key = "!!YOUR_RESOURCE_KEY!!"
 
 if resource_key == "!!YOUR_RESOURCE_KEY!!":

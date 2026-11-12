@@ -21,10 +21,31 @@
 # *********************************************************************
 
 import os
+import warnings
 
 
 class KeyUtils:
-	# A key from the environment variable of exactly that name.
+	# The upper case names already reported as deprecated, so each is
+	# reported once.
+	_reported_upper_case = set()
+
+	# A key from the environment variable of that name. When that variable
+	# is unset or empty, the variable with the same name in upper case is
+	# read, which is deprecated and reported once with a FutureWarning.
 	@staticmethod
 	def get_named_key(key_name):
-		return os.environ.get(key_name)
+		value = os.environ.get(key_name)
+		upper = key_name.upper()
+		if value or upper == key_name:
+			return value
+		upper_value = os.environ.get(upper)
+		if not upper_value:
+			return value or upper_value
+		if upper not in KeyUtils._reported_upper_case:
+			KeyUtils._reported_upper_case.add(upper)
+			warnings.warn(
+				"Reading a key from the upper case form of its variable name "
+				"is deprecated. The key was read from {0} because {1} is not "
+				"set, so set {1} to the same value.".format(upper, key_name),
+				FutureWarning, stacklevel=2)
+		return upper_value

@@ -63,7 +63,8 @@ key list the offline check needs is fetched once and cached for a day.
 
 Environment variables. ``_51DEGREES_RESOURCE_KEY`` is required.
 ``_51DEGREES_LICENSE_KEY`` is optional, and the comment in ``run`` says
-why.
+why. ``RESOURCE_KEY`` and ``LICENSE_KEY`` are the old names of those two.
+They are deprecated, and each is read only when its new name is not set.
 ``_51DEGREES_CLOUD_ENDPOINT`` is the cloud API base including the ``/api/v4/``
 segment, defaulting to ``https://cloud.51degrees.com/api/v4/``, and is
 the same variable the cloud request engine and the ``DidClient`` honour.
@@ -105,33 +106,27 @@ except ImportError:
 DEFAULT_API = "https://cloud.51degrees.com/api/v4/"
 
 
-def env(name):
+def env(name, old_name):
     """The named environment variable when it is set and not empty,
-    otherwise None."""
-    return os.environ.get(name) or None
+    otherwise None. When it is unset or empty the name the variable had
+    before is read, with a warning that the old name is deprecated, as
+    the ``DidClient`` gives for the cloud endpoint."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    value = os.environ.get(old_name)
+    if not value:
+        return None
+    warnings.warn(
+        "The {0} environment variable is deprecated and {1} replaces it. "
+        "The value was read from {0} because {1} is not set, so set {1} "
+        "to the same value.".format(old_name, name),
+        FutureWarning, stacklevel=2)
+    return value
 
 
-def cloud_api_base():
-    """The cloud API base the environment gives, or None when it gives
-    none. ``_51DEGREES_CLOUD_ENDPOINT`` is read first, then its
-    deprecated old name ``FOD_CLOUD_API_URL``, with a warning when the old
-    name is the one used, as the ``DidClient`` does."""
-    base = env("_51DEGREES_CLOUD_ENDPOINT")
-    if base is None:
-        base = env("FOD_CLOUD_API_URL")
-        if base is not None:
-            warnings.warn(
-                "The FOD_CLOUD_API_URL environment variable is deprecated "
-                "and _51DEGREES_CLOUD_ENDPOINT replaces it. The cloud "
-                "endpoint was read from FOD_CLOUD_API_URL because "
-                "_51DEGREES_CLOUD_ENDPOINT is not set, so set "
-                "_51DEGREES_CLOUD_ENDPOINT to the same value.",
-                FutureWarning, stacklevel=2)
-    return base
-
-
-RESOURCE = env("_51DEGREES_RESOURCE_KEY")
-LICENCE = env("_51DEGREES_LICENSE_KEY") or ""
+RESOURCE = env("_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY")
+LICENCE = env("_51DEGREES_LICENSE_KEY", "LICENSE_KEY") or ""
 # The cloud API base, normalised to end in exactly one slash so that
 # every URL is the base followed by its path. The page receives the same
 # value through its __API__ placeholder and builds its two cloud calls
@@ -141,7 +136,8 @@ LICENCE = env("_51DEGREES_LICENSE_KEY") or ""
 # 51Degrees cloud for performance reasons. That is the private hosting
 # option of the cloud service, and both run the same service, so this
 # demo works unchanged against either.
-API = (cloud_api_base() or DEFAULT_API).rstrip("/") + "/"
+API = (env("_51DEGREES_CLOUD_ENDPOINT", "FOD_CLOUD_API_URL")
+       or DEFAULT_API).rstrip("/") + "/"
 PORT = int(os.environ.get("PORT", "5100"))
 
 

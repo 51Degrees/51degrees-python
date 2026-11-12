@@ -24,6 +24,8 @@ import os
 
 from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 
+from .live_cloud import read_environment
+
 
 class TestConstants:
 
@@ -31,11 +33,13 @@ class TestConstants:
     IPV6_ADDRESS = "2001:4860:4860::8888"
 
     # The data file can be supplied via the _51DEGREES_IPI_PATH
-    # environment variable. By default the Lite file downloaded to the
+    # environment variable, or under its deprecated old name. By default
+    # the Lite file downloaded to the
     # repository's assets folder by ci/fetch-assets.ps1 is used.
     @staticmethod
     def get_data_file_path():
-        env = os.environ.get("_51DEGREES_IPI_PATH")
+        env = read_environment(
+            "_51DEGREES_IPI_PATH", "IPINTELLIGENCEDATAFILE")
         if env:
             return env
         return os.path.join(
