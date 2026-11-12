@@ -54,6 +54,19 @@ ACCESSIBLE_PROPERTIES_URL = (
 CREATE_KEY_URL = "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=live_cloud.py&utm_term=resource-key-required"
 
 
+def _report_old_name(name, old_name):
+    """Prints, once for each old name, that it is deprecated and which
+    name replaces it."""
+    if old_name in _reported_old_names:
+        return
+    _reported_old_names.add(old_name)
+    print(
+        f"The {old_name} environment variable is deprecated and {name} "
+        f"replaces it. The value was read from {old_name} because {name} "
+        f"is not set, so set {name} to the same value.",
+        file=sys.stderr)
+
+
 def read_environment(name, old_name):
     """The value of the environment variable name, or None when it has
     none. When name is unset or empty the name the variable had before is
@@ -64,14 +77,21 @@ def read_environment(name, old_name):
     value = os.environ.get(old_name, "").strip()
     if not value:
         return None
-    if old_name not in _reported_old_names:
-        _reported_old_names.add(old_name)
-        print(
-            f"The {old_name} environment variable is deprecated and {name} "
-            f"replaces it. The value was read from {old_name} because {name} "
-            f"is not set, so set {name} to the same value.",
-            file=sys.stderr)
+    _report_old_name(name, old_name)
     return value
+
+
+def is_set(name, old_name):
+    """Whether the environment variable name is set, whatever it holds,
+    which is how a switch is read. When it is not set, the name the
+    variable had before counts, and using it prints once that the old name
+    is deprecated."""
+    if name in os.environ:
+        return True
+    if old_name not in os.environ:
+        return False
+    _report_old_name(name, old_name)
+    return True
 
 
 def find_resource_key(names=RESOURCE_KEY_NAMES):

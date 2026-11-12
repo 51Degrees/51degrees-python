@@ -146,9 +146,18 @@ class ExampleUtils:
 
     @staticmethod
     def get_resource_key():
-        return ExampleUtils.__get_env_variable(
-            ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR,
-            ExampleUtils.RESOURCE_KEY_ENV_VAR)
+        """!
+        The resource key from the environment, or None. The old name is
+        also read in upper case, as it was before.
+        """
+
+        return (
+            ExampleUtils.__get_env_variable(
+                ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR,
+                ExampleUtils.RESOURCE_KEY_ENV_VAR)
+            or ExampleUtils.__get_env_variable(
+                ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR,
+                ExampleUtils.RESOURCE_KEY_ENV_VAR.upper()))
 
     @staticmethod
     def get_license_key():
@@ -158,9 +167,18 @@ class ExampleUtils:
 
     @staticmethod
     def get_cloud_endpoint():
-        return ExampleUtils.__get_env_variable(
-            ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
-            ExampleUtils.ENDPOINT_ENV_VAR)
+        """!
+        The cloud endpoint from the environment, or None. The old name is
+        also read in upper case, as it was before.
+        """
+
+        return (
+            ExampleUtils.__get_env_variable(
+                ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
+                ExampleUtils.ENDPOINT_ENV_VAR)
+            or ExampleUtils.__get_env_variable(
+                ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
+                ExampleUtils.ENDPOINT_ENV_VAR.upper()))
 
     @staticmethod
     def find_file(file_name):

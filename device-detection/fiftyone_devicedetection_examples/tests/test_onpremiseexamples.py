@@ -30,7 +30,7 @@ from fiftyone_devicedetection_examples.onpremise.offlineprocessing import Offlin
 from fiftyone_devicedetection_examples.onpremise.match_metrics import MatchMetricsConsole
 from fiftyone_devicedetection_examples.onpremise.datafileupdate_console import DataFileUpdateConsole
 
-from .live_cloud import read_environment
+from .live_cloud import is_set
 
 # Deprecated old name, read when the new one is not set.
 RUN_PERFORMANCE_TESTS = (
@@ -68,7 +68,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
     def test_onpremise_offline_processing(self):
         # Only run if environment variable set
-        if read_environment(*RUN_PERFORMANCE_TESTS):
+        if is_set(*RUN_PERFORMANCE_TESTS):
             example = OfflineProcessing()
             with open(self.evidence_file, "r") as input:
                 with open("./offlineprocessing-output.yml", "w") as output:
@@ -92,5 +92,5 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
     def test_onpremise_performance(self):
         # Only run if environment variable set
-        if read_environment(*RUN_PERFORMANCE_TESTS):
+        if is_set(*RUN_PERFORMANCE_TESTS):
             import fiftyone_devicedetection_examples.onpremise.performance
