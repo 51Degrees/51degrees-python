@@ -42,7 +42,7 @@ RESOURCE_KEY_NAMES = (
 ACCESSIBLE_PROPERTIES_URL = (
     "https://cloud.51degrees.com/api/v4/accessibleproperties?resource=<key>")
 
-CREATE_KEY_URL = "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=live_cloud.py&utm_term=resource-key-required"
+CREATE_KEY_URL = "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=live_cloud.py&utm_term=resource-key-required"
 
 
 def find_resource_key(names=RESOURCE_KEY_NAMES):

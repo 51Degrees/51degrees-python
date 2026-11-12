@@ -172,7 +172,7 @@ class ExampleUtils:
 
         return (f"No resource key found. Set the environment variable "
                 f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. Create a resource key for free at "
-                "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=resource-key-required")
+                "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=resource-key-required")
 
     @staticmethod
     def get_data_file_path():

@@ -202,10 +202,10 @@ describes.
 The cloud examples need a resource key, which a person creates in the
 configurator, so ask for one if none is set. A key with the properties the
 Device Detection cloud example uses can be made
-[here](https://configure.51degrees.com/1QWJwHxl?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples),
+[here](https://51degrees.com/configure/1QWJwHxl?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples),
 which is the configuration the example's own message names, and a key for IP
 Intelligence in the
-[configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
+[configurator](https://51degrees.com/configure/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
 
 The Device Detection and IP Intelligence cloud examples take the key as
 their first argument, or from `_51DEGREES_RESOURCE_KEY`.

@@ -38,7 +38,7 @@ class CloudEngineTests(unittest.TestCase):
         self.assertIsNotNone(
             self.resource_key,
             "You need to create a resource key at"
-            " https://configure.51degrees.com and paste it"
+            " https://51degrees.com/configure and paste it"
             " into the code, replacing !!YOUR_RESOURCE_KEY!!."
             " Please make sure to include IsMobile property."
         )

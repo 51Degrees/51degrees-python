@@ -107,7 +107,7 @@ class Constants:
         "CloudRequestEngine needs a resource key or a licence key to "
         "authenticate with, as the cloud service answers 401 to a request "
         "that carries neither. Create a resource key for free at "
-        "https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-constants.py&utm_term=no-credential")
+        "https://51degrees.com/configure?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-constants.py&utm_term=no-credential")
     MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES = (
         "CloudRequestEngine has a licence key and no requested_properties. "
         "A licence key names no properties of its own, so the cloud service "

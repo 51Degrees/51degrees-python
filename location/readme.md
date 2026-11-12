@@ -23,7 +23,7 @@ The [tested versions](https://51degrees.com/documentation/_product_summaries__te
 
 You can confirm this is working with the following micro-example.
 
-* Create a resource key for free with the 51Degrees [configurator](https://configure.51degrees.com/6CTsmbPx?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=from-pypi). This defines the properties you want to access.
+* Create a resource key for free with the 51Degrees [configurator](https://51degrees.com/configure/6CTsmbPx?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=from-pypi). This defines the properties you want to access.
 * On the 'implement' page of the configurator, copy the resource key and replace YOUR_RESOURCE_KEY in the example below. Save this as examplelocation.py
 * Run the example with `python examplelocation.py`
 * Feel free to try different locations and property values.

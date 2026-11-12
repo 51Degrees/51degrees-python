@@ -31,7 +31,7 @@ The examples call the cloud service with a resource key or a licence key.
 
 A resource key carries the list of properties it returns. Create one
 carrying device detection and IP intelligence properties for free with the
-[configurator](https://configure.51degrees.com?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=resource-key),
+[configurator](https://51degrees.com/configure?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=resource-key),
 and set the `_51DEGREES_RESOURCE_KEY` environment variable to it. A
 resource key limited to particular
 domains only answers a request whose origin is one of them, so set
