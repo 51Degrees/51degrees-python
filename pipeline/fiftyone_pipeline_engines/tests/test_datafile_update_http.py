@@ -406,7 +406,7 @@ class CallbackTests(UpdateServiceTestCase):
                  "updates for engine 'FakeEngine'")
 
     # The error the callback raised is attached, as the errors table asks
-    # and as .NET, Java, Node.js and Go all write it.
+    # and as .NET, Node.js and Go each write it.
     UNHANDLED_WITH_CAUSE = UNHANDLED + ". Error detail: callback failed"
 
     def fail_first(self):
