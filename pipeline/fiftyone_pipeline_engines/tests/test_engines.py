@@ -113,6 +113,31 @@ class EngineTests(unittest.TestCase):
 
         self.assertTrue(result == "Property integer was excluded from example")
 
+    # Restricted property names are compared ignoring case
+    def testRestrictedPropertyIgnoresCase(self):
+
+        engine = ExampleAspectEngine()
+
+        engine.set_restricted_properties(["Boolean"])
+
+        testPipeline = PipelineBuilder().add(engine).build()
+
+        flowdata = testPipeline.create_flowdata()
+
+        flowdata.process()
+
+        # A name given in another case is in the list.
+        self.assertTrue(flowdata.example.get("boolean"))
+        self.assertTrue(flowdata.example.boolean)
+
+        # A name outside the list is refused in any case.
+        for key in ("integer", "Integer"):
+            with self.assertRaises(Exception) as refused:
+                flowdata.example.get(key)
+            self.assertEqual(
+                "Property " + key + " was excluded from example",
+                str(refused.exception))
+
     # Test restricting properties
     def testMissingPropertyService(self):
         

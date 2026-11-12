@@ -34,7 +34,7 @@ from fiftyone_pipeline_examples.cloud.mixed.gettingstarted_console import (
     GettingStartedConsole, create_pipeline)
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
-from helpers import KEYS
+from helpers import KEYS, credentials
 
 SEPARATOR = "=" * 79
 
@@ -45,7 +45,7 @@ def output(request):
     pipeline = create_pipeline(
         Logger(min_level="info"),
         cloud_endpoint=ExampleUtils.get_cloud_endpoint(),
-        **request.param)
+        **credentials(request.param))
     GettingStartedConsole().run(pipeline, lines.append)
     return "\n".join(lines)
 

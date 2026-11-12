@@ -37,7 +37,7 @@ from fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web.app import (
     create_app, create_pipeline)
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
-from helpers import KEYS, cell_after, country_options
+from helpers import KEYS, cell_after, country_options, credentials
 
 DESKTOP_CHROME = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -51,7 +51,7 @@ LOOKUP_IP = "8.8.8.8"
 
 @pytest.fixture(scope="module", params=KEYS)
 def key(request):
-    return request.param
+    return credentials(request.param)
 
 
 @pytest.fixture(scope="module")

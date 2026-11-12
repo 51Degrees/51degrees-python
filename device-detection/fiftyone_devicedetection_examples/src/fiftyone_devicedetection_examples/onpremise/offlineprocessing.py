@@ -59,6 +59,22 @@ from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 from fiftyone_devicedetection_shared.example_constants import EVIDENCE_FILE_NAME
 from ruamel.yaml import YAML
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=enterprise-data-file"
+
+# The properties only the Enterprise data file has, which are recorded as
+# needing it when the data file in use does not have them.
+ENTERPRISE_PROPERTIES = [
+    "tac",
+    "devicetype",
+    "hardwarevendor",
+    "hardwarename",
+    "hardwaremodel",
+    "nativedevice",
+    "nativename",
+    "nativemodel"]
+
 class OfflineProcessing():
     def run(self, data_file, evidence_yaml, logger, output):
         """!
@@ -68,6 +84,8 @@ class OfflineProcessing():
         @param evidence_yaml: File containing the yaml representation of the evidence to process
         @param logger: Logger to use within the pipeline
         @param output: Output file to write results to
+        @return: True when the data file lacks properties that only the
+        Enterprise data file has
         """
 
         # In this example, we use the DeviceDetectionPipelineBuilder
@@ -108,7 +126,12 @@ class OfflineProcessing():
             # and some evidence files contain them in user-agent strings.
             content = evidence_yaml.read().replace('\t', ' ')
             yaml_data = yaml.load_all(content)
-        
+            # The properties only the Enterprise data file has that the data
+            # file in use lacks, found once rather than for every record.
+            engine = pipeline.get_element("device")
+            missing = [name for name in ENTERPRISE_PROPERTIES
+                if not ExampleUtils.has_property(engine, name)]
+
             try:
                 # Keep going as long as we have more document records.
                 for evidence in yaml_data:
@@ -126,18 +149,25 @@ class OfflineProcessing():
                         # Keys already have header. prefix in the YAML file
                         headers[key] = str(evidence[key])
 
-                    self.analyseEvidence(headers, pipeline, output, yaml)
+                    self.analyseEvidence(
+                        headers, pipeline, output, yaml, missing)
             except BaseException as err:
                 # We can't read the evidence values, so cant write them to the output. Will just
                 # have to skip this entry.
                 logger.log("error", err)
 
+            if missing:
+                # A comment keeps the output a valid YAML stream.
+                print("# " + ExampleUtils.get_enterprise_note(CONTACT_US),
+                      file = output)
+
             # write the yaml document end marker
             print("...", file = output)
 
             ExampleUtils.check_data_file(pipeline, logger)
+            return len(missing) > 0
 
-    def analyseEvidence(self, evidence, pipeline, output, yaml):
+    def analyseEvidence(self, evidence, pipeline, output, yaml, missing):
         # FlowData is a data structure that is used to convey information required for
         # detection and the results of the detection through the pipeline.
         # Information required for detection is called "evidence" and usually consists
@@ -165,14 +195,12 @@ class OfflineProcessing():
             values["device.platformversion"] = ExampleUtils.get_human_readable(device, "platformversion")
             values["device.browsername"] = ExampleUtils.get_human_readable(device, "browsername")
             values["device.browserversion"] = ExampleUtils.get_human_readable(device, "browserversion")
-            values["device.tac"] = ExampleUtils.get_human_readable(device, "tac")
-            values["device.devicetype"] = ExampleUtils.get_human_readable(device, "devicetype")
-            values["device.hardwarevendor"] = ExampleUtils.get_human_readable(device, "hardwarevendor")
-            values["device.hardwarename"] = ExampleUtils.get_human_readable(device, "hardwarename")
-            values["device.hardwaremodel"] = ExampleUtils.get_human_readable(device, "hardwaremodel")
-            values["device.nativedevice"] = ExampleUtils.get_human_readable(device, "nativedevice")
-            values["device.nativename"] = ExampleUtils.get_human_readable(device, "nativename")
-            values["device.nativemodel"] = ExampleUtils.get_human_readable(device, "nativemodel")
+            # The value of a property the data file does not have is not
+            # read.
+            for property in ENTERPRISE_PROPERTIES:
+                values["device." + property] = (
+                    ExampleUtils.NEEDS_ENTERPRISE if property in missing
+                    else ExampleUtils.get_human_readable(device, property))
             # DeviceId is a unique identifier for the combination of hardware, operating
             # system, browser and crawler that has been detected.
             # Our device detection solution uses machine learning to find the optimal
@@ -195,9 +223,9 @@ def main(argv):
     # a command line parameter.
     #
     # Note that the Lite data file is only used for illustration, and has
-    # limited accuracy and capabilities.
-    # Find out about the Enterprise data file on our pricing page:
-    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=main
+    # a small number of Properties.
+    # Contact us for a copy of the Enterprise data file:
+    # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
     # This file contains the 20,000 most commonly seen combinations of header values 
     # that are relevant to device detection. For example, User-Agent and UA-CH headers.
@@ -212,9 +240,11 @@ def main(argv):
     if (data_file != None):
         with open(output_file, "w") as output:
             with open(evidence_file, "r") as input:
-                OfflineProcessing().run(data_file, input, logger, output)
-        logger.log("info",
-            f"Processing complete. See results in: '{output_file}'")
+                needs_enterprise = OfflineProcessing().run(
+                    data_file, input, logger, output)
+        print(f"Processing complete. See results in: '{output_file}'")
+        if needs_enterprise:
+            print(ExampleUtils.get_enterprise_note(CONTACT_US))
     else:
         logger.log("error",
             "Failed to find a device detection data file. Make sure the " +

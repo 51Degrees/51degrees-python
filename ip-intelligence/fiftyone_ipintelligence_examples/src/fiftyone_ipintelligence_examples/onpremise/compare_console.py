@@ -39,9 +39,10 @@
 # true location and the returned location is then calculated, along with the
 # location confidence and whether an area was returned.
 #
-# This example requires an enterprise IP intelligence data file (.ipi). To
-# obtain an enterprise data file for testing, please contact us:
-# https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-compare_console.py&utm_term=top
+# This example needs the location properties only the Enterprise IP
+# intelligence data file has. With the free Lite data file, which it uses by
+# default, it says which and stops. To obtain an Enterprise data file, please
+# contact us: https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-compare_console.py&utm_term=top
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -54,10 +55,18 @@ import sys
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
-from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 
 # Name of the truth CSV file in the data repository.
 GEOIP_COMPARISON_EVIDENCE_FILE_NAME = "geoip_comparison_evidence.csv"
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-compare_console.py&utm_term=enterprise-data-file"
+
+# The properties the comparison reads, which only the Enterprise data file
+# has.
+LOCATION_PROPERTIES = ["Latitude", "Longitude", "LocationConfidence", "Country"]
 
 # Mean radius of the earth in kilometres, used for the distance calculation.
 EARTH_RADIUS_KM = 6371.0
@@ -175,12 +184,19 @@ def main(argv):
         help="Maximum number of truth records to process")
     args = ap.parse_args(argv)
 
-    data_file = args.data_file or ExampleUtils.find_file(ENTERPRISE_DATAFILE_NAME)
+    data_file = args.data_file or ExampleUtils.find_file(LITE_DATAFILE_NAME)
     truth_file = args.truth_file or ExampleUtils.find_file(
         GEOIP_COMPARISON_EVIDENCE_FILE_NAME)
 
     logger = Logger(min_level="info")
 
+    if data_file and ExampleUtils.lacks_enterprise_properties(
+            data_file,
+            "Comparing known locations with IP Intelligence",
+            LOCATION_PROPERTIES,
+            print,
+            CONTACT_US):
+        return
     if data_file and truth_file:
         with open(args.output_file, "w", newline="", encoding="utf-8") as fout:
             CompareConsole().run(

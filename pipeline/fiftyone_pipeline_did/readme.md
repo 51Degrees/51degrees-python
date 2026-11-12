@@ -1,5 +1,7 @@
 # fiftyone_pipeline_did
 
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious")
+
 Strongly typed Python reader and cloud client for the 51Did (51Degrees
 Identifier) returned by the 51Degrees Cloud service. Mirrors the .NET
 `FiftyOne.Did` package.
@@ -112,11 +114,12 @@ url_safe = fod_id.as_base64_url()  # URL-safe alphabet, no padding, for a link
 ```
 
 `from_base64` accepts the standard alphabet the cloud issues and the
-URL-safe alphabet a page puts in a link, with or without padding. On an
-identifier carrying a creator context the License Id field holds an
-encrypted value that only 51Degrees can turn back into a licence
-identifier, so `license_id` is the field's raw value and identifies
-nothing outside 51Degrees.
+URL-safe alphabet a page puts in a link, with or without padding. White
+space around the value is ignored. A value with white space inside it, or
+with characters from both alphabets, is refused. On an identifier carrying
+a creator context the License Id field holds an encrypted value that only
+51Degrees can turn back into a licence identifier, so `license_id` is the
+field's raw value and identifies nothing outside 51Degrees.
 
 ### The usage an identifier was created for
 
@@ -267,9 +270,9 @@ same whichever language parsed the bytes.
 | Status | Meaning |
 | --- | --- |
 | `PARSED` | A structurally valid 51Did. The signature has not been checked |
-| `MISSING_INPUT` | `None`, an empty string or an empty buffer |
+| `MISSING_INPUT` | `None`, an empty string, a string of white space alone or an empty buffer |
 | `INVALID_INPUT_TYPE` | Not a string (base64 reader) or not a bytes-like object (byte reader) |
-| `INVALID_BASE64` | The text is not base64 in either alphabet |
+| `INVALID_BASE64` | The text is not base64 in one alphabet, so there are no bytes. White space inside the text, and characters from both alphabets, report this |
 | `UNSUPPORTED_VERSION` | The first byte names an envelope version this package does not know |
 | `UNEXPECTED_END` | The data stopped in the middle of an envelope field |
 | `INVALID_DOMAIN_ENCODING` | The creator domain is not terminated or is longer than the OWID maximum |
@@ -384,7 +387,7 @@ from fiftyone_pipeline_did import DidClient, FodId
 client = DidClient(
     os.environ["_51DEGREES_RESOURCE_KEY"],
     os.environ.get("_51DEGREES_LICENSE_KEY"),   # optional, see below
-    # endpoint defaults to FOD_CLOUD_API_URL, then the public cloud
+    # endpoint defaults to _51DEGREES_CLOUD_ENDPOINT, then the public cloud
 )
 
 async def check(text):
@@ -421,7 +424,7 @@ client = DidClient(resource_key, licence_key, transport=httpx_transport)
 | --- | --- |
 | `resource_key` | Required. The page's resource key, public by nature. It travels in the route of the key and verify requests and in the form body of the redeem request |
 | `licence_key` | Optional. A licence key of the same account, server side only. Needed to redeem where the account holds licence keys. Sent only in the body of the redeem request, never in a URL |
-| `endpoint` | Optional. The API base including the `/api/v4/` segment. Defaults to the `FOD_CLOUD_API_URL` environment variable, the same variable the cloud request engine honours, then to `https://cloud.51degrees.com/api/v4/`. A value without a trailing slash gains one |
+| `endpoint` | Optional. The API base including the `/api/v4/` segment. Defaults to the `_51DEGREES_CLOUD_ENDPOINT` environment variable, the same variable the cloud request engine honours, then to `FOD_CLOUD_API_URL`, the deprecated old name of that variable, then to `https://cloud.51degrees.com/api/v4/`. The client warns once when the old name is the one used. A value without a trailing slash gains one |
 | `transport` | Optional. The HTTP transport, either an async callable taking the prepared `urllib.request.Request` and answering `(status, body_bytes)`, or an `urllib.request.OpenerDirector`, whose blocking `open` runs on a worker thread. Defaults to `urllib.request.urlopen` on a worker thread. Tests inject one |
 | `timeout` | Optional. Seconds the default transport waits for the cloud, 30 by default |
 | `now` | Optional. The clock, returning an aware UTC `datetime`. Tests inject one |
@@ -654,9 +657,9 @@ unreachable cloud answers 502 with `{ "error": ... }`.
 
 | Variable | Meaning |
 | --- | --- |
-| `_51DEGREES_RESOURCE_KEY` | Required. The page's resource key, public by nature. The older `RESOURCE_KEY` is read when the aligned name is not set |
-| `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, held server side only. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it. The older `LICENSE_KEY` is read when the aligned name is not set |
-| `FOD_CLOUD_API_URL` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. A host other than cloud.51degrees.com would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons, which is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
+| `_51DEGREES_RESOURCE_KEY` | Required. The page's resource key, public by nature |
+| `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, held server side only. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it |
+| `_51DEGREES_CLOUD_ENDPOINT` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. `FOD_CLOUD_API_URL` is its old name, which is deprecated and read only when `_51DEGREES_CLOUD_ENDPOINT` is not set. A host other than cloud.51degrees.com would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons, which is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
 | `PORT` | The port to listen on, defaulting to `5100` |
 
 ### Running

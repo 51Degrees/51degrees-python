@@ -49,6 +49,24 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from .classes.memorylogger import MemoryLogger
 from .test_javascriptbuilder import TestEngine
 
+# The names the specification refuses that are not reserved words of the
+# language, being eval, arguments, and the properties of the browser's Window
+# object that a top level var cannot replace or that navigate the page away.
+REFUSED_NAMES = [
+    "eval", "arguments", "window", "document", "top", "name", "status",
+    "history", "navigator", "closed", "location", "frameElement",
+    "isSecureContext", "crossOriginIsolated", "trustedTypes", "crypto",
+    "indexedDB", "localStorage", "sessionStorage", "caches", "cookieStore",
+    "speechSynthesis", "styleMedia", "crashReport", "credentialless",
+    "customElements", "documentPictureInPicture", "fence", "launchQueue",
+    "originAgentCluster"]
+
+# Window properties that a top level var can replace, so the names stay
+# allowed, and near misses of refused names.
+ALLOWED_NAMES = [
+    "self", "frames", "parent", "opener", "length", "windows", "Window",
+    "cachesX"]
+
 NODE = shutil.which("node")
 HARNESS = os.path.join(os.path.dirname(__file__), "object_name_harness.js")
 
@@ -151,7 +169,9 @@ class JavaScriptBuilderObjectNameTests(unittest.TestCase):
 
     @parameterized.expand([
         ["statement", "a;b", True],
-        ["leading_digit", "9bad", True],
+        # The name has a letter that is not a hex digit, so the random
+        # session id the script also carries can never contain it.
+        ["leading_digit", "9zz", True],
         ["quote", 'x"y', True],
         ["empty", "", False],
         # A reserved word is also an ordinary word in the script's comments,
@@ -203,6 +223,50 @@ class JavaScriptBuilderObjectNameTests(unittest.TestCase):
         if check_text:
             self.assertNotIn(name, warnings[0])
 
+    @parameterized.expand([[name] for name in REFUSED_NAMES])
+    def test_refused_window_name_from_evidence_is_ignored(self, name):
+        """A requested name the specification refuses is not declared. The
+        configured name is used, the script parses and runs, and a warning
+        is logged."""
+
+        logger = MemoryLogger("warning")
+        script = _render(
+            {"minify": False},
+            {Constants.EVIDENCE_OBJECT_NAME: name},
+            logger)
+
+        self.assert_uses_name(script, "fod")
+        self.assert_parses(script)
+
+        result = self.run_script(script, "fod")
+        self.assertIsNone(result["error"])
+        self.assertTrue(result["exists"])
+        self.assertEqual(["fod"], result["globals"])
+
+        warnings = [
+            entry["message"] for entry in logger.memory_log
+            if entry["level"] == "warning"
+            and Constants.EVIDENCE_OBJECT_NAME in entry["message"]]
+        self.assertEqual(1, len(warnings), str(logger.memory_log))
+
+    @parameterized.expand([[name] for name in ALLOWED_NAMES])
+    def test_allowed_window_name_from_evidence_is_used(self, name):
+        """A name the specification allows is declared and the script
+        parses."""
+
+        logger = MemoryLogger("warning")
+        script = _render(
+            {"minify": False},
+            {Constants.EVIDENCE_OBJECT_NAME: name},
+            logger)
+
+        self.assert_uses_name(script, name)
+        self.assert_parses(script)
+        self.assertEqual([], [
+            entry for entry in logger.memory_log
+            if entry["level"] == "warning"
+            and Constants.EVIDENCE_OBJECT_NAME in entry["message"]])
+
     def test_invalid_name_from_evidence_uses_configured_name(self):
         """The fallback is the configured name, not always 'fod'."""
 
@@ -236,6 +300,19 @@ class JavaScriptBuilderObjectNameSettingTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             JavascriptBuilderElement({"obj_name": name})
+
+    @parameterized.expand([[name] for name in REFUSED_NAMES])
+    def test_refused_window_name_is_refused(self, name):
+        """A name the specification refuses is refused when the builder is
+        created."""
+
+        with self.assertRaises(ValueError):
+            JavascriptBuilderElement({"obj_name": name})
+
+    @parameterized.expand([[name] for name in ALLOWED_NAMES])
+    def test_allowed_window_name_is_accepted(self, name):
+        element = JavascriptBuilderElement({"obj_name": name})
+        self.assertEqual(name, element.settings["_objName"])
 
     @parameterized.expand([
         ["plain", "myFod"],

@@ -63,7 +63,7 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file, licence_keys="").build()
         self.addCleanup(pipeline.close)
 
-        self.assertTrue(pipeline.flow_elements[0].datakey == "shareusage")
+        self.assertIn("shareusage", pipeline.flow_elements_list)
 
     def test_on_premise_engine_datafile(self):
         """!
@@ -75,7 +75,7 @@ class DeviceDetectionTests(unittest.TestCase):
         self.addCleanup(pipeline.close)
 
         self.assertTrue(isinstance(
-            pipeline.flow_elements[0].data_file, DeviceDetectionDataFile))
+            pipeline.get_element("device").data_file, DeviceDetectionDataFile))
 
     def test_properties_onpremise(self):
         """!
@@ -87,7 +87,7 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
         self.addCleanup(pipeline.close)
 
-        properties = pipeline.flow_elements[0].get_properties()
+        properties = pipeline.get_element("device").get_properties()
 
         self.assertTrue(len(properties.keys()) > 0)
 
@@ -100,7 +100,7 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
         self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertFalse(evidence_key_filter.filter_evidence_key("test.test"))
@@ -310,7 +310,7 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
         self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(
@@ -325,7 +325,7 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
         self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(evidence_key_filter.filter_evidence_key(
@@ -340,7 +340,7 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
         self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(evidence_key_filter.filter_evidence_key(
@@ -357,7 +357,7 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
         self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(
@@ -378,7 +378,7 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
         self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(evidence_key_filter.filter_evidence_key(

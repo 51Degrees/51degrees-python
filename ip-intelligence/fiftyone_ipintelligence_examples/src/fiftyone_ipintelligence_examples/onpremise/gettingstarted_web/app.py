@@ -44,6 +44,10 @@ from fiftyone_ipintelligence_examples.onpremise.countries_pipeline import (
     add_country_translation, build_country_options)
 from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_web-app.py&utm_term=enterprise-data-file"
+
 app = Flask(__name__)
 
 pipeline = None
@@ -69,6 +73,12 @@ def get_value(ip_data, property):
 
 
 def country_dropdown(translated):
+    # Only the Enterprise data file has the country codes the dropdown is
+    # built from.
+    if not ExampleUtils.has_property(
+            pipeline.flow_elements_list["ip"], "CountryCodesGeographical"):
+        return (f"<p>The country dropdown {ExampleUtils.NEEDS_ENTERPRISE}. "
+                f"<a href=\"{CONTACT_US}\">Contact us</a> for a copy.</p>")
 
     # The geographical "All" lists are index-aligned: option i is
     # (CountryCodesGeographicalAll[i], CountryNamesGeographicalAllTranslated[i]),

@@ -22,10 +22,10 @@
 
 """
 The script must parse whatever the pipeline holds. The sequence is written
-into the script as bare code and the session id inside quotes, and a pipeline
-built without a SequenceElement, for example from a configuration file that
-does not list one, passes the query string's values, or nothing at all,
-straight to the builder.
+into the script as bare code and the session id inside quotes, and both come
+from the SequenceElement, so every pipeline here has one. A pipeline without
+a SequenceElement renders sequence 1 and an empty session id, which
+test_javascriptbuilder_no_sequence.py covers.
 
 The script is checked with "node --check", which needs Node on the path.
 Every GitHub hosted runner has it.
@@ -41,25 +41,19 @@ import unittest
 from parameterized import parameterized
 
 from fiftyone_pipeline_core import javascriptbuilder
-from fiftyone_pipeline_core.javascriptbuilder import JavascriptBuilderElement
-from fiftyone_pipeline_core.jsonbundler import JSONBundlerElement
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 NODE = shutil.which("node")
 
 
-def _render(evidence=None, minify=False, sequence_element=False):
-    """Render the script. With sequence_element False the pipeline has only
-    the JSON bundler and the JavaScript builder."""
+def _render(evidence=None, minify=False, sequence_element=True):
+    """Render the script. The JSON builder fails without a sequence number,
+    so the pipeline always has the SequenceElement."""
 
+    if not sequence_element:
+        raise ValueError("The JSON builder needs the SequenceElement")
     settings = {"javascript_builder_settings": {"minify": minify}}
-    if not sequence_element:
-        settings["add_javascript_builder"] = False
-    builder = PipelineBuilder(settings)
-    if not sequence_element:
-        builder.add(JSONBundlerElement())
-        builder.add(JavascriptBuilderElement({"minify": minify}))
-    pipeline = builder.build()
+    pipeline = PipelineBuilder(settings).build()
     flowdata = pipeline.create_flowdata()
     for key, value in (evidence or {}).items():
         flowdata.evidence.add(key, value)
@@ -92,54 +86,15 @@ class JavaScriptBuilderSequenceTests(unittest.TestCase):
             "the rendered script does not parse: " + result.stderr)
 
     @parameterized.expand([["unminified", False], ["minified", True]])
-    def test_script_parses_without_sequence_element(self, _, minify):
-        """With no SequenceElement and no query evidence the script is
-        rendered with sequence 1 and an empty session id, and parses."""
+    def test_script_parses(self, _, minify):
+        """With no query evidence the script is rendered with sequence 1, and
+        parses."""
 
         script = _render(minify=minify)
 
         self.assert_parses(script)
         if not minify:
             self.assertEqual(["var sequence = 1;"], _line(script, "sequence"))
-            self.assertEqual(
-                ['var sessionId = "";'], _line(script, "sessionId"))
-
-    @parameterized.expand([
-        ["text", "abc"],
-        ["negative", "-1"],
-        ["zero", "0"],
-        ["too_large", "99999999999"],
-        ["empty", ""],
-        ["statement", "1;b"],
-        ["decimal", "1.5"],
-        ["underscore", "1_0"],
-        ["just_too_large", "2147483648"],
-        ["file_separator", chr(0x1C) + "5"],
-        ["group_separator", chr(0x1D) + "5"],
-        ["record_separator", chr(0x1E) + "5"],
-        ["unit_separator", chr(0x1F) + "5"],
-        ["trailing_file_separator", "5" + chr(0x1C)],
-        ["null", chr(0) + "5"],
-        ["no_break_space", chr(0xA0) + "5"],
-        ["line_separator", chr(0x2028) + "5"],
-        ["arabic_indic_digit", chr(0x665)],
-        ["full_width_digit", chr(0xFF15)],
-        ["five_thousand_digits", "9" * 5000],
-        ["plus_alone", "+"],
-        ["spaces_alone", "   "],
-        ["zeros", "0000"],
-    ])
-    def test_unusable_sequence_from_query_becomes_one(self, _, value):
-        """A query.sequence that is not a positive 32 bit integer is rendered
-        as 1, as the pipeline specification says, so the script parses and
-        nothing else is written in its place."""
-
-        script = _render({
-            "query.session-id": "abc",
-            "query.sequence": value})
-
-        self.assertEqual(["var sequence = 1;"], _line(script, "sequence"))
-        self.assert_parses(script)
 
     @parameterized.expand([
         ["text", "abc"],
@@ -171,30 +126,8 @@ class JavaScriptBuilderSequenceTests(unittest.TestCase):
             ['var sessionId = "abc";'], _line(script, "sessionId"))
         self.assert_parses(script)
 
-    @parameterized.expand([
-        ["text", "7", 7],
-        ["spaces", " 7 ", 7],
-        ["number", 12, 12],
-        ["largest", "2147483647", 2147483647],
-    ])
-    def test_usable_sequence_from_query_is_rendered(self, _, value, expected):
-        script = _render({
-            "query.session-id": "abc",
-            "query.sequence": value})
-
-        self.assertEqual(
-            ["var sequence = " + str(expected) + ";"],
-            _line(script, "sequence"))
-        self.assert_parses(script)
-
-    @parameterized.expand([
-        ["without_sequence_element", False],
-        ["with_sequence_element", True],
-    ])
-    def test_session_id_from_query_is_rendered(self, _, sequence_element):
-        script = _render(
-            {"query.session-id": "abc-123"},
-            sequence_element=sequence_element)
+    def test_session_id_from_query_is_rendered(self):
+        script = _render({"query.session-id": "abc-123"})
 
         self.assertEqual(
             ['var sessionId = "abc-123";'], _line(script, "sessionId"))
@@ -211,7 +144,9 @@ class JavaScriptBuilderSequenceTests(unittest.TestCase):
 
     @parameterized.expand([
         [name + "_" + ("with" if element else "without")
-         + "_sequence_element", value, check_text, element]
+         + "_sequence_element", value,
+         # The JSON of the Sequence Element's data holds the long id as it is.
+         check_text and not (element and name == "too_long"), element]
         for name, value, check_text in [
             ["quote", 'a"b', True],
             ["backslash", "a\\b", True],
@@ -223,7 +158,7 @@ class JavaScriptBuilderSequenceTests(unittest.TestCase):
             ["space", "a b", False],
             ["new_line", "ab\n", False],
         ]
-        for element in [False, True]
+        for element in [True]
     ])
     def test_unsafe_session_id_is_rendered_empty(
             self, _, value, check_text, sequence_element):
@@ -231,7 +166,8 @@ class JavaScriptBuilderSequenceTests(unittest.TestCase):
         one that is not 1 to 64 ASCII letters, digits and hyphens is rendered
         as an empty string, as the pipeline specification says. The
         SequenceElement keeps a session id it is given, so the check is the
-        builder's in both pipelines."""
+        builder's in both pipelines. The JSON in the script cannot be ended
+        early by the id either."""
 
         script = _render(
             {"query.session-id": value},
@@ -331,7 +267,7 @@ class JavaScriptBuilderSequenceTests(unittest.TestCase):
                   chr(0x1F) + "5", "5" + chr(0x1C), chr(0) + "5",
                   "9" * 5000, "+", "   "]
         for value in values:
-            for element in [False, True]:
+            for element in [True]:
                 with self.subTest(value=repr(value), element=element):
                     script = _render(
                         {"query.session-id": "abc",

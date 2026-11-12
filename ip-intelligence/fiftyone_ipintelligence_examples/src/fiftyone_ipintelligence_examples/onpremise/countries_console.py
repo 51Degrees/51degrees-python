@@ -32,10 +32,10 @@
 # 2. How to supply the browser language so the names are localized
 # 3. How to read the ordered "All" lists used to build a country dropdown
 #
-# This example uses a local IP intelligence data file (.ipi). A data file that
-# contains country information is needed to see weighted countries lead the
-# list; with the network-only ASN data file the lists are simply every known
-# country in alphabetical order.
+# The country codes this example orders and translates are only in the
+# Enterprise data file. With the free Lite data file, which it uses by
+# default, the example says so and stops. Contact us for a copy:
+# https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-countries_console.py&utm_term=header
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -49,7 +49,15 @@ from fiftyone_ipintelligence_examples.onpremise.countries_pipeline import (
     add_country_translation)
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_VALUES
-from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-countries_console.py&utm_term=enterprise-data-file"
+
+# The properties the country lists are built from, which only the Enterprise
+# data file has.
+COUNTRY_PROPERTIES = ["CountryCodesGeographical", "CountryCodesPopulation"]
 
 # The browser language to translate the country names to. A value such as
 # "fr_FR" or a full Accept-Language header is accepted; leave blank to keep the
@@ -146,12 +154,18 @@ def main(argv):
 
     data_file = (
         argv[0] if len(argv) > 0
-        else ExampleUtils.find_file(ASN_DATAFILE_NAME))
+        else ExampleUtils.find_file(LITE_DATAFILE_NAME))
 
     logger = Logger(min_level="info")
 
     if data_file:
-        CountriesConsole().run(data_file, logger, print)
+        if not ExampleUtils.lacks_enterprise_properties(
+                data_file,
+                "Listing the countries an IP address is most likely in",
+                COUNTRY_PROPERTIES,
+                print,
+                CONTACT_US):
+            CountriesConsole().run(data_file, logger, print)
     else:
         logger.log("error",
             "Failed to find an IP intelligence data file. Make sure the "

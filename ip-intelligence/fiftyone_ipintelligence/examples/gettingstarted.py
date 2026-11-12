@@ -24,7 +24,7 @@ from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligenc
 
 # First create the IP intelligence pipeline with the desired settings.
 
-data_file = "../assets/51Degrees-LiteIpiV41.ipi"
+data_file = "../../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
 resource_key = "!!YOUR_RESOURCE_KEY!!"
 
 # Uncommment the line below 'On-Premise' and comment the line below 'Cloud' to

@@ -29,6 +29,8 @@ from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_FILE_NAME
 
+from .live_cloud import find_resource_key, no_resource_key
+
 # The tests run against the freely available ASN data file the data
 # repository links to, so they only rely on properties that the free data
 # file provides (location properties such as Latitude, Longitude and Areas
@@ -36,7 +38,14 @@ from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_FILE_NAME
 data_file = ExampleUtils.find_file(ASN_DATAFILE_NAME)
 evidence_file = ExampleUtils.find_file(EVIDENCE_FILE_NAME)
 truth_file = ExampleUtils.find_file("geoip_comparison_evidence.csv")
-resource_key = ExampleUtils.get_resource_key()
+resource_key = find_resource_key()
+
+NO_IP_KEY = no_resource_key(
+    "the ip product",
+    "IP Intelligence properties such as RegisteredName, and their metadata")
+NO_MIXED_KEY = no_resource_key(
+    "the device and ip products",
+    "device detection and IP Intelligence properties together")
 
 # The mixed examples combine IP intelligence with device detection, which is
 # an optional dependency. Their tests only run when it is installed.
@@ -146,23 +155,23 @@ class ExampleTests(unittest.TestCase):
         # header + up to 20 records
         self.assertGreater(len(output.getvalue().splitlines()), 1)
 
-    @unittest.skipUnless(
-        bool(resource_key), "No resource_key environment variable set")
     def test_cloud_gettingstarted_console(self):
+        if not resource_key:
+            self.fail(NO_IP_KEY)
         from fiftyone_ipintelligence_examples.cloud.gettingstarted_console import GettingStartedConsole
         example = GettingStartedConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
-    @unittest.skipUnless(
-        bool(resource_key), "No resource_key environment variable set")
     def test_cloud_metadata_console(self):
+        if not resource_key:
+            self.fail(NO_IP_KEY)
         from fiftyone_ipintelligence_examples.cloud.metadata_console import MetadataConsole
         example = MetadataConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
-    @unittest.skipUnless(
-        bool(resource_key), "No resource_key environment variable set")
     def test_cloud_getallproperties_console(self):
+        if not resource_key:
+            self.fail(NO_IP_KEY)
         from fiftyone_ipintelligence_examples.cloud.getallproperties_console import GetAllPropertiesConsole
         example = GetAllPropertiesConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
@@ -176,9 +185,10 @@ class ExampleTests(unittest.TestCase):
         example.run(hash_file, data_file, Logger(min_level="error"), lambda x: None)
 
     @unittest.skipUnless(
-        device_detection_available and bool(resource_key),
-        "device detection package or resource_key not available")
+        device_detection_available, "device detection package not available")
     def test_cloud_mixed_console(self):
+        if not resource_key:
+            self.fail(NO_MIXED_KEY)
         from fiftyone_ipintelligence_examples.cloud.mixed_console import MixedConsole
         example = MixedConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)

@@ -22,13 +22,16 @@
 
 import os
 import warnings
+from unittest import mock
 from parameterized import parameterized
 
+from fiftyone_pipeline_cloudrequestengine import cloudrequestengine
 from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import CloudRequestException
 from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import CloudRequestEngine
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_cloudrequestengine.constants import Constants
 
+from .classes.accepteverykeyelement import AcceptEveryKeyElement
 from .classes.constants import Constants as TestConstants
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 
@@ -44,10 +47,50 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
     testResourceKey = "resource_key"
     testEndPoint = "http://testEndPoint/"
     testEnvVarEndPoint = "http://testEnvVarEndPoint/"
+    testOldEnvVarEndPoint = "http://testOldEnvVarEndPoint/"
+
+    # The name the endpoint environment variable had before
+    # Constants.CLOUD_ENDPOINT, written out so that these tests do not
+    # depend on the deprecated constant that holds it.
+    oldEndPointVariable = "FOD_CLOUD_API_URL"
 
     def setUp(self):
-        if os.environ.get(Constants.FOD_CLOUD_API_URL) is not None:
-            del os.environ[Constants.FOD_CLOUD_API_URL]
+        # Each test starts with neither name of the endpoint variable set
+        # and with the old name not yet reported as deprecated, and what
+        # it sets is put back afterwards.
+        environment = mock.patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop(Constants.CLOUD_ENDPOINT, None)
+        os.environ.pop(self.oldEndPointVariable, None)
+        reported = mock.patch.object(
+            cloudrequestengine, "_old_endpoint_reported", False)
+        reported.start()
+        self.addCleanup(reported.stop)
+
+    def new_engine(self, **settings):
+        """!
+        A cloud request engine with the test resource key, a mock HTTP
+        client and any other settings given.
+        """
+
+        return CloudRequestEngine({
+            "resource_key": TestCloudRequestEngine.testResourceKey,
+            "http_client": self.mock_http(),
+            **settings
+        })
+
+    def old_name_reports(self, caught):
+        """!
+        The warnings in a recorded list that say the old endpoint variable
+        is deprecated and name the one that replaces it.
+        """
+
+        return [
+            warning for warning in caught
+            if issubclass(warning.category, FutureWarning)
+            and self.oldEndPointVariable in str(warning.message)
+            and Constants.CLOUD_ENDPOINT in str(warning.message)]
 
     def testConfigEndPoint_ExplicitSetting(self):
         """!
@@ -55,7 +98,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         method interface take precedence over everything else
         """
 
-        os.environ[Constants.FOD_CLOUD_API_URL] = TestCloudRequestEngine.testEnvVarEndPoint
+        os.environ[Constants.CLOUD_ENDPOINT] = TestCloudRequestEngine.testEnvVarEndPoint
         cloud_request_engine = CloudRequestEngine({
             "resource_key": TestCloudRequestEngine.testResourceKey,
             "cloud_endpoint": TestCloudRequestEngine.testEndPoint,
@@ -69,7 +112,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         variable take precedence over the default value
         """
 
-        os.environ[Constants.FOD_CLOUD_API_URL] = TestCloudRequestEngine.testEnvVarEndPoint
+        os.environ[Constants.CLOUD_ENDPOINT] = TestCloudRequestEngine.testEnvVarEndPoint
         cloud_request_engine = CloudRequestEngine({
             "resource_key": TestCloudRequestEngine.testResourceKey,
             "http_client": self.mock_http()
@@ -86,6 +129,123 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
             "http_client": self.mock_http()
         })
         self.assertEqual(Constants.BASE_URL_DEFAULT, cloud_request_engine.baseURL)
+
+    def testConfigEndPoint_OldEnvironmentVariable(self):
+        """!
+        Check that the old name of the endpoint environment variable is
+        still read when the new name is not set
+        """
+
+        os.environ[self.oldEndPointVariable] = self.testOldEnvVarEndPoint
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            engine = self.new_engine()
+        self.assertEqual(self.testOldEnvVarEndPoint, engine.baseURL)
+
+    def testConfigEndPoint_OldEnvironmentVariable_NewNameEmpty(self):
+        """!
+        Check that the old name is read when the new name is set to an
+        empty value, which counts as not set
+        """
+
+        os.environ[Constants.CLOUD_ENDPOINT] = ""
+        os.environ[self.oldEndPointVariable] = self.testOldEnvVarEndPoint
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", FutureWarning)
+            engine = self.new_engine()
+        self.assertEqual(self.testOldEnvVarEndPoint, engine.baseURL)
+
+    def testConfigEndPoint_OldEnvironmentVariable_Empty(self):
+        """!
+        Check that the default is used when the old name is set to an
+        empty value and the new name is not set, with nothing reported
+        """
+
+        os.environ[self.oldEndPointVariable] = ""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            engine = self.new_engine()
+        self.assertEqual(Constants.BASE_URL_DEFAULT, engine.baseURL)
+        self.assertEqual([], self.old_name_reports(caught))
+
+    def testConfigEndPoint_NewEnvironmentVariableWins(self):
+        """!
+        Check that the new name wins when both names are set, and that the
+        old name is not reported because it was not used
+        """
+
+        os.environ[Constants.CLOUD_ENDPOINT] = self.testEnvVarEndPoint
+        os.environ[self.oldEndPointVariable] = self.testOldEnvVarEndPoint
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            engine = self.new_engine()
+        self.assertEqual(self.testEnvVarEndPoint, engine.baseURL)
+        self.assertEqual([], self.old_name_reports(caught))
+
+    def testConfigEndPoint_ExplicitSettingOverOldEnvironmentVariable(self):
+        """!
+        Check that the cloud_endpoint setting wins over the old name, and
+        that the old name is not reported because it was not used
+        """
+
+        os.environ[self.oldEndPointVariable] = self.testOldEnvVarEndPoint
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            engine = self.new_engine(cloud_endpoint=self.testEndPoint)
+        self.assertEqual(self.testEndPoint, engine.baseURL)
+        self.assertEqual([], self.old_name_reports(caught))
+
+    def testConfigEndPoint_OldEnvironmentVariableReportedOnce(self):
+        """!
+        Check that using the old name is reported as deprecated once,
+        naming the new name, however many engines are built
+        """
+
+        os.environ[self.oldEndPointVariable] = self.testOldEnvVarEndPoint
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            first = self.new_engine()
+            second = self.new_engine()
+        self.assertEqual(self.testOldEnvVarEndPoint, first.baseURL)
+        self.assertEqual(self.testOldEnvVarEndPoint, second.baseURL)
+        self.assertEqual(1, len(self.old_name_reports(caught)))
+
+    def testOldEndPointConstant(self):
+        """!
+        Check that the constant the old name was held in is still there
+        with its old value, as a plain attribute of its class, so that
+        every way of reading it gives the old name
+        """
+
+        self.assertEqual(
+            self.oldEndPointVariable, Constants.FOD_CLOUD_API_URL)
+        self.assertEqual(
+            self.oldEndPointVariable,
+            vars(Constants).get("FOD_CLOUD_API_URL"))
+        self.assertIn("FOD_CLOUD_API_URL", dir(Constants))
+
+    def testConfigEndPoint_VariableTheOldConstantNames(self):
+        """!
+        Check that the engine reads the old name through the constant, as
+        it did before, so that code which points the constant at another
+        variable still decides what is read
+        """
+
+        os.environ["ANOTHER_VARIABLE"] = self.testOldEnvVarEndPoint
+        with mock.patch.object(
+                Constants, "FOD_CLOUD_API_URL", "ANOTHER_VARIABLE"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", FutureWarning)
+                engine = self.new_engine()
+        self.assertEqual(self.testOldEnvVarEndPoint, engine.baseURL)
+
+    def testEndPointConstant(self):
+        """!
+        Check that the constant for the new name holds the new name
+        """
+
+        self.assertEqual(
+            "_51DEGREES_CLOUD_ENDPOINT", Constants.CLOUD_ENDPOINT)
 
     @parameterized.expand([
         (False, "query.User-Agent=iPhone", "header.User-Agent=iPhone"),
@@ -111,8 +271,11 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
             "http_client": self.mock_http(),
         })
 
+        # The stand-in service accepts query.User-Agent alone, so an element
+        # that accepts every key keeps the rest of the evidence for the
+        # engine to order.
         builder = PipelineBuilder()
-        pipeline = builder.add(engine).build()
+        pipeline = builder.add(AcceptEveryKeyElement()).add(engine).build()
 
         data = pipeline.create_flowdata()
 
@@ -198,7 +361,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
 
         result = engine.get_content(data)
 
-        self.assertEqual(expected_value, result["user-agent"])
+        self.assertEqual(expected_value, result["User-Agent"])
 
     def test_no_exception_on_cloud_request_engine_init(self):
         """
