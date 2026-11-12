@@ -56,8 +56,9 @@ class PipelineBuilder(object):
         @rtype: PipelineBuilder
         `use_setheader_properties (Bool)` - Whether to add the SetHeaderElement to the pipeline
         (default true)
-        `add_set_header_element (Bool)` - The same switch as use_setheader_properties.
-        The SetHeaderElement is added only when both are true (default true)
+        `add_set_header_element (Bool)` - Whether to add the SetHeaderElement alone
+        (default true). It is added only when this and use_setheader_properties
+        are both true.
         `suppress_process_exceptions (Bool)` - If False (the default) the first error thrown
         while processing is re-raised from flow_data.process(); if True, errors are stored on
         flow_data.errors and process() returns normally. Recommended True for web apps so a
