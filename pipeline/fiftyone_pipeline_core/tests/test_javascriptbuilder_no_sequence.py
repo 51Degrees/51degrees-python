@@ -20,11 +20,12 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-"""With no Sequence Element in the pipeline, the JavaScript Builder renders
-the sequence as 1 and the session id as an empty string, as step 5 of the
-JavaScript Builder specification's process says, whatever the evidence
-holds. The same pipeline with a Sequence Element renders that element's
-values, which is the other side of the same branch."""
+"""Step 5 of the JavaScript Builder specification's process takes the session
+id and the sequence from the Sequence Element's Element Data, and where there
+is no Sequence Element renders the sequence as 1 and the session id as an
+empty string, whatever the evidence holds. Both sides of that branch are
+tested here, and so is the source the values are read from, because the
+builder used to read them from Evidence instead."""
 
 import re
 import unittest
@@ -49,9 +50,28 @@ class StandInJsonBuilder(FlowElement):
             self, {"json": {"javascriptProperties": []}}))
 
 
-def render(evidence, sequence_element=False):
-    """Render the script from a pipeline that differs only in whether it
-    holds a SequenceElement. The real JSON bundler refuses a pipeline with no
+class StandInSequenceElement(FlowElement):
+    """Takes the place of the SequenceElement, writing one pair into its
+    Element Data and a different pair into Evidence, so that a test can tell
+    which of the two the builder read. Element Data of None stands for an
+    element that is in the pipeline and produced nothing."""
+
+    def __init__(self, contents):
+        super(StandInSequenceElement, self).__init__()
+        self.datakey = "sequence"
+        self.contents = contents
+
+    def process_internal(self, flowdata):
+        flowdata.evidence.add("query.session-id", "from-evidence")
+        flowdata.evidence.add("query.sequence", 99)
+        if self.contents is not None:
+            flowdata.set_element_data(
+                ElementDataDictionary(self, self.contents))
+
+
+def render(evidence, sequence_element=False, stand_in=None):
+    """Render the script from a pipeline that differs only in which Sequence
+    Element it holds, if any. The real JSON bundler refuses a pipeline with no
     sequence number, so a stand-in gives the builder its JSON."""
 
     builder = PipelineBuilder({
@@ -59,6 +79,8 @@ def render(evidence, sequence_element=False):
         "use_setheader_properties": False})
     if sequence_element:
         builder = builder.add(SequenceElement())
+    if stand_in is not None:
+        builder = builder.add(stand_in)
     pipeline = builder \
         .add(StandInJsonBuilder()) \
         .add(JavascriptBuilderElement({"minify": False})) \
@@ -107,6 +129,61 @@ class NoSequenceElementTests(unittest.TestCase):
         self.assertEqual(["var sequence = 6;"], line(script, "sequence"))
         self.assertEqual(
             ['var sessionId = "abc-123";'], line(script, "sessionId"))
+
+
+class WhereTheValuesComeFromTests(unittest.TestCase):
+
+    def test_the_element_data_is_read_and_the_evidence_is_not(self):
+        """The stand-in puts one pair in its Element Data and a different
+        pair in Evidence. What is rendered says which of the two was read."""
+
+        script = render({}, stand_in=StandInSequenceElement(
+            {"session-id": "from-element-data", "sequence": 7}))
+        self.assertEqual(["var sequence = 7;"], line(script, "sequence"))
+        self.assertEqual(
+            ['var sessionId = "from-element-data";'],
+            line(script, "sessionId"))
+
+    def test_an_element_that_produced_no_element_data_gives_the_defaults(self):
+        """A Sequence Element that is in the pipeline but set no Element
+        Data, because it stopped or failed, is the same as no Sequence
+        Element at all, so the script still parses."""
+
+        script = render({}, stand_in=StandInSequenceElement(None))
+        self.assertEqual(["var sequence = 1;"], line(script, "sequence"))
+        self.assertEqual(['var sessionId = "";'], line(script, "sessionId"))
+
+    def test_an_unusable_pair_in_the_element_data_is_rendered_safely(self):
+        """The session id is written inside quotes and the sequence as bare
+        code, so a session id that does not match the pattern is rendered
+        empty and a sequence that is not a positive 32 bit integer is 1."""
+
+        script = render({}, stand_in=StandInSequenceElement(
+            {"session-id": 'a" + alert(1) + "', "sequence": "not a number"}))
+        self.assertEqual(["var sequence = 1;"], line(script, "sequence"))
+        self.assertEqual(['var sessionId = "";'], line(script, "sessionId"))
+
+    def test_the_sequence_element_publishes_the_pair_it_wrote(self):
+        """The real SequenceElement's Element Data holds the same session id
+        and sequence it put in Evidence, which is what the builder reads."""
+
+        builder = PipelineBuilder({
+            "add_javascript_builder": False,
+            "use_setheader_properties": False})
+        pipeline = builder.add(SequenceElement()).build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("query.session-id", "abc-123")
+        flowdata.evidence.add("query.sequence", "5")
+        flowdata.process()
+
+        self.assertEqual("abc-123", flowdata.sequence.get("session-id"))
+        self.assertEqual(6, flowdata.sequence.get("sequence"))
+        self.assertEqual(
+            flowdata.evidence.get("query.session-id"),
+            flowdata.sequence.get("session-id"))
+        self.assertEqual(
+            flowdata.evidence.get("query.sequence"),
+            flowdata.sequence.get("sequence"))
 
 
 if __name__ == "__main__":

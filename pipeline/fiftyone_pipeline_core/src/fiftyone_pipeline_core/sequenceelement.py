@@ -23,6 +23,7 @@
 
 from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
+from .elementdata_dictionary import ElementDataDictionary
 from .javascriptbuilder import parse_sequence
 import uuid
 
@@ -71,13 +72,14 @@ class SequenceElement(FlowElement):
     def process_internal(self, flowdata):
 
         """!
-        The SequenceElement stores session data for requests for JavaScript
-    
+        The SequenceElement stores session data for requests for JavaScript,
+        in Evidence and in its own Element Data
+
         @type flowdata: FlowData
         @param flowdata: The FlowData
 
         """
-    
+
         if flowdata.evidence.get("query.session-id"):
             
             # Get current sequence number. A value that is absent or is not
@@ -96,5 +98,12 @@ class SequenceElement(FlowElement):
                 "query.session-id",
                 str(uuid.uuid4())
             )
-      
+
             flowdata.evidence.add("query.sequence", 1)
+
+        # The JavaScript Builder takes both values from here rather than from
+        # Evidence, which is what step 5 of its specification asks for. The
+        # values are the ones just written, so the two carry the same pair.
+        flowdata.set_element_data(ElementDataDictionary(self, {
+            "session-id": flowdata.evidence.get("query.session-id"),
+            "sequence": flowdata.evidence.get("query.sequence")}))
