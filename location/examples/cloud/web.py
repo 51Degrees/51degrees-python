@@ -32,18 +32,39 @@
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/location/examples/cloud/web.py)
 
 from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
-from fiftyone_pipeline_core.web import webevidence
-import json
+from fiftyone_pipeline_core.web import json_response, webevidence
 
 # First create the location pipeline with the desired settings.
 
 # You need to create a resource key at https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=top
 # and paste it into the code, replacing !!YOUR_RESOURCE_KEY!! below.
-# Alternatively, add a resource_key environment variable
+# Alternatively, add a _51DEGREES_RESOURCE_KEY environment variable.
+# resource_key is the old name of that variable. It is deprecated, and is
+# read only when _51DEGREES_RESOURCE_KEY is not set.
 import os
-if "resource_key" in os.environ:
-    resource_key = os.environ["resource_key"]
-else:
+import sys
+
+
+def read_environment(name, old_name):
+    """The value of the environment variable name, or None when it has
+    none. When name is unset or empty the name the variable had before is
+    read, and using it prints that the old name is deprecated."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    value = os.environ.get(old_name)
+    if not value:
+        return None
+    print(
+        f"The {old_name} environment variable is deprecated and {name} "
+        f"replaces it. The value was read from {old_name} because {name} "
+        f"is not set, so set {name} to the same value.",
+        file=sys.stderr)
+    return value
+
+
+resource_key = read_environment("_51DEGREES_RESOURCE_KEY", "resource_key")
+if not resource_key:
     resource_key = "!!YOUR_RESOURCE_KEY!!"
 
 if resource_key == "!!YOUR_RESOURCE_KEY!!":
@@ -68,24 +89,14 @@ else:
     app = Flask(__name__)
 
     # First we make a JSON route that will be called from the client side and will return
-    # a JSON encoded property database using any additional evidence provided by the client
+    # a JSON encoded property database using any additional evidence provided by the client.
+    # json_response processes the request and sets the cache headers, so a browser keeps a
+    # good answer for 30 minutes and never keeps one made while processing failed.
 
     @app.route('/json', methods=['POST'])
     def jsonroute():
 
-        # Create the flowData object for the JSON route
-        flowData = pipeline.create_flowdata()
-
-        # Add any information from the request (headers, cookies and additional
-        # client side provided information)
-
-        flowData.evidence.add_from_dict(webevidence(request))
-
-        # Process the flowData
-        flowData.process()
-
-        # Return the JSON from the JSONBundler engine
-        return json.dumps(flowData.jsonbundler.json)
+        return json_response(pipeline, request)
 
     # Helper function to get a property value if it exists and return
     # the reason why if it doesn't

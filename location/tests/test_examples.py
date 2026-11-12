@@ -25,10 +25,12 @@ import sys
 import unittest
 from pathlib import Path
 
+from .live_cloud import read_environment
+
 
 class LocationExampleTests(unittest.TestCase):
     def test_cloud_getting_started(self):
-        if "resource_key" in os.environ:
+        if read_environment("_51DEGREES_RESOURCE_KEY", "resource_key"):
             # this is required to import the example code,
             # since pytest sets sys.path to the test directory
             sys.path.append(str(Path(__file__).parent.parent.absolute() / "examples"))

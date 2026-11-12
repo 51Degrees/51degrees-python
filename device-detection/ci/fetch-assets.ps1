@@ -30,12 +30,3 @@ foreach ($asset in $assets) {
         default {New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/$_" -Path "$deviceDetectionData/$_"}
     }
 }
-
-# Downloads any other file the data repository links to in the folder. The
-# script keeps a file that is already there, so the assets linked in above
-# are not downloaded again.
-$global:LASTEXITCODE = 0
-& "$data/get-data-files.ps1" device-detection
-if ($LASTEXITCODE -ne 0) {
-    throw "Not every data file in $deviceDetectionData was downloaded"
-}

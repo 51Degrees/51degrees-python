@@ -108,9 +108,8 @@ class JSONBundlerElement(FlowElement):
         sequence = flowdata.evidence.get("query.sequence")
         if isinstance(sequence, bool) or not isinstance(sequence, int):
             raise Exception(
-                "The JSON Builder needs the sequence number that a Sequence "
-                "Element produces. A Sequence Element needs to be placed "
-                "before it in the Pipeline.")
+                "The JSON Builder needs a sequence number. Place a Sequence "
+                "Element before the JSON Builder in the Pipeline.")
 
         # Get every property on every FlowElement
         # Storing JavaScript properties in an extra section
@@ -125,7 +124,6 @@ class JSONBundlerElement(FlowElement):
         for flow_element in flowdata.pipeline.flow_elements:
 
             if (flow_element.datakey == "jsonbundler" or
-                flow_element.datakey == "sequence" or 
                 flow_element.datakey == "javascriptbuilder" or
                 flow_element.datakey == "set-headers" or
                 flow_element.datakey == "cloud"):

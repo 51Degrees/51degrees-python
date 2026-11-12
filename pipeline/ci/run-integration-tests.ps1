@@ -33,6 +33,10 @@ if (!$Keys.TestResourceKey) {
 $packages = "fiftyone_pipeline_cloudrequestengine", "fiftyone_pipeline_cloudrequestengine/examples", "fiftyone_pipeline_did"
 $pipelineKeys = $Keys.Clone()
 $pipelineKeys.Remove('DeviceDetection')
+# The tests read the resource key from _51DEGREES_RESOURCE_KEY, and common-ci
+# sets only the older resource_key, so the key is set here.
+$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+
 $addopts = $env:PYTEST_ADDOPTS
 $env:PYTEST_ADDOPTS = '-m "live and not tier"'
 try {

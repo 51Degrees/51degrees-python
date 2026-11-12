@@ -180,6 +180,11 @@ class DeviceDetectionOnPremise(Engine):
 
         properties_list = RequiredPropertiesConfigSwig(restricted_properties_vector)
 
+        # The property names the engine is built with. A property's index is
+        # its place in this list, which is fixed at build. An empty list
+        # means the engine takes its names from the native code once built.
+        self.build_property_names = list(restricted_properties_vector)
+
         #  Assemble configuration
 
         config = ConfigHashSwig()
@@ -299,6 +304,10 @@ class DeviceDetectionOnPremise(Engine):
 
         self.engine = engine
 
+        # The table from each build-time name to its index, made once here
+        # so every read goes by index.
+        self.property_indexes = self.read_property_indexes()
+
         # Get keys and add to evidenceKey filter
 
         evidence_keys = engine.getKeys()
@@ -333,6 +342,26 @@ class DeviceDetectionOnPremise(Engine):
         # Special properties
         for key, property in self.get_metric_properties().items():
             self.properties[key] = property
+
+    def read_property_indexes(self):
+
+        """!
+        The index of each property the engine was built with, keyed by its
+        name in lower case. The native code gives a property the place of
+        its name among the names the engine was built with, the first place
+        where a name is given twice. An engine built with no names takes
+        the names the native code gives after the first load, which are
+        every property in that data set sorted by name and which a reload
+        does not change.
+        """
+
+        names = self.build_property_names
+        if not names:
+            names = list(self.engine.getRequiredProperties())
+        indexes = {}
+        for index, name in enumerate(names):
+            indexes.setdefault(name.lower(), index)
+        return indexes
 
     def get_metric_properties(self):
         return { "deviceid": {
@@ -448,8 +477,9 @@ class DeviceDetectionOnPremise(Engine):
 
         evidence = EvidenceDeviceDetectionSwig()
 
+        # The native evidence takes text, and the Sequence Element adds a number.
         for key, value in flow_data.evidence.get_all().items():
-            evidence.__setitem__(key, value)
+            evidence.__setitem__(key, str(value))
 
         result = self.engine.process(evidence)
 

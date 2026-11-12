@@ -86,8 +86,9 @@ class CoreTests(unittest.TestCase):
     def testGetWhere(self):
 
         testPipeline = TestPipeline()
+        # The example element's integer and the Sequence Element's sequence.
         getValue = len(testPipeline.flowdata.get_where("type", "int"))
-        self.assertTrue(getValue == 1)
+        self.assertTrue(getValue == 2)
 
     def testGetFromElement(self):
 
