@@ -22,8 +22,8 @@
 
 """An engine built with a list of property names reads each one by its
 index in that list, with the native engine and the data file the tests use.
-An engine built with no names keeps reading by name until the native
-change lands."""
+An engine built with no names takes the names the native code gives after
+the first load as its list, and reads by index too."""
 
 import os
 import unittest
@@ -54,6 +54,15 @@ def process(engine):
     return pipeline, flowdata
 
 
+def first_places(names):
+    """Each name in lower case against its first place in the list, which
+    is the index the native code gives."""
+    indexes = {}
+    for index, name in enumerate(names):
+        indexes.setdefault(name.lower(), index)
+    return indexes
+
+
 def data_set_names(engine):
     """The names the data set holds, in the data set's own order. Only the
     tests use this order, to build engines whose name lists differ from it.
@@ -79,18 +88,57 @@ class ReadByIndexTests(unittest.TestCase):
         self.addCleanup(flowdata.close)
         return data_set_names(engine), flowdata
 
-    def test_an_engine_with_no_names_keeps_reading_by_name(self):
-        """An engine built with no names has an empty table, so nothing
-        about it changes until the native change lands."""
+    def no_names_engine(self):
         engine = IpIntelligenceOnPremise(
             data_file_path=data_file, licence_keys="")
         pipeline, flowdata = process(engine)
         self.addCleanup(pipeline.close)
         self.addCleanup(flowdata.close)
-        self.assertEqual([], engine.build_property_names)
-        self.assertEqual({}, engine.property_indexes)
-        # Reading still works, by name, exactly as before.
-        self.assertTrue(flowdata.ip.get(data_set_names(engine)[0]))
+        return engine, pipeline, flowdata
+
+    def test_an_engine_with_no_names_reads_by_index(self):
+        """An engine built with no names takes the names the native code
+        gives after the first load as its list, so its table holds every
+        one of them and each index names its property."""
+        engine, _, flowdata = self.no_names_engine()
+        required = list(engine.engine.getRequiredProperties())
+        self.assertNotEqual([], required)
+        self.assertEqual(first_places(required), engine.property_indexes)
+        results = flowdata.ip.swig_results
+        for name, index in engine.property_indexes.items():
+            self.assertEqual(name, results.getPropertyName(index).lower())
+        # Reading through the table gives what an engine built with the
+        # same names gives.
+        named = IpIntelligenceOnPremise(
+            data_file_path=data_file, licence_keys="",
+            restricted_properties=list(required))
+        second, named_data = process(named)
+        self.addCleanup(second.close)
+        self.addCleanup(named_data.close)
+        for name in engine.property_indexes:
+            if name in engine.properties:
+                self.assertEqual(
+                    shown(named_data.ip.get(name)),
+                    shown(flowdata.ip.get(name)), name)
+
+    def test_a_reload_keeps_the_table_of_an_engine_with_no_names(self):
+        """A reload leaves an engine built with no names with its table,
+        and each index still names the same property."""
+        engine, pipeline, _ = self.no_names_engine()
+        required = list(engine.engine.getRequiredProperties())
+        table = dict(engine.property_indexes)
+        self.assertEqual(first_places(required), table)
+        self.assertNotEqual({}, table)
+        engine.engine.refreshData()
+        self.assertEqual(required, list(engine.engine.getRequiredProperties()))
+        self.assertEqual(table, engine.property_indexes)
+        flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
+        flowdata.evidence.add("query.client-ip", "8.8.8.8")
+        flowdata.process()
+        results = flowdata.ip.swig_results
+        for name, index in table.items():
+            self.assertEqual(name, results.getPropertyName(index).lower())
 
     def test_the_table_follows_the_order_the_names_were_given_in(self):
         names, _ = self.names_from_the_data_set()

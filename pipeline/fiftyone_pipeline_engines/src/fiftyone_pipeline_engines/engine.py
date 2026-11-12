@@ -74,11 +74,33 @@ class Engine(FlowElement):
             name.lower() for name in properties_list}
 
 
+    def is_cacheable(self, data):
+
+        """!
+        Whether a result may be stored in the cache and served from it. A
+        result that holds a value created for the one request that asked for
+        it must not be, so an engine whose results can hold one overrides
+        this.
+
+        @type data: ElementData
+        @param data: A result the engine has just made, or one found in the
+        cache
+
+        @rtype: bool
+        @return: True if the result may be stored and served
+
+        """
+
+        return True
+
     def in_cache(self, flowdata):
 
         """!
-        A method to check if a flowdata's evidence is in the cache
-        
+        A method to check if a flowdata's evidence is in the cache. An entry
+        the engine may not serve, because it holds a value created for the
+        one request that asked for it, counts as a miss and is left where it
+        is, so the engine processes the flowdata as if nothing was there.
+
         @type FlowData: FlowData
         @param FlowData:
 
@@ -86,14 +108,14 @@ class Engine(FlowElement):
         @return: True or false: a flowdata's evidence is in the cache
 
         """
-    
+
         keys = self.filter_evidence(flowdata)
 
         cacheKey = json.dumps(keys)
 
         cached = self.cache.get_cache_value(cacheKey)
 
-        if cached is not None:
+        if cached is not None and self.is_cacheable(cached):
             flowdata.set_element_data(cached)
 
             return True
@@ -130,8 +152,10 @@ class Engine(FlowElement):
                 return True
             else:
                 self.process_internal(flowdata)
-                cacheKey = json.dumps(self.filter_evidence(flowdata))
-                self.cache.set_cache_value(cacheKey, flowdata.get(self.datakey))
+                data = flowdata.get(self.datakey)
+                if self.is_cacheable(data):
+                    cacheKey = json.dumps(self.filter_evidence(flowdata))
+                    self.cache.set_cache_value(cacheKey, data)
 
         else:
 
