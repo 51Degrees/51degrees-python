@@ -1,0 +1,16 @@
+# What CI writes at the repository root while it builds, tests and packages.
+# Each product folder keeps its own .gitignore for its own build output.
+/test-results/
+/package/
+/assets/
+/.coverage*
+/coverage.xml
+
+# Python and tool caches anywhere in the tree.
+__pycache__/
+*.py[cod]
+*.egg-info/
+.tox/
+.venv/
+build/
+dist/
