@@ -250,6 +250,19 @@ example logs an error that names the variable and the configurator.
   assets, and the IP Intelligence example tests use the Asn file and throw
   their output away.
 
+## Environment variable names
+
+[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/18f9a570ed862a0b7e1ecb1c55a8319f35f02491/environment-variables.md)
+holds every environment variable name that the packages, tests, examples and
+CI scripts of every language read, with what each name holds and the
+deprecated names each replaced. The list decides. Use the names it gives, and
+when a change needs a new name, or reads an old name again, change
+[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/18f9a570ed862a0b7e1ecb1c55a8319f35f02491/environment-variables.json)
+in common-ci in the same piece of work. This repository's own name
+check, [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1), still keeps a
+list of its own. Where the two differ, common-ci's list is the one to
+follow.
+
 ## Products keep their own CI scripts
 
 Each product folder still has the `ci/` scripts it had as its own repository,
