@@ -438,8 +438,10 @@ class ClientSideCacheTests(unittest.TestCase):
         response = app.test_client().get(
             "/51Degrees.core.js", headers={"User-Agent": CHROME})
 
-        self.assertEqual(
-            "Sec-Ch-Ua-Model, User-Agent", response.headers.get("Vary"))
+        # Host comes from the JavaScript Builder, which reads it to build
+        # the callback URL the script posts to.
+        self.assertEqual("Host, Sec-Ch-Ua-Model, User-Agent",
+                         response.headers.get("Vary"))
 
     def test_vary_leaves_out_the_headers_a_browser_revalidates_with(self):
         # If-None-Match and the rest differ between a request and its
@@ -457,7 +459,7 @@ class ClientSideCacheTests(unittest.TestCase):
         response = app.test_client().get(
             "/51Degrees.core.js", headers={"User-Agent": CHROME})
 
-        self.assertEqual("User-Agent", response.headers.get("Vary"))
+        self.assertEqual("Host, User-Agent", response.headers.get("Vary"))
 
     def test_vary_falls_back_to_the_request_for_a_filter_that_cannot_list(
             self):
@@ -476,7 +478,9 @@ class ClientSideCacheTests(unittest.TestCase):
             "/51Degrees.core.js",
             headers={"User-Agent": CHROME, "Accept-Language": "en"})
 
-        self.assertEqual("User-Agent", response.headers.get("Vary"))
+        # User-Agent from the element below, Host from the JavaScript
+        # Builder, and no Accept-Language, which neither accepts.
+        self.assertEqual("Host, User-Agent", response.headers.get("Vary"))
 
 
 if __name__ == "__main__":
