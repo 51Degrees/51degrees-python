@@ -31,10 +31,12 @@ Describe 'Find-EnvironmentNameProblem' {
         @{ Line = 'if "resource_key" in os.environ:' }
         @{ Line = '$env:resource_key = "key"' }
         @{ Line = '[Environment]::SetEnvironmentVariable("license_key", $k)' }
-        @{ Line = 'RESOURCE = env("_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY")' }
-        @{ Line = 'LICENCE = env("_51DEGREES_LICENSE_KEY", "license_key")' }
         @{ Line = 'LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"' }
-        @{ Line = 'legacy_license_key_env_var = "x"' }
+        @{ Line = 'self.baseURL = os.environ.get("FOD_CLOUD_API_URL")' }
+        @{ Line = 'FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"' }
+        @{ Line = 'saved = os.environ.pop("FOD_CLOUD_API_URL", None)' }
+        @{ Line = '$env:FOD_CLOUD_API_URL = "https://cloud.51degrees.com/api/v4/"' }
+        @{ Line = 'key = env("_51DEGREES_RESOURCE_KEY", "resource_key") or os.environ.get("license_key")' }
         @{ Line = 'RESOURCE_KEY_ENV_VAR = "resource_key"' }
         @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"' }
         @{ Line = 'ORIGIN_ENV_VAR = "cloud_request_origin"' }
@@ -80,16 +82,47 @@ Describe 'Find-EnvironmentNameProblem' {
         Get-Kind $Line | Should -BeNullOrEmpty
     }
 
-    # The cloud endpoint's old name is still read when the new name is not
-    # set, and the constant that held it keeps its value, so it is left alone
-    # wherever it is written.
-    It 'leaves the old cloud endpoint name alone in <Line>' -ForEach @(
-        @{ Line = 'endpoint = os.environ.get("FOD_CLOUD_API_URL")' }
-        @{ Line = 'FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"' }
-        @{ Line = 'saved = os.environ.pop("FOD_CLOUD_API_URL", None)' }
-        @{ Line = 'ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"' }
-        @{ Line = '$env:FOD_CLOUD_API_URL = "https://cloud.51degrees.com/api/v4/"' }
+    # A variable whose name changed is still read under its old name when
+    # the new one is not set. That read gives the old name as the argument
+    # straight after the new one, and it is left alone.
+    It 'leaves the deprecated read <Line> alone' -ForEach @(
+        @{ Line = 'RESOURCE = env("_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY")' }
+        @{ Line = 'LICENCE = env("_51DEGREES_LICENSE_KEY", "license_key")' }
+        @{ Line = 'API = env("_51DEGREES_CLOUD_ENDPOINT", "FOD_CLOUD_API_URL")' }
+        @{ Line = 'read_environment("_51DEGREES_IPI_PATH", "IPINTELLIGENCEDATAFILE")' }
+        @{ Line = '    "_51DEGREES_RUN_PERFORMANCE_TESTS", "run_performance_tests")' }
+        @{ Line = "read_environment('_51DEGREES_DD_PATH', '51DEGREES_DD_PATH')" }
     ) {
         Get-Kind $Line | Should -BeNullOrEmpty
+    }
+}
+
+Describe 'Test-FallbackPath' {
+
+    It 'lets <Path> name an old variable' -ForEach @(
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tox.ini' }
+        @{ Path = 'location/tox.ini' }
+        @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py' }
+        @{ Path = 'ip-intelligence/fiftyone_ipintelligence_examples/tests/test_environment_names.py' }
+        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/constants.py' }
+        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/readme.md' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client.py' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/examples/creator_context_web/server.py' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_live_cloud.py' }
+    ) {
+        Test-FallbackPath $Path | Should -BeTrue
+    }
+
+    It 'does not let <Path> name an old variable' -ForEach @(
+        @{ Path = 'ci/run-unit-tests.ps1' }
+        @{ Path = 'readme.md' }
+        @{ Path = 'pipeline/fiftyone_pipeline_core/src/fiftyone_pipeline_core/pipeline.py' }
+        @{ Path = 'pipeline/fiftyone_pipeline_core/readme.md' }
+        @{ Path = 'device-detection/fiftyone_devicedetection_examples/tests/test_cloudexamples.py' }
+        @{ Path = 'device-detection/ci/run-integration-tests.ps1' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_did_client_live.py' }
+        @{ Path = 'location/examples/cloud/gettingstarted.py' }
+    ) {
+        Test-FallbackPath $Path | Should -BeFalse
     }
 }

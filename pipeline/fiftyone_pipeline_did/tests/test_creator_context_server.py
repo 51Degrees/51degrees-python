@@ -235,5 +235,68 @@ class ServerEndpointVariableTests(unittest.TestCase):
         self.assertEqual([], reports)
 
 
+class ServerKeyVariableTests(unittest.TestCase):
+    """The demo reads its two keys from the environment, each under its
+    new name first and then under the name it had before."""
+
+    NAMES = (
+        "_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY",
+        "_51DEGREES_LICENSE_KEY", "LICENSE_KEY")
+
+    def setUp(self):
+        # Each test starts with none of the names set, and what it sets is
+        # put back afterwards.
+        environment = mock.patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        for name in self.NAMES:
+            os.environ.pop(name, None)
+
+    def load(self):
+        """The server module, loaded afresh with the environment as it is,
+        and the warnings that say an old name is deprecated."""
+        spec = importlib.util.spec_from_file_location(
+            "creator_context_server_keys", SERVER_PY)
+        module = importlib.util.module_from_spec(spec)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            spec.loader.exec_module(module)
+        reports = [
+            str(warning.message) for warning in caught
+            if issubclass(warning.category, FutureWarning)
+            and "is deprecated" in str(warning.message)]
+        return module, reports
+
+    def test_keys_are_read_from_their_old_names_and_reported(self):
+        os.environ["RESOURCE_KEY"] = "old-resource-key"
+        os.environ["LICENSE_KEY"] = "old-licence-key"
+        module, reports = self.load()
+        self.assertEqual("old-resource-key", module.RESOURCE)
+        self.assertEqual("old-licence-key", module.LICENCE)
+        self.assertEqual(2, len(reports))
+        self.assertTrue(any(
+            "RESOURCE_KEY" in report and "_51DEGREES_RESOURCE_KEY" in report
+            for report in reports))
+        self.assertTrue(any(
+            "LICENSE_KEY" in report and "_51DEGREES_LICENSE_KEY" in report
+            for report in reports))
+
+    def test_new_names_win_and_nothing_is_reported(self):
+        os.environ["_51DEGREES_RESOURCE_KEY"] = "new-resource-key"
+        os.environ["_51DEGREES_LICENSE_KEY"] = "new-licence-key"
+        os.environ["RESOURCE_KEY"] = "old-resource-key"
+        os.environ["LICENSE_KEY"] = "old-licence-key"
+        module, reports = self.load()
+        self.assertEqual("new-resource-key", module.RESOURCE)
+        self.assertEqual("new-licence-key", module.LICENCE)
+        self.assertEqual([], reports)
+
+    def test_no_keys_gives_none_and_an_empty_licence(self):
+        module, reports = self.load()
+        self.assertIsNone(module.RESOURCE)
+        self.assertEqual("", module.LICENCE)
+        self.assertEqual([], reports)
+
+
 if __name__ == "__main__":
     unittest.main()
