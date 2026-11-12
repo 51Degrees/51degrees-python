@@ -1,0 +1,34 @@
+name: Temporary data update message tests
+
+on:
+  push:
+    branches:
+      - 'tmp/py98-**'
+
+jobs:
+  Test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          cd pipeline
+          pip install pytest requests
+          pip install -e fiftyone_pipeline_core -e fiftyone_pipeline_engines
+      - name: Data update service tests
+        run: |
+          cd pipeline/fiftyone_pipeline_engines
+          python -m pytest -p no:cacheprovider -v tests/test_datafile_update_http.py tests/test_datafile_update_service.py
+      - name: Licence key masking tests
+        if: ${{ always() }}
+        run: |
+          cd pipeline/fiftyone_pipeline_engines
+          python -m pytest -p no:cacheprovider -v tests/test_licence_key_masking.py
+      - name: The rest of the engines tests
+        if: ${{ always() }}
+        run: |
+          cd pipeline/fiftyone_pipeline_engines
+          python -m pytest -p no:cacheprovider -q tests/test_engines.py
