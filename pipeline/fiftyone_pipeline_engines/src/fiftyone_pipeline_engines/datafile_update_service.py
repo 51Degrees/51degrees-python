@@ -542,12 +542,10 @@ class DataFileUpdateService():
         if data_file.update_on_start or data_file.auto_update:
             self.check_next_update(data_file)
 
-        # Watch for changes in file and refresh if
-        # file_system_watcher is enabled on data_file
-
-        # The watcher is an automatic update, so it only runs with
-        # automatic updates on.
-        if data_file.auto_update and data_file.file_system_watcher:
+        # The file system watcher runs on its own setting, whether or not
+        # automatic updates are on. It downloads nothing, so it needs no
+        # licence key.
+        if data_file.file_system_watcher:
             self._log("info", "Creating file system watcher")
             data_file.last_changed_time = os.stat(data_file.path).st_mtime
             self.track_local_data_file_changes(data_file)    
