@@ -133,16 +133,22 @@ class UpdateServiceLogTests(unittest.TestCase):
         self.assertTrue(any(MASKED_URL in message for level, message in logs),
                         logs)
 
-    def test_an_error_raised_by_the_request_does_not_hold_the_key(self):
+    def test_a_failed_request_logs_only_the_masked_key(self):
+        # The update service logs a failed request rather than raising it,
+        # and the message of the request's error names the URL.
         def fail(*args, **kwargs):
             raise requests.ConnectionError("failed for url: " + URL)
 
-        service = DataFileUpdateService(RecordingPipeline())
+        pipeline = RecordingPipeline()
+        service = DataFileUpdateService(pipeline)
         with mock.patch.object(requests, "get", fail):
-            with self.assertRaises(requests.RequestException) as caught:
-                service.update_data_file(StandInDataFile())
-        self.assertNotIn(KEY, str(caught.exception))
-        self.assertIn(MASKED_URL, str(caught.exception))
+            service.update_data_file(StandInDataFile())
+        self.assertTrue(pipeline.logs)
+        for level, message in pipeline.logs:
+            self.assertNotIn(KEY, message)
+        self.assertTrue(any(MASKED_URL in message
+                            for level, message in pipeline.logs),
+                        pipeline.logs)
 
 
 if __name__ == "__main__":
