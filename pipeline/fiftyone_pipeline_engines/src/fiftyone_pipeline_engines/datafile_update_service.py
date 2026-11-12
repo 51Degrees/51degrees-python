@@ -58,14 +58,12 @@ class UpdateStatus(Enum):
     AUTO_UPDATE_NEW_FILE_CANT_RENAME = 9
     # Refreshing the engine with the new data caused an error to occur.
     AUTO_UPDATE_REFRESH_FAILED = 10
+    # 11 is .NET's AUTO_UPDATE_NO_CONFIGURATION, which this service has no
+    # route to, so the two below keep the numbers .NET gives them.
     # The data file is checking for updates but has no temporary file path.
-    AUTO_UPDATE_TEMP_PATH_NOT_SET = 11
-    # Writing the new data to the data file failed. The engine is still
-    # refreshed from the data, so this status never reaches a caller and
-    # marks only that the file on disk still holds the old data.
-    AUTO_UPDATE_WRITE_FAILED = 14
+    AUTO_UPDATE_TEMP_PATH_NOT_SET = 12
     # Any other error during a check for an update.
-    AUTO_UPDATE_UNKNOWN_ERROR = 15
+    AUTO_UPDATE_UNKNOWN_ERROR = 13
 
 # The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
 GZIP_MAGIC = b"\x1f\x8b"
@@ -245,14 +243,13 @@ class DataFileUpdateService():
 
         # Download datafile if needed, or pass through memory
         if data_file.download:
+            # The engine of a data file kept on disk reads that file, so a
+            # write that failed leaves it with the data it already had and
+            # the update ends there, as it does in .NET and
+            # 51degrees-node.
             failed = self._write_data_file(data_file, data)
-            # A write that failed is only a warning, so the engine is still
-            # refreshed from the data just downloaded.
-            if (failed is not None and
-                    failed != UpdateStatus.AUTO_UPDATE_WRITE_FAILED):
+            if failed is not None:
                 return self._update_failed(data_file, failed)
-            if failed == UpdateStatus.AUTO_UPDATE_WRITE_FAILED:
-                data_file.data = data
 
         else:
 
@@ -288,7 +285,8 @@ class DataFileUpdateService():
         @rtype: UpdateStatus
         @return: AUTO_UPDATE_SUCCESS, AUTO_UPDATE_REFRESH_FAILED if the
         engine could not use the data (the data it had is kept), the status
-        of a failed write for a data file kept on disk, or
+        of a failed write for a data file kept on disk, which is not
+        refreshed because its engine reads the file, or
         AUTO_UPDATE_NOT_NEEDED if the data file's engine has been closed
         """
 
@@ -299,12 +297,8 @@ class DataFileUpdateService():
             data_file.updating = True
             try:
                 status = self._write_data_file(data_file, data)
-                # A write that failed is only a warning, so the engine is
-                # still refreshed from the data held in memory.
-                if (status is None or
-                        status == UpdateStatus.AUTO_UPDATE_WRITE_FAILED):
-                    data_file.data = data
-                    status = self._refresh(data_file, from_file=False)
+                if status is None:
+                    status = self._refresh(data_file)
             finally:
                 data_file.updating = False
             self.__emit(status, data_file)
@@ -328,10 +322,8 @@ class DataFileUpdateService():
     def _write_data_file(self, data_file, data):
         # Write new data to the data file's path, through a temporary copy
         # when the data file asks for one. None when written, or the status
-        # of the failure, which is logged. A write that fails is a warning
-        # and leaves the caller free to refresh the Engine from the data in
-        # memory, whilst a temporary path that is not set and a copy that
-        # cannot replace the file stop the update.
+        # of the failure, which is logged. Every failure leaves the file on
+        # disk as it was, so the caller ends the update.
         if data_file.create_temp_copy:
             if not getattr(data_file, "temp_directory", None):
                 self._log_check_error(
@@ -348,13 +340,19 @@ class DataFileUpdateService():
         try:
             with open(filename, 'wb') as f:
                 f.write(data)
-        except OSError:
-            self._log(
-                "warning",
-                "An error occurred when writing to '" + str(filename) +
-                "'. The engine will be updated to use the new data but "
-                "the file on disk will still contain old data.")
-            return UpdateStatus.AUTO_UPDATE_WRITE_FAILED
+        except OSError as e:
+            if filename == data_file.path:
+                # Writing straight to the data file is the copy that
+                # replaces it, so it carries that row of the errors table.
+                self._log_check_error(
+                    "An error occurred when copying a data file to replace "
+                    "the existing one at '" + str(data_file.path) + "'.", e)
+            else:
+                # A temporary copy that cannot be written has no row of its
+                # own, so it is any other error, as 51degrees-node writes
+                # it.
+                self._log_unhandled(data_file, e)
+            return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
 
         if data_file.create_temp_copy:
             try:
@@ -573,12 +571,13 @@ class DataFileUpdateService():
     def track_local_data_file_changes(self, data_file):
         """!
         Check for local changes to a datafile. Used by
-        the file system watcher. The refresh takes the same route as the
-        polling one, so the attempt is logged, a failure carries the
-        errors table's message and level, and the result is reported to
-        the update complete callbacks either way. The next check is
-        scheduled whatever happens, so that a later file is still picked
-        up, until the data file is unregistered.
+        the file system watcher. A file that has been written to is an
+        event, and the refresh takes the same route as the polling one, so
+        the attempt is logged, a failure carries the errors table's message
+        and level, and the result is reported to the update complete
+        callbacks either way. The next check is scheduled whatever happens,
+        so that a later file is still picked up, until the data file is
+        unregistered.
         @type data_file: DataFile
         @param data_file: Datafile to check updates for
         """
@@ -591,18 +590,21 @@ class DataFileUpdateService():
             # replaced, is looked for again at the next check.
             changed_time = None
         try:
-            # Every event is reported once it ends. An event that arrived
-            # whilst another was being applied is reported as in progress,
-            # and one with no newer file as not needed.
+            if (changed_time is None or
+                    changed_time <= data_file.last_changed_time):
+                # A file nobody has written to is not an event, so nothing
+                # is reported. The watchers of .NET and 51degrees-node are
+                # told by the operating system and say nothing whilst a
+                # file is untouched, and this check stands in for that.
+                return
             if data_file.updating:
-                status = UpdateStatus.AUTO_UPDATE_IN_PROGRESS
-            elif (changed_time is not None and
-                    changed_time > data_file.last_changed_time):
-                data_file.last_changed_time = changed_time
-                status = self._refresh(data_file)
-            else:
-                status = UpdateStatus.AUTO_UPDATE_NOT_NEEDED
-            self.__emit(status, data_file)
+                # A newer file found whilst an update is being applied is
+                # reported as in progress, and the time is not taken, so
+                # the next check looks at the file again.
+                self.__emit(UpdateStatus.AUTO_UPDATE_IN_PROGRESS, data_file)
+                return
+            data_file.last_changed_time = changed_time
+            self.__emit(self._refresh(data_file), data_file)
         finally:
             if self.__is_registered(data_file):
                 t = threading.Timer(
