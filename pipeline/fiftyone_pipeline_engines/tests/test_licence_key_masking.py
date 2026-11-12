@@ -150,6 +150,24 @@ class UpdateServiceLogTests(unittest.TestCase):
                             for level, message in pipeline.logs),
                         pipeline.logs)
 
+    def test_a_callback_error_logs_only_the_masked_key(self):
+        # A callback's error is written into the log entry, and a callback
+        # that passes on a request error carries the update URL with it.
+        def fails(status, data_file):
+            raise requests.ConnectionError("failed for url: " + URL)
+
+        pipeline = RecordingPipeline()
+        service = DataFileUpdateService(pipeline)
+        service.on_complete(fails)
+        with mock.patch.object(requests, "get", lambda *a, **k: answer(304)):
+            service.update_data_file(StandInDataFile())
+        self.assertTrue(pipeline.logs)
+        for level, message in pipeline.logs:
+            self.assertNotIn(KEY, message)
+        self.assertTrue(any(MASKED_URL in message
+                            for level, message in pipeline.logs),
+                        pipeline.logs)
+
 
 if __name__ == "__main__":
     unittest.main()
