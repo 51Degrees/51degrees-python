@@ -633,13 +633,11 @@ class ReportingEachCheckTests(UpdateServiceTestCase):
 # with the error the callback raised attached. Polling carries on.
 class CallbackTests(UpdateServiceTestCase):
 
+    # The error the callback raised is attached, as the errors table asks
+    # and as .NET, Node.js and Go each write it.
     UNHANDLED = ("An unhandled error occurred while checking for automatic "
                  "updates for engine 'FakeEngine'. Error detail: "
                  "callback failed")
-
-    # The error the callback raised is attached, as the errors table asks
-    # and as .NET, Node.js and Go each write it.
-    UNHANDLED_WITH_CAUSE = UNHANDLED + ". Error detail: callback failed"
 
     def fail_first(self):
         def fails(status, data_file):
@@ -659,7 +657,7 @@ class CallbackTests(UpdateServiceTestCase):
         self.service.async_update_data_file(self.data_file).join()
         self.assertEqual([], self.statuses)
         self.assertEqual(1, len(self.pending))
-        self.assertEqual([self.UNHANDLED_WITH_CAUSE], self.errors())
+        self.assertEqual([self.UNHANDLED], self.errors())
 
     def testACallbackErrorOnAProgrammaticCheckIsLoggedAndStopsTheCallbacks(
             self):
@@ -670,14 +668,14 @@ class CallbackTests(UpdateServiceTestCase):
         self.service.update_data_file(self.data_file)
         self.assertEqual([], self.statuses)
         self.assertEqual(1, len(self.pending))
-        self.assertEqual([self.UNHANDLED_WITH_CAUSE], self.errors())
+        self.assertEqual([self.UNHANDLED], self.errors())
 
     def testACallbackErrorOnAnUpdateFromMemoryIsLoggedAndStopsTheCallbacks(
             self):
         self.fail_first()
         self.service.update_from_memory(self.data_file, b"fresh")
         self.assertEqual([], self.statuses)
-        self.assertEqual([self.UNHANDLED_WITH_CAUSE], self.errors())
+        self.assertEqual([self.UNHANDLED], self.errors())
 
     def testAConnectionFailureKeepsPolling(self):
         self.data_file.auto_update = True
