@@ -31,6 +31,10 @@ import uuid
 # Text that is a sequence, in ASCII decimal digits and nothing else.
 DIGITS_PATTERN = re.compile(r"[0-9]+")
 
+# The largest sequence the element takes, so that adding one stays within a
+# 32 bit signed integer.
+MAX_INPUT_SEQUENCE = 2147483646
+
 class SequenceElementEvidenceKeyFilter(EvidenceKeyFilter):
 
     # The session id and the sequence. The result changes as the sequence
@@ -89,8 +93,10 @@ class SequenceElement(FlowElement):
     
         # The session id and the sequence are read independently. A session
         # id that is not a non-empty string is absent, and gets a new id. A
-        # sequence that is not a whole number from 1 to 2147483647, written
-        # in decimal digits if it is text, is absent and gives 1.
+        # sequence that is not a whole number from 0 to MAX_INPUT_SEQUENCE,
+        # written in decimal digits with no sign or spaces if it is text, is
+        # absent and gives 1, which is also what 0 gives. parse_sequence
+        # answers None for 0 and for anything it cannot read at all.
         session_id = flowdata.evidence.get("query.session-id")
         if not isinstance(session_id, str) or session_id == "":
             session_id = str(uuid.uuid4())
@@ -99,7 +105,10 @@ class SequenceElement(FlowElement):
         if isinstance(sequence, str) and not DIGITS_PATTERN.fullmatch(sequence):
             sequence = None
         sequence = parse_sequence(sequence)
-        sequence = 1 if sequence is None else sequence + 1
+        if sequence is None or sequence > MAX_INPUT_SEQUENCE:
+            sequence = 1
+        else:
+            sequence = sequence + 1
 
         flowdata.evidence.add("query.session-id", session_id)
         flowdata.evidence.add("query.sequence", sequence)
