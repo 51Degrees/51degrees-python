@@ -117,11 +117,13 @@ class Constants:
         "['device.ismobile', 'device.iscrawler'].")
 
     # Logged once when a request with a licence key named properties and
-    # the response left some of them out without saying so.
+    # the response left some of them out without saying so. Both the
+    # licence behind a resource key and a licence key beside it decide
+    # what comes back, so the message names the keys rather than one key.
     MESSAGE_PROPERTIES_NOT_COVERED = (
         "The cloud service did not return the requested properties {} in "
-        "its answer. They are not covered by the licence key in use, so "
-        "they will be missing from every result. The other requested "
+        "its answer. They are not covered by the keys in use, so they "
+        "will be missing from every result. The other requested "
         "properties came back and are usable.")
     # Logged once when a request with a resource key and no licence key
     # named properties and the response left some of them out. Without a
@@ -130,5 +132,6 @@ class Constants:
     MESSAGE_PROPERTIES_NOT_KNOWN = (
         "The cloud service did not return the requested properties {} in "
         "its answer. They are not properties the cloud service knows, so "
-        "check the names. The other requested properties came back and "
-        "are usable.")
+        "they will be missing from every result. Check the spelling of "
+        "each one. The other requested properties came back and are "
+        "usable.")

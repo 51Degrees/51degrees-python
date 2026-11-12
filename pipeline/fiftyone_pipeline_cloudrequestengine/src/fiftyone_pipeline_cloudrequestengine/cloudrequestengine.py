@@ -269,12 +269,10 @@ class CloudRequestEngine(Engine):
         """
 
         # Get properties for all engines. A resource key alone goes in the
-        # query string. A licence key identifies an
-        # account, so it is posted in the body instead, where it stays out
-        # of request logs. The cloud service reads both keys from either
-        # place, answers a licence key alone with everything the licence
-        # entitles, and widens a resource key's answer by the products a
-        # licence key sent beside it grants.
+        # query string. A licence key identifies an account, so it is
+        # posted in the body instead, where it stays out of request logs.
+        # The cloud service reads both keys from either place, and answers
+        # a licence key alone with every property the licence entitles.
 
         propertiesURL = self.baseURL + "accessibleProperties"
 

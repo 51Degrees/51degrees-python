@@ -90,9 +90,10 @@ class TestCredentials(CloudRequestEngineTestsBase):
 
     def test_resource_key_with_licence_key_is_accepted(self):
         """
-        Row two of the table. The licence key adds the products it grants,
-        so it travels in the body of the data request and of the accessible
-        properties request, and no list of properties is sent.
+        Row two of the table. With no list the answer holds what the
+        resource key carries and the licence key adds no property, so the
+        licence key travels in the body of the data request and of the
+        accessible properties request, and no list of properties is sent.
         """
 
         engine = CloudRequestEngine({
@@ -501,6 +502,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
             str(warning.message) for warning in caught
             if "not covered" in str(warning.message)]
         self.assertEqual(1, len(messages), messages)
+        self.assertIn("not covered by the keys in use", messages[0])
         self.assertIn("device.iscrawler", messages[0])
         self.assertNotIn("device.istablet", messages[0])
         self.assertNotIn("device.ismobile", messages[0])
@@ -534,6 +536,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
             if "device.notaproperty" in str(warning.message)]
         self.assertEqual(1, len(messages), messages)
         self.assertIn("not properties the cloud service knows", messages[0])
+        self.assertIn("Check the spelling of each one", messages[0])
         self.assertNotIn("licence key", messages[0])
         self.assertNotIn("device.value", messages[0])
 

@@ -48,7 +48,7 @@ key and name the properties it wants, so the credential stays on the
 server and each answer carries only what that caller needs. A licence key
 is sent in the body of every request, never in a URL. Where a request
 named properties and the answer left some out, the engine warns once that
-they are not covered by the licence key, and the properties that came back
+they are not covered by the keys in use, and the properties that came back
 are usable as normal. With a resource key and no licence key, a property no
 licence grants comes back as null with a reason, so the warning says instead
 that a name left out is not a property the cloud service knows.
