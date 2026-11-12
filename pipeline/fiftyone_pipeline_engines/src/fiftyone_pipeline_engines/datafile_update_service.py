@@ -349,12 +349,12 @@ class DataFileUpdateService():
                 self._log_check_error(
                     "An error occurred when copying a data file to replace "
                     "the existing one at '" + str(data_file.path) + "'.", e)
-            else:
-                # A temporary copy that cannot be written has no row of its
-                # own, so it is any other error, as 51degrees-node writes
-                # it.
-                self._log_unhandled(data_file, e)
-            return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
+                return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
+            # A temporary copy that cannot be written has no row of its own,
+            # so it is any other error, as 51degrees-node writes it, with
+            # the status that row of the table gives.
+            self._log_unhandled(data_file, e)
+            return UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR
 
         if data_file.create_temp_copy:
             try:
