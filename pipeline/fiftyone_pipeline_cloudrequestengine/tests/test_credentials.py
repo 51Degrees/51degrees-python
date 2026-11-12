@@ -535,10 +535,39 @@ class TestCredentials(CloudRequestEngineTestsBase):
             str(warning.message) for warning in caught
             if "device.notaproperty" in str(warning.message)]
         self.assertEqual(1, len(messages), messages)
-        self.assertIn("not properties the cloud service knows", messages[0])
+        self.assertIn(
+            "Every property is answered, with a reason when it has no "
+            "value, so these names are not properties", messages[0])
         self.assertIn("Check the spelling of each one", messages[0])
         self.assertNotIn("licence key", messages[0])
         self.assertNotIn("device.value", messages[0])
+
+    def test_an_answer_that_is_not_an_object_does_not_fail_the_request(self):
+        """
+        The report compares the answer with the list, and an answer that
+        parses as JSON but is not an object has nothing to compare. It
+        must not fail the request, because the request itself succeeded,
+        so the engine leaves the answer alone and says nothing.
+        """
+
+        engine = CloudRequestEngine({
+            "license_key": LICENSE_KEY,
+            "requested_properties": REQUESTED,
+            "http_client": self.mock_http(
+                license_json_response='["device", "ismobile"]'),
+        })
+
+        pipeline = PipelineBuilder().add(engine).build()
+
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            data = pipeline.create_flowdata()
+            data.evidence.add("query.User-Agent", "iPhone")
+            data.process()
+
+        self.assertEqual(
+            [], [str(warning.message) for warning in caught
+                 if "did not return" in str(warning.message)])
 
     def test_no_report_when_every_property_came_back(self):
         """
