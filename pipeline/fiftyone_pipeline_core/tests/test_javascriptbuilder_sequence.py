@@ -22,10 +22,10 @@
 
 """
 The script must parse whatever the pipeline holds. The sequence is written
-into the script as bare code and the session id inside quotes, and a pipeline
-built without a SequenceElement, for example from a configuration file that
-does not list one, passes the query string's values, or nothing at all,
-straight to the builder.
+into the script as bare code and the session id inside quotes, and both come
+from the SequenceElement, so every pipeline here has one. A pipeline without
+a SequenceElement renders sequence 1 and an empty session id, which
+test_javascriptbuilder_no_sequence.py covers.
 
 The script is checked with "node --check", which needs Node on the path.
 Every GitHub hosted runner has it.
