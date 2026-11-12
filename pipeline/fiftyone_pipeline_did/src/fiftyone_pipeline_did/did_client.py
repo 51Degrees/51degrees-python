@@ -69,12 +69,12 @@ from .fod_id import DATE_EPOCH, FodId, _date_minutes, _trim_white_space
 from .id_type import IdType
 
 #: The public cloud API base, used when neither the ``endpoint`` argument
-#: nor the ``FOD_CLOUD_API_URL`` environment variable is set.
+#: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable is set.
 DEFAULT_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 
 #: The environment variable the cloud request engine reads for the API
 #: base, honoured here when no endpoint argument is given.
-ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"
+ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
 
 _BOUNDARY_TOLERANCE = timedelta(minutes=15)
 
@@ -174,7 +174,7 @@ class FactorResult(str, Enum):
     """The outcome of one factor in a mismatch or a partly misconfigured
     result. The cloud reports ``null`` for a factor that was not compared,
     which is passed through as ``None``, and a word this package does not
-    list is read the same way."""
+    list is read as :attr:`MISMATCH`."""
 
     VERIFIED = "verified"
     MISMATCH = "mismatch"
@@ -415,6 +415,12 @@ def _context_of(text: str) -> ContextResult:
 
 
 def _factor_of(value: Any) -> FactorValue:
+    # Nothing was compared.
+    if value is None:
+        return None
+    # The cloud writes lower case words, and the comparison ignores case.
+    if isinstance(value, str):
+        value = value.lower()
     if value == "verified":
         return FactorResult.VERIFIED
     if value == "mismatch":
@@ -425,7 +431,10 @@ def _factor_of(value: Any) -> FactorValue:
         return FactorResult.MISCONFIGURED
     if value == "notrecorded":
         return FactorResult.NOT_RECORDED
-    return None
+    # A word this package does not list, such as one a newer service sends,
+    # is a mismatch, so it never reads as a factor that matched or one that
+    # could not be compared.
+    return FactorResult.MISMATCH
 
 
 class DidClient:
@@ -444,7 +453,7 @@ class DidClient:
         only. Needed to redeem where the account holds licence keys, and
         sent only in the body of the redeem request, never in a URL.
     :param endpoint: the API base including the ``/api/v4/`` segment.
-        Defaults to the ``FOD_CLOUD_API_URL`` environment variable, then to
+        Defaults to the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable, then to
         the public cloud. A value without a trailing slash gains one.
     :param transport: the HTTP transport, either an async callable taking
         the prepared :class:`urllib.request.Request` and answering

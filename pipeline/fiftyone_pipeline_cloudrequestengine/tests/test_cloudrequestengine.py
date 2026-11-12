@@ -29,6 +29,7 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import CloudRequest
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_cloudrequestengine.constants import Constants
 
+from .classes.accepteverykeyelement import AcceptEveryKeyElement
 from .classes.constants import Constants as TestConstants
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 
@@ -46,8 +47,8 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
     testEnvVarEndPoint = "http://testEnvVarEndPoint/"
 
     def setUp(self):
-        if os.environ.get(Constants.FOD_CLOUD_API_URL) is not None:
-            del os.environ[Constants.FOD_CLOUD_API_URL]
+        if os.environ.get(Constants.CLOUD_ENDPOINT) is not None:
+            del os.environ[Constants.CLOUD_ENDPOINT]
 
     def testConfigEndPoint_ExplicitSetting(self):
         """!
@@ -55,7 +56,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         method interface take precedence over everything else
         """
 
-        os.environ[Constants.FOD_CLOUD_API_URL] = TestCloudRequestEngine.testEnvVarEndPoint
+        os.environ[Constants.CLOUD_ENDPOINT] = TestCloudRequestEngine.testEnvVarEndPoint
         cloud_request_engine = CloudRequestEngine({
             "resource_key": TestCloudRequestEngine.testResourceKey,
             "cloud_endpoint": TestCloudRequestEngine.testEndPoint,
@@ -69,7 +70,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         variable take precedence over the default value
         """
 
-        os.environ[Constants.FOD_CLOUD_API_URL] = TestCloudRequestEngine.testEnvVarEndPoint
+        os.environ[Constants.CLOUD_ENDPOINT] = TestCloudRequestEngine.testEnvVarEndPoint
         cloud_request_engine = CloudRequestEngine({
             "resource_key": TestCloudRequestEngine.testResourceKey,
             "http_client": self.mock_http()
@@ -111,8 +112,11 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
             "http_client": self.mock_http(),
         })
 
+        # The stand-in service accepts query.User-Agent alone, so an element
+        # that accepts every key keeps the rest of the evidence for the
+        # engine to order.
         builder = PipelineBuilder()
-        pipeline = builder.add(engine).build()
+        pipeline = builder.add(AcceptEveryKeyElement()).add(engine).build()
 
         data = pipeline.create_flowdata()
 
@@ -198,7 +202,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
 
         result = engine.get_content(data)
 
-        self.assertEqual(expected_value, result["user-agent"])
+        self.assertEqual(expected_value, result["User-Agent"])
 
     def test_no_exception_on_cloud_request_engine_init(self):
         """

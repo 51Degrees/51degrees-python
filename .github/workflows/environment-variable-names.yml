@@ -1,0 +1,30 @@
+name: Environment variable names
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - rc
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  environment-variable-names:
+    name: No tracked file names a variable starting with a digit or a fallback name
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Test the check
+        shell: pwsh
+        run: Invoke-Pester -Path ./ci/check-environment-variable-names.Tests.ps1 -CI
+
+      - name: Check the names
+        shell: pwsh
+        run: ./ci/check-environment-variable-names.ps1

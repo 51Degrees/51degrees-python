@@ -203,7 +203,8 @@ class FlowData:
 
         """
 
-        self.data[element_data.flow_element.datakey] = element_data
+        # Kept under the data key in lower case, which is how get reads it.
+        self.data[element_data.flow_element.datakey.lower()] = element_data
 
 
     def set_error(self, flow_error):

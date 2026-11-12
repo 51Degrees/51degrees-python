@@ -69,7 +69,10 @@ class Engine(FlowElement):
         """
  
         self.restricted_properties = properties_list
-  
+        # Names in lower case, as property names are compared ignoring case.
+        self.restricted_property_keys = {
+            name.lower() for name in properties_list}
+
 
     def is_cacheable(self, flowdata):
 
