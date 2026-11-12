@@ -125,7 +125,8 @@ class JSONBundlerElement(FlowElement):
 
             if (flow_element.datakey == "jsonbundler" or
                 flow_element.datakey == "javascriptbuilder" or
-                flow_element.datakey == "set-headers"):
+                flow_element.datakey == "set-headers" or
+                flow_element.datakey == "cloud"):
                 continue
             
             properties = flow_element.get_properties()
