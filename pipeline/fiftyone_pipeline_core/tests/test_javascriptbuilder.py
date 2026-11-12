@@ -229,7 +229,13 @@ class JavaScriptBundlerTests(unittest.TestCase):
             }
         }
 
-        self.assertEqual(FlowData.jsonbundler.json, expected)
+        # The Sequence Element has an entry too. Its session id is new on
+        # every request.
+        actual = dict(FlowData.jsonbundler.json)
+        sequence = actual.pop('sequence')
+        self.assertTrue(sequence['session-id'])
+        self.assertEqual(1, sequence['sequence'])
+        self.assertEqual(actual, expected)
  
 
     def testJavaScriptBuilder_Minify(self):

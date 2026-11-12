@@ -124,7 +124,6 @@ class JSONBundlerElement(FlowElement):
         for flow_element in flowdata.pipeline.flow_elements:
 
             if (flow_element.datakey == "jsonbundler" or
-                flow_element.datakey == "sequence" or 
                 flow_element.datakey == "javascriptbuilder" or
                 flow_element.datakey == "set-headers"):
                 continue
