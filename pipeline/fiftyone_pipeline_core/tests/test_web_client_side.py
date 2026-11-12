@@ -181,6 +181,11 @@ class ClientSideCacheTests(unittest.TestCase):
         self.assertIn(b"fiftyoneDegreesManager", script.data)
         self.assertEqual(42, results.get_json()["switchable"]["answer"])
 
+    def test_the_content_length_is_the_length_of_what_was_sent(self):
+        for response in self.responses({"User-Agent": CHROME}):
+            self.assertEqual(str(len(response.data)),
+                             response.headers.get("Content-Length"))
+
     def test_the_etag_follows_the_evidence(self):
         first = self.client.get(
             "/51Degrees.core.js", headers={"User-Agent": CHROME})
