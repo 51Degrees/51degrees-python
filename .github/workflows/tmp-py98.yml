@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Submodules
+        run: git submodule update --init pipeline/fiftyone_pipeline_core/src/fiftyone_pipeline_core/js_templates
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
