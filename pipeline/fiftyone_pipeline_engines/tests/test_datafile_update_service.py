@@ -119,19 +119,48 @@ class FileSystemWatcherTests(unittest.TestCase):
         check = self.pending.pop(0)
         check.function(*check.args)
 
-    def register_watched(self, data_file):
-        # The watcher runs only with automatic updates on. The update checks
-        # those would schedule are left out, so only the watcher's are
-        # pending.
-        data_file.auto_update = True
-        with mock.patch.object(self.service, "check_next_update"):
-            self.service.register_data_file(data_file)
+    # The watcher runs on its own setting, whether or not automatic updates
+    # are on. Watching a file downloads nothing, so a data file with no
+    # licence key, whose automatic updates are off, is still watched.
+    def testTheWatcherRunsOnItsOwnSetting(self):
+        for name, automatic, watcher in (
+                ("watcher on, automatic updates on", True, True),
+                ("watcher on, automatic updates off", False, True),
+                ("watcher off, automatic updates on", True, False)):
+            with self.subTest(name):
+                self.write("version 1")
+                self.pending.clear()
+                pipeline = RecordingPipeline()
+                service = DataFileUpdateService(pipeline)
+                data_file = StandInDataFile(self.path)
+                data_file.auto_update = automatic
+                data_file.file_system_watcher = watcher
+                data_file.polling_interval = 30
+                data_file.update_time_maximum_randomisation = 0
+                service.register_data_file(data_file)
+
+                watches = [
+                    check for check in self.pending
+                    if check.function == service.track_local_data_file_changes]
+                self.assertEqual(1 if watcher else 0, len(watches), name)
+                self.assertEqual(
+                    watcher,
+                    ("info", "Creating file system watcher") in pipeline.logs,
+                    name)
+
+                self.write("version 2")
+                for check in watches:
+                    check.function(*check.args)
+                self.assertEqual(
+                    "version 2" if watcher else "version 1", data_file.data,
+                    name)
+                service.unregister_data_file(data_file)
 
     # A refresh that fails is logged and reported, the data in use is kept,
     # and a later good file is picked up.
     def testFileSystemWatcherKeepsWatchingAfterFailedRefresh(self):
         data_file = StandInDataFile(self.path)
-        self.register_watched(data_file)
+        self.service.register_data_file(data_file)
 
         self.write("unusable")
         self.run_next_check()
@@ -156,7 +185,7 @@ class FileSystemWatcherTests(unittest.TestCase):
     # reports success to the update complete callbacks.
     def testFileSystemWatcherRefreshIsRoutedAsPollingIs(self):
         data_file = StandInDataFile(self.path)
-        self.register_watched(data_file)
+        self.service.register_data_file(data_file)
 
         self.write("version 2")
         self.run_next_check()
@@ -172,7 +201,7 @@ class FileSystemWatcherTests(unittest.TestCase):
     # the specification's errors table, as the polling route's does.
     def testFileSystemWatcherFailedRefreshUsesTheTableMessage(self):
         data_file = StandInDataFile(self.path)
-        self.register_watched(data_file)
+        self.service.register_data_file(data_file)
 
         self.write("unusable")
         self.run_next_check()
@@ -189,7 +218,7 @@ class FileSystemWatcherTests(unittest.TestCase):
     # replaced, is looked for again at the next check.
     def testFileSystemWatcherKeepsWatchingWhileFileIsMissing(self):
         data_file = StandInDataFile(self.path)
-        self.register_watched(data_file)
+        self.service.register_data_file(data_file)
 
         os.remove(self.path)
         self.run_next_check()
@@ -206,7 +235,7 @@ class FileSystemWatcherTests(unittest.TestCase):
     # nothing is left holding the data file.
     def testUnregisterStopsFileSystemWatcher(self):
         data_file = StandInDataFile(self.path)
-        self.register_watched(data_file)
+        self.service.register_data_file(data_file)
         check = self.pending[0]
 
         self.service.unregister_data_file(data_file)

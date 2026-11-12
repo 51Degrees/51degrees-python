@@ -450,26 +450,10 @@ class LoggingTests(UpdateServiceTestCase):
         with open(data_file.path, "w") as file:
             file.write("x")
         data_file.file_system_watcher = True
-        data_file.auto_update = True
         self.hold_timers()
         self.service.register_data_file(data_file)
         self.assertIn(
             ("info", "Creating file system watcher"), self.pipeline.logs)
-
-    def testNoFileSystemWatcherWithoutAutomaticUpdates(self):
-        folder = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
-        data_file = HttpDataFile(os.path.join(folder, "data.dat"))
-        with open(data_file.path, "w") as file:
-            file.write("x")
-        data_file.file_system_watcher = True
-        data_file.auto_update = False
-        self.hold_timers()
-        self.service.register_data_file(data_file)
-        self.assertNotIn(
-            ("info", "Creating file system watcher"), self.pipeline.logs)
-        self.assertEqual([], self.pending)
-        self.assertIsNone(getattr(data_file, "watcher_timer", None))
 
 
 # A data file kept on disk that cannot put the new file in place, and one
