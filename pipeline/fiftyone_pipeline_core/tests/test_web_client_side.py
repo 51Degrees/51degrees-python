@@ -38,6 +38,7 @@ from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
     BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.elementdata_dictionary import \
     ElementDataDictionary
+from fiftyone_pipeline_core.evidence_keyfilter import EvidenceKeyFilter
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_core.web import javascript_response, json_response
@@ -78,6 +79,43 @@ class Switchable(FlowElement):
 
     def get_evidence_key_filter(self):
         return BasicListEvidenceKeyFilter(["header.user-agent"])
+
+
+class Listed(FlowElement):
+    """An element that accepts the evidence keys it is given, as most
+    elements do, so its filter can list them."""
+
+    def __init__(self, keys):
+        super(Listed, self).__init__()
+        self.datakey = "listed"
+        self.keys = keys
+
+    def process_internal(self, flowdata):
+        flowdata.set_element_data(ElementDataDictionary(self, {}))
+
+    def get_evidence_key_filter(self):
+        return BasicListEvidenceKeyFilter(self.keys)
+
+
+class Unlisted(FlowElement):
+    """An element whose filter decides key by key and cannot list what it
+    accepts, as the cloud request engine's does."""
+
+    def __init__(self):
+        super(Unlisted, self).__init__()
+        self.datakey = "unlisted"
+
+    def process_internal(self, flowdata):
+        flowdata.set_element_data(ElementDataDictionary(self, {}))
+
+    def get_evidence_key_filter(self):
+        return OnlyUserAgent()
+
+
+class OnlyUserAgent(EvidenceKeyFilter):
+
+    def filter_evidence_key(self, key):
+        return key.lower() == "header.user-agent"
 
 
 def client():
@@ -383,6 +421,62 @@ class ClientSideCacheTests(unittest.TestCase):
                 client.post("/json", headers={"User-Agent": CHROME})):
             self.assertEqual("max-age=60, private",
                              response.headers.get("Cache-Control"))
+
+    def test_vary_names_a_header_the_request_did_not_carry(self):
+        # The Vary header names every header in the pipeline's evidence key
+        # filter, not only the ones this request happened to carry, so a
+        # cache re-fetches when a header that was absent appears.
+        pipeline = PipelineBuilder({
+            "javascript_builder_settings": {"endpoint": "/json"},
+        }).add(Listed(["header.user-agent", "header.sec-ch-ua-model"])).build()
+        app = Flask(__name__)
+
+        @app.route("/51Degrees.core.js")
+        def javascript():
+            return javascript_response(pipeline, request)
+
+        response = app.test_client().get(
+            "/51Degrees.core.js", headers={"User-Agent": CHROME})
+
+        self.assertEqual(
+            "Sec-Ch-Ua-Model, User-Agent", response.headers.get("Vary"))
+
+    def test_vary_leaves_out_the_headers_a_browser_revalidates_with(self):
+        # If-None-Match and the rest differ between a request and its
+        # revalidation, so naming them would stop any response being reused.
+        pipeline = PipelineBuilder({
+            "javascript_builder_settings": {"endpoint": "/json"},
+        }).add(Listed(["header.user-agent", "header.if-none-match",
+                       "header.cache-control"])).build()
+        app = Flask(__name__)
+
+        @app.route("/51Degrees.core.js")
+        def javascript():
+            return javascript_response(pipeline, request)
+
+        response = app.test_client().get(
+            "/51Degrees.core.js", headers={"User-Agent": CHROME})
+
+        self.assertEqual("User-Agent", response.headers.get("Vary"))
+
+    def test_vary_falls_back_to_the_request_for_a_filter_that_cannot_list(
+            self):
+        # An element whose filter is not a list cannot say which headers it
+        # accepts, so the request's own headers are asked of it one by one.
+        pipeline = PipelineBuilder({
+            "javascript_builder_settings": {"endpoint": "/json"},
+        }).add(Unlisted()).build()
+        app = Flask(__name__)
+
+        @app.route("/51Degrees.core.js")
+        def javascript():
+            return javascript_response(pipeline, request)
+
+        response = app.test_client().get(
+            "/51Degrees.core.js",
+            headers={"User-Agent": CHROME, "Accept-Language": "en"})
+
+        self.assertEqual("User-Agent", response.headers.get("Vary"))
 
 
 if __name__ == "__main__":

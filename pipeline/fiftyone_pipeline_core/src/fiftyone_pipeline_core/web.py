@@ -51,6 +51,10 @@ _REVALIDATION_HEADERS = frozenset((
 # quote. The second group is the opaque tag without its quotes.
 _ENTITY_TAG = re.compile(r'(W/)?"([\x21\x23-\x7e\x80-\xff]*)"')
 
+# A field name of RFC 9110 section 5.1, in lower case. An evidence key that
+# is not one would make the Vary header unreadable, so it is left out.
+_FIELD_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9a-z-]+\Z")
+
 # The optional whitespace around the commas of a list, RFC 9110 section
 # 5.6.3.
 _OWS = " \t"
@@ -176,8 +180,8 @@ def javascript_response(
     list of entity tags matches nothing. Otherwise the response carries
     'Cache-Control: max-age=1800, private', or the max age given, and the
     ETag, or 'Cache-Control: private, no-cache' and no ETag when processing
-    recorded errors. Both carry a Vary header naming the request headers the
-    pipeline's elements accept.
+    recorded errors. Both carry a Vary header naming the headers the
+    pipeline's elements accept, whether or not the request carried them.
 
     @type pipeline: Pipeline
     @param pipeline: A pipeline holding the JavaScriptBuilder
@@ -332,9 +336,22 @@ def _entity_tags(value):
 
 def _vary(pipeline, request):
 
-    names = {}
-    for name, _ in request.headers:
-        key = name.lower()
-        if key not in names and _uses(pipeline, "header." + key):
-            names[key] = name
-    return ", ".join(sorted(names.values(), key=str.lower))
+    # The headers in the pipeline's evidence key filter, whether or not this
+    # request carried them, so a cache re-fetches when one that was absent
+    # appears. An element whose filter is a list names every header in it. A
+    # filter that cannot list its keys is asked about the request's own
+    # headers one by one instead.
+    carried = [name.lower() for name, _ in request.headers]
+    names = set()
+    for element in pipeline.flow_elements:
+        listed = getattr(element.get_evidence_key_filter(), "list", None)
+        keys = listed if listed is not None else \
+            ["header." + name for name in carried]
+        for key in keys:
+            key = str(key).lower()
+            if key.startswith("header.") and _uses(pipeline, key) and \
+                    _FIELD_NAME.match(key[len("header."):]):
+                names.add(key[len("header."):])
+    return ", ".join(
+        "-".join(part.capitalize() for part in name.split("-"))
+        for name in sorted(names))
