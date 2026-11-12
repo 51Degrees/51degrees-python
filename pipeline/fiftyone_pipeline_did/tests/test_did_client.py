@@ -189,7 +189,7 @@ class ClientConstructionTests(unittest.TestCase):
         os.environ.pop(self.NEW_VARIABLE, None)
         os.environ.pop(self.OLD_VARIABLE, None)
         reported = mock.patch.object(
-            did_client, "_old_endpoint_reported", False, create=True)
+            did_client, "_old_endpoint_reported", False)
         reported.start()
         self.addCleanup(reported.stop)
 

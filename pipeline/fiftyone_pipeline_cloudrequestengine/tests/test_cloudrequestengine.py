@@ -64,7 +64,7 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         os.environ.pop(Constants.CLOUD_ENDPOINT, None)
         os.environ.pop(self.oldEndPointVariable, None)
         reported = mock.patch.object(
-            cloudrequestengine, "_old_endpoint_reported", False, create=True)
+            cloudrequestengine, "_old_endpoint_reported", False)
         reported.start()
         self.addCleanup(reported.stop)
 
@@ -213,15 +213,31 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
     def testOldEndPointConstant(self):
         """!
         Check that the constant the old name was held in is still there
-        with its old value, so that code which passes it to the
-        environment still reads the old variable, and that reading it
-        warns that it is deprecated and names the constant to use
+        with its old value, as a plain attribute of its class, so that
+        every way of reading it gives the old name
         """
 
-        with self.assertWarns(DeprecationWarning) as warned:
-            value = Constants.FOD_CLOUD_API_URL
-        self.assertEqual(self.oldEndPointVariable, value)
-        self.assertIn("Constants.CLOUD_ENDPOINT", str(warned.warning))
+        self.assertEqual(
+            self.oldEndPointVariable, Constants.FOD_CLOUD_API_URL)
+        self.assertEqual(
+            self.oldEndPointVariable,
+            vars(Constants).get("FOD_CLOUD_API_URL"))
+        self.assertIn("FOD_CLOUD_API_URL", dir(Constants))
+
+    def testConfigEndPoint_VariableTheOldConstantNames(self):
+        """!
+        Check that the engine reads the old name through the constant, as
+        it did before, so that code which points the constant at another
+        variable still decides what is read
+        """
+
+        os.environ["ANOTHER_VARIABLE"] = self.testOldEnvVarEndPoint
+        with mock.patch.object(
+                Constants, "FOD_CLOUD_API_URL", "ANOTHER_VARIABLE"):
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", FutureWarning)
+                engine = self.new_engine()
+        self.assertEqual(self.testOldEnvVarEndPoint, engine.baseURL)
 
     def testEndPointConstant(self):
         """!

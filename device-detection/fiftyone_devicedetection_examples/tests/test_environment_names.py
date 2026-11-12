@@ -69,8 +69,7 @@ class OldNameTests(unittest.TestCase):
                 os.environ.pop(name, None)
                 os.environ.pop(name.upper(), None)
         reported = mock.patch.object(
-            ExampleUtils, "_ExampleUtils__reported_old_names", set(),
-            create=True)
+            ExampleUtils, "_ExampleUtils__reported_old_names", set())
         reported.start()
         self.addCleanup(reported.stop)
 

@@ -51,8 +51,7 @@ def no_settings(monkeypatch):
         monkeypatch.delenv(name, raising=False)
         monkeypatch.delenv(old_name, raising=False)
     monkeypatch.setattr(
-        ExampleUtils, "_ExampleUtils__reported_old_names", set(),
-        raising=False)
+        ExampleUtils, "_ExampleUtils__reported_old_names", set())
     return monkeypatch
 
 

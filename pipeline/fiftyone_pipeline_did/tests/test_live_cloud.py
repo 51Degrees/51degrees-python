@@ -65,7 +65,7 @@ class OldNameTests(unittest.TestCase):
         for name in NAMES:
             os.environ.pop(name, None)
         reported = mock.patch.object(
-            live_cloud, "_reported_old_names", set(), create=True)
+            live_cloud, "_reported_old_names", set())
         reported.start()
         self.addCleanup(reported.stop)
 
