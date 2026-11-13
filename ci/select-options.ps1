@@ -26,9 +26,10 @@ $Native = @('Windows_Python_3.14')
 $Versions = @('Ubuntu_Python_3.13', 'Ubuntu_Python_3.12', 'Ubuntu_Python_3.11')
 $ProductFolders = @('pipeline/', 'device-detection/', 'ip-intelligence/',
     'location/')
+# The data files come in through the cxx submodule, so a change to them is a
+# change to cxx.
 $NativePaths = @('device-detection/fiftyone_devicedetection_onpremise/',
-    'ip-intelligence/fiftyone_ipintelligence_onpremise/',
-    'ip-intelligence/ip-intelligence-data')
+    'ip-intelligence/fiftyone_ipintelligence_onpremise/')
 
 function Test-Under([string]$Path, [string[]]$Prefixes) {
     return @($Prefixes | Where-Object {
