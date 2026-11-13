@@ -4,9 +4,9 @@ Usage: release-plan-filter.py <repository> <tag> <file> [<file> ...]
 
 Each file is a pyproject.toml, setup.py or setup.cfg, as a path from the
 repository root. Its text at the tag and at HEAD is compared with the
-description, keywords, urls, classifiers, readme and authors left out, so a
-file is printed when anything else changed, and left out when only those
-did. A file that is missing on either side, or that cannot be read as what
+description, keywords, urls, classifiers, readme, authors and maintainers
+left out, so a file is printed when anything else changed, and left out when
+only those did. A file that is missing on either side, or that cannot be read as what
 its name says, is printed, so a release is never skipped by mistake.
 
 Only the standard library is used, and the same way on every Python this
@@ -24,13 +24,14 @@ import sys
 SETUP_METADATA = frozenset((
     "description", "long_description", "long_description_content_type",
     "keywords", "url", "project_urls", "download_url", "classifiers",
-    "author", "author_email"))
+    "author", "author_email", "maintainer", "maintainer_email"))
 
 # The pyproject.toml [project] keys that are metadata.
 PROJECT_METADATA = frozenset((
-    "description", "keywords", "urls", "classifiers", "readme", "authors"))
+    "description", "keywords", "urls", "classifiers", "readme", "authors",
+    "maintainers"))
 
-# A table header, such as [project.urls] or [[project.authors]].
+# A table header, such as [project.urls] or [[project.maintainers]].
 HEADER = re.compile(r"^\[\[?\s*([^\]]+?)\s*\]\]?\s*(#.*)?$")
 
 # The start of a key and value. The first part of a dotted key is the one
@@ -156,7 +157,9 @@ def scan(value, depth, quote):
 def is_metadata(table, key):
     if table == "project":
         return key in PROJECT_METADATA
-    return table in ("project.urls", "project.authors", "project.readme")
+    return table in (
+        "project.urls", "project.authors", "project.maintainers",
+        "project.readme")
 
 
 READERS = {
