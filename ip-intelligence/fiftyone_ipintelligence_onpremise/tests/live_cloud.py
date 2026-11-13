@@ -51,7 +51,7 @@ _reported_old_names = set()
 ACCESSIBLE_PROPERTIES_URL = (
     "https://cloud.51degrees.com/api/v4/accessibleproperties?resource=<key>")
 
-CREATE_KEY_URL = "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=live_cloud.py&utm_term=resource-key-required"
+CREATE_KEY_URL = "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=live_cloud.py&utm_term=resource-key-required"
 
 
 def _report_old_name(name, old_name):

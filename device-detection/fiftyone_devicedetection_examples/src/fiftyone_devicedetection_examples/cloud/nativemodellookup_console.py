@@ -133,7 +133,7 @@ def main(argv):
             "you will first need a license key, which can be purchased from our " +
             "pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=resource-key-required. Once this is done, a resource " +
             "key with the properties required by this example can be created at " +
-            "https://configure.51degrees.com/QKyYH5XT?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=resource-key-required. You can now populate the " +
+            "https://51degrees.com/configure/QKyYH5XT?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=resource-key-required. You can now populate the " +
             "environment variable mentioned at the start of this message with the " +
             "resource key or pass it as the first argument on the command line.")
 
