@@ -63,7 +63,11 @@ and the rules in
 The engine calls `https://cloud.51degrees.com/api/v4/` unless told
 otherwise. Set the `_51DEGREES_CLOUD_ENDPOINT` environment variable, or pass
 `cloud_endpoint` in the engine settings, to the API base of another
-host including the `/api/v4/` segment. A host other than
+host including the `/api/v4/` segment. `FOD_CLOUD_API_URL`, the old name
+of that variable, is deprecated. The engine reads it only when
+`_51DEGREES_CLOUD_ENDPOINT` is not set, and warns once that the old name
+was used. `Constants.FOD_CLOUD_API_URL` is deprecated as well, and
+`Constants.CLOUD_ENDPOINT` replaces it. A host other than
 cloud.51degrees.com would be used to (a) use an on premise web server,
 or (b) use a privately hosted version of the 51Degrees cloud for
 performance reasons. This is the private hosting option of the cloud

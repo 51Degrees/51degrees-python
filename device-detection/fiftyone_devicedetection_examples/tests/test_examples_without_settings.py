@@ -45,7 +45,7 @@ from fiftyone_devicedetection_shared.example_constants import EVIDENCE_FILE_NAME
 from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 
 # The settings the examples read, which a fresh clone does not have.
-SETTINGS = ["_51DEGREES_LICENSE_KEY"]
+SETTINGS = ["_51DEGREES_LICENSE_KEY", "license_key", "LICENSE_KEY"]
 
 # The evidence records the offline processing test reads. The example's own
 # file has 20,000, which take minutes.
