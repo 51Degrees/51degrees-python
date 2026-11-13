@@ -20,9 +20,13 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import contextlib
+import io
 import platform
+import re
 import sys
 import threading
+import time
 from time import sleep
 import unittest
 from wsgiref.simple_server import make_server
@@ -38,6 +42,12 @@ testPort = 5000
 testEndpoint = f"http://{testHost}:{testPort}"
 
 shareUsageVersion = "1.1"
+
+# The numbers the specification gives, written out here rather than read
+# from the element, so that a test fails when the element does not keep to
+# them.
+CLEANUP_BOUND_SECONDS = 5
+MINIMUM_ENTRIES_PER_MESSAGE = 50
 
 
 class ReceiverThread(threading.Thread):
@@ -59,25 +69,56 @@ class ReceiverThread(threading.Thread):
 
 app = Flask(__name__)
 app.received = []
+# When each request arrived, whatever the answer.
+app.attempts = []
+# The status the receiver answers with. Only data it accepts is received.
+app.status = 200
+# The content the receiver answers with.
+app.body = ""
+# How long in seconds the receiver holds a request before answering.
+app.delay = 0
+# Set to let a held request go at once.
+app.delay_release = threading.Event()
 
 @app.route('/', methods=['POST'])
 def server():
+    app.attempts.append(time.monotonic())
+    if app.delay:
+        app.delay_release.wait(app.delay)
     data = gzip.decompress(request.data).decode("utf8")
-    str(app.received.append(data))
-    return ""
+    if app.status == 200:
+        app.received.append(data)
+    return app.body, app.status
+
+
+def client_ips(received):
+    """!
+    The client IPs in the usage data received.
+    """
+    ips = []
+    for data in received:
+        ips.extend(re.findall("<ClientIP>([^<]*)</ClientIP>", data))
+    return ips
 
 
 ######################################
 # The Tests
 
 class UsageTests(unittest.TestCase):
-    
+
     @classmethod
     def setUpClass(cls):
         cls.startReceiver()
 
     def setUp(self):
         app.received = []
+        app.attempts = []
+        app.status = 200
+        app.body = ""
+        app.delay = 0
+        app.delay_release.clear()
+        self.requests = 0
+        self.logs = []
 
     @classmethod
     def tearDownClass(cls):
@@ -96,6 +137,377 @@ class UsageTests(unittest.TestCase):
         # necessary for context switching and
         # allowing the thread pool in ShareUsage to start sending data and release the GIL
         sleep(0.1)
+
+    def wait_for(self, condition, message):
+        """!
+        Wait for a condition, failing the test with the message if it is not
+        met within 30 seconds.
+        """
+        end = time.monotonic() + 30
+        while not condition():
+            if time.monotonic() > end:
+                self.fail(message())
+            sleep(0.02)
+
+    def back_off_pipeline(self, **settings):
+        """!
+        A pipeline whose usage sharing element sends each entry on its own.
+        The element is closed when the test ends.
+        """
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint,
+            **settings)
+        pipeline = PipelineBuilder().add(usage).build()
+        self.addCleanup(usage.close)
+        return usage, pipeline
+
+    def process_unique(self, pipeline):
+        """!
+        Process a request whose evidence no other request has, and return
+        its client IP.
+        """
+        ip = f"10.0.{self.requests // 250}.{self.requests % 250 + 1}"
+        self.requests += 1
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("server.client-ip", ip)
+        flowdata.process()
+        return ip
+
+    def fail_sends(self, pipeline, count):
+        """!
+        Process requests one at a time, waiting for each to be sent, so each
+        is a separate failed send.
+        """
+        app.status = 500
+        for sent in range(1, count + 1):
+            self.process_unique(pipeline)
+            self.wait_for(
+                lambda: len(app.attempts) == sent,
+                lambda: f"Send {sent} was not made.")
+
+    def test_back_off_pauses_then_drains_queue(self):
+        """!
+        Ten failed sends pause sending for two seconds, the defaults.
+        Nothing is sent during the pause, the evidence processed during it
+        is queued, and all of it is sent once the pause ends and the
+        service answers, with no more requests processed.
+        """
+
+        usage, pipeline = self.back_off_pipeline()
+        self.fail_sends(pipeline, 10)
+        paused_at = time.monotonic()
+
+        queued = [self.process_unique(pipeline) for i in range(5)]
+        sleep(0.7)
+        self.assertEqual(
+            len(app.attempts), 10,
+            "Sends were made during the pause that ten failed sends "
+            "should have started.")
+
+        app.status = 200
+        self.wait_for(
+            lambda: all(ip in client_ips(app.received) for ip in queued),
+            lambda: "The evidence processed during the pause was not all "
+                f"sent once the service answered. Sent: "
+                f"{client_ips(app.received)}")
+        waited = app.attempts[10] - paused_at
+        self.assertGreaterEqual(
+            waited, 1.5,
+            f"Sending resumed {waited:.2f} seconds after the pause started, "
+            "before the two second pause ended.")
+
+    def test_back_off_close_while_paused(self):
+        """!
+        Closing while paused returns at once rather than waiting for the
+        pause to end, and sends nothing.
+        """
+
+        usage, pipeline = self.back_off_pipeline()
+        self.fail_sends(pipeline, 10)
+        self.process_unique(pipeline)
+        self.process_unique(pipeline)
+
+        start = time.monotonic()
+        usage.close()
+        took = time.monotonic() - start
+
+        self.assertLess(
+            took, 1.5,
+            f"Closing took {took:.2f} seconds, as it waited for the pause.")
+        self.assertEqual(
+            len(app.attempts), 10,
+            "A send was made during the pause or when closing.")
+
+    def test_back_off_delay_grows_to_maximum(self):
+        """!
+        Each failed send after a pause multiplies the delay, and the delay
+        stops growing at the maximum.
+        """
+
+        usage, pipeline = self.back_off_pipeline(
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=0.5,
+            max_recovery_delay_seconds=1.0)
+        app.status = 500
+        for i in range(40):
+            self.process_unique(pipeline)
+
+        self.wait_for(
+            lambda: len(app.attempts) >= 4,
+            lambda: "Fewer than four sends were made.")
+        gaps = [app.attempts[i] - app.attempts[i - 1] for i in range(1, 4)]
+        shown = ", ".join(f"{gap:.2f}" for gap in gaps)
+        self.assertGreaterEqual(
+            gaps[0], 0.4,
+            f"The first pause was not the initial delay. Gaps: {shown}")
+        self.assertGreaterEqual(
+            gaps[1], 0.9,
+            f"The second pause was not doubled. Gaps: {shown}")
+        self.assertTrue(
+            0.9 <= gaps[2] < 1.9,
+            f"The third pause was not held at the maximum. Gaps: {shown}")
+
+    def test_back_off_full_queue_drops_new_evidence(self):
+        """!
+        When the queue fills during a pause, new evidence is dropped and
+        what was queued first is sent once sending resumes.
+        """
+
+        usage, pipeline = self.back_off_pipeline(
+            max_queue_size=4,
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=2,
+            max_recovery_delay_seconds=2)
+        self.fail_sends(pipeline, 1)
+
+        kept = [self.process_unique(pipeline) for i in range(4)]
+        dropped = [self.process_unique(pipeline) for i in range(6)]
+        app.status = 200
+
+        self.wait_for(
+            lambda: all(ip in client_ips(app.received) for ip in kept),
+            lambda: "The evidence queued during the pause was not all sent. "
+                f"Sent: {client_ips(app.received)}")
+        sleep(0.5)
+        for ip in dropped:
+            self.assertNotIn(
+                ip, client_ips(app.received),
+                "Evidence processed when the queue was full was sent.")
+
+    def test_full_queue_logs_without_a_message_per_entry(self):
+        """!
+        Entries discarded because the queue is full are logged, but not with
+        a message for each entry discarded.
+        """
+
+        usage, pipeline = self.back_off_pipeline(
+            max_queue_size=4,
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=2,
+            max_recovery_delay_seconds=2)
+        usage._log = lambda level, message: self.logs.append((level, message))
+        self.fail_sends(pipeline, 1)
+        self.logs.clear()
+
+        for i in range(10):
+            self.process_unique(pipeline)
+
+        full = [log for log in self.logs if "full" in log[1]]
+        self.assertGreaterEqual(
+            len(full), 1, "Discarding entries was not logged.")
+        self.assertLess(
+            len(full), 6, "A message was logged for each entry discarded.")
+        self.assertEqual("warning", full[0][0])
+
+    def test_failed_answer_logs_status_and_content(self):
+        """!
+        A send answered with anything other than 200 logs the status code and
+        the content of the answer.
+        """
+
+        usage, pipeline = self.back_off_pipeline()
+        usage._log = lambda level, message: self.logs.append((level, message))
+        app.body = "the service says no"
+
+        self.fail_sends(pipeline, 1)
+
+        self.wait_for(
+            lambda: any("500" in log[1] for log in self.logs),
+            lambda: f"The status code was not logged. Logged: {self.logs}")
+        failed = [log for log in self.logs if "500" in log[1]][0]
+        self.assertIn("the service says no", failed[1])
+
+    def test_failed_send_prints_nothing(self):
+        """!
+        A send that cannot be made is logged and does not print.
+        """
+
+        usage, pipeline = self.back_off_pipeline(request_timeout=1)
+        usage._log = lambda level, message: self.logs.append((level, message))
+        usage.endpoint = "http://127.0.0.1:1"
+        printed = io.StringIO()
+
+        with contextlib.redirect_stdout(printed):
+            self.process_unique(pipeline)
+            self.wait_for(
+                lambda: any("failed sending" in log[1] for log in self.logs),
+                lambda: f"The failed send was not logged. Logged: {self.logs}")
+
+        self.assertEqual("", printed.getvalue())
+
+    def test_message_holds_up_to_twice_the_package_size(self):
+        """!
+        A message holds the requested package size or more entries, up to
+        twice the package size, so a queue that filled during a pause drains
+        in fewer messages.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=2,
+            endpoint=testEndpoint,
+            failures_to_enter_recovery=1,
+            initial_recovery_delay_seconds=1,
+            max_recovery_delay_seconds=1)
+        pipeline = PipelineBuilder().add(usage).build()
+        self.addCleanup(usage.close)
+        app.status = 500
+        self.process_unique(pipeline)
+        self.process_unique(pipeline)
+        self.wait_for(
+            lambda: len(app.attempts) == 1,
+            lambda: "The first send was not made.")
+        for i in range(6):
+            self.process_unique(pipeline)
+
+        app.status = 200
+        self.wait_for(
+            lambda: len(client_ips(app.received)) == 6,
+            lambda: f"Not all entries were sent: {client_ips(app.received)}")
+
+        sizes = [len(client_ips([data])) for data in app.received]
+        self.assertEqual(
+            [4, 2], sizes,
+            "The messages did not hold up to twice the package size.")
+
+    def test_close_sends_fewer_entries_than_the_package_size(self):
+        """!
+        Closing sends the entries still queued, even when there are fewer
+        than the requested package size.
+        """
+
+        usage = ShareUsage(
+            requested_package_size=5,
+            endpoint=testEndpoint)
+        pipeline = PipelineBuilder().add(usage).build()
+        ips = [self.process_unique(pipeline) for i in range(2)]
+        self.assertEqual([], app.received)
+
+        usage.close()
+
+        self.assertEqual(ips, client_ips(app.received))
+
+    def test_close_stops_sending_after_the_cleanup_bound(self):
+        """!
+        Closing stops after the five seconds the specification allows,
+        rather than waiting for a service that does not answer, and logs a
+        warning counting the entries it discarded.
+        """
+
+        app.delay = CLEANUP_BOUND_SECONDS + 5
+        # Let the held request go as soon as the test is done with it.
+        self.addCleanup(app.delay_release.set)
+        usage = ShareUsage(
+            requested_package_size=1,
+            endpoint=testEndpoint)
+        usage._log = lambda level, message: self.logs.append(
+            (level, message))
+        pipeline = PipelineBuilder().add(usage).build()
+        self.process_unique(pipeline)
+        self.wait_for(
+            lambda: len(app.attempts) == 1,
+            lambda: "The first send was not made, so nothing was holding "
+            "sending up when closing.")
+        for i in range(5):
+            self.process_unique(pipeline)
+
+        start = time.monotonic()
+        usage.close()
+        took = time.monotonic() - start
+
+        self.assertLess(
+            took, CLEANUP_BOUND_SECONDS + 2,
+            f"Closing took {took:.2f} seconds, so it waited for the service "
+            "rather than stopping at the bound.")
+        self.assertGreaterEqual(
+            took, CLEANUP_BOUND_SECONDS - 0.5,
+            f"Closing took {took:.2f} seconds, so it gave up before the "
+            "bound.")
+        warnings = [log for log in self.logs if "did not finish" in log[1]]
+        self.assertEqual(
+            1, len(warnings),
+            f"The entries discarded were not logged once. Logged: "
+            f"{self.logs}")
+        self.assertEqual(
+            ("warning",
+             "Usage sharing stopped sending when closing down, because it "
+             f"did not finish within {CLEANUP_BOUND_SECONDS} seconds. 5 "
+             "entries were left in the queue and discarded."),
+            warnings[0])
+
+        # Let the held message go and wait for it to arrive, so that
+        # nothing from this element lands in another test.
+        app.delay_release.set()
+        self.wait_for(
+            lambda: len(app.received) == 1,
+            lambda: "The held message did not arrive once it was let go.")
+
+    def test_minimum_entries_per_message_default(self):
+        """!
+        The default minimum entries per message is the 50 the specification
+        gives, so no message is started before 50 entries are queued.
+        """
+
+        usage = ShareUsage(endpoint=testEndpoint)
+        pipeline = PipelineBuilder().add(usage).build()
+        self.addCleanup(usage.close)
+        self.assertEqual(
+            MINIMUM_ENTRIES_PER_MESSAGE, usage.requested_package_size,
+            "The default is not the 50 the specification gives.")
+
+        for i in range(MINIMUM_ENTRIES_PER_MESSAGE - 1):
+            self.process_unique(pipeline)
+        sleep(0.5)
+        self.assertEqual(
+            0, len(app.attempts),
+            "A message was started before 50 entries were queued.")
+
+        self.process_unique(pipeline)
+        self.wait_for(
+            lambda: len(client_ips(app.received))
+            == MINIMUM_ENTRIES_PER_MESSAGE,
+            lambda: "The fiftieth entry did not start a message. Sent: "
+            f"{len(client_ips(app.received))}")
+
+    def test_back_off_invalid_settings(self):
+        """!
+        Settings the pause cannot work with are rejected.
+        """
+
+        for settings in [
+                {"failures_to_enter_recovery": 0},
+                {"failures_to_enter_recovery": 101},
+                {"failures_to_enter_recovery": 2.5},
+                {"failures_window_seconds": 0},
+                {"initial_recovery_delay_seconds": 0},
+                {"max_recovery_delay_seconds": -1},
+                {"recovery_multiplier": 0.5},
+                {"max_queue_size": 0}]:
+            with self.assertRaises(ValueError, msg=str(settings)):
+                ShareUsage(
+                    requested_package_size=1,
+                    endpoint=testEndpoint,
+                    **settings)
 
     def test_data_received(self):
         """!
@@ -293,7 +705,9 @@ class UsageTests(unittest.TestCase):
         self.waitForUsageThreads()
         self.assertEqual(len(app.received), 1)
         self.assertIn("<SessionId>1</SessionId>", app.received[0])
-        self.assertIn("<Sequence>1</Sequence>", app.received[0])
+        # The Sequence Element is the first element, so it has added one to the
+        # sequence by the time usage sharing reads it.
+        self.assertIn("<Sequence>2</Sequence>", app.received[0])
 
     def test_invalid_char(self):
         """!
@@ -304,20 +718,17 @@ class UsageTests(unittest.TestCase):
             requested_package_size=1,
             endpoint=testEndpoint)
 
-        replacementChar = chr(int("0xFFFD", 16))
-
         pipeline = (PipelineBuilder())\
             .add(usage)\
             .build()
         flowdata = pipeline.create_flowdata()
-        flowdata.evidence.add("header.user-agent", "1ƌ2")
+        flowdata.evidence.add("header.user-agent", "1" + chr(0x1f) + "2")
         flowdata.process()
 
         self.waitForUsageThreads()
         self.assertEqual(len(app.received), 1)
-        self.assertNotIn("ƌ", app.received[0])
-        self.assertIn(replacementChar, app.received[0])
-        self.assertIn(f"<header Name=\"user-agent\" replaced=\"true\">1{replacementChar}2</header>", app.received[0])
+        self.assertNotIn(chr(0x1f), app.received[0])
+        self.assertIn('<header Name="user-agent" escaped="true">1\\x001f2</header>', app.received[0])
 
     def test_truncated_value(self):
         """!
@@ -328,7 +739,7 @@ class UsageTests(unittest.TestCase):
             requested_package_size=1,
             endpoint=testEndpoint)
 
-        ua = "X" * 1000
+        ua = "X" * 10001
 
         pipeline = (PipelineBuilder())\
             .add(usage)\
@@ -341,7 +752,7 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(len(app.received), 1)
         self.assertIn("truncated=\"true\"", app.received[0])
         self.assertNotIn(ua, app.received[0])
-        self.assertIn(f'<header Name="user-agent" truncated="true">{"X" * 512}</header>', app.received[0])
+        self.assertIn(f'<header Name="user-agent" truncated="true">{"X" * 10000}</header>', app.received[0])
 
     def test_send_more_than_once(self):
         """!
@@ -574,9 +985,9 @@ class UsageTests(unittest.TestCase):
 
     def test_session_cookie(self):
         """!
-        Check that with session tracking on the session cookie is kept in
-        the evidence, but neither it nor any other ordinary cookie is
-        shared.
+        Check that with session tracking on the tracker reads the session
+        cookie, which the element does not accept as evidence, and that
+        neither it nor any other ordinary cookie is shared.
         """
 
         usage = ShareUsage(
@@ -595,7 +1006,10 @@ class UsageTests(unittest.TestCase):
         flowdata.process()
 
         self.waitForUsageThreads()
-        self.assertTrue(usage.get_evidence_key_filter().filter_evidence_key("cookie.sessionid"))
+        self.assertFalse(usage.get_evidence_key_filter()
+                         .filter_evidence_key("cookie.sessionid"))
+        self.assertTrue(usage.tracker_evidence_key_filter
+                        .filter_evidence_key("cookie.sessionid"))
         self.assertEqual(len(app.received), 1)
         self.assertIn("some user agent", app.received[0])
         self.assertNotIn("session value", app.received[0])
