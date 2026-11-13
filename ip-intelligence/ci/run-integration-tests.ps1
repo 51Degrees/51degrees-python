@@ -19,6 +19,10 @@ if (!$Keys.TestResourceKey) {
         "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
 }
 
+# The tests read the resource key from _51DEGREES_RESOURCE_KEY, and common-ci
+# sets only the older resource_key, so the key is set here.
+$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+
 # Says what that key is entitled to, so a run with no IP data is read as an
 # entitlement gap rather than as broken code. Prints product names and tiers
 # only, never the key. Found through this script's own folder, because

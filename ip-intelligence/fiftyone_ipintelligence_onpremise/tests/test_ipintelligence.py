@@ -37,7 +37,7 @@ data_file = TestConstants.get_data_file_path()
 @unittest.skipUnless(
     os.path.isfile(data_file),
     "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
-    "or set the IPINTELLIGENCEDATAFILE environment variable." % data_file)
+    "or set the _51DEGREES_IPI_PATH environment variable." % data_file)
 class IpIntelligenceOnPremiseTests(unittest.TestCase):
 
     @classmethod
@@ -292,7 +292,7 @@ class IpIntelligenceCacheTests(unittest.TestCase):
 @unittest.skipUnless(
     os.path.isfile(data_file),
     "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
-    "or set the IPINTELLIGENCEDATAFILE environment variable." % data_file)
+    "or set the _51DEGREES_IPI_PATH environment variable." % data_file)
 class IpIntelligenceCloseTests(unittest.TestCase):
 
     def test_pipeline_close_releases_engine(self):

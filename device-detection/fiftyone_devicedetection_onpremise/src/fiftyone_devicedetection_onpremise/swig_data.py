@@ -144,23 +144,29 @@ class SwigData(AspectData):
 
             value = None
 
+            # Read by the property's index from the engine's build-time
+            # table. A name outside the table is read by name, which gives
+            # the native no value message.
+            target = getattr(self.flow_element, "property_indexes", {}).get(
+                key, this_property["name"])
+
             if this_property["type"] == "bool":
-                value = self.swig_results.getValueAsBool(this_property["name"])
+                value = self.swig_results.getValueAsBool(target)
 
             if this_property["type"] == "string":
-                value = self.swig_results.getValueAsString(this_property["name"])
+                value = self.swig_results.getValueAsString(target)
 
             if this_property["type"] == "javascript":
-                value = self.swig_results.getValueAsString(this_property["name"])
+                value = self.swig_results.getValueAsString(target)
             
             if this_property["type"] == "int":
-                value = self.swig_results.getValueAsInteger(this_property["name"])
+                value = self.swig_results.getValueAsInteger(target)
 
             if this_property["type"] == "double":
-                value = self.swig_results.getValueAsDouble(this_property["name"])
+                value = self.swig_results.getValueAsDouble(target)
 
             if this_property["type"] == "string[]":
-                value = self.swig_results.getValues(this_property["name"])
+                value = self.swig_results.getValues(target)
    
 
             # Check for value / no value message

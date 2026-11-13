@@ -8,13 +8,16 @@
 
 . (Join-Path $PSScriptRoot 'packages.ps1')
 
-# Runs $Step for each affected product. Every product is run even when an
-# earlier one fails, so one run reports every broken product, and the step
-# fails at the end if any did.
+# Runs $Step for each affected product, or for each of $Products when given.
+# Every product is run even when an earlier one fails, so one run reports
+# every broken product, and the step fails at the end if any did.
 function Invoke-ProductStep([string]$Step, [string]$RepoName,
-        [Collections.IDictionary]$Options) {
+        [Collections.IDictionary]$Options, [string[]]$Products) {
     $failed = [Collections.Generic.List[string]]::new()
-    foreach ($product in (Get-AffectedProducts $RepoName)) {
+    if (-not $Products) {
+        $Products = Get-AffectedProducts $RepoName
+    }
+    foreach ($product in $Products) {
         $script = Join-Path $RepoName $product 'ci' "$Step.ps1"
         if ((Test-Path $script) -eq $false) {
             Write-Output "$product has no $Step step"

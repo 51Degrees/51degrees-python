@@ -81,7 +81,7 @@ class OnPremiseGettingStartedWebConfigTests(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".hash", delete=False) as file:
             path = file.name
         try:
-            with mock.patch.dict(os.environ, {ExampleUtils.DATA_FILE_ENV_VAR: path}):
+            with mock.patch.dict(os.environ, {ExampleUtils.DD_PATH_ENV_VAR: path}):
                 config = GettingStartedWeb.build_config()
             self.assertEqual(
                 os.path.abspath(path),
@@ -93,7 +93,7 @@ class OnPremiseGettingStartedWebConfigTests(unittest.TestCase):
     # name, rather than the example silently falling back to config.json.
     def test_missing_data_file_from_environment(self):
         missing = os.path.join(tempfile.gettempdir(), "no-such-51degrees-file.hash")
-        with mock.patch.dict(os.environ, {ExampleUtils.DATA_FILE_ENV_VAR: missing}):
+        with mock.patch.dict(os.environ, {ExampleUtils.DD_PATH_ENV_VAR: missing}):
             with self.assertRaises(Exception) as context:
                 GettingStartedWeb.build_config()
-        self.assertIn(ExampleUtils.DATA_FILE_ENV_VAR, str(context.exception))
+        self.assertIn(ExampleUtils.DD_PATH_ENV_VAR, str(context.exception))
