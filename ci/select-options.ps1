@@ -37,18 +37,20 @@ function Test-Under([string]$Path, [string[]]$Prefixes) {
     }).Count -gt 0
 }
 
+# PowerShell names are not case sensitive, so these must not share a name with
+# the lists above, such as $Native.
 $code = @($ChangedFiles | Where-Object { $CommentOnlyFiles -notcontains $_ })
-$native = @($code | Where-Object {
+$nativeChanged = @($code | Where-Object {
     $_ -eq 'cxx' -or (Test-Under $_ $NativePaths)
 }).Count -gt 0
-$setup = @($code | Where-Object {
+$setupChanged = @($code | Where-Object {
     $_ -match '(^|/)(setup\.py|setup\.cfg|pyproject\.toml)$'
 }).Count -gt 0
-$other = @($code | Where-Object {
+$otherChanged = @($code | Where-Object {
     $_ -ne 'cxx' -and (!(Test-Under $_ $ProductFolders) -or $_ -match '(^|/)ci/')
 }).Count -gt 0
-Write-Host ("Native: $native. Setup: $setup. " +
-    "Outside the product folders or in a ci folder: $other.")
+Write-Host ("Native: $nativeChanged. Setup: $setupChanged. " +
+    "Outside the product folders or in a ci folder: $otherChanged.")
 
 foreach ($entry in $Options) {
     $name = $entry.Name
@@ -57,9 +59,9 @@ foreach ($entry in $Options) {
         continue
     }
     $why = if ($Standard -contains $name) { 'the standard set' }
-        elseif ($other) { 'a change outside the product folders or to CI' }
-        elseif ($native -and $Native -contains $name) { 'a native change' }
-        elseif ($setup -and $Versions -contains $name) { 'a packaging change' }
+        elseif ($otherChanged) { 'a change outside the product folders or to CI' }
+        elseif ($nativeChanged -and $Native -contains $name) { 'a native change' }
+        elseif ($setupChanged -and $Versions -contains $name) { 'a packaging change' }
     if (!$why) {
         Write-Host "$name is not needed for this change"
         continue
