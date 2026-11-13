@@ -1,5 +1,6 @@
 # Shared by the scripts in this folder, which dot-source it. Works out which
-# products a pull request touches, and checks each package's tox.ini.
+# products a pull request touches, what a build of HEAD makes, and checks each
+# package's tox.ini.
 #
 # Which packages a publish releases, and at which version, is worked out by
 # common-ci's steps/release-plan.ps1 from ci/packages.json. common-ci runs

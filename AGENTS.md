@@ -276,9 +276,10 @@ last tag, or when a package it depends on is released. Documentation
 description, keywords, urls, classifiers, readme, authors or maintainers does
 not count either, which `ci/release-plan-filter.ps1` works out with Python.
 The examples packages are tested but never published. common-ci's publish
-carries one version, which here is only a label, and the release plan in
-`ci/packages.ps1` decides what is built, published and tagged. Never push a
-plain `4.5.x` tag, because nothing here reads one.
+carries one version, which here is only a label, and the release plan
+decides what is built, published and tagged. The release plan is common-ci's
+`steps/release-plan.ps1`, which `ci/packages.ps1` loads, and common-ci tests
+it. Never push a plain `4.5.x` tag, because nothing here reads one.
 
 `ci/packages.json` is the list of packages and what each depends on. Add a
 package there, with a `FirstVersion` if it has never been released, or it is
