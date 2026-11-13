@@ -453,6 +453,32 @@ Source = "https://github.com/51Degrees/51degrees-python"
         (Get-DdPlan $script:Repo).Count | Should -Be 0
     }
 
+    It 'does not release for a change only to the maintainers in <Case>' -ForEach @(
+        @{ Case = 'setup.py'; File = 'setup.py'; Start = 'SetupPy'
+           Was = 'author_email="engineering@51degrees.com",'
+           Changed = "author_email=`"engineering@51degrees.com`",`n    maintainer=`"51Degrees`",`n    maintainer_email=`"support@51degrees.com`"," }
+        @{ Case = 'setup.cfg'; File = 'setup.cfg'; Start = 'SetupCfg'
+           Was = "name = dd`n"
+           Changed = "name = dd`nmaintainer = 51Degrees`nmaintainer_email = support@51degrees.com`n" }
+        @{ Case = 'a pyproject.toml key'; File = 'pyproject.toml'; Start = 'Pyproject'
+           Was = 'dependencies = '
+           Changed = "maintainers = [{ name = `"51Degrees`" }]`ndependencies = " }
+        @{ Case = 'a pyproject.toml table'; File = 'pyproject.toml'; Start = 'Pyproject'
+           Was = '[project.urls]'
+           Changed = "[[project.maintainers]]`nname = `"51Degrees`"`n`n[project.urls]" }
+    ) {
+        $text = @{
+            SetupPy = $script:SetupPy
+            SetupCfg = $script:SetupCfg
+            Pyproject = $script:Pyproject
+        }[$Start]
+        $changed = $text.Replace($Was, $Changed)
+        $changed | Should -Not -Be $text
+        $script:Repo = New-FilterRepo @{ "device/dd/$File" = $text }
+        Set-Files $script:Repo @{ "device/dd/$File" = $changed }
+        (Get-DdPlan $script:Repo).Count | Should -Be 0
+    }
+
     It 'releases for a pyproject.toml change to <Changed>' -ForEach @(
         @{ Was = '["fiftyone_pipeline_core"]'; Changed = '["fiftyone_pipeline_core>=4.5"]' }
         @{ Was = '"setuptools>=42"'; Changed = '"setuptools>=61"' }
