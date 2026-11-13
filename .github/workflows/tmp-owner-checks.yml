@@ -1,0 +1,69 @@
+name: Temporary release plan checks
+on:
+  push:
+    branches: ['tmp/pyowner-*']
+jobs:
+  pester:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: 51degrees-python
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          path: common-ci
+      - name: Pester
+        shell: pwsh
+        working-directory: 51degrees-python
+        run: |
+          python --version
+          $c = New-PesterConfiguration
+          $c.Run.Path = @(Get-ChildItem ci -Filter *.Tests.ps1 | ForEach-Object FullName)
+          $c.Run.Exit = $true
+          $c.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $c
+      - name: Release plan of HEAD
+        if: always()
+        shell: pwsh
+        working-directory: 51degrees-python
+        run: |
+          . ./ci/packages.ps1
+          Get-ReleasePlan . | Format-Table Name, Version, Previous, Reason -AutoSize | Out-String -Width 250
+          & ./ci/get-next-package-version.ps1 -RepoName . -VariableName Label
+          "Label: $global:Label"
+      - name: Plans of scratch changes
+        if: always()
+        shell: pwsh
+        working-directory: 51degrees-python
+        run: |
+          git config user.name ci
+          git config user.email ci@example.com
+          $base = git rev-parse HEAD
+          function Show-Plan([string]$Title) {
+            "== $Title"
+            . ./ci/packages.ps1
+            Get-ReleasePlan . | Format-Table Name, Version, Previous, Reason -AutoSize | Out-String -Width 250
+            & ./ci/get-next-package-version.ps1 -RepoName . -VariableName Label
+            "Label: $global:Label"
+          }
+          $cases = [ordered]@{
+            'a change to location/readme.md only' = 'location/readme.md'
+            'a change to a test of fiftyone_pipeline_core only' = 'pipeline/fiftyone_pipeline_core/tests/test_callback_url.py'
+            'a change to the source of fiftyone_location' = 'location/src/fiftyone_location/location_cloud.py'
+            'a change to the source of fiftyone_pipeline_engines' = 'pipeline/fiftyone_pipeline_engines/src/fiftyone_pipeline_engines/engine.py'
+          }
+          foreach ($title in $cases.Keys) {
+            $file = $cases[$title]
+            if ((Test-Path $file) -eq $false) { "== $title, $file is missing"; continue }
+            Add-Content $file "`n# A note for the plan."
+            git commit -qam $title
+            Show-Plan $title
+            git reset -q --hard $base
+          }
