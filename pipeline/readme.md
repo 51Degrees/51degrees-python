@@ -1,8 +1,8 @@
 # 51Degrees Pipeline API
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Data rewards the curious") **Python Pipeline**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python Pipeline**
 
-[Developer Documentation](https://51degrees.com/pipeline-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Developer Documentation")
+[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Developer Documentation")
 
 ## Introduction
 This repository contains the components of the Python implementation of the 51Degrees Pipeline API.
@@ -23,7 +23,6 @@ The examples are described under Examples below. The `owid-python` folder is a g
 
 ## Dependencies
 
-For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page.
 The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows the Python versions that we currently test against. The software may run fine against other versions, but additional caution should be applied.
 
 ## Installation
@@ -51,7 +50,7 @@ and examples that are available. To run tests:
 * Go to each directory (for example `fiftyone_pipeline_core`)
 * Run `tox -e py`
 
-The tests that call the 51Degrees cloud service read a resource key from the `resource_key` environment variable. Without one, those tests fail in `fiftyone_pipeline_cloudrequestengine` and are skipped in `fiftyone_pipeline_did`.
+The tests that call the 51Degrees cloud service need a resource key. The cloud request engine's own tests read it from the `_51DEGREES_RESOURCE_KEY` environment variable, and its examples' tests and the 51Did tests from `_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`. Without one, those tests fail.
 
 ## Examples
 

@@ -31,12 +31,11 @@
 # a person is in the northern or southern hemispheres.
 
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
-from fiftyone_pipeline_core.web import webevidence
+from fiftyone_pipeline_core.web import json_response, webevidence
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.elementdata_dictionary import ElementDataDictionary
 
-import json
 
 # Function to get star sign from month and day
 def getStarSign(month, day):
@@ -168,26 +167,14 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-# Make a route that returns back JSON encded properties for client side scripts to pick up
+# Make a route that returns back JSON encoded properties for client side scripts to pick
+# up. json_response processes the request and sets the cache headers, so a browser keeps
+# a good answer for 30 minutes and never keeps one made while processing failed.
 
 @app.route('/json', methods=['POST'])
 def jsonroute():
 
-    # Create the flowdata object for the JSON route
-    flowdata = myPipeline.create_flowdata()
-
-    # Add any information from the request (headers, cookies and additional 
-    # client side provided information)
-
-    flowdata.evidence.add_from_dict(webevidence(request))
-
-    # Process the flowdata
-
-    flowdata.process()
-
-    # Return the JSON from the JSONBundler engine
-
-    return json.dumps(flowdata.jsonbundler.json)
+    return json_response(myPipeline, request)
     
 
 @app.route('/')

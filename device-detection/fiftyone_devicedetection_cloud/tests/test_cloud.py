@@ -24,33 +24,20 @@ import unittest
 import os
 import time
 
+import pytest
+
 from fiftyone_devicedetection_cloud.devicedetection_cloud_pipelinebuilder import DeviceDetectionCloudPipelineBuilder
 
 from fiftyone_devicedetection_cloud.devicedetection_cloud import DeviceDetectionCloud
 
-# Resource key environment variables follow the 51Degrees convention, which
-# is that every one of them starts with "_51DEGREES_RESOURCE_KEY". The name
-# used before the convention was adopted is still read, so an existing setup
-# keeps working.
-RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
-LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
+from .live_cloud import find_resource_key, no_resource_key
 
-MISSING_KEY_MESSAGE = (
-    "No resource key found, so the tests that call the cloud service "
-    f"cannot run. Set the environment variable '{RESOURCE_KEY_ENV_VAR}' "
-    f"(the older name '{LEGACY_RESOURCE_KEY_ENV_VAR}' is still read). "
-    "Create a resource key for free at "
-    "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_cloud-tests-test_cloud.py&utm_term=resource-key-required")
+pytestmark = pytest.mark.live
 
-
-def get_resource_key():
-    """!
-    The resource key from the environment, or None when neither the aligned
-    nor the older variable is set.
-    """
-
-    return (os.environ.get(RESOURCE_KEY_ENV_VAR)
-            or os.environ.get(LEGACY_RESOURCE_KEY_ENV_VAR))
+NO_KEY = no_resource_key(
+    "the device product",
+    "device detection properties such as IsMobile, and their metadata",
+    several=True)
 
 mobile_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114"
 
@@ -59,10 +46,10 @@ cloud_request_origin_test_params = [('', True), ('test.com', True), ('51Degrees.
 class DeviceDetectionTests(unittest.TestCase):
 
     def setUp(self):
-        self.resource_key = get_resource_key()
+        self.resource_key = find_resource_key()
 
         if not self.resource_key:
-            self.skipTest(MISSING_KEY_MESSAGE)
+            self.fail(NO_KEY)
 
 
     def test_pipeline_builder_cloud_engine_init(self):
@@ -72,8 +59,8 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionCloudPipelineBuilder(resource_key = self.resource_key).build()
 
-        self.assertTrue(pipeline.flow_elements[0].datakey == "cloud")
-        self.assertTrue(pipeline.flow_elements[1].datakey == "device")
+        self.assertIn("cloud", pipeline.flow_elements_list)
+        self.assertIn("device", pipeline.flow_elements_list)
 
     def test_properties_cloud(self):
         """!
@@ -82,7 +69,7 @@ class DeviceDetectionTests(unittest.TestCase):
         
         pipeline = DeviceDetectionCloudPipelineBuilder(resource_key = self.resource_key).build()
 
-        properties = pipeline.flow_elements[1].get_properties()
+        properties = pipeline.get_element("device").get_properties()
 
         self.assertTrue(len(properties.keys()) > 0)
 

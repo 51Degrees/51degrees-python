@@ -35,7 +35,7 @@
 # Updating the data file needs a 51Degrees licence key for the Enterprise
 # data file. Without one, the example shows the free ASN data file and says
 # where to ask for a key. Supply the licence key as the first command line
-# argument or in the 'license_key' environment variable. Contact us for a key:
+# argument or in the '_51DEGREES_LICENSE_KEY' environment variable. Contact us for a key:
 # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=header
 #
 # ## Update on start-up
@@ -76,7 +76,11 @@ from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
 # Environment variable checked for the license key if one is not supplied as
 # a command line argument.
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = "license_key"
+UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
+
+# Deprecated. Use UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE. The name that
+# variable had before, read when the new one is not set.
+UPDATE_EXAMPLE_LICENSE_KEY_NAME = ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR
 
 # Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
 # example.
@@ -130,7 +134,7 @@ class DataFileUpdateConsole():
         output("Updating the data file downloads the Enterprise data file, "
                "which needs a licence key. Give the key as the first command "
                "line argument, or in the environment variable "
-               f"'{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'. Contact us for a key "
+               f"'{UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE}'. Contact us for a key "
                f"and a copy at {CONTACT_US}")
 
     def run(self, data_file, license_key, interactive, logger, output):
@@ -138,7 +142,7 @@ class DataFileUpdateConsole():
 
         # Try to find a license key in the environment if not supplied.
         if not license_key:
-            license_key = os.environ.get(UPDATE_EXAMPLE_LICENSE_KEY_NAME)
+            license_key = ExampleUtils.get_license_key()
 
         if not license_key:
             self.explain_license_key(data_file, output)
@@ -188,6 +192,9 @@ class DataFileUpdateConsole():
             # is configured to use a temporary copy.
             data_file_path = data_file,
             create_temp_data_copy = True,
+            # The Enterprise data file is large, so the LowMemory profile
+            # reads it from disk rather than holding parts of it in memory.
+            performance_profile = "LowMemory",
             # The update listener notifies us when an update is complete.
             data_file_update_service = update_service,
             # A license key is required for automatic updates.
@@ -228,6 +235,9 @@ class DataFileUpdateConsole():
                            f"{update_event.status}")
                 else:
                     output("Update on file modification timed out")
+            elif update_event.status == UpdateStatus.AUTO_UPDATE_NOT_NEEDED:
+                output("The data file is already the latest published, "
+                       "so there is nothing to download")
             else:
                 logger.log("error", "Auto update was not successful, abandoning example")
                 error_message = f"Auto update failed: {update_event.status}"

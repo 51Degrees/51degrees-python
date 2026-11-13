@@ -24,12 +24,16 @@ from __future__ import absolute_import
 
 import json
 import os
+import threading
 import warnings
 from functools import cached_property
 from json import JSONDecodeError
 
 import requests
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.evidence import HTTP_REQUEST_KEY
+from fiftyone_pipeline_core.keymask import mask_licence_key
+from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 
@@ -45,6 +49,50 @@ except ImportError:
     from urllib.parse import urlencode
 
 
+# Whether the old end point variable has been reported as deprecated, so
+# that it is reported once however many engines are built.
+_old_endpoint_reported = False
+_old_endpoint_lock = threading.Lock()
+
+
+def _endpoint_from_environment():
+
+    """!
+    The cloud end point the environment gives, or None when it gives none.
+
+    Constants.CLOUD_ENDPOINT is read first. When it is unset or empty the
+    variable Constants.FOD_CLOUD_API_URL names is read, which is the old
+    name, and the first use of it is reported as deprecated. The report is
+    a FutureWarning, which Python shows by default, because the people who
+    set the variable are the ones running the application.
+
+    @rtype: string
+    @return: the end point, or None
+    """
+
+    global _old_endpoint_reported
+
+    endpoint = os.environ.get(Constants.CLOUD_ENDPOINT)
+    if endpoint:
+        return endpoint
+
+    old_name = Constants.FOD_CLOUD_API_URL
+    endpoint = os.environ.get(old_name)
+    if not endpoint:
+        return None
+
+    with _old_endpoint_lock:
+        report = not _old_endpoint_reported
+        _old_endpoint_reported = True
+    if report:
+        # The third frame is the code that built the engine.
+        warnings.warn(
+            Constants.MESSAGE_OLD_ENDPOINT_VARIABLE.format(
+                old_name, Constants.CLOUD_ENDPOINT),
+            FutureWarning, stacklevel=3)
+    return endpoint
+
+
 # Engine that makes a call to the 51Degrees cloud service
 # Returns raw JSON as a "cloud" property under "cloud" datakey
 class CloudRequestEngine(Engine):
@@ -57,9 +105,8 @@ class CloudRequestEngine(Engine):
         license_key, and optionally
         1) requested_properties, the fully qualified names of the
         properties to ask for, as a list or a comma separated string.
-        Required with a license_key alone and refused with a resource_key,
-        because the cloud service ignores the list whenever a resource key
-        is present
+        Required with a license_key alone. Beside a resource_key the cloud
+        service adds them to the properties the resource key carries
         2) a cloud_endpoint to overwrite the default baseurl
         3) an cloud_request_origin to use when making requests
 
@@ -104,7 +151,8 @@ class CloudRequestEngine(Engine):
         self.reported_not_covered = set()
 
         # The endpoint is the cloud_endpoint setting, then the
-        # FOD_CLOUD_API_URL environment variable, then
+        # _51DEGREES_CLOUD_ENDPOINT environment variable, then that
+        # variable's deprecated old name FOD_CLOUD_API_URL, then
         # cloud.51degrees.com. A host other than cloud.51degrees.com
         # would be used to (a) use an on premise web server, or (b) use
         # a privately hosted version of the 51Degrees cloud for
@@ -114,8 +162,8 @@ class CloudRequestEngine(Engine):
         if "cloud_endpoint" in settings:
             self.baseURL = settings["cloud_endpoint"]
         else:
-            self.baseURL = os.environ.get(Constants.FOD_CLOUD_API_URL)
-            if self.baseURL is None or (self.baseURL is not None and self.baseURL == ""):
+            self.baseURL = _endpoint_from_environment()
+            if self.baseURL is None:
                 self.baseURL = Constants.BASE_URL_DEFAULT
 
         # Make sure if baseURL does not end with '/', one will be appended
@@ -178,9 +226,7 @@ class CloudRequestEngine(Engine):
         Add to the properties each request asks for, after the engine is
         built. The names are trimmed and lower-cased as the constructor
         does, so a name given in the case the documentation uses still
-        matches the answer, and the credential rules are checked again,
-        because a list only has meaning on a licence key alone and the
-        constructor's check cannot see a list added later.
+        matches the answer.
 
         @type names: list or string
         @param names: the names to add, as a list or one comma separated
@@ -189,7 +235,6 @@ class CloudRequestEngine(Engine):
 
         self.requested_properties.extend(
             self.setting_names({"names": names}, "names"))
-        self.check_credentials()
 
     def check_credentials(self):
 
@@ -209,10 +254,6 @@ class CloudRequestEngine(Engine):
 
         if has_resource_key == False and has_requested_properties == False:
             raise ValueError(Constants.MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES)
-
-        if has_resource_key == True and has_requested_properties == True:
-            raise ValueError(
-                Constants.MESSAGE_PROPERTIES_IGNORED_WITH_RESOURCE_KEY)
 
     def get_credentials(self):
 
@@ -274,12 +315,10 @@ class CloudRequestEngine(Engine):
         """
 
         # Get properties for all engines. A resource key alone goes in the
-        # query string as it always has. A licence key identifies an
-        # account, so it is posted in the body instead, where it stays out
-        # of request logs. The cloud service reads both keys from either
-        # place, answers a licence key alone with everything the licence
-        # entitles, and widens a resource key's answer by the products a
-        # licence key sent beside it grants.
+        # query string. A licence key identifies an account, so it is
+        # posted in the body instead, where it stays out of request logs.
+        # The cloud service reads both keys from either place, and answers
+        # a licence key alone with every property the licence entitles.
 
         propertiesURL = self.baseURL + "accessibleProperties"
 
@@ -334,15 +373,15 @@ class CloudRequestEngine(Engine):
             try:
                 json_response = cloud_response.json()
             except (JSONDecodeError, requests.exceptions.JSONDecodeError):
-                raise CloudRequestException(
+                raise CloudRequestException(self.masked(
                     f'Cloud request engine properties list request returned code "{cloud_response.status_code}"'
                     f' with non-JSON content "{cloud_response.text}"'
-                )
+                ))
             except Exception as e:
-                raise CloudRequestException(
+                raise CloudRequestException(self.masked(
                     f'Cloud request engine properties list request returned code "{cloud_response.status_code}"'
                     f' with content "{cloud_response.text}".\nError: "{type(e).__name__}: {e}"'
-                )
+                ))
 
             has_errors = "errors" in json_response and len(json_response["errors"])
             has_data = len(json_response) > (1 if has_errors else 0)
@@ -354,7 +393,8 @@ class CloudRequestEngine(Engine):
         # in the response then add an explanation to the list of
         # messages.
         if not messages and not has_data:
-            message = Constants.MESSAGE_NO_DATA_IN_RESPONSE.format(cloud_response.url)
+            message = Constants.MESSAGE_NO_DATA_IN_RESPONSE.format(
+                mask_licence_keys_in_text(cloud_response.url))
             messages.append(message)
 
         # If there were no errors returned but the response code was non
@@ -378,10 +418,24 @@ class CloudRequestEngine(Engine):
         )
 
         raise CloudRequestException(
-            exception_message,
+            self.masked(exception_message),
             cloud_response.status_code,
             cloud_response.headers,
         )
+
+    def masked(self, text):
+
+        """!
+        Text from or about a cloud answer with the licence key in use shown
+        only as its last four characters. The cloud service names the key in
+        some of its errors, and a URL may carry it in its query.
+        """
+
+        text = mask_licence_keys_in_text(text)
+        if self.license_key != "":
+            text = text.replace(
+                self.license_key, mask_licence_key(self.license_key))
+        return text
 
     def make_cloud_request(self, type, url, content = None):
 
@@ -412,7 +466,7 @@ class CloudRequestEngine(Engine):
 
         """
    
-        # A resource key names the route, as it always has. A licence key
+        # A resource key names the route. A licence key
         # alone has no resource key to put there, so it uses the data
         # endpoint that takes none and travels in the body with the list
         # of properties wanted.
@@ -438,19 +492,48 @@ class CloudRequestEngine(Engine):
 
         return
 
+    def is_cacheable(self, data):
+
+        """!
+        A response whose JSON has a top-level member named fodid, in any
+        case, holds a 51Did created for the one request that asked for it,
+        so it is neither stored in the cache nor served from it. A fodid
+        below the top level is not one, and a response that cannot be read
+        as a JSON object is cached as before.
+
+        @type data: ElementData
+        @param data: A response the engine has just made, or one found in
+        the cache
+
+        @rtype: bool
+        @return: False if the response holds a fodid
+        """
+
+        try:
+            answer = json.loads(data.get("cloud"))
+        except (AttributeError, JSONDecodeError, KeyError, TypeError,
+                ValueError):
+            return True
+        if not isinstance(answer, dict):
+            return True
+        return not any(str(name).lower() == "fodid" for name in answer)
+
     def report_properties_not_covered(self, result):
 
         """!
         Compare the properties a request asked for with the ones its answer
         carries, and warn once about any it left out.
 
-        The cloud service drops a property the licence key does not cover
-        without naming it, whenever the request also asked for a property
-        the key does cover, so the engine has to notice the difference
-        itself. A property that is present but null counts as answered,
+        With a licence key, the cloud service drops a property the licence
+        key does not cover without naming it, whenever the request also
+        asked for a property the key does cover, so the engine has to
+        notice the difference itself. With a resource key and no licence
+        key, a property no licence grants comes back as null with a reason,
+        so a name left out is not a property, and the warning says that
+        instead. A property that is present but null counts as answered,
         because it carries a nullreason beside it saying why it has no
         value on this request, which is a different matter from
-        entitlement. The answer cannot change while the key and the list
+        entitlement. The answer cannot change while the keys and the list
         stay the same, so each distinct list is reported once.
 
         @type result: string
@@ -463,9 +546,15 @@ class CloudRequestEngine(Engine):
 
         try:
             answer = json.loads(result)
-        except JSONDecodeError:
+        except (AttributeError, JSONDecodeError, TypeError, ValueError):
             # validate_response has already dealt with an answer that is
             # not JSON, so there is nothing to compare here.
+            return
+
+        # An answer that parses but is not an object, such as an array,
+        # has no sections to look in. Reporting must not fail the request,
+        # which succeeded, so there is nothing to say.
+        if isinstance(answer, dict) == False:
             return
 
         not_covered = []
@@ -480,21 +569,27 @@ class CloudRequestEngine(Engine):
         self.reported_not_covered.add(requested)
 
         if len(not_covered) > 0:
-            warnings.warn(
-                Constants.MESSAGE_PROPERTIES_NOT_COVERED.format(
-                    ", ".join(not_covered)))
+            message = (Constants.MESSAGE_PROPERTIES_NOT_COVERED
+                       if self.license_key != ""
+                       else Constants.MESSAGE_PROPERTIES_NOT_KNOWN)
+            warnings.warn(message.format(", ".join(not_covered)))
 
     def get_content(self, flowData):
 
         """!
-        Generate the Content to send in the POST request. The evidence keys
-        e.g. 'query.' and 'header.' have an order of precedence. These are
-        added to the evidence in reverse order, if there is conflict then 
-        the queryData value is overwritten. 
+        Generate the Content to send in the POST request. One name under
+        several prefixes is sent once, with the value of the prefix that
+        evidence.md ranks highest, being query, header, cookie, server,
+        fiftyone and location, then any other prefix alphabetically. The
+        groups are added lowest precedence first, so a later value replaces
+        an earlier one, and a replacement by a key other than a query key
+        is logged as a warning.
 
-        'query.' evidence should take precedence over all other evidence.
-        If there are evidence keys other than 'query.' that conflict then
-        this is unexpected so a warning will be logged.
+        The engine sends every evidence value in the flow data, including
+        the values no element in the pipeline accepts, because what the
+        cloud service uses changes over time and knowing about the other
+        evidence is important to continued optimization. The reserved names
+        and the web request view are left out.
 
         @param: flowData: FlowData
         @return: Evidence Dictionary
@@ -502,8 +597,8 @@ class CloudRequestEngine(Engine):
 
         queryData = {}
 
-        evidence = flowData.evidence.get_all()
-        # Add evidence in reverse alphabetical order, excluding special keys. 
+        evidence = self.sendable_evidence(flowData.evidence)
+        # Add the other evidence lowest precedence first.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_OTHER))
         # Add cookie evidence.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_COOKIE_PREFIX))
@@ -512,6 +607,28 @@ class CloudRequestEngine(Engine):
         # Add query evidence.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_QUERY_PREFIX))
         return queryData
+
+    def sendable_evidence(self, evidence):
+
+        """!
+        The evidence the engine sends, being every value in the flow data,
+        whether an element accepted it or not, apart from the web request
+        view. The reserved names are left out by add_query_data, which
+        warns as it does so. An accepted value wins over a set aside one of
+        the same key.
+
+        @param evidence: The flow data's Evidence
+        @return: The evidence keys and values to send
+        """
+
+        sendable = {}
+        # An older fiftyone_pipeline_core sets nothing aside.
+        unaccepted = getattr(evidence, "get_unaccepted", dict)()
+        for source in (unaccepted, evidence.get_all()):
+            for key, value in source.items():
+                if str(key).lower() != HTTP_REQUEST_KEY:
+                    sendable[key] = value
+        return sendable
 
     def add_query_data(self, query_data, all_evidence, evidence):
 
@@ -526,10 +643,14 @@ class CloudRequestEngine(Engine):
 
         for evidenceKey, evidenceValue in evidence.items():
 
-            # Get the key parts
-            evidenceKeyParts = evidenceKey.split(Constants.EVIDENCE_SEPERATOR)
-            prefix = evidenceKeyParts[0].lower()
-            suffix = evidenceKeyParts[-1].lower()
+            # The prefix is the text before the first separator, and the
+            # name sent is the rest of the key in the letter case given, as
+            # .NET's AddQueryData takes it. A key with no separator is both.
+            prefix, separator, suffix = evidenceKey.partition(
+                Constants.EVIDENCE_SEPERATOR)
+            if not separator:
+                suffix = evidenceKey
+            prefix = prefix.lower()
 
             # The service reads its credentials and the list of requested
             # properties from these names, so evidence carrying one of them
@@ -538,13 +659,19 @@ class CloudRequestEngine(Engine):
             # say so as the conflict case below does, so a caller who set
             # it expecting an effect can see why there was none. The value
             # is not logged, as it may be a credential.
-            if suffix in Constants.RESERVED_EVIDENCE_SUFFIXES:
+            if suffix.lower() in Constants.RESERVED_EVIDENCE_SUFFIXES:
                 warnings.warn(
                     Constants.WARNING_RESERVED_EVIDENCE.format(evidenceKey))
                 continue
 
+            # Evidence keys ignore letter case, so a name already added in
+            # other letters is the same name, and the later, higher
+            # precedence value replaces it under its own spelling.
+            existing = next((name for name in query_data
+                             if name.lower() == suffix.lower()), None)
+
             # Check and add the evidence to the query parameters.
-            if (not suffix in query_data.keys()):
+            if existing is None:
                 query_data[suffix] = evidenceValue
             # If the queryParameter exists already.
             else:
@@ -555,7 +682,7 @@ class CloudRequestEngine(Engine):
                 if (prefix.lower() != Constants.EVIDENCE_QUERY_PREFIX):
                     conflicts = {}
                     for key, value in all_evidence.items(): 
-                        if(key.lower() != evidenceKey.lower() and suffix in key.lower()):
+                        if(key.lower() != evidenceKey.lower() and suffix.lower() in key.lower()):
                             conflicts[key] = value
 
                     warningMessage = Constants.WARNING_MESSAGE \
@@ -568,6 +695,7 @@ class CloudRequestEngine(Engine):
                         warnings.warn(warningMessage + conflictStr)
                     
                 # Overwrite the existing queryParameter value.
+                del query_data[existing]
                 query_data[suffix] = evidenceValue
 
     def get_selected_evidence(self, evidence, type):
@@ -587,15 +715,37 @@ class CloudRequestEngine(Engine):
                         not self.key_has_prefix(key, Constants.EVIDENCE_HTTPHEADER_PREFIX) and \
                             not self.key_has_prefix(key, Constants.EVIDENCE_COOKIE_PREFIX)):
                     selected_evidence[key] = value
-            selected_evidence = dict(sorted(selected_evidence.items(), reverse=True))
-            
+            # Lowest precedence first, so the value added last wins.
+            selected_evidence = dict(sorted(
+                selected_evidence.items(),
+                key=lambda item: self.other_prefix_rank(item[0]),
+                reverse=True))
+
         else:
             for key, value in evidence.items():
                 if self.key_has_prefix(key, type):
                     selected_evidence[key] = value
             
         return selected_evidence
-        
+
+    def other_prefix_rank(self, key):
+
+        """!
+        The sort key of an evidence key that is not query, header or cookie
+        evidence, where a lower one wins. server, fiftyone and location
+        come first, in the order evidence.md lists them, then any other
+        prefix alphabetically, all ignoring letter case.
+
+        @param key: The evidence key
+        @return: A tuple that sorts higher precedence first
+        """
+
+        prefix = key.partition(Constants.EVIDENCE_SEPERATOR)[0].lower()
+        if prefix in Constants.OTHER_PREFIX_PRECEDENCE:
+            return (Constants.OTHER_PREFIX_PRECEDENCE.index(prefix), "",
+                    key.lower())
+        return (len(Constants.OTHER_PREFIX_PRECEDENCE), prefix, key.lower())
+
     def key_has_prefix(self, itemKey, prefix):
 
         """!

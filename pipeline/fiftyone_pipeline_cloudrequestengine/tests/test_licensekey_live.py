@@ -29,13 +29,12 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
-# The licence key the live tests authenticate with, read from either of
-# the variables the other live tests and the examples in this repository
-# accept, so an environment set up for them runs these tests too.
-LICENSE_KEY = (
-    os.environ.get("license_key")
-    or os.environ.get("_51DEGREES_LICENSE_KEY")
-    or "").strip()
+from .live_cloud import read_environment
+
+# The licence key the live tests authenticate with, read from the variable
+# the examples in this repository read it from.
+LICENSE_KEY = read_environment(
+    "_51DEGREES_LICENSE_KEY", "license_key") or ""
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) "
