@@ -32,7 +32,7 @@
 # resource key, rather than all properties the cloud service can return.
 #
 # A resource key is required. You can obtain one from
-# https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-metadata_console.py&utm_term=top
+# https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-metadata_console.py&utm_term=top
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -106,7 +106,7 @@ def main(argv):
             "see "
             "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-metadata_console.py&utm_term=resource-key-required. "
             "A resource key with the properties required by this example "
-            "can be created for free at https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-metadata_console.py&utm_term=resource-key-required.")
+            "can be created for free at https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-metadata_console.py&utm_term=resource-key-required.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])
