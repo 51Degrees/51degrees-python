@@ -28,11 +28,15 @@
 # User-Agent (used by device detection) and an IP address (used by IP
 # intelligence), and both engines process the flow data.
 #
-# Two data files are required:
+# Two data files are used, which may be supplied as the first two command
+# line arguments:
 # - a Device Detection data file (.hash)
 # - an IP Intelligence data file (.ipi)
 #
-# They may be supplied as the first two command line arguments.
+# By default the free Lite data files are used, which are downloaded when
+# they are missing, and each property only the Enterprise data files have is
+# shown as needing them. Contact us for a copy:
+# https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-mixed_console.py&utm_term=header
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -46,7 +50,11 @@ from fiftyone_pipeline_core.logger import Logger
 
 from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise import IpIntelligenceOnPremise
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
-from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
+
+# Where to ask for a copy of the Enterprise data files, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-mixed_console.py&utm_term=enterprise-data-file"
 
 # Default name of the device detection data file (the lite file the data
 # repository links to).
@@ -143,10 +151,15 @@ class MixedConsole():
         # The pipeline is closed at the end of the with block, which closes
         # both engines and releases the native data they hold.
         with pipeline:
+            needs_enterprise = False
             for evidence in COMBINED_EVIDENCE:
-                self.analyse_evidence(evidence, pipeline, output)
+                needs_enterprise |= self.analyse_evidence(
+                    evidence, pipeline, device_engine, ip_engine, output)
+            if needs_enterprise:
+                output("\n" + ExampleUtils.get_enterprise_note(CONTACT_US))
 
-    def analyse_evidence(self, evidence, pipeline, output):
+    def analyse_evidence(self, evidence, pipeline, device_engine, ip_engine,
+                         output):
 
         # The FlowData is closed at the end of the with block, which releases
         # the results of both engines straight away.
@@ -165,36 +178,42 @@ class MixedConsole():
             data.process()
 
             message = []
+            needs_enterprise = False
 
             # Device detection results, keyed under "device".
             message.append("Device Detection Results:\n")
             for name in DEVICE_PROPERTIES:
-                self.outputValue(data.device, name, message)
+                needs_enterprise |= self.outputValue(
+                    device_engine, data.device, name, message)
 
             # IP intelligence results, keyed under "ip".
             message.append("\nIP Intelligence Results:\n")
             for name in IP_PROPERTIES:
-                self.outputValue(data.ip, name, message)
+                needs_enterprise |= self.outputValue(
+                    ip_engine, data.ip, name, message)
 
             output("".join(message))
+            return needs_enterprise
 
-    def outputValue(self, aspect_data, name, message):
-        # `get_value` returns None when the property is not present in the
-        # data file, rather than raising.
-        value = ExampleUtils.get_value(aspect_data, name.lower())
-        if value is None:
-            message.append(f"\t{name}: This property is not present in the data file.\n")
-        elif value.has_value():
+    def outputValue(self, engine, aspect_data, name, message):
+        # A property the engine's data file does not have needs the
+        # Enterprise data file, and its value is not read.
+        if not ExampleUtils.has_property(engine, name):
+            message.append(f"\t{name}: {ExampleUtils.NEEDS_ENTERPRISE}\n")
+            return True
+        value = aspect_data.get(name.lower())
+        if value.has_value():
             message.append(f"\t{name}: {ExampleUtils.format_value(value.value())}\n")
         else:
             message.append(f"\t{name}: {value.no_value_message()}\n")
+        return False
 
 
 def main(argv):
     # Use the supplied paths for the data files, or find the device detection
     # and IP intelligence files in the project space.
     device_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(HASH_DATAFILE_NAME)
-    ip_file = argv[1] if len(argv) > 1 else ExampleUtils.find_file(ASN_DATAFILE_NAME)
+    ip_file = argv[1] if len(argv) > 1 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
 
     # Configure a logger to output to the console.
     logger = Logger(min_level="info")

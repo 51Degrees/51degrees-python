@@ -169,7 +169,7 @@ def main(argv):
     else:
         logger.log("error",
             "No resource key specified in the environment variable "
-            f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees cloud "
+            f"'{ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR}'. The 51Degrees cloud "
             "service is accessed using a 'ResourceKey'. A resource key "
             "configured with both device detection and IP intelligence "
             "properties can be created at https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-mixed_console.py&utm_term=resource-key-required.")

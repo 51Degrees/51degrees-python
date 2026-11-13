@@ -24,7 +24,9 @@ from datetime import datetime, timedelta
 from threading import Event, Thread
 import os
 import shlex
+import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -41,16 +43,34 @@ class ExampleUtils:
     # resource key variable starts with "_51DEGREES_RESOURCE_KEY".
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    # The environment variable this repository used before the convention
-    # above was adopted. It is still read, so an existing setup keeps
-    # working, but new setups should use RESOURCE_KEY_ENV_VAR.
+    # Deprecated. Use RESOURCE_KEY_ENV_VAR. The name the resource key
+    # variable had before, read when RESOURCE_KEY_ENV_VAR is not set.
     LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
 
+    # The environment variable the data file update example reads a licence
+    # key from.
+    LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
+
+    # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
+    # variable had before, read when LICENSE_KEY_ENV_VAR is not set.
+    LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
+
+    # The environment variable naming a cloud service other than the public
+    # one.
+    CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
+
+    # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
+    # before, read when CLOUD_ENDPOINT_ENV_VAR is not set.
     ENDPOINT_ENV_VAR = "cloud_endpoint"
 
     # The environment variable an on-premise example reads the path of its
     # device detection data file from, when one is given, in place of the
     # file named in its configuration.
+    DD_PATH_ENV_VAR = "_51DEGREES_DD_PATH"
+
+    # Deprecated. Use DD_PATH_ENV_VAR. The name that variable had before,
+    # read when DD_PATH_ENV_VAR is not set. A POSIX shell cannot set it,
+    # because it starts with a digit.
     DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"
 
     # The data repository's device detection folder, from the root of a
@@ -59,8 +79,15 @@ class ExampleUtils:
     DATA_FOLDER = os.path.join("cxx", "data", "device-detection")
 
     # Sent with each download, so the downloads these examples make can be
-    # counted.
+    # counted. It is left out inside GitHub Actions, where the data
+    # repository's script names the build instead, so that test runs are
+    # not counted as people using the examples.
     DOWNLOAD_SOURCE = "examples-51degrees-python"
+
+    # Shown in place of a value for a property that the data file in use
+    # does not have. Every property the examples ask for is in the
+    # Enterprise data file.
+    NEEDS_ENTERPRISE = "needs the Enterprise data file"
 
     @staticmethod
     def get_resource_key_from_config(config):
@@ -158,13 +185,24 @@ class ExampleUtils:
 
     @staticmethod
     def get_resource_key():
-        key = ExampleUtils.__get_env_variable(ExampleUtils.RESOURCE_KEY_ENV_VAR)
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.RESOURCE_KEY_ENV_VAR,
+            ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR)
 
-        if not key:
-            key = ExampleUtils.__get_env_variable(
-                ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR)
+    @staticmethod
+    def get_license_key():
+        """!
+        The licence key from the environment, or an empty string. The old
+        name is also read in upper case, as it was before.
+        """
 
-        return key
+        return (
+            ExampleUtils.__get_env_variable(
+                ExampleUtils.LICENSE_KEY_ENV_VAR,
+                ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR)
+            or ExampleUtils.__get_env_variable(
+                ExampleUtils.LICENSE_KEY_ENV_VAR,
+                ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR.upper()))
 
     @staticmethod
     def get_missing_resource_key_message():
@@ -174,25 +212,46 @@ class ExampleUtils:
         """
 
         return (f"No resource key found. Set the environment variable "
-                f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}' (the older name "
-                f"'{ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR}' is still "
-                "read). Create a resource key for free at "
+                f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. Create a resource key for free at "
                 "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=resource-key-required")
 
     @staticmethod
     def get_data_file_path():
-        return ExampleUtils.__get_env_variable(ExampleUtils.DATA_FILE_ENV_VAR)
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.DD_PATH_ENV_VAR, ExampleUtils.DATA_FILE_ENV_VAR)
 
     @staticmethod
     def get_cloud_endpoint():
-        return ExampleUtils.__get_env_variable(ExampleUtils.ENDPOINT_ENV_VAR)
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
+            ExampleUtils.ENDPOINT_ENV_VAR)
+
+    # The old names already reported as deprecated, so each is reported
+    # once.
+    __reported_old_names = set()
 
     @staticmethod
-    def __get_env_variable(name):
-        if name in os.environ:
-            return os.environ[name]
-        else:
+    def __get_env_variable(name, old_name):
+        """!
+        The value of the environment variable name, or an empty string.
+        When name is unset or empty the name the variable had before is
+        read, and using it prints once that the old name is deprecated.
+        """
+
+        value = os.environ.get(name)
+        if value:
+            return value
+        value = os.environ.get(old_name)
+        if not value:
             return ""
+        if old_name not in ExampleUtils.__reported_old_names:
+            ExampleUtils.__reported_old_names.add(old_name)
+            print(
+                f"The {old_name} environment variable is deprecated and {name} "
+                f"replaces it. The value was read from {old_name} because {name} "
+                f"is not set, so set {name} to the same value.",
+                file=sys.stderr)
+        return value
 
     # Find the specified file. A path to a file that exists is returned as
     # it is. Next, the data repository's folder is checked in the working
@@ -246,14 +305,16 @@ class ExampleUtils:
         if search_dir is None:
             search_dir = Path(os.getcwd()).absolute()
 
-        # Search for the file in the current directory
-        files = list(search_dir.rglob(_file.name))
-
-        # If the file is found in the current directory
-        # then set the result and return
-        if len(files):
-            result[0] = str(files[0].absolute())
-            return
+        # Search the current directory and every folder below it. The stop
+        # event is checked in each folder, so the search ends soon after it
+        # times out, and a folder that cannot be read, such as one under
+        # /proc, is skipped.
+        for folder, _, names in os.walk(search_dir):
+            if stop_event.is_set():
+                return
+            if _file.name in names:
+                result[0] = str(Path(folder, _file.name).absolute())
+                return
 
         # If the file is not found in the current directory
         # then move to the parent directory and repeat the process
@@ -271,23 +332,34 @@ class ExampleUtils:
     def __download(path):
         name = os.path.basename(path)
         data = os.path.dirname(os.path.dirname(path))
+        in_actions = os.environ.get("GITHUB_ACTIONS") == "true"
+        environment = None
         if os.name == "nt":
+            # PowerShell 7 when it is on the path, otherwise Windows
+            # PowerShell, which, started from PowerShell 7, inherits its
+            # module path and then cannot load its own commands.
+            power_shell = "pwsh" if shutil.which("pwsh") else "powershell"
             command = [
-                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
-                "-File", os.path.join(data, "get-data-files.ps1"), name,
-                "-Source", ExampleUtils.DOWNLOAD_SOURCE]
+                power_shell, "-NoProfile", "-ExecutionPolicy", "Bypass",
+                "-File", os.path.join(data, "get-data-files.ps1"), name]
+            if not in_actions:
+                command += ["-Source", ExampleUtils.DOWNLOAD_SOURCE]
+            if power_shell == "powershell":
+                environment = dict(os.environ)
+                environment.pop("PSModulePath", None)
             text = subprocess.list2cmdline(command)
         else:
-            command = [
-                "sh", os.path.join(data, "get-data-files.sh"),
-                "-s", ExampleUtils.DOWNLOAD_SOURCE, name]
+            command = ["sh", os.path.join(data, "get-data-files.sh")]
+            if not in_actions:
+                command += ["-s", ExampleUtils.DOWNLOAD_SOURCE]
+            command.append(name)
             text = shlex.join(command)
 
         # Flushed first, because the script writes to the same output.
         print(f"{name} is missing, so it is being downloaded by running\n"
               f"{text}", flush=True)
         try:
-            subprocess.run(command, check=False)
+            subprocess.run(command, check=False, env=environment)
         except OSError:
             pass
         if os.path.isfile(path):
@@ -311,7 +383,69 @@ class ExampleUtils:
         return engine.engine.getProduct()
 
     @staticmethod
+    def is_lite_data_file(engine):
+        """!
+        True when the engine uses the free Lite data file.
+        """
+        return ExampleUtils.get_data_file_tier(engine) == "Lite"
+
+    @staticmethod
+    def has_property(engine, name):
+        """!
+        True when the engine's data file has the property. The Lite data
+        file leaves out the properties only the Enterprise data file has,
+        such as HardwareVendor, HardwareName and DeviceType. The data
+        file's own list is read, because the engine's properties are only
+        those it was built to give.
+        """
+        properties = engine.engine.getMetaData().getProperties()
+        name = name.lower()
+        for index in range(properties.getSize()):
+            if properties.getByIndex(index).getName().lower() == name:
+                return True
+        return False
+
+    @staticmethod
+    def get_enterprise_value(engine, device, property):
+        """!
+        Format a property for display, or say that it needs the Enterprise
+        data file when the engine's data file does not have it. The value
+        is only read when the data file has the property.
+        """
+        if not ExampleUtils.has_property(engine, property):
+            return ExampleUtils.NEEDS_ENTERPRISE
+        return ExampleUtils.get_human_readable(device, property)
+
+    @staticmethod
+    def get_enterprise_note(contact_us):
+        """!
+        Where to ask for a copy of the Enterprise data file, written after an
+        example has shown properties that the data file in use does not
+        have. The link is tagged with the example's file, so that an enquiry
+        can be traced to the example.
+        """
+        return ("Some of these properties need the Enterprise data file. "
+                f"Contact us for a copy at {contact_us}")
+
+    @staticmethod
+    def get_enterprise_offer(contact_us):
+        """!
+        What the Enterprise data file adds and where to ask for a copy,
+        written after an example that shows no properties has run on the
+        free Lite data file.
+        """
+        return ("This example used the free Lite data file. The Enterprise "
+                "data file adds many more properties, such as "
+                "HardwareVendor, HardwareName and DeviceType. Contact us for "
+                f"a copy at {contact_us}")
+
+    @staticmethod
     def check_data_file(pipeline, logger):
+        """!
+        Log the data file in use, and a warning if it is old. An example run
+        on the free Lite data file says what the Enterprise data file adds
+        in its own output.
+        """
         # Get the 'engine' element within the pipeline that
         # performs device detection. We can use this to get
         # details about the data file as well as meta-data
@@ -337,14 +471,6 @@ class ExampleUtils:
                 "cxx/data/get-data-files.sh -u 51Degrees-LiteV4.1.hash, " +
                 "or cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash " +
                 "-Update on Windows. " +
-                "Find out about the Enterprise data file, which " +
-                "includes automatic updates, on our pricing page: " +
-                "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=data-file-age-warning")
-
-        if ExampleUtils.get_data_file_tier(engine) == "Lite":
-            logger.log("warning",
-                "This example is using the 'Lite' " +
-                "data file. This is used for illustration, and " +
-                "has limited accuracy and capabilities. Find " +
-                "out about the Enterprise data file on our " +
-                "pricing page: https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=lite-data-file")
+                "Contact us about the Enterprise data file, which " +
+                "includes automatic updates, at " +
+                "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=data-file-age-warning")

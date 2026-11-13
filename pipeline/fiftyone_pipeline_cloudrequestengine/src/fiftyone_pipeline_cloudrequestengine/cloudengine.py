@@ -20,8 +20,11 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
+from fiftyone_pipeline_core.jsonbundler import WKT_TYPES
 
 from .clouddata import CloudData
 
@@ -42,7 +45,7 @@ class CloudEngine(Engine):
     It requires the 51Degrees cloudRequestEngine to be placed in a
     pipeline before it. It takes that raw JSON response and
     parses it to extract the device part.
-    It also uses this data to generate a list of properties and an evidence key filter
+    It also uses this data to generate a list of properties.
 
     """
 
@@ -51,6 +54,15 @@ class CloudEngine(Engine):
         super(CloudEngine, self).__init__()
 
         self.datakey = "CloudEngineBase" # This should be overriden
+
+    def get_evidence_key_filter(self):
+
+        """!
+        A cloud engine reads only the cloud request engine's results, so it
+        accepts no evidence.
+        """
+
+        return BasicListEvidenceKeyFilter([])
 
     def on_registration(self, pipeline):
  
@@ -71,11 +83,15 @@ class CloudEngine(Engine):
 
         # The accessible properties come from the cloud service for the
         # key in use, a resource key or a licence key, so a section missing
-        # from them means that key does not carry the product at all.
-        if not self.datakey in pipeline.flow_elements_list["cloud"].flow_element_properties:
-            raise Exception("The key in use does not include access to any properties under the engine with key " + self.datakey +  " that was added to the pipeline. For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=engine-properties-not-accessible " + "Available engine data keys are: " + str([e for e in pipeline.flow_elements_list["cloud"].flow_element_properties]))
-
-        self.properties = pipeline.flow_elements_list["cloud"].flow_element_properties[self.datakey]
+        # from them means that key does not carry the product at all. That
+        # is not a configuration error, so the engine is built with no
+        # properties and the missing product is logged here, once.
+        carried = pipeline.flow_elements_list["cloud"].flow_element_properties
+        if not self.datakey in carried:
+            pipeline.log("warning", "The key in use does not include access to any properties under the engine with key " + self.datakey +  " that was added to the pipeline. For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=engine-properties-not-accessible " + "Available engine data keys are: " + str([e for e in carried]))
+            self.properties = {}
+        else:
+            self.properties = carried[self.datakey]
 
         # Add a special message to the pipeline 
         # when requesting an element that does not exist
@@ -122,7 +138,18 @@ class CloudEngine(Engine):
 
         result = {}
 
+        # A shape in well-known text arrives as an object holding the text.
+        # The property list is keyed by the names the cloud service gives,
+        # such as Areas, and the response by the same names in lower case.
+        wkt_keys = {
+            name.lower() for name, meta in self.properties.items()
+            if str(meta.get("type", "")).lower() in WKT_TYPES}
+
         for key, value in engineData.items():
+
+            if (key.lower() in wkt_keys and isinstance(value, dict)
+                    and list(value) == ["value"]):
+                value = value["value"]
 
             if key + "nullreason" in engineData:
                 result[key] = AspectPropertyValue(no_value_message=engineData[key + "nullreason"])

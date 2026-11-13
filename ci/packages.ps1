@@ -125,3 +125,29 @@ function Get-AffectedProducts([string]$RepoPath) {
     $changed = @(git -C $RepoPath diff --name-only $base $head)
     return Resolve-AffectedProducts $packages $changed
 }
+
+# What a build of HEAD makes: the release plan, or, when nothing changed since
+# the last release, every published package at its released version. Nothing
+# is published then, because package-update-required.ps1 finds the release
+# plan empty, but the publish's tests still have the packages to install.
+function Get-BuildPlan([string]$RepoPath, $Packages = $null) {
+    if ($null -eq $Packages) {
+        $Packages = Get-Packages $RepoPath
+    }
+    $plan = @(Get-ReleasePlan $RepoPath $Packages)
+    if ($plan.Count -gt 0) {
+        return $plan
+    }
+    $published = @($Packages | Where-Object { $_.Publish -eq $true })
+    foreach ($name in (Sort-ByDependency $published @($published.Name))) {
+        $package = $published | Where-Object { $_.Name -eq $name }
+        $last = @(Get-ReleasedVersions $RepoPath $name)[-1]
+        [pscustomobject]@{
+            Name = $name
+            Path = $package.Path
+            Version = "$last"
+            Previous = $last
+            Reason = 'already released, built for the tests'
+        }
+    }
+}

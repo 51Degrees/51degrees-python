@@ -29,16 +29,18 @@ foreach ($asset in $assets) {
     }
 }
 
-# The ASN file is not an asset, so the data repository's script downloads it
-# beside its link in cxx/data/ip-intelligence, where the tests look for it.
-$global:LASTEXITCODE = 0
-& "$PSScriptRoot/../../cxx/data/get-data-files.ps1" 51Degrees-IPIV4AsnIpiV41.ipi
-if ($LASTEXITCODE -ne 0) {
-    throw "The ASN data file was not downloaded"
-}
+# The tests look for the Asn file in cxx/data/ip-intelligence, and the examples
+# look there for the Lite data file, under the name the data repository saves
+# it as. Both are assets, so a test job restores them from the run's cache
+# rather than downloading them.
+$ipIntelligenceData = "$PSScriptRoot/../../cxx/data/ip-intelligence"
+New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/51Degrees-LiteIpiV41.ipi" -Path "$ipIntelligenceData/51Degrees-LiteV41.ipi"
+$asn = '51Degrees-IPIV4AsnIpiV41.ipi'
+./steps/fetch-assets.ps1 -Assets $asn
+Copy-Item "assets/$asn" $ipIntelligenceData
 
 # If the Enterprise file was downloaded, prefer it for tests by exposing
 # it through the environment variable used by the test suites.
 if ($IpIntelligenceUrl) {
-    Write-Output "IPINTELLIGENCEDATAFILE=$assetsDir/51Degrees-EnterpriseIpiV41.ipi" | Out-File -Append -FilePath $env:GITHUB_ENV -ErrorAction SilentlyContinue
+    Write-Output "_51DEGREES_IPI_PATH=$assetsDir/51Degrees-EnterpriseIpiV41.ipi" | Out-File -Append -FilePath $env:GITHUB_ENV -ErrorAction SilentlyContinue
 }

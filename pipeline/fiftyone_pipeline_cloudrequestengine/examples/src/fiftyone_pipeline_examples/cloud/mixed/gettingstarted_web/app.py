@@ -48,10 +48,10 @@
 # stays on this server. The page and its script only ever talk to this
 # server, never to the cloud service.
 #
-# The pipeline talks to cloud.51degrees.com unless the cloud_endpoint or
-# FOD_CLOUD_API_URL environment variable names another cloud service. A
+# The pipeline talks to cloud.51degrees.com unless the
+# _51DEGREES_CLOUD_ENDPOINT environment variable names another cloud service. A
 # resource key limited to particular domains needs one of them in the
-# cloud_request_origin environment variable.
+# _51DEGREES_CLOUD_REQUEST_ORIGIN environment variable.
 #
 # Run it from the examples folder, once the requirements there are
 # installed, with
@@ -74,7 +74,6 @@
 # - [fiftyone_pipeline_cloudrequestengine](https://pypi.org/project/fiftyone-pipeline-cloudrequestengine/)
 # - [flask](https://pypi.org/project/flask/)
 
-import json
 import os
 import sys
 
@@ -84,7 +83,8 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import (
     CloudRequestException)
 from fiftyone_pipeline_core.logger import Logger
-from fiftyone_pipeline_core.web import set_response_header, webevidence
+from fiftyone_pipeline_core.web import (
+    javascript_response, json_response, set_response_header, webevidence)
 
 from fiftyone_pipeline_examples.cloud.engines import (
     CountriesTranslationCloud, DeviceDetectionCloud, IpIntelligenceCloud)
@@ -265,27 +265,20 @@ def create_app(pipeline):
     # The other Pipeline APIs ship web integrations that serve the
     # client-side script at '/51Degrees.core.js', so the page refers to it by
     # that name. There is no such integration for Flask, so the example adds
-    # the route itself.
+    # the route itself. javascript_response and json_response process the
+    # request and set the cache headers, so a browser keeps a good answer
+    # for 30 minutes and never keeps one made while processing failed.
     @app.route("/51Degrees.core.js")
     def core_js():
 
-        flowdata = process()
-
-        response = make_response(flowdata.javascriptbuilder.javascript)
-        response.headers["Content-Type"] = "application/x-javascript"
-
-        return response
+        return javascript_response(pipeline, request)
 
     # The client-side script posts the evidence it gathers here, and gets
     # back the results of processing it as JSON.
     @app.route("/json", methods=["POST"])
     def json_results():
 
-        flowdata = process()
-
-        return app.response_class(
-            json.dumps(flowdata.jsonbundler.json),
-            mimetype="application/json")
+        return json_response(pipeline, request)
 
     return app
 

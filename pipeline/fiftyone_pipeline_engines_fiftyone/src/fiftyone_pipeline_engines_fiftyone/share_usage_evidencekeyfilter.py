@@ -22,41 +22,63 @@
 
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 
+# Cookies, session values and query string parameters whose names start with
+# this are the ones 51Degrees sets, and are shared.
+FIFTYONE_PREFIX = "51d_"
+
+# Evidence that is never shared, whatever the settings, matched as the whole
+# key or after a '.'. 'id.email' and 'id.salt' are a raw email address and the
+# salt used to make hashed email identifiers. 'request-query' is the whole query
+# string, which would undo the rules for its parameters. 'request-path' would
+# make each page a visitor opens look like a new session to the tracker.
+# 'header.cookie' is the Cookie header, which carries every cookie, and the
+# cookies that are shared are shared as their own 'cookie.' evidence.
+NEVER_SHARED_KEYS = (
+    "id.email", "id.salt", "request-query", "request-path", "header.cookie")
+
 class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
     """
-    The ShareUsageEvidenceKeyFilter filters out all evidence 
-    not needed by the 51Degrees ShareUsage service.
-    It allows for a specific whitelist of query strings,
-    a blacklist of headers and a specific cookie used for 
-    session information
+    The ShareUsageEvidenceKeyFilter decides which evidence the 51Degrees
+    ShareUsage service is sent. Headers are shared unless they are blocked,
+    cookies and session values only when their names start with 51D_, and
+    query string and form parameters only when their names start with 51D_ or
+    are on the list to share. Any other evidence is shared.
     """
 
-    def __init__(self, cookie = None, query_whitelist = [], header_blacklist = []):
+    def __init__(
+            self,
+            cookie = None,
+            query_whitelist = (),
+            header_blacklist = (),
+            include_session = False,
+            share_all = False):
         """!
         Constructor for ShareUsageEvidenceKeyFilter
         @type cookie: string
-        @param cookie: which cookie is used to track evidence
+        @param cookie: the name of the cookie that identifies the session
         @type query_whitelist: list
-        @param query_whitelist: list of query string whitelist evidence to keep
-        @type query_blacklist: list
-        @param query_blacklist: list of header evidence to exclude
-        @type 
-        @param
+        @param query_whitelist: query string and form parameters to share as
+        well as those starting 51D_, or None to share every parameter
+        @type header_blacklist: list
+        @param header_blacklist: headers not to share
+        @type include_session: bool
+        @param include_session: whether the session cookie is included
+        @type share_all: bool
+        @param share_all: whether all evidence is shared, apart from the
+        evidence that is never shared
         """
-        self.query_whitelist = query_whitelist
+        self.cookie = cookie.lower() if cookie else None
 
-        self.header_blacklist = header_blacklist
+        self.query_whitelist = None if query_whitelist is None else \
+            [parameter.lower() for parameter in query_whitelist]
 
-        self.cookie = cookie
+        self.header_blacklist = \
+            [header.lower() for header in header_blacklist or ()]
 
-        if cookie is None and \
-            (query_whitelist is None or len(query_whitelist) == 0) and \
-            (header_blacklist is None or len(header_blacklist) == 0):
-            self.share_all = True
-        else:
-            self.share_all = False
+        self.include_session = include_session
 
-    
+        self.share_all = share_all
+
     def filter_evidence_key(self, key):
 
         """!
@@ -69,42 +91,57 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         @return: Is this key in the filter's keys list?
 
         """
-        #  get prefix and key of evidence
-        key_parts = key.lower().split(".")
+        key = key.lower()
 
-        prefix = key_parts[0]
-        suffix = key_parts[1]
+        if any(key == never_shared or key.endswith("." + never_shared)
+                for never_shared in NEVER_SHARED_KEYS):
+            return False
 
-        result = self.share_all
+        if self.share_all:
+            return True
 
-        if not self.share_all:
-            if prefix == "header":
-                # Add the header to the list if the header name does not
-                # appear in the list of blocked headers
-                result = suffix not in self.header_blacklist
-            elif prefix == "cookie":
-                # Only add cookies that start with the 51Degrees cookie
-                # prefix
-                result = suffix.startswith("51d_") or \
-                    (self.include_session and suffix == self.cookie)
-            elif prefix == "session":
-                # Only session values that start with the 51Degrees 
-                # cookie prefix
-                result = suffix.startswith("51d_")
-            elif prefix == "query":
-                # If no query string parameter filter was specified 
-                # then share all of them.
-                # Otherwise, only include query string parameters that 
-                # start with 51d_ or that have been specified in 
-                # the constructor.
-                result = self.query_whitelist is None or \
-                    len(self.query_whitelist) == 0 or \
-                    suffix.startswith("51d_") or \
-                    suffix in self.query_whitelist
-            else:
-                # Add anything that is not a cookie, header, session
-                # variable or query parameter
-                result = True
+        # The prefix is everything before the first dot and the field
+        # everything after it, so a field can itself contain dots.
+        prefix, separator, field = key.partition(".")
 
-        return result
-            
+        if not separator:
+            return True
+        elif prefix == "header":
+            # Add the header to the list if the header name does not
+            # appear in the list of blocked headers
+            return field not in self.header_blacklist
+        elif prefix == "cookie":
+            # Only add cookies that start with the 51Degrees cookie
+            # prefix
+            return field.startswith(FIFTYONE_PREFIX) or \
+                (self.include_session and field == self.cookie)
+        elif prefix == "session":
+            # Only session values that start with the 51Degrees
+            # cookie prefix
+            return field.startswith(FIFTYONE_PREFIX)
+        elif prefix == "query":
+            # If no query string parameter list was given then share all
+            # of them. Otherwise, only include query string parameters
+            # that start with 51d_ or that are in the list.
+            return self.query_whitelist is None or \
+                field.startswith(FIFTYONE_PREFIX) or \
+                field in self.query_whitelist
+        else:
+            # Add anything that is not a cookie, header, session
+            # variable or query parameter
+            return True
+
+class ShareUsageTrackerEvidenceKeyFilter(ShareUsageEvidenceKeyFilter):
+    """
+    The evidence the ShareUsageTracker compares to decide whether a request
+    repeats one already shared. The session id and sequence number are left
+    out, because they make every request different.
+    """
+
+    def filter_evidence_key(self, key):
+
+        if key.lower() in ("query.session-id", "query.sequence"):
+            return False
+
+        return super(ShareUsageTrackerEvidenceKeyFilter, self)\
+            .filter_evidence_key(key)

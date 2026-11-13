@@ -50,6 +50,10 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_shared.example_constants import EVIDENCE_VALUES
 from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=enterprise-data-file"
+
 bgRed = "\u001b[41m"
 fgWhite = "\u001b[37;1m"
 colReset = "\u001b[0m"
@@ -84,6 +88,9 @@ class MetaDataConsole():
             self.outputEvidenceKeyDetails(pipeline.get_element("device"), output)
 
             ExampleUtils.check_data_file(pipeline, logger)
+            if ExampleUtils.is_lite_data_file(pipeline.get_element("device")):
+                output("")
+                output(ExampleUtils.get_enterprise_offer(CONTACT_US))
 
 
     def outputEvidenceKeyDetails(self, engine, output):
@@ -120,9 +127,9 @@ def main(argv):
     # a command line parameter.
     #
     # Note that the Lite data file is only used for illustration, and has
-    # limited accuracy and capabilities.
-    # Find out about the Enterprise data file on our pricing page:
-    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=main
+    # a small number of Properties.
+    # Contact us for a copy of the Enterprise data file:
+    # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
     
     # Configure a logger to output to the console.

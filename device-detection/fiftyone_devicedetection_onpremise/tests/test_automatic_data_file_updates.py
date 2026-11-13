@@ -73,7 +73,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertFalse(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -92,7 +92,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertFalse(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -114,7 +114,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertFalse(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -136,7 +136,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertFalse(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -155,7 +155,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -174,7 +174,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -196,7 +196,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -218,7 +218,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -238,7 +238,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self._assertNotSignedUrl(flow_element_data_file.get_update_url())
 
@@ -260,7 +260,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self._assertNotSignedUrl(flow_element_data_file.get_update_url())
 
@@ -278,7 +278,7 @@ class DeviceDetectionTests(unittest.TestCase):
         with pipeline.create_flowdata() as flowdata:
             flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())

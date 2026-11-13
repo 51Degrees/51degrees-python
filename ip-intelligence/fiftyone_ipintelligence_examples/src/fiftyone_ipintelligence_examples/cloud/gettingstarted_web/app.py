@@ -27,7 +27,7 @@
 # visitor (or an IP supplied as the "client-ip" query parameter) using
 # the 51Degrees cloud service.
 #
-# A resource key must be supplied in the `resource_key` environment
+# A resource key must be supplied in the `_51DEGREES_RESOURCE_KEY` environment
 # variable. Obtain one from https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=top
 #
 # Run with:
@@ -91,7 +91,7 @@ def main(resource_key = None):
     if not resource_key:
         raise Exception(
             "No resource key specified in the environment variable "
-            f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. Obtain one from "
+            f"'{ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR}'. Obtain one from "
             "https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required")
     build_pipeline(resource_key)
     app.run(debug=False)

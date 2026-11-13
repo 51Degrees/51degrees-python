@@ -28,7 +28,9 @@
 #
 # We create a pipeline using the on-premise engine, deserialize the
 # YAML evidence records, pass each entry to the pipeline and write the
-# resolved properties out to another YAML file.
+# resolved properties out to another YAML file. By default the free Lite
+# data file is used, which is downloaded when it is missing, and Country,
+# which only the Enterprise data file has, is recorded as needing it.
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -42,10 +44,15 @@ from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligenc
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_FILE_NAME
-from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 
 # Number of evidence records to process in this example.
 RECORD_LIMIT = 100
+
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-offlineprocessing.py&utm_term=enterprise-data-file"
 
 
 class OfflineProcessing():
@@ -71,6 +78,7 @@ class OfflineProcessing():
             ExampleUtils.check_data_file(pipeline, logger)
 
             records = 0
+            needs_enterprise = False
             with open(evidence_yaml, "r") as fin:
                 for evidence in yaml.load_all(fin):
                     if records >= RECORD_LIMIT:
@@ -78,8 +86,13 @@ class OfflineProcessing():
 
                     # write the yaml document separator
                     output("---")
-                    self.analyse_evidence(evidence, pipeline, output, yaml)
+                    needs_enterprise |= self.analyse_evidence(
+                        evidence, pipeline, output, yaml)
                     records += 1
+
+            if needs_enterprise:
+                # A comment keeps the output a valid YAML stream.
+                output("# " + ExampleUtils.get_enterprise_note(CONTACT_US))
 
             # write the yaml document end marker
             output("...")
@@ -106,16 +119,20 @@ class OfflineProcessing():
             # Add the values that we want to store against the record.
             result["ip.registeredname"] = ExampleUtils.get_human_readable(ip_data, "registeredname")
             result["ip.registeredcountry"] = ExampleUtils.get_human_readable(ip_data, "registeredcountry")
+            # Only the Enterprise data file has Country.
+            result["ip.country"] = ExampleUtils.get_enterprise_value(
+                pipeline.flow_elements_list["ip"], ip_data, "country")
 
         buffer = io.BytesIO()
         yaml.dump(result, buffer)
         output(buffer.getvalue().decode("utf-8").rstrip())
+        return result["ip.country"] == ExampleUtils.NEEDS_ENTERPRISE
 
 
 def main(argv):
-    # Use the supplied path for the data file or find the enterprise file
-    # in the project space.
-    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(ENTERPRISE_DATAFILE_NAME)
+    # Use the supplied path for the data file or find the free Lite file in
+    # the project space, which is downloaded when it is missing.
+    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
     evidence_file = argv[1] if len(argv) > 1 else ExampleUtils.find_file(EVIDENCE_FILE_NAME)
 
     # Configure a logger to output to the console.

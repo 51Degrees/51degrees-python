@@ -207,17 +207,16 @@ which is the configuration the example's own message names, and a key for IP
 Intelligence in the
 [configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
 
-The Device Detection cloud example takes the key as its first argument, or
-from `_51DEGREES_RESOURCE_KEY`, or from the older name `resource_key`, which
-the Device Detection README uses. The IP Intelligence cloud example takes it
-as its first argument or from `resource_key`.
+The Device Detection and IP Intelligence cloud examples take the key as
+their first argument, or from `_51DEGREES_RESOURCE_KEY`.
 
 ```
-resource_key=<key> python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console
-resource_key=<key> python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_console
+_51DEGREES_RESOURCE_KEY=<key> python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console
+_51DEGREES_RESOURCE_KEY=<key> python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_console
 ```
 
-In PowerShell, set `$env:resource_key = '<key>'` first. Without a key, each
+In PowerShell, set `$env:_51DEGREES_RESOURCE_KEY = '<key>'` first. Without
+a key, each
 example logs an error that names the variable and the configurator.
 
 ### Pitfalls
@@ -268,11 +267,18 @@ touches all of them ([ci/packages.ps1](ci/packages.ps1),
 ## Versions are per package
 
 Every package is versioned and tagged on its own, `<package>/<version>`. A
-package is released when its folders changed since its last tag, or when a
-package it depends on is released. The examples packages are tested but never
-published. common-ci's publish carries one version; here it is only a label,
-and the release plan in `ci/packages.ps1` decides what is built, published
-and tagged. Never push a plain `4.5.x` tag: nothing here reads one.
+package is released when a file that counts in its folders changed since its
+last tag, or when a package it depends on is released. Documentation
+(`*.md`, `docs/`), tests (`tests/`, `test/`), examples (`examples/`) and
+`LICENSE` files do not count, nor do files a package's `Ignore` globs in
+`ci/packages.json` match, unless it sets `IgnoreDefaults` to false. A
+`setup.py`, `setup.cfg` or `pyproject.toml` whose change is only to the
+description, keywords, urls, classifiers, readme, authors or maintainers does
+not count either, which `ci/release-plan-filter.ps1` works out with Python.
+The examples packages are tested but never published. common-ci's publish
+carries one version, which here is only a label, and the release plan in
+`ci/packages.ps1` decides what is built, published and tagged. Never push a
+plain `4.5.x` tag, because nothing here reads one.
 
 `ci/packages.json` is the list of packages and what each depends on. Add a
 package there, with a `FirstVersion` if it has never been released, or it is
@@ -301,8 +307,11 @@ The data files come through cxx's own `data` submodule, at
 `cxx/data/device-detection` and `cxx/data/ip-intelligence`, where each free
 file is a `<file>.link` that `cxx/data/get-data-files.ps1` or
 `cxx/data/get-data-files.sh` downloads. Each product's `ci/fetch-assets.ps1`
-gets the files its tests need, and the examples' `example_utils.py` runs the
-script for a file that is missing. The IP Intelligence on-premise package must
+gets the files its tests need from common-ci's assets, which each run caches
+once, so no test job downloads a data file. A file added to the data
+repository needs an entry in common-ci's `steps/fetch-assets.ps1` before CI
+can use it. The examples' `example_utils.py` runs the script for a file
+that is missing. The IP Intelligence on-premise package must
 compile its own copy of the common C library with large data file support;
 the Device Detection one without it.
 
@@ -332,3 +341,11 @@ into `main` from any other branch.
 The four repositories were brought in with `git subtree add`, so commit SHAs
 match the originals. Use `git log --follow` to trace a file back through the
 import.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.
