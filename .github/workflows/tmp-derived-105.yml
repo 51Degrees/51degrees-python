@@ -1,0 +1,103 @@
+name: Derived properties check (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-105-**'
+
+jobs:
+  test:
+    name: Test ${{ matrix.os }} Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, python: '3.10' }
+          - { os: ubuntu-latest, python: '3.14' }
+          - { os: windows-latest, python: '3.14' }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the submodules the pipeline tests read
+        run: git submodule update --init --depth 1 pipeline/fiftyone_pipeline_derivedproperty/src/fiftyone_pipeline_derivedproperty/derived-properties pipeline/fiftyone_pipeline_core/src/fiftyone_pipeline_core/js_templates
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install tox and pylint
+        run: python -m pip install tox pylint
+      - name: Test the package as every build does
+        working-directory: pipeline/fiftyone_pipeline_derivedproperty
+        run: python -m tox -e py -- -v -p no:cacheprovider
+      - name: Test the package as Publish does
+        working-directory: pipeline/fiftyone_pipeline_derivedproperty
+        run: python -m tox -e pre-publish -- -q -p no:cacheprovider
+      - name: Lint the package as common-ci does
+        working-directory: pipeline/fiftyone_pipeline_derivedproperty
+        run: |
+          python -m pip install ../fiftyone_pipeline_core .
+          pylint --rcfile=.pylintrc src/fiftyone_pipeline_derivedproperty
+
+  package:
+    name: Build and install
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch the derived-properties submodule
+        run: git submodule update --init --depth 1 pipeline/fiftyone_pipeline_derivedproperty/src/fiftyone_pipeline_derivedproperty/derived-properties
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Build the wheel and the source distribution
+        working-directory: pipeline/fiftyone_pipeline_derivedproperty
+        run: |
+          python -m pip install build
+          python -m build --outdir "$RUNNER_TEMP/dist"
+          for f in "$RUNNER_TEMP"/dist/*.whl; do echo "== $f"; python -m zipfile -l "$f"; done
+          for f in "$RUNNER_TEMP"/dist/*.tar.gz; do echo "== $f"; tar -tzf "$f" | sort; done
+      - name: Install the wheel into an empty environment and run it
+        run: |
+          python -m venv "$RUNNER_TEMP/consumer"
+          . "$RUNNER_TEMP/consumer/bin/activate"
+          python -m pip install "$RUNNER_TEMP"/dist/*.whl
+          python -m pip list
+          cd "$RUNNER_TEMP"
+          cat > check.py <<'EOF'
+          from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
+          from fiftyone_pipeline_core.elementdata_dictionary import ElementDataDictionary
+          from fiftyone_pipeline_core.flowelement import FlowElement
+          from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
+          from fiftyone_pipeline_derivedproperty import (
+              DerivedPropertyElementBuilder, builtin_script_names)
+
+          print("Built in scripts: " + ", ".join(builtin_script_names()))
+          every = DerivedPropertyElementBuilder()
+          for name in builtin_script_names():
+              every.add_built_in_script(name)
+          for script in every.build().scripts:
+              print(script.name + " " + script.version + " from " + script.source)
+
+          class Country(FlowElement):
+              def __init__(self):
+                  super().__init__()
+                  self.datakey = "ip"
+                  self.properties = {"countrycode": {"name": "CountryCode"}}
+
+              def process_internal(self, flowdata):
+                  flowdata.set_element_data(ElementDataDictionary(
+                      self, {"CountryCode": AspectPropertyValue(None, "FR")}))
+
+          pipeline = (PipelineBuilder({"add_javascript_builder": False})
+                      .add(Country())
+                      .add(DerivedPropertyElementBuilder()
+                           .add_built_in_script("IsGdpr").build())
+                      .build())
+          flowdata = pipeline.create_flowdata()
+          flowdata.process()
+          value = flowdata.get("derived").get("IsGdpr").value()
+          print("IsGdpr for FR: " + str(value))
+          assert value is True
+          EOF
+          python check.py
