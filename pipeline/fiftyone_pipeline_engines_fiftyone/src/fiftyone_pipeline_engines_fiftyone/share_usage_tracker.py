@@ -59,7 +59,7 @@ class ShareUsageTracker(Tracker):
 
         difference = time.time() - value
 
-        if difference > self.interval:
+        if difference >= self.interval:
             self.set_cache_value(key, value)
             return True
         else:

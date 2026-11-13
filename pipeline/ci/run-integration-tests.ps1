@@ -5,6 +5,12 @@ param (
     [Hashtable]$Keys
 )
 
+if (!$Keys.TestResourceKey) {
+    throw "No TestResourceKey was passed, so the cloud tests cannot call " +
+        "the cloud service. The workflows set it from the " +
+        "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
+}
+
 # The examples call the cloud service, so they are integration tests rather
 # than unit tests. Listing them here runs them on every Python version and
 # operating system in options.json, and in the nightly, which a standalone
@@ -16,9 +22,27 @@ param (
 # not a licence key for the cloud service, so the examples' licence-key tests
 # failed with it. They are not given it, and skip themselves as they did when
 # pipeline was its own repository, until a cloud licence key is passed.
-$packages = "fiftyone_pipeline_cloudrequestengine", "fiftyone_pipeline_cloudrequestengine/examples"
+#
+# The 51Did package runs only its tests marked live here, as its others ran
+# in the unit step. Its tier tests need a key for another tier, which only
+# the Cloud 51Did workflow has. Only a package whose tox.ini passes
+# PYTEST_ADDOPTS sees the selection. Its build needs the OWID source, which
+# build-project.ps1 copies, and the publish workflow's test job does not run
+# that script, so it is copied here too.
+& "$PSScriptRoot/copy-owid-source.ps1" -RepoRoot $RepoName
+$packages = "fiftyone_pipeline_cloudrequestengine", "fiftyone_pipeline_cloudrequestengine/examples", "fiftyone_pipeline_did"
 $pipelineKeys = $Keys.Clone()
 $pipelineKeys.Remove('DeviceDetection')
-./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $pipelineKeys
+# The tests read the resource key from _51DEGREES_RESOURCE_KEY, and common-ci
+# sets only the older resource_key, so the key is set here.
+$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+
+$addopts = $env:PYTEST_ADDOPTS
+$env:PYTEST_ADDOPTS = '-m "live and not tier"'
+try {
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $pipelineKeys
+} finally {
+    $env:PYTEST_ADDOPTS = $addopts
+}
 
 exit $LASTEXITCODE

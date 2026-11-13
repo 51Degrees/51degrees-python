@@ -852,6 +852,168 @@ class FodIdTryParseTests(unittest.TestCase):
         self.assertEqual(raising.match_key, result.value.match_key)
 
 
+#: Every character with the Unicode White_Space property, which is what the
+#: 51Did specification means by white space.
+WHITE_SPACE = (
+    "\t\n\x0b\x0c\r \x85\xa0\u1680\u2000\u2001\u2002\u2003\u2004\u2005"
+    "\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000")
+
+#: Characters ``str.strip()`` removes or that look like white space, but
+#: which do not have the White_Space property, so they are outside the
+#: alphabet wherever they sit. U+001C to U+001F are the ones Python's own
+#: ``str.isspace()`` takes, and U+FEFF and U+200B are zero width
+#: characters that cannot be seen in the text.
+NOT_WHITE_SPACE = "\x1c\x1d\x1e\x1f\ufeff\u200b"
+
+
+def _forms(standard):
+    """The standard text, and the URL-safe text with and without its
+    padding."""
+    url_safe = standard.replace("+", "-").replace("/", "_")
+    return (standard, url_safe, url_safe.rstrip("="))
+
+
+def _spaced(text, space, count):
+    """The text with the white space put in at a number of points spread
+    evenly through it."""
+    spaced = text
+    for point in range(count, 0, -1):
+        at = len(text) * point // (count + 1)
+        spaced = spaced[:at] + space + spaced[at:]
+    return spaced
+
+
+def _show(text):
+    """The text with each character outside printable ASCII written as its
+    code, so a failure message shows where it is."""
+    return "".join(
+        c if " " < c <= "~" else "\\u{0:04X}".format(ord(c)) for c in text)
+
+
+class FodIdBase64TextTests(unittest.TestCase):
+    """How the base64 readers treat the text around and inside a 51Did, as
+    the identifier layout page of the 51Did specification sets out. White
+    space before and after the text is ignored, any other character outside
+    the alphabet is refused, white space inside the text included, and a
+    text holding a character from each alphabet is refused."""
+
+    def setUp(self):
+        self.factory = FodIdTestFactory()
+        self.standard = self._standard_with_both_specials()
+
+    def _standard_with_both_specials(self):
+        """The standard text of a real signed 51Did holding both ``+`` and
+        ``/``, so every form below holds both characters of its alphabet.
+        The signature differs on every signing, so a few tries find one."""
+        for _ in range(100):
+            standard = self.factory.signed_owid_base64(canonical_payload())
+            if "+" in standard and "/" in standard:
+                return standard
+        self.fail("No signed envelope contained both + and / in 100 tries.")
+
+    def assert_reads_as_standard(self, text):
+        result = FodId.try_from_base64(text)
+        self.assertTrue(result.ok, "{0} for {1}".format(
+            result.status.value, _show(text)))
+        self.assertEqual(self.standard, result.value.as_base64())
+        self.assertEqual(
+            self.standard, FodId.from_base64(text).as_base64())
+
+    def assert_invalid_base64(self, text):
+        """Both readers refuse the text as invalid base64, and the step
+        they share gives nothing for it."""
+        result = FodId.try_from_base64(text)
+        self.assertFalse(result.ok, "Parsed {0}".format(_show(text)))
+        self.assertIsNone(result.value)
+        self.assertIs(FodIdParseStatus.INVALID_BASE64, result.status,
+                      _show(text))
+        with self.assertRaises(OwidError) as raised:
+            FodId.from_base64(text)
+        self.assertIn("InvalidBase64", str(raised.exception))
+        self.assertIsNone(FodId.to_standard_base64(text), _show(text))
+
+    def test_the_text_holds_both_specials_in_every_form(self):
+        standard, url_safe, unpadded = _forms(self.standard)
+        self.assertTrue("+" in standard and "/" in standard)
+        self.assertTrue("-" in url_safe and "_" in url_safe)
+        self.assertTrue("-" in unpadded and "_" in unpadded)
+        self.assertNotIn("=", unpadded)
+
+    def test_every_form_parses(self):
+        for text in _forms(self.standard):
+            with self.subTest(text=text):
+                self.assert_reads_as_standard(text)
+
+    def test_white_space_around_the_text_parses(self):
+        for before, after in ((" ", "\n"), ("\t", "\r\n"),
+                              ("\u00a0", "\u00a0"), ("\u3000", "\u3000")):
+            for text in _forms(self.standard):
+                with self.subTest(before=_show(before), text=text):
+                    self.assert_reads_as_standard(before + text + after)
+
+    def test_every_white_space_character_around_the_text_parses(self):
+        self.assertEqual(25, len(WHITE_SPACE))
+        for space in WHITE_SPACE:
+            for text in _forms(self.standard):
+                with self.subTest(space=_show(space), text=text):
+                    self.assert_reads_as_standard(space + text + space)
+
+    def test_white_space_inside_the_text_is_invalid_base64(self):
+        for space, count in ((" ", 1), (" ", 2), (" ", 3), ("\t", 4),
+                             ("\r\n", 2), ("\u00a0", 4), ("\u3000", 1)):
+            for text in _forms(self.standard):
+                with self.subTest(space=_show(space), count=count,
+                                  text=text):
+                    self.assert_invalid_base64(_spaced(text, space, count))
+
+    def test_every_white_space_character_inside_the_text_is_refused(self):
+        for space in WHITE_SPACE:
+            for text in _forms(self.standard):
+                with self.subTest(space=_show(space), text=text):
+                    self.assert_invalid_base64(_spaced(text, space, 1))
+
+    def test_characters_that_are_not_white_space_are_refused_anywhere(self):
+        # Python's own strip() removes U+001C to U+001F, so they are
+        # checked around the text as well as inside it.
+        for character in NOT_WHITE_SPACE:
+            for text in _forms(self.standard):
+                for spaced in (character + text, text + character,
+                               _spaced(text, character, 1)):
+                    with self.subTest(text=_show(spaced)):
+                        self.assert_invalid_base64(spaced)
+
+    def test_both_alphabets_is_invalid_base64(self):
+        url_safe = FodId.to_base64_url(self.standard)
+        for text, from_, to in ((self.standard, "+", "-"),
+                                (self.standard, "/", "_"),
+                                (url_safe, "-", "+"),
+                                (url_safe, "_", "/")):
+            with self.subTest(from_=from_, to=to):
+                at = text.index(from_)
+                self.assert_invalid_base64(text[:at] + to + text[at + 1:])
+
+    def test_white_space_alone_is_still_missing_input(self):
+        for text in (" ", "\t\r\n", "\u00a0", "\u3000", WHITE_SPACE):
+            with self.subTest(text=_show(text)):
+                result = FodId.try_from_base64(text)
+                self.assertFalse(result.ok)
+                self.assertIsNone(result.value)
+                self.assertIs(FodIdParseStatus.MISSING_INPUT, result.status)
+
+    def test_to_standard_base64_restores_alphabet_and_padding(self):
+        for value, expected in (("-_", "+/=="), ("+/==", "+/=="),
+                                ("", ""), (" YQ\n", "YQ=="),
+                                ("\u3000-_\u3000", "+/==")):
+            with self.subTest(value=_show(value)):
+                self.assertEqual(expected, FodId.to_standard_base64(value))
+
+    def test_to_standard_base64_gives_none_for_a_text_it_refuses(self):
+        for value in ("YW Jj", "YW\tJj", "YW\r\nJj", "YW\u00a0Jj",
+                      "YWJj\x1c", "+_", "-/", "+-", "/_"):
+            with self.subTest(value=_show(value)):
+                self.assertIsNone(FodId.to_standard_base64(value))
+
+
 class FodIdTermsTests(unittest.TestCase):
     """The Terms byte, which says which terms document the identifier was
     created under so that the terms travel with the identifier. The byte is
