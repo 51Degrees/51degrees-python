@@ -110,15 +110,18 @@ function Resolve-AffectedProducts($Packages, [string[]]$Changed) {
 }
 
 # The products a pull request changes, or every product when the checkout is
-# not a pull request (a publish, or a run on main), as 51degrees-cxx does.
-function Get-AffectedProducts([string]$RepoPath) {
-    # merge-base fails where there is no origin/main, which is an answer here.
+# not a pull request (a publish, or a build of the branch itself), as
+# 51degrees-cxx does. A pull request is checked out with the branch it merges
+# into merged in, so the merge base with that branch leaves only the pull
+# request's own changes.
+function Get-AffectedProducts([string]$RepoPath, [string]$Branch = 'main') {
+    # merge-base fails where there is no such branch, which is an answer here.
     # Set for this function only, so a caller that stops on a failing native
     # command, as publish-package.ps1 does, is not stopped by it.
     $PSNativeCommandUseErrorActionPreference = $false
     $packages = Get-Packages $RepoPath
     $head = git -C $RepoPath rev-parse HEAD
-    $base = git -C $RepoPath merge-base origin/main HEAD 2>$null
+    $base = git -C $RepoPath merge-base "origin/$Branch" HEAD 2>$null
     if ($LASTEXITCODE -ne 0 -or $null -eq $base -or $base -eq $head) {
         $global:LASTEXITCODE = 0
         return @($packages.Product | Select-Object -Unique)
