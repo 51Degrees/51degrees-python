@@ -24,7 +24,7 @@ from fiftyone_devicedetection_cloud.devicedetection_cloud_pipelinebuilder import
 
 # First create the device detection pipeline with the desired settings.
 
-# You need to create a resource key at https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-failuretomatch.py&utm_term=top
+# You need to create a resource key at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-failuretomatch.py&utm_term=top
 # and paste it into the code, replacing !!YOUR_RESOURCE_KEY!! below.
 # Alternatively, set the _51DEGREES_RESOURCE_KEY environment variable. The
 # key is read through ExampleUtils, as every other example reads it, so
@@ -40,7 +40,7 @@ if resource_key == "!!YOUR_RESOURCE_KEY!!":
     # The address stays on one line, because the campaign lint reads a
     # line at a time and a split address looks to it like a missing tag.
     print("    To include the properties used in this example, go to "
-          "https://configure.51degrees.com/bxXqZhLT?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-failuretomatch.py&utm_term=resource-key-required")
+          "https://51degrees.com/configure/bxXqZhLT?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-failuretomatch.py&utm_term=resource-key-required")
 else:
 
     pipeline = DeviceDetectionCloudPipelineBuilder({
