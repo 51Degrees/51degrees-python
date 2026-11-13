@@ -21,6 +21,10 @@ Obtain one from the [51Degrees configuration page](https://51degrees.com/configu
   keys exposed by the cloud service.
 - `cloud/mixed_console.py` - combine device detection and IP intelligence
   in a single cloud pipeline (requires the device detection package).
+- `cloud/countries_console.py` - list the countries an IP address is
+  most likely in, with their names translated to the browser's
+  language, as a country dropdown needs (requires a key carrying the
+  translated country names).
 - `cloud/gettingstarted_web/` - Flask web app using the cloud service.
 
 ```
@@ -28,6 +32,7 @@ python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_console
 python -m fiftyone_ipintelligence_examples.cloud.getallproperties_console
 python -m fiftyone_ipintelligence_examples.cloud.metadata_console
 python -m fiftyone_ipintelligence_examples.cloud.mixed_console
+python -m fiftyone_ipintelligence_examples.cloud.countries_console
 python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_web
 ```
 

@@ -29,7 +29,8 @@ print(flowdata.ip.registeredname.value())
 
 ## Folders
 
-- `fiftyone_ipintelligence_cloud` - the IP intelligence cloud engine and
+- `fiftyone_ipintelligence_cloud` - the IP intelligence cloud engine, the
+  translated country names cloud engine (`CountriesTranslationCloud`) and the
   pipeline builder.
 - `tests` - unit tests. These mock the cloud service so no resource key is
   required; set the `_51DEGREES_RESOURCE_KEY` environment variable to also run the live
