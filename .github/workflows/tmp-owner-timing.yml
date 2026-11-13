@@ -1,0 +1,89 @@
+name: Temporary one-runner timing
+on:
+  push:
+    branches: ['tmp/pyowner-timing-*']
+env:
+  # The 4 November release, and the head it is compared with.
+  ARM_A: 0b4081a2cae62072fbb4ae44f9d505012e1d2185
+  ARM_B: df0949d7313b11214c1758fbe7ee8c3334c53476
+  ROUNDS: '5'
+jobs:
+  timing:
+    runs-on: macos-latest
+    timeout-minutes: 180
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+      - name: Install Runtime
+        uses: ./.github/actions/install_runtime
+        with:
+          language: python
+          version: '3.11'
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.ARM_A }}
+          path: a
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ env.ARM_B }}
+          path: b
+          submodules: recursive
+          fetch-depth: 0
+      - name: Fetch assets
+        env:
+          DD_KEY: ${{ secrets.DEVICE_DETECTION_KEY }}
+          DD_URL: ${{ secrets.DEVICE_DETECTION_URL }}
+        run: |
+          ./steps/fetch-assets.ps1 -DeviceDetection $env:DD_KEY -DeviceDetectionUrl $env:DD_URL -Assets 'TAC-HashV41.hash','20000 User Agents.csv'
+          Get-ChildItem assets | Format-Table Name, Length
+      - name: Build both
+        run: |
+          foreach ($arm in 'a', 'b') {
+            Write-Output "::group::Build $arm"
+            python -m venv "venv-$arm"
+            & "./venv-$arm/bin/Activate.ps1"
+            python --version
+            ./$arm/ci/setup-environment.ps1 -RepoName $arm -LanguageVersion 3.11
+            if ($LASTEXITCODE) { throw "setup of $arm failed" }
+            ./$arm/device-detection/ci/build-project.ps1 -RepoName "$arm/device-detection"
+            if ($LASTEXITCODE) { throw "build of $arm failed" }
+            pip list | Select-String fiftyone
+            deactivate
+            Write-Output "::endgroup::"
+          }
+      - name: Rounds
+        run: |
+          $assets = (Resolve-Path assets).Path
+          $results = @{ a = @(); b = @() }
+          $sysctl = sysctl -n machdep.cpu.brand_string
+          Write-Output "Runner CPU: $sysctl"
+          for ($round = 1; $round -le [int]$env:ROUNDS; $round++) {
+            $order = if ($round % 2 -eq 1) { 'a', 'b' } else { 'b', 'a' }
+            foreach ($arm in $order) {
+              & "./venv-$arm/bin/Activate.ps1"
+              Push-Location "$arm/device-detection"
+              $json = Join-Path $PWD "summary-$round.json"
+              python fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/onpremise/performance.py --data_file "$assets/TAC-HashV41.hash" --user_agents_file "$assets/20000 User Agents.csv" --json_output $json | Out-Null
+              if ($LASTEXITCODE) { throw "performance of $arm failed" }
+              $value = (Get-Content $json | ConvertFrom-Json).DetectionsPerSecond
+              Pop-Location
+              deactivate
+              $results[$arm] += [double]$value
+              Write-Output ("Round {0} arm {1}: {2:N0} detections per second" -f $round, $arm, $value)
+            }
+          }
+          foreach ($arm in 'a', 'b') {
+            $sorted = $results[$arm] | Sort-Object
+            $median = $sorted[[math]::Floor($sorted.Count / 2)]
+            Write-Output ("Arm {0}: median {1:N0}, lowest {2:N0}, highest {3:N0}, rounds {4}" -f $arm, $median, $sorted[0], $sorted[-1], (($results[$arm] | ForEach-Object { '{0:N0}' -f $_ }) -join ', '))
+          }
+          $bWins = 0
+          for ($i = 0; $i -lt $results.a.Count; $i++) { if ($results.b[$i] -gt $results.a[$i]) { $bWins++ } }
+          Write-Output "Rounds the head (b) won: $bWins of $($results.a.Count)"
