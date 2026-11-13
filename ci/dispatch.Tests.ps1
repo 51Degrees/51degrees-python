@@ -17,6 +17,9 @@ BeforeAll {
     if ((Test-Path $script:RunScript) -eq $false) {
         throw "common-ci not found at '$commonCi'; set COMMON_CI to a checkout of it"
     }
+    # ci/packages.ps1 loads the release plan from the common-ci checkout
+    # that holds this repository's folder.
+    $script:ReleasePlan = Join-Path $commonCi 'steps' 'release-plan.ps1'
 
     # A repository with packages.json naming one package in each product.
     function New-ProductRepo {
@@ -46,7 +49,7 @@ BeforeAll {
     function New-CommonCi {
         $path = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
         $steps = New-Item -ItemType Directory -Force (Join-Path $path 'steps')
-        Copy-Item $script:RunScript $steps
+        Copy-Item $script:RunScript, $script:ReleasePlan $steps
         return $path
     }
 }

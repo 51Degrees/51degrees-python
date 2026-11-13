@@ -267,11 +267,19 @@ touches all of them ([ci/packages.ps1](ci/packages.ps1),
 ## Versions are per package
 
 Every package is versioned and tagged on its own, `<package>/<version>`. A
-package is released when its folders changed since its last tag, or when a
-package it depends on is released. The examples packages are tested but never
-published. common-ci's publish carries one version; here it is only a label,
-and the release plan in `ci/packages.ps1` decides what is built, published
-and tagged. Never push a plain `4.5.x` tag: nothing here reads one.
+package is released when a file that counts in its folders changed since its
+last tag, or when a package it depends on is released. Documentation
+(`*.md`, `docs/`), tests (`tests/`, `test/`), examples (`examples/`) and
+`LICENSE` files do not count, nor do files a package's `Ignore` globs in
+`ci/packages.json` match, unless it sets `IgnoreDefaults` to false. A
+`setup.py`, `setup.cfg` or `pyproject.toml` whose change is only to the
+description, keywords, urls, classifiers, readme, authors or maintainers does
+not count either, which `ci/release-plan-filter.ps1` works out with Python.
+The examples packages are tested but never published. common-ci's publish
+carries one version, which here is only a label, and the release plan
+decides what is built, published and tagged. The release plan is common-ci's
+`steps/release-plan.ps1`, which `ci/packages.ps1` loads, and common-ci tests
+it. Never push a plain `4.5.x` tag, because nothing here reads one.
 
 `ci/packages.json` is the list of packages and what each depends on. Add a
 package there, with a `FirstVersion` if it has never been released, or it is
