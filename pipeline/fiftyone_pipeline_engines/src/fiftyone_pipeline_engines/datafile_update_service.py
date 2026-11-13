@@ -101,10 +101,10 @@ class DataFileUpdateService():
         self._update_locks = {}
 
     def _update_lock(self, data_file):
-        # One update of a data file runs at a time. A second one waits for
-        # the first and then makes its own check, so every check ends and is
-        # reported. Re-entrant, so that an update complete callback can start
-        # an update of the same data file.
+        # One update or file system watcher refresh of a data file runs at a
+        # time. A second update waits for the first and then makes its own
+        # check, so every check ends and is reported. Re-entrant, so that an
+        # update complete callback can start an update of the same data file.
         with self._lock:
             return self._update_locks.setdefault(
                 id(data_file), threading.RLock())
@@ -632,14 +632,26 @@ class DataFileUpdateService():
                 # told by the operating system and say nothing whilst a
                 # file is untouched, and this check stands in for that.
                 return
-            if data_file.updating:
+            lock = self._update_lock(data_file)
+            if data_file.updating or not lock.acquire(blocking=False):
                 # A newer file found whilst an update is being applied is
                 # reported as in progress, and the time is not taken, so
                 # the next check looks at the file again.
                 self.__emit(UpdateStatus.AUTO_UPDATE_IN_PROGRESS, data_file)
                 return
-            data_file.last_changed_time = changed_time
-            self.__emit(self._refresh(data_file), data_file)
+            # The refresh holds the data file's update lock, so an update
+            # asked for meanwhile waits for it, as it waits for another
+            # update.
+            try:
+                data_file.updating = True
+                try:
+                    data_file.last_changed_time = changed_time
+                    status = self._refresh(data_file)
+                finally:
+                    data_file.updating = False
+                self.__emit(status, data_file)
+            finally:
+                lock.release()
         finally:
             if self.__is_registered(data_file):
                 t = threading.Timer(
