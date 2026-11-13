@@ -1,7 +1,5 @@
 param (
-    [string]$DeviceDetection,
-    [string]$DeviceDetectionUrl,
-    [string]$CsvUrl
+    [string]$DeviceDetection
 )
 $ErrorActionPreference = 'Stop'
 
@@ -21,7 +19,7 @@ if ($DeviceDetection) {
     Write-Host "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No License Key::A device detection license was not provided, so On-Premise Data file and 51Degrees.csv will not be downloaded."
 }
 
-./steps/fetch-assets.ps1 -DeviceDetection:$DeviceDetection -DeviceDetectionUrl:$DeviceDetectionUrl -CsvUrl:$CsvUrl -Assets $assets
+./steps/fetch-assets.ps1 -DeviceDetection:$DeviceDetection -Assets $assets
 foreach ($asset in $assets) {
     switch -Exact -CaseSensitive ($asset) {
         'TAC-HashV41.hash' {New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/$_" -Path "$deviceDetectionData/Enterprise-HashV41.hash"}
