@@ -11,7 +11,7 @@ location, network and registration information using the
 [51Degrees Pipeline API](https://51degrees.com/documentation/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=introduction).
 
 To use the cloud service you will need a resource key. You can obtain one
-from the [51Degrees Configurator](https://configure.51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=introduction).
+from the [51Degrees configuration page](https://51degrees.com/configure/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=introduction).
 
 ## Usage
 

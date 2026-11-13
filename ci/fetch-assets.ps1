@@ -8,7 +8,10 @@ param (
     [string]$DeviceDetectionUrl,
     [string]$CsvUrl,
     [string]$IpIntelligence,
-    [string]$IpIntelligenceUrl
+    [string]$IpIntelligenceUrl,
+    # The branch a pull request merges into, which its changes are measured
+    # against.
+    [string]$Branch = 'main'
 )
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot 'dispatch.ps1')
