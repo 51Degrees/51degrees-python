@@ -58,7 +58,7 @@
 # ```
 # 
 # Results can also be accessed in client-side code by using the `fod` object. See the 
-# [JavaScriptBuilderElementBuilder](https://51degrees.com/pipeline-python/4.3/classpipeline-python_1_1fiftyone__pipeline__core_1_1fiftyone__pipeline__core_1_1javascriptbuilde778a9036818b19ab55d981a40be4a4d7.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=top)
+# [JavascriptBuilderElement](https://51degrees.com/documentation/apis/pipeline-python/classfiftyone__pipeline__core_1_1javascriptbuilder_1_1_javascript_builder_element.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=top)
 # for details on available settings such as changing the `fod` name.
 # ```{js}
 # window.onload = function () {
@@ -79,8 +79,8 @@ from flask import Flask, request, render_template
 from flask.helpers import make_response
 from fiftyone_devicedetection_cloud.devicedetection_cloud_pipelinebuilder import DeviceDetectionCloudPipelineBuilder
 from fiftyone_pipeline_core.logger import Logger
-from fiftyone_pipeline_core.web import webevidence, set_response_header
-import json
+from fiftyone_pipeline_core.web import (
+    javascript_response, json_response, webevidence, set_response_header)
 import os
 import sys
 
@@ -123,57 +123,28 @@ class GettingStartedWeb():
         GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5000)))
 
     # First we make a JSON route that will be called from the client side and will return
-    # a JSON encoded property database using any additional evidence provided by the client 
+    # a JSON encoded property database using any additional evidence provided by the client.
+    # json_response processes the request and sets the cache headers, so a browser keeps a
+    # good answer for 30 minutes and never keeps one made while processing failed.
 
     @staticmethod
     @app.route('/json', methods=['POST'])
     def jsonroute():
 
-        # Create the flowdata object for the JSON route
-        flowdata = GettingStartedWeb.pipeline.create_flowdata()
-
-        # Add any information from the request (headers, cookies and additional 
-        # client side provided information)
-
-        flowdata.evidence.add_from_dict(webevidence(request))
-
-        # Process the flowdata
-
-        flowdata.process()
-
-        # Return the JSON from the JSONBundler engine
-
-        return json.dumps(flowdata.jsonbundler.json)
+        return json_response(GettingStartedWeb.pipeline, request)
 
     # Next we serve the client-side JavaScript from its own route. The other
     # Pipeline APIs ship a web integration that intercepts '/51Degrees.core.js'
     # for this, so the page can reference the script by that name. There is no
     # such integration for Flask, so the example wires up the route itself.
+    # Query parameters are evidence, so the per-request 'fod-js-enable-cookies'
+    # override is picked up and applied by the JavaScriptBuilder engine.
 
     @staticmethod
     @app.route('/51Degrees.core.js')
     def core_js():
 
-        # Create the flowdata object for the JavaScript route
-        flowdata = GettingStartedWeb.pipeline.create_flowdata()
-
-        # Add any information from the request (headers, cookies and additional
-        # client side provided information). Query parameters are included, so
-        # the per-request 'fod-js-enable-cookies' override is picked up here and
-        # applied by the JavaScriptBuilder engine.
-
-        flowdata.evidence.add_from_dict(webevidence(request))
-
-        # Process the flowdata
-
-        flowdata.process()
-
-        # Return the JavaScript from the JavaScriptBuilder engine
-
-        response = make_response(flowdata.javascriptbuilder.javascript)
-        response.headers["Content-Type"] = "application/x-javascript"
-
-        return response
+        return javascript_response(GettingStartedWeb.pipeline, request)
 
     # In the main route we dynamically update the screen's device property display
     # using the above JSON route
@@ -230,7 +201,7 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees " +
             "cloud service is accessed using a 'ResourceKey'. " +
             "For more detail see " +
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this " +
             "example can be created for free at " +
             "https://configure.51degrees.com/g3gMZdPY?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. " +

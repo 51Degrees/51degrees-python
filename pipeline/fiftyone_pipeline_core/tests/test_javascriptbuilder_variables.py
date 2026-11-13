@@ -24,8 +24,44 @@ import json
 import unittest
 from unittest import mock
 
+from parameterized import parameterized
+
 from fiftyone_pipeline_core import javascriptbuilder
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
+
+from .classes.memorylogger import MemoryLogger
+
+
+class _CapturedAll:
+    """Records the variables of every render and renders nothing."""
+
+    def __init__(self):
+        self.variables = []
+
+    def render(self, template, variables):
+        self.variables.append(dict(variables))
+        return ""
+
+
+def _render_with_hosts(hosts):
+    """Renders once for each host given, all through the same element, with
+    the host taken from the request's evidence. Returns the variables of
+    each render and the errors the pipeline logged."""
+
+    logger = MemoryLogger("error")
+    pipeline = PipelineBuilder({"javascript_builder_settings": {
+        "minify": False, "endpoint": "/json"}}).add_logger(logger).build()
+    captured = _CapturedAll()
+    with mock.patch.object(
+            javascriptbuilder.chevron, "render", captured.render):
+        for host in hosts:
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("header.host", host)
+            flowdata.process()
+    errors = [
+        entry["message"] for entry in logger.memory_log
+        if entry["level"] == "error"]
+    return captured.variables, errors
 
 
 class _Captured:
@@ -146,6 +182,148 @@ class JavaScriptBuilderVariablesTests(unittest.TestCase):
 
         self.assertEqual(
             "https://example.com/json?tenant=1", variables["_url"])
+
+    def test_refused_url_is_left_out_and_logged_once(self):
+        """A host the check refuses gives a script with no callback, and the
+        refusal is logged as an error the first time only, whatever the
+        requests in between."""
+
+        rendered, errors = _render_with_hosts(
+            ["exa mple.com", "exa mple.com", "example.com", "exa mple.com"])
+
+        for i, variables in enumerate(rendered):
+            if i == 2:
+                self.assertEqual(
+                    "https://example.com/json", variables["_url"])
+                self.assertTrue(variables["_updateEnabled"])
+            else:
+                self.assertNotIn("_url", variables)
+                self.assertFalse(variables["_updateEnabled"])
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn("'https://exa mple.com/json'", errors[0])
+
+    @parameterized.expand([
+        ("user:secret@example.com", "'https://***@example.com/json'"),
+        ("a@b@example.com", "'https://***@example.com/json'"),
+        ("u@[::1]:80x", "'https://***@[::1]:80x/json'"),
+        ("user:pa/ss@example.com", "'https://***@example.com/json'"),
+        ("user:pa?ss@example.com", "'https://***@example.com/json'"),
+        ("exa mple.com/a@b", "'https://***@b/json'"),
+    ])
+    def test_refused_host_is_logged_without_its_user_information(
+            self, host, logged):
+        """The log never holds what comes before the last '@' of the host
+        value. Each host has an element of its own because a refusal is
+        logged once per element."""
+
+        rendered, errors = _render_with_hosts([host])
+
+        self.assertNotIn("_url", rendered[0])
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn(logged, errors[0])
+        self.assertNotIn("secret", errors[0])
+        self.assertNotIn("'pa", errors[0])
+        self.assertNotIn("pa/", errors[0])
+
+    def test_refused_configured_host_is_logged_without_user_information(
+            self):
+        """A host from the settings is refused and logged the same way."""
+
+        logger = MemoryLogger("error")
+        pipeline = PipelineBuilder({"javascript_builder_settings": {
+            "minify": False, "endpoint": "/json",
+            "host": "user:secret@example.com"}}).add_logger(
+                logger).build()
+        captured = _CapturedAll()
+        with mock.patch.object(
+                javascriptbuilder.chevron, "render", captured.render):
+            pipeline.create_flowdata().process()
+        errors = [
+            entry["message"] for entry in logger.memory_log
+            if entry["level"] == "error"]
+
+        self.assertNotIn("_url", captured.variables[0])
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn("'https://***@example.com/json'", errors[0])
+        self.assertNotIn("secret", errors[0])
+
+    def test_refused_url_is_logged_on_one_line(self):
+        """The URL is quoted and escaped in the log, so a line break in it
+        cannot start a new log line."""
+
+        _, errors = _render_with_hosts(["a\nb.com\r\u2028"])
+
+        self.assertEqual(1, len(errors), errors)
+        for c in "\n\r\u2028":
+            self.assertNotIn(c, errors[0])
+        self.assertIn("a\\nb.com\\r\\u2028", errors[0])
+
+    def test_refused_protocol_from_the_request_is_left_out_and_logged_once(
+            self):
+        """A protocol from the request that is neither http nor https gives
+        a script with no callback, and is logged once like any other URL
+        that is not valid."""
+
+        logger = MemoryLogger("error")
+        pipeline = PipelineBuilder({"javascript_builder_settings": {
+            "minify": False, "endpoint": "/json"}}).add_logger(logger).build()
+        captured = _CapturedAll()
+        with mock.patch.object(
+                javascriptbuilder.chevron, "render", captured.render):
+            for _ in range(2):
+                flowdata = pipeline.create_flowdata()
+                flowdata.evidence.add("header.host", "example.com")
+                flowdata.evidence.add("header.protocol", "ftp")
+                flowdata.process()
+        errors = [
+            entry["message"] for entry in logger.memory_log
+            if entry["level"] == "error"]
+
+        for variables in captured.variables:
+            self.assertNotIn("_url", variables)
+            self.assertFalse(variables["_updateEnabled"])
+        self.assertEqual(1, len(errors), errors)
+        self.assertIn("'ftp://example.com/json'", errors[0])
+
+    def test_blank_host_gives_no_callback_and_is_not_logged(self):
+        """A host made only of whitespace is not set, so the script has no
+        callback and nothing is logged."""
+
+        rendered, errors = _render_with_hosts(["  "])
+
+        self.assertNotIn("_url", rendered[0])
+        self.assertFalse(rendered[0]["_updateEnabled"])
+        self.assertEqual([], errors)
+
+    def test_host_from_the_request_is_written_as_checked(self):
+        """A host from the request reaches the script as the check writes
+        it, in lower case and with anything that could end the string the
+        script holds it in percent-encoded."""
+
+        rendered, _ = _render_with_hosts(["EXAMPLE.com/');alert(1);//"])
+
+        self.assertEqual(
+            "https://example.com/%27);alert(1);//json", rendered[0]["_url"])
+
+
+class JavaScriptBuilderProtocolSettingTests(unittest.TestCase):
+
+    @parameterized.expand([
+        ("ftp",), ("ws",), ("javascript",), ("https ",), ("http\u017f",),
+    ])
+    def test_invalid_configured_protocol_is_refused(self, protocol):
+        """A protocol in the settings is used for every request, so one the
+        script cannot send its request with is refused when the builder is
+        created."""
+
+        with self.assertRaises(ValueError):
+            javascriptbuilder.JavascriptBuilderElement({"protocol": protocol})
+
+    @parameterized.expand([("http",), ("https",), ("HTTPS",)])
+    def test_valid_configured_protocol_is_accepted(self, protocol):
+        element = javascriptbuilder.JavascriptBuilderElement(
+            {"protocol": protocol})
+        self.assertEqual(protocol, element.settings["_protocol"])
 
 
 if __name__ == "__main__":

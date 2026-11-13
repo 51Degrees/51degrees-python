@@ -28,7 +28,7 @@ from fiftyone_devicedetection_onpremise.devicedetection_onpremise import DeviceD
 from fiftyone_devicedetection_shared.utils import *
 from fiftyone_devicedetection_onpremise import constants
 
-data_file = "../../cxx/device-detection-data/51Degrees-LiteV4.1.hash"
+data_file = "../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 mobile_ua = ("Mozilla/5.0 (iPhone; CPU iPhone OS 7_1 like Mac OS X) "
             "AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile"
             "/11D167 Safari/9537.53")
@@ -42,6 +42,10 @@ pipeline = PipelineBuilder() \
             .add(deviceDetectionOnPremiseEngine) \
             .build()
 
+# Releases the native engine once every test in the module has run.
+def tearDownModule():
+    pipeline.close()
+
 class PropertyTests(unittest.TestCase):
     def test_available_properties(self):
 
@@ -50,6 +54,7 @@ class PropertyTests(unittest.TestCase):
         """
 
         flowData = pipeline.create_flowdata()
+        self.addCleanup(flowData.close)
         flowData.evidence.add("header.user-agent", mobile_ua)
         flowData.process()
         device = flowData.device
@@ -75,6 +80,7 @@ class PropertyTests(unittest.TestCase):
         """
 
         flowData = pipeline.create_flowdata()
+        self.addCleanup(flowData.close)
         flowData.evidence.add("header.user-agent", mobile_ua)
         flowData.process()
 
@@ -110,6 +116,7 @@ class PropertyTests(unittest.TestCase):
         """
 
         flowData = pipeline.create_flowdata()
+        self.addCleanup(flowData.close)
         flowData.evidence.add("header.user-agent", mobile_ua)
         flowData.process()
         device = flowData.device

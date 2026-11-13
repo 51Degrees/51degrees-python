@@ -50,6 +50,10 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_shared.example_constants import EVIDENCE_VALUES
 from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=enterprise-data-file"
+
 bgRed = "\u001b[41m"
 fgWhite = "\u001b[37;1m"
 colReset = "\u001b[0m"
@@ -60,15 +64,15 @@ class MetaDataConsole():
         # In this example, we use the DeviceDetectionPipelineBuilder
         # and configure it in code. For more information about
         # pipelines in general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
+        # https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
         pipeline = DeviceDetectionPipelineBuilder(
             data_file_path = data_file,
             # We use the low memory profile as its performance is
             # sufficient for this example. See the documentation for
             # more detail on this and other configuration options:
             # https://51degrees.com/documentation/_device_detection__features__performance_options.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
-            # https://51degrees.com/documentation/_features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
-            # https://51degrees.com/documentation/_features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
+            # https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
+            # https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=run
             performance_profile = "LowMemory",
             # inhibit sharing usage for this test, usually this
             # should be set "true"
@@ -76,10 +80,17 @@ class MetaDataConsole():
             # Inhibit auto-update of the data file for this example
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
-        self.outputProperties(pipeline.get_element("device"), output)
-        self.outputEvidenceKeyDetails(pipeline.get_element("device"), output)
 
-        ExampleUtils.check_data_file(pipeline, logger)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            self.outputProperties(pipeline.get_element("device"), output)
+            self.outputEvidenceKeyDetails(pipeline.get_element("device"), output)
+
+            ExampleUtils.check_data_file(pipeline, logger)
+            if ExampleUtils.is_lite_data_file(pipeline.get_element("device")):
+                output("")
+                output(ExampleUtils.get_enterprise_offer(CONTACT_US))
 
 
     def outputEvidenceKeyDetails(self, engine, output):
@@ -116,9 +127,9 @@ def main(argv):
     # a command line parameter.
     #
     # Note that the Lite data file is only used for illustration, and has
-    # limited accuracy and capabilities.
-    # Find out about the Enterprise data file on our pricing page:
-    # https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=main
+    # a small number of Properties.
+    # Contact us for a copy of the Enterprise data file:
+    # https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-metadata_console.py&utm_term=main
     data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
     
     # Configure a logger to output to the console.
@@ -129,8 +140,9 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find a device detection data file. Make sure the " +
-            "device-detection-data submodule has been updated by running " +
-            "`git submodule update --recursive`.")
+            "data submodule is there, by running " +
+            "`git submodule update --init --recursive`, and run this " +
+            "example again to download the file.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

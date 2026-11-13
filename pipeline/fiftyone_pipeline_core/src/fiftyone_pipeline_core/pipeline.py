@@ -33,7 +33,7 @@ class Pipeline:
 
     """
 
-    def __init__(self, flow_elements, logger=Logger(), suppress_process_exceptions = False, data_file_update_service = None):
+    def __init__(self, flow_elements, logger=Logger(), suppress_process_exceptions = False, data_file_update_service = None, auto_close_elements = True):
 
         """!
         Pipeline constructor.
@@ -49,6 +49,12 @@ class Pipeline:
         exceptions added to FlowData.errors otherwise will throw the exception
         occurred during the processing of first element.
 
+        @type auto_close_elements: boolean
+        @param auto_close_elements: If true, the default, closing the
+        pipeline closes its flow elements. Set it to false when the elements
+        are shared with another pipeline, and close each element once every
+        pipeline using it is finished with.
+
         @rtype: Pipeline
         @return: Returns a Pipeline
 
@@ -63,6 +69,8 @@ class Pipeline:
         self.flow_elements_display_list = []
 
         self.suppress_process_exceptions = suppress_process_exceptions
+
+        self.auto_close_elements = auto_close_elements
   
         if data_file_update_service != None:
             self.data_file_update_service = data_file_update_service
@@ -91,6 +99,44 @@ class Pipeline:
         """
 
         return FlowData(self)
+
+    def close(self):
+
+        """!
+        Close the flow elements, which releases the native data they hold
+        and stops the updates of their data files, unless the pipeline was
+        built with auto_close_elements set to false. Use a with statement
+        so that this happens when the pipeline is finished with.
+
+        FlowData created by the pipeline are not closed by it. Close each
+        one as well, because the results it holds keep the engine's data in
+        memory until they are released.
+
+        """
+
+        if not self.auto_close_elements:
+            return
+
+        # Every element is closed even if one fails, and the first failure
+        # is raised once they all have been.
+        failure = None
+        for flow_element in self.flow_elements:
+            close = getattr(flow_element, "close", None)
+            if close is None:
+                continue
+            try:
+                close()
+            except Exception as e:
+                if failure is None:
+                    failure = e
+        if failure is not None:
+            raise failure
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        self.close()
 
     def log(self, level, message):
 

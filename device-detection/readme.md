@@ -1,8 +1,8 @@
 # 51Degrees Device Detection Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "THE Fastest and Most Accurate Device Detection") **v4 Device Detection Python**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **v4 Device Detection Python**
 
-[Developer Documentation](https://51degrees.com/device-detection-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "View all available properties and values")
+[Developer Documentation](https://51degrees.com/documentation/_device_detection__quickstart.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "Developer Documentation") | [Available Properties](https://51degrees.com/resources/property-dictionary?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-device-detection-engines "View all available properties and values")
 
 ## Introduction
 
@@ -24,8 +24,7 @@ git submodule update --init --recursive
 
 ## Dependencies
 
-For runtime dependencies, see our [dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page.
-The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows 
+The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows 
 the Python versions that we currently test against. The software may run fine against other versions, 
 but additional caution should be applied.
 
@@ -35,29 +34,32 @@ The API can either use our cloud service to get its data or it can use a local (
 
 #### Cloud
 
-You will require a [resource key](https://51degrees.com/documentation/_info__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud)
+You will require a [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud)
 to use the Cloud API. You can create resource keys using our 
 [configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud), see our 
-[documentation](https://51degrees.com/documentation/_concepts__configurator.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud) on how to use this.
+[documentation](https://51degrees.com/documentation/_services__configurator.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=cloud) on how to use this.
 
 #### On-Premise
 
 In order to perform device detection on-premise, you will need to use a 51Degrees data file. 
-This repository includes a free, 'lite' file in the 'device-detection-data' sub-module that has a 
-significantly reduced set of properties. To obtain a file with a more complete set of device 
-properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=on-premise). If you want to use the lite 
-file, you will need to install [GitLFS](https://git-lfs.github.com/):
+A free, 'lite' file is available, with a significantly reduced set of properties. To obtain a
+file with a more complete set of device properties see the [51Degrees website](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=on-premise).
+
+The lite file is not stored in a repository. The [data](https://github.com/51Degrees/data)
+repository, which is the `cxx/data` submodule, links to it from
+`cxx/data/device-detection`. Download it from the root of this repository by running:
 
 ```
-sudo apt-get install git-lfs
-git lfs install
+sh cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash
 ```
 
-Then, navigate to 'src/fiftyone_devicedetection_onpremise/cxx/device-detection-data' and execute:
+or, in PowerShell:
 
 ```
-git lfs pull
+./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash
 ```
+
+The examples run this for themselves when the file is missing.
 
 ## Folders
 
@@ -173,15 +175,15 @@ python -m pip install -e fiftyone_devicedetection_shared/
 
 ### Running examples
 To run an example - run a corresponding Python module specifying its full namespace.  
-For cloud examples please provide a `resource_key` as an environment variable, f.e.:
+For cloud examples please provide a `_51DEGREES_RESOURCE_KEY` as an environment variable, f.e.:
 
 ```bash
-resource_key=<your_resource_key> python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console
+_51DEGREES_RESOURCE_KEY=<your_resource_key> python -m fiftyone_devicedetection_examples.cloud.gettingstarted_console
 ```
 
-For some of the onpremise examples you might need to provide a `license_key` as an environment variable, f.e.:
+For some of the onpremise examples you might need to provide a `_51DEGREES_LICENSE_KEY` as an environment variable, f.e.:
 ```bash
-license_key=<your_license_key> python -m fiftyone_devicedetection_examples.onpremise.datafileupdate_console
+_51DEGREES_LICENSE_KEY=<your_license_key> python -m fiftyone_devicedetection_examples.onpremise.datafileupdate_console
 ```
 
 ```bash

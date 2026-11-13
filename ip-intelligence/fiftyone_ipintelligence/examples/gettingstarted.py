@@ -24,7 +24,7 @@ from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligenc
 
 # First create the IP intelligence pipeline with the desired settings.
 
-data_file = "../assets/51Degrees-LiteIpiV41.ipi"
+data_file = "../../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
 resource_key = "!!YOUR_RESOURCE_KEY!!"
 
 # Uncommment the line below 'On-Premise' and comment the line below 'Cloud' to
@@ -35,45 +35,48 @@ pipeline = IpIntelligencePipelineBuilder(data_file_path = data_file, licence_key
 # Cloud
 #pipeline = IpIntelligencePipelineBuilder(resource_key = resource_key).build()
 
-# We create a FlowData object from the pipeline
-# this is used to add evidence to and then process
+# The pipeline is closed at the end of the with block, which releases the
+# native data it holds.
+with pipeline:
+    # We create a FlowData object from the pipeline
+    # this is used to add evidence to and then process. It is closed at the
+    # end of its with block, which releases the results of the lookup.
+    with pipeline.create_flowdata() as flowdata1:
 
-flowdata1 = pipeline.create_flowdata()
+        # Here we add an IPv4 address as evidence
 
-# Here we add an IPv4 address as evidence
+        ipv4_address = "185.28.167.78"
 
-ipv4_address = "185.28.167.78"
+        flowdata1.evidence.add("query.client-ip", ipv4_address)
 
-flowdata1.evidence.add("query.client-ip", ipv4_address)
+        # Now we process the FlowData
 
-# Now we process the FlowData
+        flowdata1.process()
 
-flowdata1.process()
+        # To find the name the IP range is registered under we look at the
+        # registeredname property inside the IP Intelligence Engine
 
-# To find the name the IP range is registered under we look at the
-# registeredname property inside the IP Intelligence Engine
+        # first we check if this has a meaningful result
 
-# first we check if this has a meaningful result
+        print("What is IP address " + ipv4_address + " registered as? ")
+        if flowdata1.ip.registeredname.has_value():
+            print(flowdata1.ip.registeredname.value())
+        else:
+            # Output why the value isn't meaningful
+            print(flowdata1.ip.registeredname.no_value_message())
 
-print("What is IP address " + ipv4_address + " registered as? ")
-if flowdata1.ip.registeredname.has_value():
-    print(flowdata1.ip.registeredname.value())
-else:
-    # Output why the value isn't meaningful
-    print(flowdata1.ip.registeredname.no_value_message())
+    # Now we do the same with a new IP address, this time an IPv6 one
 
-# Now we do the same with a new IP address, this time an IPv6 one
+    with pipeline.create_flowdata() as flowdata2:
 
-flowdata2 = pipeline.create_flowdata()
+        ipv6_address = "2001:4860:4860::8888"
 
-ipv6_address = "2001:4860:4860::8888"
+        flowdata2.evidence.add("query.client-ip", ipv6_address)
 
-flowdata2.evidence.add("query.client-ip", ipv6_address)
+        flowdata2.process()
 
-flowdata2.process()
-
-print("What is IP address " + ipv6_address + " registered as? ")
-if flowdata2.ip.registeredname.has_value():
-    print(flowdata2.ip.registeredname.value())
-else:
-    print(flowdata2.ip.registeredname.no_value_message())
+        print("What is IP address " + ipv6_address + " registered as? ")
+        if flowdata2.ip.registeredname.has_value():
+            print(flowdata2.ip.registeredname.value())
+        else:
+            print(flowdata2.ip.registeredname.no_value_message())

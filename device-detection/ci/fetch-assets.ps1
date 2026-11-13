@@ -11,7 +11,8 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
     exit 0
 }
 
-$deviceDetectionData = "$PSScriptRoot/../../cxx/device-detection-data"
+$data = "$PSScriptRoot/../../cxx/data"
+$deviceDetectionData = "$data/device-detection"
 
 $assets = '51Degrees-LiteV4.1.hash', '20000 Evidence Records.yml', '20000 User Agents.csv'
 if ($DeviceDetection) {

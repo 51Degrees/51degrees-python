@@ -15,6 +15,10 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
     exit 0
 }
 
+# Before anything installs a package from this checkout, so that each one
+# installs at the version this commit would release it at.
+& (Join-Path $PSScriptRoot 'write-package-versions.ps1') -RepoName $RepoName
+
 Invoke-ProductStep 'setup-environment' $RepoName $PSBoundParameters
 
 # The device detection, IP intelligence and location scripts install the

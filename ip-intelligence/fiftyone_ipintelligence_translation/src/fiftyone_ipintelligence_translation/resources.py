@@ -30,14 +30,15 @@ _PACKAGED_TRANSLATIONS = os.path.join(_PACKAGE_DIR, "translations")
 
 def _find_submodule_translations():
 
-    """Walk up from this package looking for the ip-intelligence-data
-    submodule's Translations directory, used when the package is run from a
-    source checkout rather than an installed distribution."""
+    """Walk up from this package looking for the data repository's
+    Translations directory, cxx/data/ip-intelligence/Translations, used when
+    the package is run from a source checkout rather than an installed
+    distribution."""
 
     current = _PACKAGE_DIR
     for _ in range(8):
         candidate = os.path.join(
-            current, "ip-intelligence-data", "Translations")
+            current, "cxx", "data", "ip-intelligence", "Translations")
         if os.path.isdir(candidate):
             return candidate
         parent = os.path.dirname(current)
@@ -50,9 +51,9 @@ def _find_submodule_translations():
 def _translation_files():
 
     """Return a dict of translation file name -> absolute path. The packaged
-    translations directory is preferred; if it is empty the ip-intelligence-data
-    submodule is used as a fallback (countrycodes at the root, countries under
-    OSM)."""
+    translations directory is preferred; if it is empty the data repository's
+    Translations directory is used as a fallback (countrycodes at the root,
+    countries under OSM)."""
 
     files = {}
 

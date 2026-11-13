@@ -20,24 +20,26 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-"""Live tests against the cloud, run only when a resource key is set.
+"""Live tests against the 51Degrees cloud service.
 
-The key is read from ``resource_key``, the variable the repository's other
-live tests and its CI use, or from ``_51DEGREES_RESOURCE_KEY`` as the
-example reads it. Without either the tests are skipped, not failed. An
-optional licence key is read from ``license_key`` or
-``_51DEGREES_LICENSE_KEY``, and the endpoint from ``FOD_CLOUD_API_URL`` as
-everywhere else. Every test here costs uses against the resource key.
+The resource key is read from the names in ``live_cloud.py``, and every
+test fails when none is set. The key has to carry the FODid product, and
+the CloudV5FODiD product for the marketing usages, which
+``test_did_tier_live.py`` shows a Basic key does not get. An optional
+licence key is read from ``_51DEGREES_LICENSE_KEY``, and
+the endpoint from ``_51DEGREES_CLOUD_ENDPOINT`` as everywhere else. Every test here
+costs uses against the resource key.
 """
 
 import asyncio
 import json
 import os
-import sys
 import unittest
 import urllib.error
 import urllib.parse
 import urllib.request
+
+import pytest
 
 from fiftyone_pipeline_did import (
     ContextResult,
@@ -49,10 +51,21 @@ from fiftyone_pipeline_did import (
 )
 from fiftyone_pipeline_did.did_client import USER_AGENT
 
-RESOURCE_KEY = os.environ.get("resource_key") \
-    or os.environ.get("_51DEGREES_RESOURCE_KEY")
-LICENCE_KEY = os.environ.get("license_key") \
-    or os.environ.get("_51DEGREES_LICENSE_KEY")
+from .live_cloud import (
+    answered_without, find_resource_key, no_resource_key, read_environment)
+
+pytestmark = pytest.mark.live
+
+RESOURCE_KEY = find_resource_key()
+LICENCE_KEY = read_environment("_51DEGREES_LICENSE_KEY", "license_key")
+
+FODID = "the FODid product"
+MARKETING = "the CloudV5FODiD product"
+
+NO_KEY = no_resource_key(
+    FODID + ", and " + MARKETING + " for the marketing usages",
+    "FODiD.IdProbGlobal and FODiD.IdProbLic under each id.usage",
+    several=True)
 
 
 def run(coroutine):
@@ -62,14 +75,27 @@ def run(coroutine):
     return asyncio.run(coroutine)
 
 
-@unittest.skipUnless(
-    RESOURCE_KEY,
-    "set resource_key (or _51DEGREES_RESOURCE_KEY) to run the live tests")
+def null_reason(fodid):
+    """The reason the cloud gave for answering without a 51Did."""
+    return fodid.get("idprobglobalnullreason") \
+        or fodid.get("idproblicnullreason")
+
+
+def no_creator_context(endpoint, detail):
+    """What to fail with when the host does not offer the creator context,
+    which the 51Degrees cloud does."""
+    return ("The cloud service at {0} {1}, so the creator context could not "
+            "be checked. Point _51DEGREES_CLOUD_ENDPOINT at a service that offers "
+            "it, or leave it unset for the 51Degrees cloud.").format(
+                endpoint, detail)
+
+
 class DidClientLiveTests(unittest.TestCase):
 
-    @classmethod
-    def setUpClass(cls):
-        cls.client = DidClient(RESOURCE_KEY, LICENCE_KEY)
+    def setUp(self):
+        if not RESOURCE_KEY:
+            self.fail(NO_KEY)
+        self.client = DidClient(RESOURCE_KEY, LICENCE_KEY)
 
     def create(self):
         """Creates a 51Did through the cloud ``json`` endpoint, the route
@@ -88,10 +114,10 @@ class DidClientLiveTests(unittest.TestCase):
             body = json.loads(response.read().decode("utf-8"))
         fodid = body.get("fodid") or {}
         value = fodid.get("idproblic") or fodid.get("idprobglobal")
-        self.assertTrue(
-            value, "the resource key must include a 51Did property "
-                   "(idprobglobal or idproblic); the json answer was: "
-                   + json.dumps(body)[:300])
+        if not value:
+            self.fail(answered_without(
+                "a 51Did for id.usage=non-marketing", null_reason(fodid),
+                FODID))
         return FodId.from_base64(value)
 
     def test_created_identifier_verifies_offline_and_through_the_cloud(self):
@@ -108,8 +134,10 @@ class DidClientLiveTests(unittest.TestCase):
         try:
             result = run(self.client.redeem(fod_id, "not-base64url!!", "x"))
         except DidNotSupportedError as error:
-            self.skipTest("the host does not offer the creator context: "
-                          + str(error))
+            self.fail(no_creator_context(
+                self.client.endpoint,
+                "answered that it does not offer the creator context ("
+                + str(error) + ")"))
         self.assertEqual(200, result.status_code)
         self.assertEqual(ContextResult.UNREADABLE, result.context)
 
@@ -123,9 +151,8 @@ class DidClientLiveTests(unittest.TestCase):
 
     def identifiers_for(self, name, value):
         """Asks the ``json`` endpoint for a 51Did with the given query
-        parameter and returns every identifier it answered with. An empty
-        list means the resource key is not entitled to that usage, which
-        the caller reports rather than fails."""
+        parameter, and returns every identifier it answered with and the
+        ``fodid`` member, which holds the reason when there is none."""
         url = "{0}{1}.json?{2}&values=FODiD.IdProbGlobal" \
               "&values=FODiD.IdProbLic".format(
                   self.client.endpoint,
@@ -137,11 +164,12 @@ class DidClientLiveTests(unittest.TestCase):
         with urllib.request.urlopen(request, timeout=30) as response:
             body = json.loads(response.read().decode("utf-8"))
         fodid = body.get("fodid") or {}
-        return [
+        identifiers = [
             FodId.from_base64(fodid[field])
             for field in ("idprobglobal", "idproblic")
             if fodid.get(field)
         ]
+        return identifiers, fodid
 
     def assert_aligned(self, label, fod_id, usage, terms, indirect):
         """Asserts the terms and every field the flags byte carries, read
@@ -170,35 +198,23 @@ class DidClientLiveTests(unittest.TestCase):
         ends at the match key and reads as no terms.
         """
         cases = [
-            ("non-marketing", Usage.NON_MARKETING, None),
-            ("standard", Usage.STANDARD, self.MODEL_TERMS_FOR_MARKETING_2),
+            ("non-marketing", Usage.NON_MARKETING, None, FODID),
+            ("standard", Usage.STANDARD, self.MODEL_TERMS_FOR_MARKETING_2,
+             MARKETING),
             ("personalized", Usage.PERSONALIZED,
-             self.MODEL_TERMS_FOR_MARKETING_2),
+             self.MODEL_TERMS_FOR_MARKETING_2, MARKETING),
         ]
 
-        checked = 0
-        for name, usage, terms in cases:
-            identifiers = self.identifiers_for("id.usage", name)
+        for name, usage, terms, product in cases:
+            identifiers, fodid = self.identifiers_for("id.usage", name)
             if not identifiers:
-                print("id.usage={0}: no identifier returned, so this key is "
-                      "not entitled to that usage.".format(name),
-                      file=sys.stderr)
-                continue
+                self.fail(answered_without(
+                    "a 51Did for id.usage=" + name, null_reason(fodid),
+                    product))
             for index, fod_id in enumerate(identifiers):
                 self.assert_aligned(
                     "{0}[{1}]".format(name, index), fod_id, usage, terms,
                     False)
-            if terms is not None:
-                checked += len(identifiers)
-
-        # Reported as a skip rather than printed, because a runner shows
-        # the counts and not the output, so a run that proved nothing would
-        # otherwise look identical to one that proved everything.
-        if checked == 0:
-            self.skipTest(
-                "this resource key returned no marketing 51Did, so no terms "
-                "address was read and this run did not prove it; use a key "
-                "entitled to the standard or personalized usage")
 
     def test_consent_string_sets_the_usage_is_indirect_bit(self):
         """A consent management platform sends an IAB TCF consent string
@@ -219,39 +235,28 @@ class DidClientLiveTests(unittest.TestCase):
         the Appendix 1 standard set of 1, 2, 7, 8 and 11.
         """
         cases = [
-            ("AAAAAAAAAAAAAAAAAAAAAAAAAP_w", Usage.PERSONALIZED),
-            ("AAAAAAAAAAAAAAAAAAAAAAAAAMMg", Usage.STANDARD),
+            ("AAAAAAAAAAAAAAAAAAAAAAAAAP_w", Usage.PERSONALIZED,
+             "personalized"),
+            ("AAAAAAAAAAAAAAAAAAAAAAAAAMMg", Usage.STANDARD, "standard"),
         ]
 
-        proven = 0
-        for tc_string, usage in cases:
+        for tc_string, usage, name in cases:
             # No id.usage is sent. A stated usage wins over a consent
             # string, so sending one would leave the bit clear and this
             # would prove the opposite of what it says.
-            identifiers = self.identifiers_for("tcstring", tc_string)
+            identifiers, fodid = self.identifiers_for("tcstring", tc_string)
             if not identifiers:
-                print("consent string granting {0}: no identifier returned, "
-                      "so this key is not entitled to that marketing "
-                      "usage.".format(usage), file=sys.stderr)
-                continue
+                self.fail(answered_without(
+                    "a 51Did for a consent string granting the " + name
+                    + " usage", null_reason(fodid), MARKETING))
             for index, fod_id in enumerate(identifiers):
                 # A consent string granting a marketing usage produces a
                 # marketing identifier, so the terms travel with it too.
                 self.assert_aligned(
-                    "consent/{0}[{1}]".format(usage, index), fod_id, usage,
+                    "consent/{0}[{1}]".format(name, index), fod_id, usage,
                     self.MODEL_TERMS_FOR_MARKETING_2, True)
-            proven += len(identifiers)
 
-        # Same reasoning as the usage test above.
-        if proven == 0:
-            self.skipTest(
-                "this resource key returned no identifier for either consent "
-                "string, so the usage is indirect bit was never read and "
-                "this run did not prove it")
 
-@unittest.skipUnless(
-    RESOURCE_KEY,
-    "set resource_key (or _51DEGREES_RESOURCE_KEY) to run the live tests")
 class BrowserCreatorContextLiveTests(unittest.TestCase):
     """The whole browser path against the live service, as a page runs it.
 
@@ -264,6 +269,10 @@ class BrowserCreatorContextLiveTests(unittest.TestCase):
     service's contract with every one of these packages, and a name the
     service adds, drops or renames has to be seen here rather than by a
     customer.
+
+    Without a licence key the sealed result cannot be opened, so each test
+    then checks that it redeems as unreadable, which is what a caller with
+    no licence key gets.
     """
 
     # A browser the service will judge as a browser, and a second one
@@ -297,9 +306,10 @@ class BrowserCreatorContextLiveTests(unittest.TestCase):
         "transport", "device", "browserip", "connectionip", "asn",
         "platformname", "platformversion", "browsername", "browserversion")
 
-    @classmethod
-    def setUpClass(cls):
-        cls.client = DidClient(RESOURCE_KEY, LICENCE_KEY)
+    def setUp(self):
+        if not RESOURCE_KEY:
+            self.fail(NO_KEY)
+        self.client = DidClient(RESOURCE_KEY, LICENCE_KEY)
 
     def get(self, url, user_agent):
         request = urllib.request.Request(
@@ -325,14 +335,10 @@ class BrowserCreatorContextLiveTests(unittest.TestCase):
         value = fodid.get("idproblic") or fodid.get("idprobglobal")
         if not value:
             # The probabilistic reason in full, because it names every
-            # snippet result the service is still waiting for, and a cut
-            # dump of the whole member hides them behind the email ones.
-            reason = fodid.get("idprobglobalnullreason") \
-                or fodid.get("idproblicnullreason") \
-                or json.dumps(fodid)[:300]
-            self.skipTest(
-                "this resource key returned no identifier for a browser "
-                "shaped request: " + reason)
+            # snippet result the service is still waiting for.
+            self.fail(answered_without(
+                "a 51Did for a browser shaped request with id.usage="
+                + usage, null_reason(fodid), MARKETING))
         return FodId.from_base64(value)
 
     def verify_context(self, fod_id, user_agent):
@@ -346,13 +352,16 @@ class BrowserCreatorContextLiveTests(unittest.TestCase):
             urllib.parse.urlencode(query))
         status, body = self.get(url, user_agent)
         if status == 404:
-            self.skipTest("the host does not offer the creator context")
+            self.fail(no_creator_context(
+                self.client.endpoint,
+                "answered 404 from id/verify-context"))
         self.assertEqual(200, status, body[:300])
         answer = json.loads(body)
         if "result" not in answer:
-            self.skipTest(
-                "this host holds no context secret, so it answered in the "
-                "open with " + body[:200])
+            self.fail(no_creator_context(
+                self.client.endpoint,
+                "holds no creator context secret, so it answered in the "
+                "open with " + body[:200]))
         return answer["result"]
 
     def test_a_page_creates_reads_back_verifies_and_redeems(self):
@@ -364,19 +373,18 @@ class BrowserCreatorContextLiveTests(unittest.TestCase):
         result = self.verify_context(fod_id, self.CHROME)
         redeemed = run(self.client.redeem(fod_id, result))
         if not self.client.has_licence_key:
-            # Without a licence key the sealed result cannot be opened,
-            # which the service reports as unreadable.
             self.assertEqual(ContextResult.UNREADABLE, redeemed.context)
-            self.skipTest("set license_key to redeem a sealed result")
+            return
         self.assertEqual(ContextResult.VERIFIED, redeemed.context)
         self.assertEqual("verified", redeemed.signature.value)
 
     def test_another_browser_redeems_as_a_mismatch_naming_every_factor(self):
-        if not LICENCE_KEY:
-            self.skipTest("set license_key to redeem a sealed result")
         fod_id = self.create()
         result = self.verify_context(fod_id, self.SAFARI)
         redeemed = run(self.client.redeem(fod_id, result))
+        if not self.client.has_licence_key:
+            self.assertEqual(ContextResult.UNREADABLE, redeemed.context)
+            return
         self.assertEqual(ContextResult.MISMATCH, redeemed.context)
         self.assertEqual("verified", redeemed.signature.value,
                          "the identifier is genuine whichever browser "

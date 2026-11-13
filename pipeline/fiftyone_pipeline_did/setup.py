@@ -41,7 +41,11 @@ setuptools.setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
-    url="https://51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-setup.py&utm_term=url",
+    project_urls={
+        "Homepage": "https://51degrees.com/developers/51did?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did&utm_term=homepage",
+        "Documentation": "https://51degrees.com/documentation/_identifiers_51_did.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did&utm_term=documentation",
+        "Source": "https://github.com/51Degrees/51degrees-python",
+    },
     description=("Strongly typed reader and cloud client for the 51Did (51Degrees Identifier) value returned by the 51Degrees Cloud service. Parses the OWID envelope in either base64 alphabet and exposes the Flags, License Id and match key plus the identifier type, and verifies a 51Did's signature offline or through the cloud and redeems a sealed creator context result on the server. Compare match keys, never envelopes."),
     long_description=read("readme.md"),
     long_description_content_type='text/markdown',

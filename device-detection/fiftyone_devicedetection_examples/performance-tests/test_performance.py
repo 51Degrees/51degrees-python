@@ -48,16 +48,18 @@ def detect(app, pipeline, user_agents):
         # in flowdata.process(). This mock-request doesn't set it, so we set it manually
         request.remote_addr = "127.0.0.1"
 
-        flowdata = pipeline.create_flowdata()
+        # The FlowData is closed when the function returns, which releases
+        # the results of the detection straight away.
+        with pipeline.create_flowdata() as flowdata:
 
-        # Add any information from the request (headers, cookies and additional 
-        # client side provided information)
-        flowdata.evidence.add_from_dict(webevidence(request))
+            # Add any information from the request (headers, cookies and additional 
+            # client side provided information)
+            flowdata.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowdata
-        flowdata.process()
+            # Process the flowdata
+            flowdata.process()
 
-        return getValueHelper(flowdata, "device", "ismobile")
+            return getValueHelper(flowdata, "device", "ismobile")
 
 def benchmark(data_file, user_agents_file, output=False):
     app = Flask(__name__)
@@ -73,13 +75,16 @@ def benchmark(data_file, user_agents_file, output=False):
         settings = { "add_javascript_builder": False },
     ).build()
 
-    with open(user_agents_file) as f:
-        user_agents_list = [ua.rstrip() for ua in f]
-    user_agents = iter(user_agents_list)
+    # The pipeline is closed once the detections have been timed, which
+    # releases the native data it holds.
+    with pipeline:
+        with open(user_agents_file) as f:
+            user_agents_list = [ua.rstrip() for ua in f]
+        user_agents = iter(user_agents_list)
 
-    print(f"Benchmarking with {len(user_agents_list)} user agents", file=sys.stderr)
-    environment = {"detect": detect, "app": app, "pipeline": pipeline, "user_agents": user_agents}
-    time = timeit("detect(app, pipeline, user_agents)", globals=environment, number=len(user_agents_list))
+        print(f"Benchmarking with {len(user_agents_list)} user agents", file=sys.stderr)
+        environment = {"detect": detect, "app": app, "pipeline": pipeline, "user_agents": user_agents}
+        time = timeit("detect(app, pipeline, user_agents)", globals=environment, number=len(user_agents_list))
 
     if output:
         json.dump({

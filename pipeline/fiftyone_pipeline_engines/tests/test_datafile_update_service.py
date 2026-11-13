@@ -73,9 +73,15 @@ class ScheduledCheck:
         self.pending = pending
         self.function = function
         self.args = args
+        self.cancelled = False
 
     def start(self):
         self.pending.append(self)
+
+    def cancel(self):
+        self.cancelled = True
+        if self in self.pending:
+            self.pending.remove(self)
 
 
 class FileSystemWatcherTests(unittest.TestCase):
@@ -113,6 +119,43 @@ class FileSystemWatcherTests(unittest.TestCase):
         check = self.pending.pop(0)
         check.function(*check.args)
 
+    # The watcher runs on its own setting, whether or not automatic updates
+    # are on. Watching a file downloads nothing, so a data file with no
+    # licence key, whose automatic updates are off, is still watched.
+    def testTheWatcherRunsOnItsOwnSetting(self):
+        for name, automatic, watcher in (
+                ("watcher on, automatic updates on", True, True),
+                ("watcher on, automatic updates off", False, True),
+                ("watcher off, automatic updates on", True, False)):
+            with self.subTest(name):
+                self.write("version 1")
+                self.pending.clear()
+                pipeline = RecordingPipeline()
+                service = DataFileUpdateService(pipeline)
+                data_file = StandInDataFile(self.path)
+                data_file.auto_update = automatic
+                data_file.file_system_watcher = watcher
+                data_file.polling_interval = 30
+                data_file.update_time_maximum_randomisation = 0
+                service.register_data_file(data_file)
+
+                watches = [
+                    check for check in self.pending
+                    if check.function == service.track_local_data_file_changes]
+                self.assertEqual(1 if watcher else 0, len(watches), name)
+                self.assertEqual(
+                    watcher,
+                    ("info", "Creating file system watcher") in pipeline.logs,
+                    name)
+
+                self.write("version 2")
+                for check in watches:
+                    check.function(*check.args)
+                self.assertEqual(
+                    "version 2" if watcher else "version 1", data_file.data,
+                    name)
+                service.unregister_data_file(data_file)
+
     # A refresh that fails is logged and reported, the data in use is kept,
     # and a later good file is picked up.
     def testFileSystemWatcherKeepsWatchingAfterFailedRefresh(self):
@@ -123,15 +166,53 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.run_next_check()
         self.assertEqual("version 1", data_file.data)
         self.assertEqual(
-            [UpdateStatus.AUTO_UPDATE_REFRESH_FAILED], self.statuses)
-        self.assertEqual(1, len(self.pipeline.logs))
-        self.assertEqual("error", self.pipeline.logs[0][0])
-        self.assertIn("The data file cannot be used.", self.pipeline.logs[0][1])
+            UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, self.statuses[-1])
+        errors = [log for log in self.pipeline.logs if log[0] == "error"]
+        self.assertEqual(1, len(errors))
+        self.assertIn(
+            "Error during check for data update. Error detail: An error "
+            "occurred when applying a data update to engine 'StandInDataFile' "
+            "after 1 tries.",
+            errors[0][1])
         self.assertEqual(1, len(self.pending))
 
         self.write("version 2")
         self.run_next_check()
         self.assertEqual("version 2", data_file.data)
+
+    # The watcher's refresh takes the same route as the polling one, so it
+    # logs the attempt, uses the table's failure message and level, and
+    # reports success to the update complete callbacks.
+    def testFileSystemWatcherRefreshIsRoutedAsPollingIs(self):
+        data_file = StandInDataFile(self.path)
+        self.service.register_data_file(data_file)
+
+        self.write("version 2")
+        self.run_next_check()
+
+        self.assertEqual("version 2", data_file.data)
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, self.statuses[-1])
+        attempts = [log for log in self.pipeline.logs
+                    if "Attempting to refresh Engine" in log[1]]
+        self.assertEqual(1, len(attempts))
+        self.assertEqual("info", attempts[0][0])
+
+    # A refresh that fails from the watcher carries the message and level of
+    # the specification's errors table, as the polling route's does.
+    def testFileSystemWatcherFailedRefreshUsesTheTableMessage(self):
+        data_file = StandInDataFile(self.path)
+        self.service.register_data_file(data_file)
+
+        self.write("unusable")
+        self.run_next_check()
+
+        errors = [log for log in self.pipeline.logs if log[0] == "error"]
+        self.assertEqual(1, len(errors))
+        self.assertIn(
+            "Error during check for data update. Error detail: An error "
+            "occurred when applying a data update to engine 'StandInDataFile' "
+            "after 1 tries.",
+            errors[0][1])
 
     # A file that is missing at a check, for example part way through being
     # replaced, is looked for again at the next check.
@@ -148,6 +229,39 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.assertEqual("version 2", data_file.data)
         self.assertNotIn(
             UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, self.statuses)
+
+    # Unregistering, as closing the engine does, cancels the next check, and
+    # a check already running neither refreshes nor schedules another, so
+    # nothing is left holding the data file.
+    def testUnregisterStopsFileSystemWatcher(self):
+        data_file = StandInDataFile(self.path)
+        self.service.register_data_file(data_file)
+        check = self.pending[0]
+
+        self.service.unregister_data_file(data_file)
+        self.assertTrue(check.cancelled)
+        self.assertEqual(0, len(self.pending))
+
+        self.write("version 2")
+        check.function(*check.args)
+        self.assertEqual("version 1", data_file.data)
+        self.assertEqual(0, len(self.pending))
+
+    # Unregistering cancels the next automatic update, and an update that
+    # starts afterwards does nothing.
+    def testUnregisterStopsAutomaticUpdates(self):
+        data_file = StandInDataFile(self.path)
+        data_file.file_system_watcher = False
+        data_file.auto_update = True
+        data_file.polling_interval = 30
+        data_file.update_time_maximum_randomisation = 0
+        self.service.register_data_file(data_file)
+        check = self.pending[0]
+
+        self.service.unregister_data_file(data_file)
+        self.assertTrue(check.cancelled)
+        self.assertEqual(0, len(self.pending))
+        self.assertFalse(self.service.update_data_file(data_file))
 
 
 if __name__ == "__main__":

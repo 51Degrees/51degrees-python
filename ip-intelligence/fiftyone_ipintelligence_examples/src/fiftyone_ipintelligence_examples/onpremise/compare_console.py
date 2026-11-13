@@ -30,8 +30,8 @@
 # an IP-to-location service compare to real world information, especially
 # when evaluating different solutions.
 #
-# The input CSV (geoip_comparison_evidence.csv in the ip-intelligence-data
-# repository) provides these fields:
+# The input CSV (geoip_comparison_evidence.csv in the data repository's
+# ip-intelligence folder) provides these fields:
 #   DateTimeUtc, Latitude, Longitude, Ip, AddressFamily, Continent, Country
 #
 # For each record the engine is used to obtain the latitude and longitude
@@ -39,9 +39,10 @@
 # true location and the returned location is then calculated, along with the
 # location confidence and whether an area was returned.
 #
-# This example requires an enterprise IP intelligence data file (.ipi). To
-# obtain an enterprise data file for testing, please contact us:
-# https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-compare_console.py&utm_term=top
+# This example needs the location properties only the Enterprise IP
+# intelligence data file has. With the free Lite data file, which it uses by
+# default, it says which and stops. To obtain an Enterprise data file, please
+# contact us: https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-compare_console.py&utm_term=top
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -54,10 +55,18 @@ import sys
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
-from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 
-# Name of the truth CSV file in the ip-intelligence-data repository.
+# Name of the truth CSV file in the data repository.
 GEOIP_COMPARISON_EVIDENCE_FILE_NAME = "geoip_comparison_evidence.csv"
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-compare_console.py&utm_term=enterprise-data-file"
+
+# The properties the comparison reads, which only the Enterprise data file
+# has.
+LOCATION_PROPERTIES = ["Latitude", "Longitude", "LocationConfidence", "Country"]
 
 # Mean radius of the earth in kilometres, used for the distance calculation.
 EARTH_RADIUS_KM = 6371.0
@@ -96,65 +105,70 @@ class CompareConsole():
             auto_update = False,
             licence_keys = "").add_logger(logger).build()
 
-        ExampleUtils.check_data_file(pipeline, logger)
+        # The pipeline is closed at the end of the with block, which
+        # releases the native data it holds.
+        with pipeline:
+            ExampleUtils.check_data_file(pipeline, logger)
 
-        writer = csv.DictWriter(output, fieldnames=OUTPUT_FIELDS)
-        writer.writeheader()
+            writer = csv.DictWriter(output, fieldnames=OUTPUT_FIELDS)
+            writer.writeheader()
 
-        processed = 0
-        found = 0
-        with open(truth_file, "r", newline="", encoding="utf-8") as fin:
-            for truth in csv.DictReader(fin):
-                if processed >= record_limit:
-                    break
-                processed += 1
-                result = self.compare(pipeline, truth)
-                if result["Found"]:
-                    found += 1
-                writer.writerow(result)
+            processed = 0
+            found = 0
+            with open(truth_file, "r", newline="", encoding="utf-8") as fin:
+                for truth in csv.DictReader(fin):
+                    if processed >= record_limit:
+                        break
+                    processed += 1
+                    result = self.compare(pipeline, truth)
+                    if result["Found"]:
+                        found += 1
+                    writer.writerow(result)
 
-        logger.log("info",
-            f"Compared {processed} records; {found} resolved to a location")
+            logger.log("info",
+                f"Compared {processed} records; {found} resolved to a location")
 
     def compare(self, pipeline, truth):
 
-        data = pipeline.create_flowdata()
-        data.evidence.add_from_dict({"query.client-ip": truth["Ip"]})
-        data.process()
-        ip_data = data.ip
+        # The FlowData is closed when the method returns, which releases the
+        # results of the lookup straight away.
+        with pipeline.create_flowdata() as data:
+            data.evidence.add_from_dict({"query.client-ip": truth["Ip"]})
+            data.process()
+            ip_data = data.ip
 
-        row = {
-            "DateTimeUtc": truth.get("DateTimeUtc", ""),
-            "Ip": truth.get("Ip", ""),
-            "AddressFamily": truth.get("AddressFamily", ""),
-            "TruthLatitude": truth.get("Latitude", ""),
-            "TruthLongitude": truth.get("Longitude", ""),
-            "TruthCountry": truth.get("Country", ""),
-            "ResultLatitude": "",
-            "ResultLongitude": "",
-            "ResultCountry": ExampleUtils.get_human_readable(ip_data, "country"),
-            "Confidence": ExampleUtils.get_human_readable(ip_data, "locationconfidence"),
-            "Found": False,
-            "DistanceKms": "",
-        }
+            row = {
+                "DateTimeUtc": truth.get("DateTimeUtc", ""),
+                "Ip": truth.get("Ip", ""),
+                "AddressFamily": truth.get("AddressFamily", ""),
+                "TruthLatitude": truth.get("Latitude", ""),
+                "TruthLongitude": truth.get("Longitude", ""),
+                "TruthCountry": truth.get("Country", ""),
+                "ResultLatitude": "",
+                "ResultLongitude": "",
+                "ResultCountry": ExampleUtils.get_human_readable(ip_data, "country"),
+                "Confidence": ExampleUtils.get_human_readable(ip_data, "locationconfidence"),
+                "Found": False,
+                "DistanceKms": "",
+            }
 
-        latitude = ExampleUtils.get_value(ip_data, "latitude")
-        longitude = ExampleUtils.get_value(ip_data, "longitude")
-        if latitude is not None and latitude.has_value() and \
-                longitude is not None and longitude.has_value():
-            row["ResultLatitude"] = latitude.value()
-            row["ResultLongitude"] = longitude.value()
-            row["Found"] = True
-            try:
-                row["DistanceKms"] = round(haversine_km(
-                    float(truth["Latitude"]), float(truth["Longitude"]),
-                    float(latitude.value()), float(longitude.value())), 3)
-            except (ValueError, TypeError):
-                # The truth record did not provide a usable latitude or
-                # longitude, so the distance cannot be calculated.
-                row["DistanceKms"] = ""
+            latitude = ExampleUtils.get_value(ip_data, "latitude")
+            longitude = ExampleUtils.get_value(ip_data, "longitude")
+            if latitude is not None and latitude.has_value() and \
+                    longitude is not None and longitude.has_value():
+                row["ResultLatitude"] = latitude.value()
+                row["ResultLongitude"] = longitude.value()
+                row["Found"] = True
+                try:
+                    row["DistanceKms"] = round(haversine_km(
+                        float(truth["Latitude"]), float(truth["Longitude"]),
+                        float(latitude.value()), float(longitude.value())), 3)
+                except (ValueError, TypeError):
+                    # The truth record did not provide a usable latitude or
+                    # longitude, so the distance cannot be calculated.
+                    row["DistanceKms"] = ""
 
-        return row
+            return row
 
 
 def main(argv):
@@ -170,12 +184,19 @@ def main(argv):
         help="Maximum number of truth records to process")
     args = ap.parse_args(argv)
 
-    data_file = args.data_file or ExampleUtils.find_file(ENTERPRISE_DATAFILE_NAME)
+    data_file = args.data_file or ExampleUtils.find_file(LITE_DATAFILE_NAME)
     truth_file = args.truth_file or ExampleUtils.find_file(
         GEOIP_COMPARISON_EVIDENCE_FILE_NAME)
 
     logger = Logger(min_level="info")
 
+    if data_file and ExampleUtils.lacks_enterprise_properties(
+            data_file,
+            "Comparing known locations with IP Intelligence",
+            LOCATION_PROPERTIES,
+            print,
+            CONTACT_US):
+        return
     if data_file and truth_file:
         with open(args.output_file, "w", newline="", encoding="utf-8") as fout:
             CompareConsole().run(
@@ -184,8 +205,8 @@ def main(argv):
     else:
         logger.log("error",
             "Failed to find a data file or truth file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`. To obtain an enterprise "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`. To obtain an enterprise "
             "data file for testing, please contact us: "
             "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-compare_console.py&utm_term=data-file-required")
 

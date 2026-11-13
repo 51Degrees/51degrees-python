@@ -50,7 +50,7 @@ class GettingStartedConsole():
 
         # In this example, we use the PipelineBuilder and configure it from a file.
         # For more information about builders in general see the documentation at
-        # https://51degrees.com/documentation/_concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=run
+        # https://51degrees.com/documentation/_pipeline_api__concepts__configuration__builders__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=run
 
         # Create the pipeline using the service provider and the configured options.
         pipeline = PipelineBuilder().add_logger(logger).build_from_configuration(config)
@@ -174,7 +174,7 @@ def main(argv):
             f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. The 51Degrees cloud " +
             "service is accessed using a 'ResourceKey'. For more information " +
             "see " +
-            "https://51degrees.com/documentation/_info__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this example can be " +
             "created for free at https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. " +
             "Once complete, populate the config file or environment variable " +

@@ -62,9 +62,9 @@ class AspectData(ElementData):
         @return The value stored under the chosen key
         """
         
-        if hasattr(self.flow_element, "restricted_properties"):
+        if hasattr(self.flow_element, "restricted_property_keys"):
 
-            if not key in self.flow_element.restricted_properties:
+            if key.lower() not in self.flow_element.restricted_property_keys:
                 raise Exception("Property " + key + " was excluded from " + self.flow_element.datakey)  
 
         try:

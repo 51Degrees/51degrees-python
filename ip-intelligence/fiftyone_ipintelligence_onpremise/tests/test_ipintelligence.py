@@ -37,7 +37,7 @@ data_file = TestConstants.get_data_file_path()
 @unittest.skipUnless(
     os.path.isfile(data_file),
     "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
-    "or set the IPINTELLIGENCEDATAFILE environment variable." % data_file)
+    "or set the _51DEGREES_IPI_PATH environment variable." % data_file)
 class IpIntelligenceOnPremiseTests(unittest.TestCase):
 
     @classmethod
@@ -49,8 +49,13 @@ class IpIntelligenceOnPremiseTests(unittest.TestCase):
             .add(cls.engine) \
             .build()
 
+    @classmethod
+    def tearDownClass(cls):
+        cls.pipeline.close()
+
     def process(self, key, value):
         flowdata = self.pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
         flowdata.evidence.add(key, value)
         flowdata.process()
         return flowdata
@@ -133,6 +138,24 @@ class IpIntelligenceOnPremiseTests(unittest.TestCase):
         ipv6 = flowdata.ip.get("ipv6")
         self.assertTrue(ipv6.has_value())
 
+    def test_flowdata_close_releases_results(self):
+        """!
+        Closing the FlowData releases its native results, and reading a
+        property afterwards raises an exception.
+        """
+
+        with self.pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add(
+                "query.client-ip", TestConstants.IPV4_ADDRESS)
+            flowdata.process()
+            registered_name = flowdata.ip.get("registeredname")
+
+        self.assertTrue(registered_name.has_value())
+        self.assertIsNone(flowdata.ip.swig_results)
+        with self.assertRaises(Exception) as context:
+            flowdata.ip.get("registeredname")
+        self.assertIn("closed", str(context.exception))
+
     def test_missing_property(self):
         """!
         Accessing a property that does not exist raises an exception
@@ -171,48 +194,49 @@ class IpIntelligenceOnPremiseTests(unittest.TestCase):
         self.assertIn("licence key is required", str(context.exception))
 
 
-class CommittedDataFileTests(unittest.TestCase):
+class AsnDataFileTests(unittest.TestCase):
     """!
-    The native engine accepts exactly one data file format version, so the
-    cxx (51degrees-cxx) pin and the ip-intelligence-data pin must agree.
-    They once did not: the engine moved to format 4.6 while the data pin
-    still held the 4.5 ASN file. These tests open the ASN file committed to
-    the data submodule, which needs no download or secret, so pins that
-    disagree fail here on any machine.
+    The native engine accepts exactly one data file format version. These
+    tests open the free ASN data file. The Distributor always serves the
+    latest one published, and it needs no secret, so an engine that cannot
+    read the format 51Degrees publishes fails here on any machine.
 
-    They do not prove the engine reads the data files 51Degrees publishes.
-    That is IpIntelligenceOnPremiseTests above, against the Lite or
-    Enterprise file CI downloads; it skips when neither is present.
+    IpIntelligenceOnPremiseTests above runs against the Lite or Enterprise
+    file CI downloads, and skips when neither is present.
     test_onpremise_datafile_loads in the examples package also opens the
     ASN file, but it skips silently when the file is not found and it runs
     after the examples build, so it is not relied on here.
     """
 
-    def test_committed_data_file_present(self):
+    def test_asn_data_file_present(self):
         """!
-        The committed data file exists. If it does not, the
-        ip-intelligence-data submodule was not checked out, and the test
+        The ASN data file has been downloaded. If it has not, the test
         below would prove nothing.
         """
 
         self.assertTrue(
-            os.path.isfile(TestConstants.get_committed_data_file_path()),
-            "Run 'git submodule update --init --recursive'.")
+            os.path.isfile(TestConstants.get_asn_data_file_path()),
+            "Download it from the repository root by running "
+            "'sh cxx/data/get-data-files.sh 51Degrees-IPIV4AsnIpiV41.ipi', "
+            "or './cxx/data/get-data-files.ps1 51Degrees-IPIV4AsnIpiV41.ipi' "
+            "in PowerShell.")
 
-    def test_committed_data_file_opens(self):
+    def test_asn_data_file_opens(self):
         """!
-        The engine opens the committed data file, so it reads that file's
-        format version, and returns its properties for an IPv4 address.
+        The engine opens the ASN data file, so it reads that file's format
+        version, and returns its properties for an IPv4 address.
         """
 
         engine = IpIntelligenceOnPremise(
-            data_file_path=TestConstants.get_committed_data_file_path(),
+            data_file_path=TestConstants.get_asn_data_file_path(),
             licence_keys="")
         pipeline = PipelineBuilder().add(engine).build()
+        self.addCleanup(pipeline.close)
 
         self.assertIn("asnname", engine.properties)
 
         flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
         flowdata.evidence.add("query.client-ip", TestConstants.IPV4_ADDRESS)
         flowdata.process()
 
@@ -263,3 +287,31 @@ class IpIntelligenceCacheTests(unittest.TestCase):
                 cache=LRUEngineCache()).build()
 
         self.assertIn("results cache", str(context.exception))
+
+
+@unittest.skipUnless(
+    os.path.isfile(data_file),
+    "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
+    "or set the _51DEGREES_IPI_PATH environment variable." % data_file)
+class IpIntelligenceCloseTests(unittest.TestCase):
+
+    def test_pipeline_close_releases_engine(self):
+        """!
+        Closing the pipeline releases the native engine, and processing
+        afterwards raises an exception.
+        """
+
+        engine = IpIntelligenceOnPremise(
+            data_file_path=data_file,
+            licence_keys="")
+        pipeline = PipelineBuilder().add(engine).build()
+
+        pipeline.close()
+
+        self.assertIsNone(engine.engine)
+        flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
+        flowdata.evidence.add("query.client-ip", TestConstants.IPV4_ADDRESS)
+        with self.assertRaises(Exception) as context:
+            flowdata.process()
+        self.assertIn("closed", str(context.exception))

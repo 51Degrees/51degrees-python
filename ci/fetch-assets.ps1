@@ -16,4 +16,10 @@ param (
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot 'dispatch.ps1')
 
-Invoke-ProductStep 'fetch-assets' $RepoName $PSBoundParameters
+# The prefetch in the Configure job fills the asset cache that every run that
+# day restores, whatever it changes, so it fetches for every product.
+$fetchProducts = $null
+if ($env:GITHUB_JOB -eq 'Configure') {
+    $fetchProducts = @((Get-Packages $RepoName).Product | Select-Object -Unique)
+}
+Invoke-ProductStep 'fetch-assets' $RepoName $PSBoundParameters $fetchProducts

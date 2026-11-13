@@ -1,3 +1,3 @@
-# Translation YAML staged from the ip-intelligence-data submodule at build
-# time (see setup.py stage_translations). Not committed; generated on build.
+# Translation YAML staged from cxx/data/ip-intelligence at build time (see
+# setup.py stage_translations). Not committed; generated on build.
 src/fiftyone_ipintelligence_translation/translations/

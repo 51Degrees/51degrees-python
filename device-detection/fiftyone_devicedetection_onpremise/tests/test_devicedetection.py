@@ -36,7 +36,7 @@ from fiftyone_devicedetection_onpremise.devicedetection_datafile import DeviceDe
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_engines.lru_cache import LRUEngineCache
 
-data_file = "../../cxx/device-detection-data/51Degrees-LiteV4.1.hash"
+data_file = "../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 
 mobile_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114"
 
@@ -46,7 +46,7 @@ maxUnknownPercentage = 0.002
 
 # User agents file
 
-with open('../../cxx/device-detection-data/20000 User Agents.csv', newline='') as file:
+with open('../../cxx/data/device-detection/20000 User Agents.csv', newline='') as file:
     reader = csv.reader(file)
     user_agents = list(reader)
     no_user_agents = len(user_agents)
@@ -61,8 +61,9 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
-        self.assertTrue(pipeline.flow_elements[0].datakey == "shareusage")
+        self.assertIn("shareusage", pipeline.flow_elements_list)
 
     def test_on_premise_engine_datafile(self):
         """!
@@ -71,9 +72,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="test", auto_update=True).build()
+        self.addCleanup(pipeline.close)
 
         self.assertTrue(isinstance(
-            pipeline.flow_elements[0].data_file, DeviceDetectionDataFile))
+            pipeline.get_element("device").data_file, DeviceDetectionDataFile))
 
     def test_properties_onpremise(self):
         """!
@@ -83,8 +85,9 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
-        properties = pipeline.flow_elements[0].get_properties()
+        properties = pipeline.get_element("device").get_properties()
 
         self.assertTrue(len(properties.keys()) > 0)
 
@@ -95,8 +98,9 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertFalse(evidence_key_filter.filter_evidence_key("test.test"))
@@ -110,8 +114,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", mobile_ua)
 
@@ -126,8 +132,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.process()
 
@@ -140,8 +148,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", "")
 
@@ -156,8 +166,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("irrelevant.evidence", "some-evidence")
 
@@ -172,8 +184,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.irrelevant", "some-evidence")
 
@@ -188,8 +202,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.User-Agent", mobile_ua)
 
@@ -205,8 +221,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.User-Agent", mobile_ua)
 
@@ -230,8 +248,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.User-Agent", mobile_ua)
 
@@ -262,8 +282,10 @@ class DeviceDetectionTests(unittest.TestCase):
             data_file_path=data_file,
             licence_keys="",
             restricted_properties=["ismobile"]).build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.User-Agent", mobile_ua)
 
@@ -286,8 +308,9 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(
@@ -300,8 +323,9 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(evidence_key_filter.filter_evidence_key(
@@ -314,8 +338,9 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(evidence_key_filter.filter_evidence_key(
@@ -330,8 +355,9 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(
@@ -350,8 +376,9 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
-        evidence_key_filter = pipeline.flow_elements[0].get_evidence_key_filter(
+        evidence_key_filter = pipeline.get_element("device").get_evidence_key_filter(
         )
 
         self.assertTrue(evidence_key_filter.filter_evidence_key(
@@ -366,8 +393,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("query.header.user-agent", "Some user agent")
 
@@ -384,8 +413,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("query.51D_ProfileIds", "12280|17779|17470|18092")
 
@@ -400,8 +431,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("query.51D_ProfileIds", "12280-17779-17470-18092")
 
@@ -416,8 +449,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.User-Agent", mobile_ua)
 
@@ -443,8 +478,10 @@ class DeviceDetectionTests(unittest.TestCase):
         }
 
         pipeline = PipelineBuilder().build_from_configuration(config)
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.User-Agent", mobile_ua)
 
@@ -459,8 +496,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.process()
 
@@ -481,8 +520,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", "?£$%^&*")
 
@@ -497,8 +538,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", mobile_ua)
 
@@ -519,8 +562,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", mobile_ua)
 
@@ -539,8 +584,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", mobile_ua)
 
@@ -561,8 +608,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", mobile_ua)
 
@@ -586,8 +635,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", mobile_ua)
 
@@ -613,8 +664,10 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.evidence.add("header.user-agent", "")
 
@@ -638,12 +691,71 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
 
         fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
 
         fd.process()
 
         fd.pipeline.get_element("device").engine.refreshData()
+
+    def test_flowdata_close_releases_results(self):
+        """!
+        Closing the FlowData releases its native results, and reading a
+        property afterwards raises an exception
+        """
+
+        pipeline = DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
+
+        with pipeline.create_flowdata() as fd:
+            fd.evidence.add("header.user-agent", mobile_ua)
+            fd.process()
+            ismobile = fd.device.ismobile.value()
+
+        self.assertTrue(ismobile)
+        self.assertIsNone(fd.device.swig_results)
+        with self.assertRaises(Exception) as context:
+            fd.device.ismobile
+        self.assertIn("closed", str(context.exception))
+
+    def test_pipeline_close_releases_engine(self):
+        """!
+        Closing the pipeline releases the native engine, and processing
+        afterwards raises an exception
+        """
+
+        pipeline = DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        engine = pipeline.get_element("device")
+
+        pipeline.close()
+
+        self.assertIsNone(engine.engine)
+        fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
+        fd.evidence.add("header.user-agent", mobile_ua)
+        with self.assertRaises(Exception) as context:
+            fd.process()
+        self.assertIn("closed", str(context.exception))
+
+    def test_pipeline_close_stops_updates(self):
+        """!
+        Closing the pipeline cancels the engine's next automatic update,
+        whose timer would otherwise keep the engine alive
+        """
+
+        pipeline = DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=data_file, usage_sharing=False, licence_keys="test",
+            auto_update=True).build()
+        timer = pipeline.get_element("device").data_file.update_timer
+
+        pipeline.close()
+
+        timer.join(10)
+        self.assertFalse(timer.is_alive())
 
     def process_user_agent_list(self, pipeline):
 
@@ -651,17 +763,17 @@ class DeviceDetectionTests(unittest.TestCase):
 
         for user_agent in user_agents:
             user_agent = user_agent[0]
-            flowdata = pipeline.create_flowdata()
-            flowdata.evidence.add("header.user-agent", user_agent)
-            flowdata.process()
+            with pipeline.create_flowdata() as flowdata:
+                flowdata.evidence.add("header.user-agent", user_agent)
+                flowdata.process()
 
-            if flowdata.device.ismobile.has_value():
-                if(flowdata.device.ismobile.value()):
-                    results["mobile"] += 1
+                if flowdata.device.ismobile.has_value():
+                    if(flowdata.device.ismobile.value()):
+                        results["mobile"] += 1
+                    else:
+                        results["not_mobile"] += 1
                 else:
-                    results["not_mobile"] += 1
-            else:
-                results["unknown"] += 1
+                    results["unknown"] += 1
 
         return results
 

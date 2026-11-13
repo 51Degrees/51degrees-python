@@ -8,15 +8,19 @@
 
 . (Join-Path $PSScriptRoot 'packages.ps1')
 
-# Runs $Step for each affected product. Every product is run even when an
-# earlier one fails, so one run reports every broken product, and the step
-# fails at the end if any did. A pull request's changes are measured from
-# the Branch in $Options, the branch it merges into.
+# Runs $Step for each affected product, or for each of $Products when given.
+# Every product is run even when an earlier one fails, so one run reports
+# every broken product, and the step fails at the end if any did. A pull
+# request's changes are measured from the Branch in $Options, the branch it
+# merges into.
 function Invoke-ProductStep([string]$Step, [string]$RepoName,
-        [Collections.IDictionary]$Options) {
+        [Collections.IDictionary]$Options, [string[]]$Products) {
     $failed = [Collections.Generic.List[string]]::new()
-    $branch = $Options.Branch ? $Options.Branch : 'main'
-    foreach ($product in (Get-AffectedProducts $RepoName $branch)) {
+    if (-not $Products) {
+        $branch = $Options.Branch ? $Options.Branch : 'main'
+        $Products = Get-AffectedProducts $RepoName $branch
+    }
+    foreach ($product in $Products) {
         $script = Join-Path $RepoName $product 'ci' "$Step.ps1"
         if ((Test-Path $script) -eq $false) {
             Write-Output "$product has no $Step step"

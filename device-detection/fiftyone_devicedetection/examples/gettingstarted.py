@@ -24,7 +24,7 @@ from fiftyone_devicedetection.devicedetection_pipelinebuilder import DeviceDetec
 
 # First create the device detection pipeline with the desired settings.
 
-data_file = "../../cxx/device-detection-data/51Degrees-LiteV4.1.hash"
+data_file = "../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 resource_key = "!!YOUR_RESOURCE_KEY!!"
 
 # Uncommment the line below 'On-Premise' and comment the line below 'Cloud' to 
@@ -35,46 +35,49 @@ pipeline = DeviceDetectionPipelineBuilder(data_file_path = data_file, licence_ke
 # Cloud
 #pipeline = DeviceDetectionPipelineBuilder({"resource_key": resource_key}).build()
 
-# We create a FlowData object from the pipeline
-# this is used to add evidence to and then process
+# The pipeline is closed at the end of the with block, which releases the
+# native data it holds.
+with pipeline:
+    # We create a FlowData object from the pipeline
+    # this is used to add evidence to and then process. It is closed at the
+    # end of its with block, which releases the results of the detection.
+    with pipeline.create_flowdata() as flowdata1:
 
-flowdata1 = pipeline.create_flowdata()
+        # Here we add a User-Agent of a desktop as evidence
 
-# Here we add a User-Agent of a desktop as evidence
+        desktop_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36"
 
-desktop_ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.97 Safari/537.36"
+        flowdata1.evidence.add("header.user-agent", desktop_ua)
 
-flowdata1.evidence.add("header.user-agent", desktop_ua)
+        # Now we process the FlowData
 
-# Now we process the FlowData
+        flowdata1.process()
 
-flowdata1.process()
+        # To check whether the User-Agent is a mobile device we look at the ismobile property
+        # inside the Device Detection Engine
 
-# To check whether the User-Agent is a mobile device we look at the ismobile property
-# inside the Device Detection Engine
+        # first we check if this has a meaningful result
 
-# first we check if this has a meaningful result
+        print("Is User-Agent " + desktop_ua + " a mobile? ") 
+        if flowdata1.device.ismobile.has_value():
+            print(flowdata1.device.ismobile.value())
+        else:
+            # Output why the value isn't meaningful
+            print(flowdata1.device.ismobile.no_value_message())
 
-print("Is User-Agent " + desktop_ua + " a mobile? ") 
-if flowdata1.device.ismobile.has_value():
-    print(flowdata1.device.ismobile.value())
-else:
-    # Output why the value isn't meaningful
-    print(flowdata1.device.ismobile.no_value_message())
+    # Now we do the same with a new User-Agent, this time from an iphone
 
-# Now we do the same with a new User-Agent, this time from an iphone
+    with pipeline.create_flowdata() as flowdata2:
 
-flowdata2 = pipeline.create_flowdata()
+        iphone_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114"
 
-iphone_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114"
+        flowdata2.evidence.add("header.user-agent", iphone_ua)
 
-flowdata2.evidence.add("header.user-agent", iphone_ua)
+        flowdata2.process()
 
-flowdata2.process()
-
-print("Is User-Agent " + iphone_ua + " a mobile device?: ") 
-if flowdata2.device.ismobile.has_value():
-    print(flowdata2.device.ismobile.value())
-else:
-    # Output why the value isn't meaningful
-    print(flowdata2.device.ismobile.no_value_message())
+        print("Is User-Agent " + iphone_ua + " a mobile device?: ") 
+        if flowdata2.device.ismobile.has_value():
+            print(flowdata2.device.ismobile.value())
+        else:
+            # Output why the value isn't meaningful
+            print(flowdata2.device.ismobile.no_value_message())

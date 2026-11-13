@@ -38,6 +38,7 @@ from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
 from .elementdata_dictionary import ElementDataDictionary
 from .constants import Constants
+from .callback_url import callback_url, is_scheme
 
 
 # Evidence keys the rendered script is not configured with. Both are
@@ -50,6 +51,13 @@ from .constants import Constants
 # reference for this behaviour.
 EXCLUDED_PARAMETERS = ["query.session-id", "query.sequence"]
 
+# The data key of the SequenceElement, which is the element that produces the
+# session id and the sequence, and the two names its Element Data holds them
+# under. A pipeline without that element renders the defaults below.
+SEQUENCE_ELEMENT_DATA_KEY = "sequence"
+SESSION_ID_NAME = "session-id"
+SEQUENCE_NAME = "sequence"
+
 # The object name is written into the script as the name of a global
 # variable, a session storage key and a property name, all without any
 # escaping. A name that is not a plain JavaScript identifier would therefore
@@ -59,9 +67,12 @@ OBJECT_NAME_PATTERN = re.compile(r"[A-Za-z_$][A-Za-z0-9_$]*")
 
 # Names the object cannot have. These are the reserved words of the language,
 # including those reserved only in strict mode and the literals null, true
-# and false, plus the three global values a top level var cannot replace, so
-# the object would silently never be created, and the name of the constructor
-# the script itself defines.
+# and false. Then eval and arguments, which strict mode code cannot declare,
+# and eval would also replace the page's own eval function. Then the three
+# global values and the properties of the browser's Window object that a
+# top level var cannot replace, so the object would never be created, and
+# location, which would navigate the page away. Last, the name of the
+# constructor the script itself defines.
 RESERVED_WORDS = frozenset([
     "await", "break", "case", "catch", "class", "const", "continue",
     "debugger", "default", "delete", "do", "else", "enum", "export",
@@ -70,7 +81,16 @@ RESERVED_WORDS = frozenset([
     "package", "private", "protected", "public", "return", "static",
     "super", "switch", "this", "throw", "true", "try", "typeof", "var",
     "void", "while", "with", "yield",
-    "Infinity", "NaN", "undefined", "fiftyoneDegreesManager"])
+    "Infinity", "NaN", "undefined",
+    "eval", "arguments",
+    "window", "document", "top", "name", "status", "history", "navigator",
+    "closed", "location", "frameElement", "isSecureContext",
+    "crossOriginIsolated", "trustedTypes", "crypto", "indexedDB",
+    "localStorage", "sessionStorage", "caches", "cookieStore",
+    "speechSynthesis", "styleMedia", "crashReport", "credentialless",
+    "customElements", "documentPictureInPicture", "fence", "launchQueue",
+    "originAgentCluster",
+    "fiftyoneDegreesManager"])
 
 
 def is_valid_object_name(name):
@@ -122,7 +142,7 @@ def parse_sequence(value):
     A sequence as a positive 32 bit integer.
 
     @type value: object
-    @param value: The query.sequence evidence, or None
+    @param value: A sequence value, from Evidence or Element Data, or None
     @rtype: int
     @return: The sequence, or None when the value is not a whole number from
     1 to 2147483647. Any value at all can be passed, including one a page
@@ -159,13 +179,11 @@ def get_sequence(value):
 
     The template writes the sequence as bare code (var sequence = ...;), so
     anything other than a whole number would stop the script parsing, or
-    change what it does. A pipeline without a SequenceElement passes the
-    query string's value, or nothing at all, straight through. As the
-    pipeline specification says, a value that is not a positive 32 bit
-    integer becomes 1.
+    change what it does. As the pipeline specification says, a value that is
+    not a positive 32 bit integer becomes 1.
 
     @type value: object
-    @param value: The query.sequence evidence, or None
+    @param value: The SequenceElement's sequence, or None
     @rtype: int
     @return: The sequence to render
     """
@@ -181,11 +199,10 @@ def get_session_id(value):
 
     The template writes the session id inside quotes without any escaping.
     As the pipeline specification says, a session id that is not 1 to 64
-    ASCII letters, digits and hyphens is rendered as an empty string, whether
-    it came from the SequenceElement or from the query string.
+    ASCII letters, digits and hyphens is rendered as an empty string.
 
     @type value: object
-    @param value: The query.session-id evidence, or None
+    @param value: The SequenceElement's session id, or None
     @rtype: str
     @return: The session id to render, or an empty string
     """
@@ -214,13 +231,18 @@ def url_encode(value):
 
 class JavaScriptBuilderEvidenceKeyFilter(EvidenceKeyFilter):
 
-    def filter(self, key):
-        if "query" in key:
+    # The query string, which the script sends back to the callback, and the
+    # host and protocol the callback URL is built from. Evidence keys ignore
+    # letter case, so each is matched in lower case.
+    def filter_evidence_key(self, key):
+        folded = str(key).lower()
+
+        if folded.startswith("query."):
             return True
 
-        if key == "header.host" or key == "header.protocol":
+        if folded == "header.host" or folded == "header.protocol":
             return True
-            
+
         return False
 
 
@@ -254,9 +276,10 @@ class JavascriptBuilderElement(FlowElement):
         * starting with a digit) and not a reserved word. An invalid
         * configured name raises a ValueError, and an invalid requested name
         * is ignored with a warning logged.
-        * @param {string} options.protocol The protocol ("http" or "https")
-        * used by the client side callback url.
-        * This can be overriden with header.protocol evidence
+        * @param {string} options.protocol The protocol of the client side
+        * callback url, http or https in any case of its ASCII letters. Any
+        * other configured protocol raises a ValueError. Left out, the
+        * header.protocol evidence is used, or https when there is none.
         * @param {string} options.host The host of the client side
         * callback url. This can be overriden with header.host evidence.
         * @param {string} options.endpoint The endpoint of the client side
@@ -285,6 +308,15 @@ class JavascriptBuilderElement(FlowElement):
                 "JavaScript identifier (ASCII letters, digits, '_' and '$', "
                 "not starting with a digit) and not a reserved word.")
         self.settings['_protocol'] = settings["protocol"] if "protocol" in settings else None
+
+        # A protocol given here is used for every request, so one the script
+        # cannot send its request with is refused now rather than logged on
+        # the first request.
+        protocol = self.settings['_protocol']
+        if protocol and not (isinstance(protocol, str) and is_scheme(protocol)):
+            raise ValueError(
+                "The JavaScript builder's protocol setting must be http or "
+                "https.")
         self.settings['_host'] = settings["host"] if "host" in settings else None
         self.settings['_endpoint'] = settings["endpoint"] if "endpoint" in settings else ''
         self.settings['_enableCookies'] = settings["enable_cookies"] if "enable_cookies" in settings else True
@@ -294,6 +326,10 @@ class JavascriptBuilderElement(FlowElement):
         self.datakey = "javascriptbuilder"
 
         self.exclude_from_messages = True
+
+        # Set once a callback URL that is not valid has been logged, because
+        # a misconfigured element would otherwise log on every request.
+        self._invalid_url_logged = False
 
         # Load template file contents into memory
 
@@ -336,7 +372,13 @@ class JavascriptBuilderElement(FlowElement):
         for key, value in self.settings.items():
             variables[key] = value
 
-        variables["_jsonObject"] = json.dumps(flowdata.jsonbundler.json)
+        # The JSON is written into a script element, so the characters that
+        # could end the element or the script are written as escapes.
+        variables["_jsonObject"] = (
+            json.dumps(flowdata.jsonbundler.json)
+            .replace("<", "\\u003c")
+            .replace(">", "\\u003e")
+            .replace("&", "\\u0026"))
 
         # Generate URL and autoUpdate params
 
@@ -384,12 +426,22 @@ class JavascriptBuilderElement(FlowElement):
                     + self.settings["_objName"] + "' is used.")
 
         query_params = self.get_evidence_key_filter().filter_evidence(flowdata.evidence.get_all())
-        # Both are written into the script, so each always has a safe value.
-        # The session id is written inside quotes and is empty when absent or
-        # not safe, and the sequence is written as bare code, so it is always
-        # a positive number.
-        variables["_sessionId"] = get_session_id(query_params.get("query.session-id"))
-        variables["_sequence"] = get_sequence(query_params.get("query.sequence"))
+
+        # Both come from the Sequence Element's Element Data, and with no
+        # Sequence Element in the pipeline the sequence is 1 and the session
+        # id empty, whatever the request asked for. Both are written into the
+        # script, so each always has a safe value. The session id is written
+        # inside quotes and is empty when absent or not safe, and the sequence
+        # is written as bare code, so it is always a positive number.
+        sequence_data = flowdata.data.get(SEQUENCE_ELEMENT_DATA_KEY)
+        if sequence_data is None:
+            variables["_sessionId"] = ""
+            variables["_sequence"] = DEFAULT_SEQUENCE
+        else:
+            variables["_sessionId"] = get_session_id(
+                sequence_data.get(SESSION_ID_NAME))
+            variables["_sequence"] = get_sequence(
+                sequence_data.get(SEQUENCE_NAME))
 
         # The session id and the sequence are left out, because the script
         # appends both to its own request after it has taken the record of
@@ -406,34 +458,31 @@ class JavascriptBuilderElement(FlowElement):
             (url_encode(param.split(".", 1)[1]),
              url_encode(query_params[param]))
             for param in query_params.keys()
-            if param.startswith("query.")
-            and param not in EXCLUDED_PARAMETERS
+            if str(param).lower().startswith("query.")
+            and str(param).lower() not in EXCLUDED_PARAMETERS
         ])
         # Written without spaces, as the .NET builder writes it.
         variables["_parameters"] = json.dumps(
             variables["_parameters"], separators=(",", ":"))
 
-        if variables["_host"] and variables["_protocol"] and variables["_endpoint"]:
+        # The callback URL is the protocol, the host and the endpoint, as in
+        # the .NET builder, and callback_url checks it. No query values are
+        # added to it, because they reach the callback in the request body
+        # through the parameters above, and the script appends the session
+        # id and the sequence itself.
+        url = callback_url(
+            variables["_protocol"], variables["_host"], variables["_endpoint"])
+        if url is not None and not url.valid and not self._invalid_url_logged:
+            self._invalid_url_logged = True
+            self._log(
+                "error",
+                "The generated URL " + repr(url.url) + " is not valid, so "
+                "the JavaScript has no callback URL. Check the JavaScript "
+                "builder's protocol, host and endpoint, and the protocol and "
+                "host evidence. This is reported once.")
 
-            # The callback URL is the protocol, the host and the endpoint,
-            # with exactly one slash between the host and the endpoint, as
-            # in the .NET builder. No query values are added to it. They
-            # reach the callback in the request body through the parameters
-            # above, and the script appends the session id and the sequence
-            # itself. Adding every evidence value here, as this builder used
-            # to, sent those two twice and, because the evidence reaching
-            # this element is not narrowed to query values, also wrote the
-            # end user's User-Agent, IP address and host headers into the
-            # served script's URL.
-            host = variables["_host"]
-            endpoint = variables["_endpoint"]
-            if not endpoint.startswith("/") and not host.endswith("/"):
-                endpoint = "/" + endpoint
-            elif endpoint.startswith("/") and host.endswith("/"):
-                endpoint = endpoint[1:]
-
-            variables["_url"] = variables["_protocol"] + "://" + host + endpoint
-
+        if url is not None and url.valid:
+            variables["_url"] = url.url
             variables["_updateEnabled"] = True
         else:
             variables["_updateEnabled"] = False

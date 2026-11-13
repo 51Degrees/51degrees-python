@@ -68,10 +68,12 @@ class DeviceDetectionTests(unittest.TestCase):
             data_update_verify_md5=False,
             data_update_url=f"http://127.0.0.1:{self.port}"
         ).build()
+        self.addCleanup(pipeline.close)
 
-        pipeline.create_flowdata().process()
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertFalse(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -85,10 +87,12 @@ class DeviceDetectionTests(unittest.TestCase):
             data_update_verify_md5=False,
             data_file_update_base_url=f"http://127.0.0.1:{self.port}"
         ).build()
+        self.addCleanup(pipeline.close)
 
-        pipeline.create_flowdata().process()
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertFalse(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -106,9 +110,11 @@ class DeviceDetectionTests(unittest.TestCase):
         )
 
         pipeline = PipelineBuilder().build_from_configuration(config)
-        pipeline.create_flowdata().process()
+        self.addCleanup(pipeline.close)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertFalse(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -126,9 +132,11 @@ class DeviceDetectionTests(unittest.TestCase):
         )
 
         pipeline = PipelineBuilder().build_from_configuration(config)
-        pipeline.create_flowdata().process()
+        self.addCleanup(pipeline.close)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertFalse(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -142,10 +150,12 @@ class DeviceDetectionTests(unittest.TestCase):
             data_update_verify_md5=True,
             data_update_url=f"http://127.0.0.1:{self.port}/md5"
         ).build()
+        self.addCleanup(pipeline.close)
 
-        pipeline.create_flowdata().process()
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -159,10 +169,12 @@ class DeviceDetectionTests(unittest.TestCase):
             verify_md5=True,
             data_update_url=f"http://127.0.0.1:{self.port}/md5"
         ).build()
+        self.addCleanup(pipeline.close)
 
-        pipeline.create_flowdata().process()
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -180,9 +192,11 @@ class DeviceDetectionTests(unittest.TestCase):
         )
 
         pipeline = PipelineBuilder().build_from_configuration(config)
-        pipeline.create_flowdata().process()
+        self.addCleanup(pipeline.close)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -200,9 +214,11 @@ class DeviceDetectionTests(unittest.TestCase):
         )
 
         pipeline = PipelineBuilder().build_from_configuration(config)
-        pipeline.create_flowdata().process()
+        self.addCleanup(pipeline.close)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -217,10 +233,12 @@ class DeviceDetectionTests(unittest.TestCase):
             data_update_url=f"http://127.0.0.1:{self.port}/",
             data_update_use_url_formatter=False
         ).build()
+        self.addCleanup(pipeline.close)
 
-        pipeline.create_flowdata().process()
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self._assertNotSignedUrl(flow_element_data_file.get_update_url())
 
@@ -238,9 +256,11 @@ class DeviceDetectionTests(unittest.TestCase):
         )
 
         pipeline = PipelineBuilder().build_from_configuration(config)
-        pipeline.create_flowdata().process()
+        self.addCleanup(pipeline.close)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self._assertNotSignedUrl(flow_element_data_file.get_update_url())
 
@@ -253,10 +273,12 @@ class DeviceDetectionTests(unittest.TestCase):
             verify_md5=True,
             data_update_url=f"http://127.0.0.1:{self.port}/status/429"
         ).build()
+        self.addCleanup(pipeline.close)
 
-        pipeline.create_flowdata().process()
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
 
-        flow_element_data_file = pipeline.flow_elements[0].data_file
+        flow_element_data_file = pipeline.get_element("device").data_file
         self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
@@ -325,7 +347,8 @@ class DeviceDetectionTests(unittest.TestCase):
             with gzip.open(archive_file_path, "wb", compresslevel=1) as f_out:
                 shutil.copyfileobj(f_in, f_out)
 
-        return hashlib.md5(open(archive_file_path, "rb").read()).hexdigest()
+        with open(archive_file_path, "rb") as archive:
+            return hashlib.md5(archive.read()).hexdigest()
 
     @staticmethod
     def clear():

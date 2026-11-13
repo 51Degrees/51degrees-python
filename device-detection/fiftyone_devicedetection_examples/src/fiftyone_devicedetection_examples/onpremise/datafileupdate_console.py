@@ -32,9 +32,9 @@
 # - Daily auto-update
 #
 # ## License Key
-# In order to test this example you will need a 51Degrees Enterprise license which can be
-# purchased from our [pricing page](https://51degrees.com/pricing/annual?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=top). Look for our "Bigger" or
-# "Biggest" options.
+# Updating the data file needs a 51Degrees licence key for the Enterprise data file.
+# Without one, the example shows the free Lite data file and says where to ask for a key.
+# Contact us for a key at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=top
 #
 # # Data Files
 # You can find out more about data files, licenses etc. at our [FAQ page](https://51degrees.com/resources/faqs?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=top)
@@ -52,10 +52,10 @@
 # ```
 #
 # ## Lite Data File
-# Lite data files (free-to-use, limited capabilities, no license key required) are created roughly
-# once a month and cannot be updated using auto-update, they may be downloaded from
-# [Github](https://github.com/51Degrees/device-detection-data) and are included with
-# source distributions of this software.
+# Lite data files (free-to-use, with a small number of Properties, no
+# license key required) are created roughly
+# once a month and cannot be updated using auto-update, they may be downloaded with the
+# scripts in the [data](https://github.com/51Degrees/data) repository on GitHub.
 #
 # # Update on Start-Up
 # You can configure the pipeline builder to download an Enterprise data file on start-up.
@@ -167,10 +167,19 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_shared.key_utils import KeyUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_devicedetection_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
 from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = "license_key"
+# The environment variable checked for the licence key when none is given
+# on the command line.
+UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
+# Deprecated. Use UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE. The name that
+# variable had before, read when the new one is not set.
+UPDATE_EXAMPLE_LICENSE_KEY_NAME = ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR
+# Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
 DEFAULT_DATA_FILENAME = os.path.expanduser("~") + os.path.sep +  ENTERPRISE_DATAFILE_NAME
 
 
@@ -188,21 +197,42 @@ class UpdateEvent(threading.Event):
 		super().clear()
 
 class DataFileUpdateConsole():
+	def explain_license_key(self, data_file, output):
+		# Without a licence key the example cannot download a data file, so
+		# it shows the data file it would start from, the free Lite file
+		# unless another is given, and says what an update needs.
+		if not data_file:
+			data_file = ExampleUtils.find_file(LITE_DATAFILE_NAME)
+		if data_file and os.path.isfile(data_file):
+			pipeline = DeviceDetectionPipelineBuilder(
+				data_file_path = data_file,
+				performance_profile = "LowMemory",
+				usage_sharing = False,
+				auto_update = False,
+				licence_keys = "").build()
+			with pipeline:
+				engine = pipeline.get_element("device")
+				output(f"The data file in use is the "
+					f"'{ExampleUtils.get_data_file_tier(engine)}' file published on "
+					f"{ExampleUtils.get_data_file_date(engine):%Y-%m-%d}, at "
+					f"'{data_file}'.")
+		output("")
+		output("Updating the data file downloads the Enterprise data file, "
+			"which needs a licence key. Give the key as the first command line "
+			f"argument, or in the environment variable "
+			f"'{UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE}'. Contact us for a key and a "
+			f"copy at {CONTACT_US}")
+
 	def run(self, data_file, license_key, interactive, logger, output):
 		logger.log("info", "Starting example")
 
 		# try to find a license key
 		if not license_key:
-			license_key = KeyUtils.get_named_key(UPDATE_EXAMPLE_LICENSE_KEY_NAME)
+			license_key = ExampleUtils.get_license_key()
 
 		if not license_key:
-			logger.log("error",
-				"In order to test this example you will need a 51Degrees Enterprise "
-				"license which can be obtained on a trial basis or purchased from our\n"
-				"pricing page https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=license-key-required. You must supply the license "
-				"key as an argument to this program, or as an environment or system variable "
-				f"named '{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'")
-			raise Exception("No license key available")
+			self.explain_license_key(data_file, output)
+			return
 
 		# work out where the downloaded file will be put, directory must exist
 		if (data_file != None):
@@ -235,15 +265,18 @@ class DataFileUpdateConsole():
 				auto_update = False,
 				licence_keys = "").add_logger(logger).build()
 
-			# and output the results
-			ExampleUtils.check_data_file(pipeline, logger)
-			if (ExampleUtils.get_data_file_tier(pipeline.get_element("device")) == "Lite"):
-				logger.log("error",
-					"Will not download an 'Enterprise' data file over the top of "
-					"a 'Lite' data file, please supply another location.")
-				raise Exception("File supplied has wrong data tier")
-			logger.log("info", "Existing data file will be replaced with downloaded data file")
-			logger.log("info", f"Existing data file will be copied to {copy_data_file_name}")
+			# The pipeline is closed at the end of the with block, which
+			# releases the native data it holds before the file is replaced.
+			with pipeline:
+				# and output the results
+				ExampleUtils.check_data_file(pipeline, logger)
+				if (ExampleUtils.get_data_file_tier(pipeline.get_element("device")) == "Lite"):
+					logger.log("error",
+						"Will not download an 'Enterprise' data file over the top of "
+						"a 'Lite' data file, please supply another location.")
+					raise Exception("File supplied has wrong data tier")
+				logger.log("info", "Existing data file will be replaced with downloaded data file")
+				logger.log("info", f"Existing data file will be copied to {copy_data_file_name}")
 
 		# do we really want to do this
 		if (interactive):
@@ -281,7 +314,7 @@ class DataFileUpdateConsole():
 			# to notify when update complete
 			data_file_update_service = update_service,
 			# For automatic updates to work you will need to provide a license key.
-			# A license key can be obtained with a subscription from https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=run
+			# Contact us for a licence key at https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=run
 			licence_keys = license_key,
 			# Enable update on startup, the auto update system
 			# will be used to check for an update before the
@@ -296,41 +329,47 @@ class DataFileUpdateConsole():
 			data_update_product_type="V4Enterprise",
 			).add_logger(logger).build()
 
+		# The pipeline is closed at the end of the with block, which stops
+		# the automatic updates and the file system watcher, and releases
+		# the native data it holds.
+		with pipeline:
+			# thread blocks till update checking is complete - or if there is an
+			# exception we don't get this far
+			update_event.wait()
+			output(f"Update on start-up complete - status - {update_event.status}")
 
-		# thread blocks till update checking is complete - or if there is an
-		# exception we don't get this far
-		update_event.wait()
-		output(f"Update on start-up complete - status - {update_event.status}")
+			if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
 
-		if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
+				output("Modifying downloaded file to trigger reload - please wait for that"
+					" to complete")
 
-			output("Modifying downloaded file to trigger reload - please wait for that"
-				" to complete")
+				# wait for the dataUpdateService to notify us that it has updated
+				update_event.clear()
 
-			# wait for the dataUpdateService to notify us that it has updated
-			update_event.clear()
+				# it's the same file but changing the file metadata will trigger reload,
+				# demonstrating that if you download a new file and replace the
+				# existing one, then it will be loaded
+				now = datetime.now().timestamp()
+				try:
+					os.utime(data_file, (now, now))
+				except:
+					raise Exception("Could not modify file time, abandoning "
+						"example")
 
-			# it's the same file but changing the file metadata will trigger reload,
-			# demonstrating that if you download a new file and replace the
-			# existing one, then it will be loaded
-			now = datetime.now().timestamp()
-			try:
-				os.utime(data_file, (now, now))
-			except:
-				raise Exception("Could not modify file time, abandoning "
-					"example")
-
-			if update_event.wait(120):
-				output(f"Update on file modification complete, status: {update_event.status}")
+				if update_event.wait(120):
+					output(f"Update on file modification complete, status: {update_event.status}")
+				else:
+					output("Update on file modification timed out")
+			elif update_event.status == UpdateStatus.AUTO_UPDATE_NOT_NEEDED:
+				output("The data file is already the latest published, "
+				       "so there is nothing to download")
 			else:
-				output("Update on file modification timed out")
-		else:
-			logger.log("error", "Auto update was not successful, abandoning example")
-			error_message = f"Auto update failed: {update_event.status}"
-			if update_event.status == UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS:
-				output(error_message)
-			else:
-				raise Exception(error_message)
+				logger.log("error", "Auto update was not successful, abandoning example")
+				error_message = f"Auto update failed: {update_event.status}"
+				if update_event.status == UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS:
+					output(error_message)
+				else:
+					raise Exception(error_message)
 
 		output("Finished Example")
 

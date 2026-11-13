@@ -28,11 +28,15 @@
 # User-Agent (used by device detection) and an IP address (used by IP
 # intelligence), and both engines process the flow data.
 #
-# Two data files are required:
+# Two data files are used, which may be supplied as the first two command
+# line arguments:
 # - a Device Detection data file (.hash)
 # - an IP Intelligence data file (.ipi)
 #
-# They may be supplied as the first two command line arguments.
+# By default the free Lite data files are used, which are downloaded when
+# they are missing, and each property only the Enterprise data files have is
+# shown as needing them. Contact us for a copy:
+# https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-mixed_console.py&utm_term=header
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -46,10 +50,14 @@ from fiftyone_pipeline_core.logger import Logger
 
 from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise import IpIntelligenceOnPremise
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
-from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 
-# Default name of the device detection data file (the lite file included in
-# the device-detection-data repository).
+# Where to ask for a copy of the Enterprise data files, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-mixed_console.py&utm_term=enterprise-data-file"
+
+# Default name of the device detection data file (the lite file the data
+# repository links to).
 HASH_DATAFILE_NAME = "51Degrees-LiteV4.1.hash"
 
 # Combined evidence: a User-Agent for device detection and an IP address for
@@ -140,56 +148,72 @@ class MixedConsole():
             .add_logger(logger) \
             .build()
 
-        for evidence in COMBINED_EVIDENCE:
-            self.analyse_evidence(evidence, pipeline, output)
+        # The pipeline is closed at the end of the with block, which closes
+        # both engines and releases the native data they hold.
+        with pipeline:
+            needs_enterprise = False
+            for evidence in COMBINED_EVIDENCE:
+                needs_enterprise |= self.analyse_evidence(
+                    evidence, pipeline, device_engine, ip_engine, output)
+            if needs_enterprise:
+                output("\n" + ExampleUtils.get_enterprise_note(CONTACT_US))
 
-    def analyse_evidence(self, evidence, pipeline, output):
+    def analyse_evidence(self, evidence, pipeline, device_engine, ip_engine,
+                         output):
 
-        data = pipeline.create_flowdata()
+        # The FlowData is closed at the end of the with block, which releases
+        # the results of both engines straight away.
+        with pipeline.create_flowdata() as data:
 
-        message = []
-        message.append("=" * 70 + "\n")
-        message.append("Input values:\n")
-        for key in evidence:
-            message.append(f"\t{key}: {evidence[key]}\n")
-        output("".join(message))
+            message = []
+            message.append("=" * 70 + "\n")
+            message.append("Input values:\n")
+            for key in evidence:
+                message.append(f"\t{key}: {evidence[key]}\n")
+            output("".join(message))
 
-        # Add the evidence values to the flow data and process it. Both
-        # engines run against the same flow data.
-        data.evidence.add_from_dict(evidence)
-        data.process()
+            # Add the evidence values to the flow data and process it. Both
+            # engines run against the same flow data.
+            data.evidence.add_from_dict(evidence)
+            data.process()
 
-        message = []
+            message = []
+            needs_enterprise = False
 
-        # Device detection results, keyed under "device".
-        message.append("Device Detection Results:\n")
-        for name in DEVICE_PROPERTIES:
-            self.outputValue(data.device, name, message)
+            # Device detection results, keyed under "device".
+            message.append("Device Detection Results:\n")
+            for name in DEVICE_PROPERTIES:
+                needs_enterprise |= self.outputValue(
+                    device_engine, data.device, name, message)
 
-        # IP intelligence results, keyed under "ip".
-        message.append("\nIP Intelligence Results:\n")
-        for name in IP_PROPERTIES:
-            self.outputValue(data.ip, name, message)
+            # IP intelligence results, keyed under "ip".
+            message.append("\nIP Intelligence Results:\n")
+            for name in IP_PROPERTIES:
+                needs_enterprise |= self.outputValue(
+                    ip_engine, data.ip, name, message)
 
-        output("".join(message))
+            output("".join(message))
+            return needs_enterprise
 
-    def outputValue(self, aspect_data, name, message):
-        # `get_value` returns None when the property is not present in the
-        # data file, rather than raising.
-        value = ExampleUtils.get_value(aspect_data, name.lower())
-        if value is None:
-            message.append(f"\t{name}: This property is not present in the data file.\n")
-        elif value.has_value():
+    def outputValue(self, engine, aspect_data, name, message):
+        # A property the engine's data file does not have needs the
+        # Enterprise data file, and its value is not read.
+        if not ExampleUtils.has_property(engine, name):
+            message.append(f"\t{name}: {ExampleUtils.NEEDS_ENTERPRISE}\n")
+            return True
+        value = aspect_data.get(name.lower())
+        if value.has_value():
             message.append(f"\t{name}: {ExampleUtils.format_value(value.value())}\n")
         else:
             message.append(f"\t{name}: {value.no_value_message()}\n")
+        return False
 
 
 def main(argv):
     # Use the supplied paths for the data files, or find the device detection
     # and IP intelligence files in the project space.
     device_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(HASH_DATAFILE_NAME)
-    ip_file = argv[1] if len(argv) > 1 else ExampleUtils.find_file(ASN_DATAFILE_NAME)
+    ip_file = argv[1] if len(argv) > 1 else ExampleUtils.find_file(LITE_DATAFILE_NAME)
 
     # Configure a logger to output to the console.
     logger = Logger(min_level="info")
@@ -199,14 +223,19 @@ def main(argv):
     else:
         if not device_file:
             logger.log("error",
-                "Failed to find a device detection data file. Make sure the "
-                "device-detection-data submodule has been updated, or supply "
-                "the path as the first command line argument.")
+                "Failed to find a device detection data file. Supply its "
+                "path as the first command line argument. Get the free Lite "
+                "file by running "
+                "cxx/data/get-data-files.sh 51Degrees-LiteV4.1.hash, or "
+                "cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash on "
+                "Windows, which saves it in cxx/data/device-detection.")
         if not ip_file:
             logger.log("error",
                 "Failed to find an IP intelligence data file. Make sure the "
-                "ip-intelligence-data submodule has been updated, or supply "
-                "the path as the second command line argument.")
+                "data submodule is there, by running "
+                "`git submodule update --init --recursive`, and run this "
+                "example again to download the file, or supply the path as "
+                "the second command line argument.")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

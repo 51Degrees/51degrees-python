@@ -51,6 +51,11 @@ import multiprocessing as mp
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 # This example goes through a CSV of 20000 user agents and processes them, returning the time and information about the matches
 from fiftyone_devicedetection_onpremise.devicedetection_onpremise_pipelinebuilder import DeviceDetectionOnPremisePipelineBuilder
+from fiftyone_devicedetection_shared.example_constants import UA_FILE_NAME
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-performance.py&utm_term=enterprise-data-file"
 
 # Here we make a function that processes a user agent
 # And returns if it is a mobile device
@@ -62,24 +67,26 @@ split_lists = None
 
 def process_user_agent(user_agent):
 
-    # First we create the flowdata using the global pipeline
-    flowdata = pipeline.create_flowdata()  # pylint: disable=used-before-assignment
+    # First we create the flowdata using the global pipeline. Closing it,
+    # which the with statement does when the function returns, releases the
+    # results of the detection straight away.
+    with pipeline.create_flowdata() as flowdata:  # pylint: disable=used-before-assignment
 
-    # Here we add the user agent as evidence
-    flowdata.evidence.add("header.user-agent", user_agent)
+        # Here we add the user agent as evidence
+        flowdata.evidence.add("header.user-agent", user_agent)
 
-    # We process the flowdata to get the results
-    flowdata.process()
+        # We process the flowdata to get the results
+        flowdata.process()
 
-    # To check whether the User-Agent is a mobile device we look at the ismobile
-    # property inside the Device Detection Engine
+        # To check whether the User-Agent is a mobile device we look at the ismobile
+        # property inside the Device Detection Engine
 
-    # first we check if this has a meaningful result
+        # first we check if this has a meaningful result
 
-    if flowdata.device.ismobile.has_value():
-        return flowdata.device.ismobile.value()
-    else:
-        return None
+        if flowdata.device.ismobile.has_value():
+            return flowdata.device.ismobile.value()
+        else:
+            return None
 
 def process_user_agent_list(data_file, user_agent_list, list_number, output, skip=False):
     global pipeline
@@ -92,23 +99,26 @@ def process_user_agent_list(data_file, user_agent_list, list_number, output, ski
         usage_sharing=False,
         auto_update=False).build()
 
-    results = {
-        "mobile": 0,
-        "notmobile": 0,
-        "unknown": 0
-    }
-    for user_agent in user_agent_list:
-        if skip:
-            break
-        result = process_user_agent(user_agent[0])
-        if(result == None):
-            results["unknown"] += 1
-        if(result == True):
-            results["mobile"] += 1
-        if(result == False):
-            results["notmobile"] += 1
+    # The pipeline is closed at the end of the with block, which releases
+    # the native data it holds.
+    with pipeline:
+        results = {
+            "mobile": 0,
+            "notmobile": 0,
+            "unknown": 0
+        }
+        for user_agent in user_agent_list:
+            if skip:
+                break
+            result = process_user_agent(user_agent[0])
+            if(result == None):
+                results["unknown"] += 1
+            if(result == True):
+                results["mobile"] += 1
+            if(result == False):
+                results["notmobile"] += 1
 
-    output.put(results, list_number)
+        output.put(results, list_number)
 
 # Run the process
 def run(data_file, skip = False):
@@ -145,11 +155,13 @@ def run(data_file, skip = False):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description='Run detection benchmark.')
     ap.add_argument('-d', '--data_file', default='', help='Path to data file')
-    ap.add_argument('-u', '--user_agents_file', default='../../cxx/device-detection-data/20000 User Agents.csv', help='Path to user agents evidence file')
+    ap.add_argument('-u', '--user_agents_file', default='', help='Path to user agents evidence file')
     ap.add_argument('-j', '--json_output', default='', help='Output results in JSON format')
     args = ap.parse_args()
     if args.data_file == "":
         args.data_file = ExampleUtils.find_file("51Degrees-LiteV4.1.hash")
+    if args.user_agents_file == "":
+        args.user_agents_file = ExampleUtils.find_file(UA_FILE_NAME)
 
     # First we read the contents of the 20000 user agents file as a list
     with open(args.user_agents_file, newline='') as file:
@@ -201,3 +213,16 @@ if __name__ == "__main__":
         final_result["notmobile"] += result["notmobile"]
 
     print("Results", final_result)
+
+    # Say what the Enterprise data file adds when the benchmark ran on the
+    # free Lite data file. The data file is opened with the low memory
+    # profile, which reads little of it.
+    with DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=args.data_file,
+            licence_keys="",
+            performance_profile='LowMemory',
+            add_javascript_builder=False,
+            usage_sharing=False,
+            auto_update=False).build() as check:
+        if ExampleUtils.is_lite_data_file(check.get_element("device")):
+            print(ExampleUtils.get_enterprise_offer(CONTACT_US))

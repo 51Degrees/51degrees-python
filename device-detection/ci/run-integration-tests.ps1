@@ -17,11 +17,14 @@ if ($IsWindows) {
 $packages = "fiftyone_devicedetection_cloud", "fiftyone_devicedetection_examples"
 
 if (!$Keys.TestResourceKey) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Resource Key::No resource key was provided, so integration tests will not run."
-    return
-} elseif (!(Test-Path $RepoName/fiftyone_devicedetection_cloud/tests/51Degrees.csv)) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No CSV File::CSV file wasn't found, so cloud tests will not run."
-    $packages = "fiftyone_devicedetection_examples"
+    throw "No TestResourceKey was passed, so the cloud tests cannot call " +
+        "the cloud service. The workflows set it from the " +
+        "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
+}
+# The cloud package runs without the CSV file too, because only its property
+# coverage tests read the file, and they say so when it is missing.
+if (!(Test-Path $RepoName/fiftyone_devicedetection_cloud/tests/51Degrees.csv)) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No CSV File::CSV file wasn't found, so the cloud property coverage tests will not run."
 }
 
 # nightly-publish-main workflow doesn't create the examples package, so
@@ -33,10 +36,13 @@ if ($env:GITHUB_JOB -eq "Test") {
 }
 
 # Resource key environment variables follow the 51Degrees convention, which
-# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'. The name
-# used before the convention was adopted is set by common-ci and is still
-# read as a fallback, so anything not yet moved over keeps working.
+# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'. The tests
+# and examples read the key from no other name, and common-ci sets only the
+# older resource_key, so the key is set here.
 $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+# The data file update example's test reads the licence key for the data
+# files from _51DEGREES_LICENSE_KEY, which common-ci sets as license_key.
+$env:_51DEGREES_LICENSE_KEY = $Keys.DeviceDetection
 
 ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
 $failures = @()
@@ -78,7 +84,12 @@ Push-Location $examplesDir
 try {
     python3 -m venv .virtualenv
     if ($LASTEXITCODE -ne 0) { throw "failed to create the examples virtual environment" }
-    & $py -m pip install -e .
+    # The pipeline packages come from this checkout rather than a package
+    # index, so the examples run with the pipeline code they are released with.
+    $pipeline = 'fiftyone_pipeline_core', 'fiftyone_pipeline_engines',
+        'fiftyone_pipeline_engines_fiftyone', 'fiftyone_pipeline_cloudrequestengine'
+    $local = $pipeline | ForEach-Object { '-e'; "../../pipeline/$_" }
+    & $py -m pip install -e . @local
     if ($LASTEXITCODE -ne 0) { throw "failed to install the examples package" }
 } finally { Pop-Location }
 
@@ -131,7 +142,7 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
 
 # The cloud example, pointed at the live cloud.
 $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"
+$env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 $failures += Test-Example -Name 'cloud' `
     -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097
 
@@ -140,10 +151,10 @@ $failures += Test-Example -Name 'cloud' `
 # against the TAC data file, which is only fetched when a licence is given.
 $tac = "$PWD/assets/TAC-HashV41.hash"
 if (Test-Path $tac) {
-    ${env:51DEGREES_DD_PATH} = (Resolve-Path $tac).Path
+    $env:_51DEGREES_DD_PATH = (Resolve-Path $tac).Path
     $failures += Test-Example -Name 'onpremise' `
         -Module 'fiftyone_devicedetection_examples.onpremise.gettingstarted_web' -Port 8098
-    Remove-Item Env:51DEGREES_DD_PATH
+    Remove-Item Env:_51DEGREES_DD_PATH
 } else {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No TAC Data File::The TAC data file wasn't found, so the Selenium tests will not run against the on-premise example."
 }

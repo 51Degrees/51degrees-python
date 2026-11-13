@@ -24,29 +24,34 @@ import os
 
 from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 
+from .live_cloud import read_environment
+
 
 class TestConstants:
 
     IPV4_ADDRESS = "185.28.167.78"
     IPV6_ADDRESS = "2001:4860:4860::8888"
 
-    # The data file can be supplied via the IPINTELLIGENCEDATAFILE
-    # environment variable. By default the Lite file downloaded to the
+    # The data file can be supplied via the _51DEGREES_IPI_PATH
+    # environment variable, or under its deprecated old name. By default
+    # the Lite file downloaded to the
     # repository's assets folder by ci/fetch-assets.ps1 is used.
     @staticmethod
     def get_data_file_path():
-        env = os.environ.get("IPINTELLIGENCEDATAFILE")
+        env = read_environment(
+            "_51DEGREES_IPI_PATH", "IPINTELLIGENCEDATAFILE")
         if env:
             return env
         return os.path.join(
             os.path.dirname(__file__),
             "..", "..", "assets", "51Degrees-LiteIpiV41.ipi")
 
-    # The ASN data file committed to the repository's ip-intelligence-data
-    # submodule. Unlike the Lite and Enterprise files it needs no download
-    # or secret, so it is always present wherever the engine can be built.
+    # The free ASN data file, which ci/fetch-assets.ps1 downloads with the
+    # data repository's script, beside its link in cxx/data/ip-intelligence.
+    # Unlike the Enterprise file it needs no secret.
     @staticmethod
-    def get_committed_data_file_path():
+    def get_asn_data_file_path():
         return os.path.join(
             os.path.dirname(__file__),
-            "..", "..", "ip-intelligence-data", ASN_DATAFILE_NAME)
+            "..", "..", "..", "cxx", "data", "ip-intelligence",
+            ASN_DATAFILE_NAME)

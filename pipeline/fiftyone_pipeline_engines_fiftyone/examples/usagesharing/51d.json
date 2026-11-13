@@ -9,8 +9,10 @@
               "interval": 1200,
               "requested_package_size": 50,
               "cookie": "",
+              "track_session": false,
               "query_whitelist": [],
-              "header_blacklist": []
+              "header_blacklist": [],
+              "share_all": false
           }
       }
       ]

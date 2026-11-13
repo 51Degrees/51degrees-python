@@ -21,7 +21,6 @@
 # *********************************************************************
 
 from __future__ import absolute_import
-import ipaddress
 import multiprocessing
 import os.path
 
@@ -33,6 +32,7 @@ from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenc
 
 from .IpIntelligenceEngineModule import *
 
+from .client_ip import client_ip_keys, client_ips, readable_client_ips
 from .swig_data import SwigData
 from .ipintelligence_datafile import IpIntelligenceDataFile
 
@@ -57,7 +57,7 @@ class IpIntelligenceOnPremise(Engine):
         polling_interval=30,
         update_time_maximum_randomisation=10,
         create_temp_data_copy=True,
-        performance_profile="LowMemory",
+        performance_profile="Balanced",
         reuse_temp_file=False,
         concurrency=multiprocessing.cpu_count(),
         update_on_start=False,
@@ -84,7 +84,9 @@ class IpIntelligenceOnPremise(Engine):
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type performance_profile: string
-        @param performance_profile: options are: LowMemory, MaxPerformance, Balanced, BalancedTemp, HighPerformance
+        @param performance_profile: options are: LowMemory, MaxPerformance,
+        Balanced, BalancedTemp, HighPerformance. Balanced by default, as in
+        the native code.
         @type reuse_temp_file: bool
         @param reuse_temp_file: Indicates that an existing temp file may be used. This should be selected if multiple instances wish to use the same file to prevent high disk usage.
         @type concurrency: int
@@ -146,6 +148,11 @@ class IpIntelligenceOnPremise(Engine):
             self.set_restricted_properties(restricted_properties)
 
         properties_list = RequiredPropertiesConfigSwig(restricted_properties_vector)
+
+        # The property names the engine is built with. A property's index is
+        # its place in this list, which is fixed at build. An empty list
+        # means the engine takes its names from the native code once built.
+        self.build_property_names = list(restricted_properties_vector)
 
         #  Assemble configuration
 
@@ -238,6 +245,10 @@ class IpIntelligenceOnPremise(Engine):
 
         self.engine = engine
 
+        # The table from each build-time name to its index, made once here
+        # so every read goes by index.
+        self.property_indexes = self.read_property_indexes()
+
         # Get keys and add to evidenceKey filter
 
         evidence_keys = engine.getKeys()
@@ -245,9 +256,13 @@ class IpIntelligenceOnPremise(Engine):
         evidence_keys_list = []
 
         for x in range(evidence_keys.size()):
-            evidence_keys_list.append(evidence_keys.__getitem__(x).lower())
+            evidence_keys_list.append(evidence_keys.__getitem__(x))
 
-        self.evidence_keys_list = evidence_keys_list
+        # The client IP keys in the order the native code reads them, with
+        # the engine's own spelling, which the native code matches.
+        self.client_ip_keys = client_ip_keys(evidence_keys_list)
+
+        self.evidence_keys_list = [key.lower() for key in evidence_keys_list]
 
         # Get properties list
 
@@ -272,6 +287,26 @@ class IpIntelligenceOnPremise(Engine):
         # Special properties
         for metric_property_name, metric_property in self.get_metric_properties().items():
             self.properties[metric_property_name] = metric_property
+
+    def read_property_indexes(self):
+
+        """!
+        The index of each property the engine was built with, keyed by its
+        name in lower case. The native code gives a property the place of
+        its name among the names the engine was built with, the first place
+        where a name is given twice. An engine built with no names takes
+        the names the native code gives after the first load, which are
+        every property in that data set sorted by name and which a reload
+        does not change.
+        """
+
+        names = self.build_property_names
+        if not names:
+            names = list(self.engine.getRequiredProperties())
+        indexes = {}
+        for index, name in enumerate(names):
+            indexes.setdefault(name.lower(), index)
+        return indexes
 
     def get_metric_properties(self):
 
@@ -328,43 +363,33 @@ class IpIntelligenceOnPremise(Engine):
         super(IpIntelligenceOnPremise, self).on_registration(pipeline)
         self.init_engine()
 
+    def close(self):
+
+        """!
+
+        Stop the data file updates and release the native engine. Its data
+        is freed once no results read from it are still held, so close
+        every FlowData the engine processed as well. Closing the pipeline
+        closes the engine.
+
+        """
+
+        super(IpIntelligenceOnPremise, self).close()
+        self.engine = None
+
     def get_client_ips(self, flow_data):
 
         """!
 
-        Get the IPv4 and IPv6 addresses from the evidence, using the same
-        priority order as the other IP intelligence engines:
-        query.client-ip first, then server.client-ip, then any other
-        parseable value in the evidence accepted by the engine.
+        The address the engine reports in Ip or IpV6 for the flow data's
+        evidence, which is the one the native code looks up.
 
         @rtype: tuple
-        @returns: (ipv4 or None, ipv6 or None)
+        @returns: (ipv4 or None, ipv6 or None), with at most one set
 
         """
 
-        evidence = flow_data.evidence.get_all()
-
-        ordered = []
-        for key in ["query.client-ip", "server.client-ip"]:
-            if key in evidence:
-                ordered.append(evidence[key])
-        for key, value in evidence.items():
-            if value not in ordered:
-                ordered.append(value)
-
-        ipv4 = None
-        ipv6 = None
-        for value in ordered:
-            try:
-                parsed = ipaddress.ip_address(str(value).strip())
-            except ValueError:
-                continue
-            if parsed.version == 4 and ipv4 is None:
-                ipv4 = str(parsed)
-            elif parsed.version == 6 and ipv6 is None:
-                ipv6 = str(parsed)
-
-        return (ipv4, ipv6)
+        return client_ips(flow_data.evidence.get_all(), self.client_ip_keys)
 
     def process_internal(self, flow_data):
 
@@ -379,14 +404,30 @@ class IpIntelligenceOnPremise(Engine):
 
         """
 
+        if getattr(self, "engine", None) is None:
+            raise Exception(ENGINE_CLOSED)
+
+        # Only the client IP values that are read reach the native code,
+        # each as its address alone, so the first of them is the address
+        # the native code looks up and the one reported in Ip or IpV6.
+        found = readable_client_ips(
+            flow_data.evidence.get_all(), self.client_ip_keys)
+
         evidence = EvidenceIpiSwig()
 
-        for key, value in flow_data.evidence.get_all().items():
-            evidence.__setitem__(key, value)
+        for key, address in found:
+            evidence.__setitem__(key, str(address))
 
         result = self.engine.process(evidence)
 
-        ipv4, ipv6 = self.get_client_ips(flow_data)
+        ipv4 = None
+        ipv6 = None
+        if found:
+            address = found[0][1]
+            if address.version == 4:
+                ipv4 = str(address)
+            else:
+                ipv6 = str(address)
 
         data = SwigData(self, result, echo_ip=ipv4, echo_ipv6=ipv6)
 

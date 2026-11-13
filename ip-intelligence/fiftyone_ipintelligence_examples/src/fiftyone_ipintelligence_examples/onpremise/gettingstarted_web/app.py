@@ -44,6 +44,10 @@ from fiftyone_ipintelligence_examples.onpremise.countries_pipeline import (
     add_country_translation, build_country_options)
 from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_web-app.py&utm_term=enterprise-data-file"
+
 app = Flask(__name__)
 
 pipeline = None
@@ -69,6 +73,12 @@ def get_value(ip_data, property):
 
 
 def country_dropdown(translated):
+    # Only the Enterprise data file has the country codes the dropdown is
+    # built from.
+    if not ExampleUtils.has_property(
+            pipeline.flow_elements_list["ip"], "CountryCodesGeographical"):
+        return (f"<p>The country dropdown {ExampleUtils.NEEDS_ENTERPRISE}. "
+                f"<a href=\"{CONTACT_US}\">Contact us</a> for a copy.</p>")
 
     # The geographical "All" lists are index-aligned: option i is
     # (CountryCodesGeographicalAll[i], CountryNamesGeographicalAllTranslated[i]),
@@ -88,44 +98,46 @@ def country_dropdown(translated):
 @app.route("/")
 def index():
 
-    # Create the flowdata object for this request.
-    flowdata = pipeline.create_flowdata()
+    # Create the flowdata object for this request. It is closed when the
+    # route returns, once the page has been built from it, which releases
+    # the results of the lookup straight away.
+    with pipeline.create_flowdata() as flowdata:
 
-    # Use the IP address supplied as a query parameter, or fall back
-    # to the address of the requester.
-    client_ip = request.args.get("client-ip", request.remote_addr)
-    flowdata.evidence.add("query.client-ip", client_ip)
+        # Use the IP address supplied as a query parameter, or fall back
+        # to the address of the requester.
+        client_ip = request.args.get("client-ip", request.remote_addr)
+        flowdata.evidence.add("query.client-ip", client_ip)
 
-    # Supply the browser language so the country names are localized. The
-    # Accept-Language header is used by default, overridable with a
-    # "translation" query parameter.
-    accept_language = request.headers.get("Accept-Language")
-    if accept_language:
-        flowdata.evidence.add("header.accept-language", accept_language)
-    translation = request.args.get("translation")
-    if translation:
-        flowdata.evidence.add("query.translation", translation)
+        # Supply the browser language so the country names are localized. The
+        # Accept-Language header is used by default, overridable with a
+        # "translation" query parameter.
+        accept_language = request.headers.get("Accept-Language")
+        if accept_language:
+            flowdata.evidence.add("header.accept-language", accept_language)
+        translation = request.args.get("translation")
+        if translation:
+            flowdata.evidence.add("query.translation", translation)
 
-    # Process the flowdata
-    flowdata.process()
+        # Process the flowdata
+        flowdata.process()
 
-    ip_data = flowdata.ip
-    translated = flowdata.get("countrynamestranslated")
+        ip_data = flowdata.ip
+        translated = flowdata.get("countrynamestranslated")
 
-    return f"""
-    <h2>51Degrees IP Intelligence - Getting Started Web (On-Premise)</h2>
-    <p>IP address: {client_ip}</p>
-    <ul>
-        <li>Registered Name: {get_value(ip_data, "registeredname")}</li>
-        <li>Registered Owner: {get_value(ip_data, "registeredowner")}</li>
-        <li>Registered Country: {get_value(ip_data, "registeredcountry")}</li>
-    </ul>
-    <h3>Country</h3>
-    <p>Most probable country first, then every other country alphabetically.</p>
-    {country_dropdown(translated)}
-    <p>Add ?client-ip=x.x.x.x to the url to lookup a different address, and
-    &amp;translation=fr_FR to choose a language.</p>
-    """
+        return f"""
+        <h2>51Degrees IP Intelligence - Getting Started Web (On-Premise)</h2>
+        <p>IP address: {client_ip}</p>
+        <ul>
+            <li>Registered Name: {get_value(ip_data, "registeredname")}</li>
+            <li>Registered Owner: {get_value(ip_data, "registeredowner")}</li>
+            <li>Registered Country: {get_value(ip_data, "registeredcountry")}</li>
+        </ul>
+        <h3>Country</h3>
+        <p>Most probable country first, then every other country alphabetically.</p>
+        {country_dropdown(translated)}
+        <p>Add ?client-ip=x.x.x.x to the url to lookup a different address, and
+        &amp;translation=fr_FR to choose a language.</p>
+        """
 
 
 def main(data_file = None):
@@ -133,11 +145,15 @@ def main(data_file = None):
         data_file = ExampleUtils.find_file(LITE_DATAFILE_NAME)
     if not data_file:
         raise Exception(
-            "Failed to find an IP intelligence data file. Download the "
-            "Lite file from https://51ddatafiles.blob.core.windows.net/"
-            "enterpriseipi/51Degrees-LiteIpiV41.ipi.gz")
-    build_pipeline(data_file)
-    app.run(debug=False)
+            "Failed to find an IP intelligence data file. Make sure the "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`, and run this "
+            "example again to download the file, or supply the path to a "
+            "data file as the first command line argument.")
+    # The pipeline lives as long as the app, and is closed when the server
+    # stops, which releases the native data it holds.
+    with build_pipeline(data_file):
+        app.run(debug=False)
 
 
 if __name__ == "__main__":

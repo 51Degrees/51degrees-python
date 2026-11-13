@@ -58,7 +58,7 @@
 # ```
 # 
 # Results can also be accessed in client-side code by using the `fod` object. See the 
-# [JavaScriptBuilderElementBuilder](https://51degrees.com/pipeline-python/4.3/classpipeline-python_1_1fiftyone__pipeline__core_1_1fiftyone__pipeline__core_1_1javascriptbuilde778a9036818b19ab55d981a40be4a4d7.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=top)
+# [JavascriptBuilderElement](https://51degrees.com/documentation/apis/pipeline-python/classfiftyone__pipeline__core_1_1javascriptbuilder_1_1_javascript_builder_element.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=top)
 # for details on available settings such as changing the `fod` name.
 # ```{js}
 # window.onload = function () {
@@ -82,7 +82,8 @@ from flask.helpers import make_response
 from flask import Flask, request, render_template
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
-from fiftyone_pipeline_core.web import webevidence, set_response_header
+from fiftyone_pipeline_core.web import (
+    javascript_response, json_response, webevidence, set_response_header)
 import json
 
 class GettingStartedWeb():
@@ -102,60 +103,34 @@ class GettingStartedWeb():
 
         # The port can be set with the PORT environment variable, as it can
         # for the cloud example, so the example can run next to other services.
-        GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5001)))
+        # The pipeline lives as long as the app, and is closed when the server
+        # stops, which releases the native data it holds.
+        with GettingStartedWeb.pipeline:
+            GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5001)))
 
     # First we make a JSON route that will be called from the client side and will return
-    # a JSON encoded property database using any additional evidence provided by the client 
+    # a JSON encoded property database using any additional evidence provided by the client.
+    # json_response processes the request and sets the cache headers, so a browser keeps a
+    # good answer for 30 minutes and never keeps one made while processing failed.
 
     @staticmethod
     @app.route('/json', methods=['POST'])
     def jsonroute():
 
-        # Create the flowdata object for the JSON route
-        flowdata = GettingStartedWeb.pipeline.create_flowdata()
-
-        # Add any information from the request (headers, cookies and additional 
-        # client side provided information)
-
-        flowdata.evidence.add_from_dict(webevidence(request))
-
-        # Process the flowdata
-
-        flowdata.process()
-
-        # Return the JSON from the JSONBundler engine
-
-        return json.dumps(flowdata.jsonbundler.json)
+        return json_response(GettingStartedWeb.pipeline, request)
 
     # Next we serve the client-side JavaScript from its own route. The other
     # Pipeline APIs ship a web integration that intercepts '/51Degrees.core.js'
     # for this, so the page can reference the script by that name. There is no
     # such integration for Flask, so the example wires up the route itself.
+    # Query parameters are evidence, so the per-request 'fod-js-enable-cookies'
+    # override is picked up and applied by the JavaScriptBuilder engine.
 
     @staticmethod
     @app.route('/51Degrees.core.js')
     def core_js():
 
-        # Create the flowdata object for the JavaScript route
-        flowdata = GettingStartedWeb.pipeline.create_flowdata()
-
-        # Add any information from the request (headers, cookies and additional
-        # client side provided information). Query parameters are included, so
-        # the per-request 'fod-js-enable-cookies' override is picked up here and
-        # applied by the JavaScriptBuilder engine.
-
-        flowdata.evidence.add_from_dict(webevidence(request))
-
-        # Process the flowdata
-
-        flowdata.process()
-
-        # Return the JavaScript from the JavaScriptBuilder engine
-
-        response = make_response(flowdata.javascriptbuilder.javascript)
-        response.headers["Content-Type"] = "application/x-javascript"
-
-        return response
+        return javascript_response(GettingStartedWeb.pipeline, request)
 
     # In the main route we dynamically update the screen's device property display
     # using the above JSON route
@@ -164,36 +139,37 @@ class GettingStartedWeb():
     @app.route('/')
     def server():
 
-        # Create the flowdata object for the JSON route
-        flowdata = GettingStartedWeb.pipeline.create_flowdata()
+        # Create the flowdata object for the page. It is closed when the route
+        # returns, once the page has been rendered from it.
+        with GettingStartedWeb.pipeline.create_flowdata() as flowdata:
 
-        # Add any information from the request (headers, cookies and additional 
-        # client side provided information)
+            # Add any information from the request (headers, cookies and additional 
+            # client side provided information)
 
-        flowdata.evidence.add_from_dict(webevidence(request))
+            flowdata.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowdata
+            # Process the flowdata
 
-        flowdata.process()
+            flowdata.process()
 
-        response = make_response()
+            response = make_response()
 
-        # Some browsers require that extra HTTP headers are explicitly
-        # requested. So set whatever headers are required by the browser in
-        # order to return the evidence needed by the pipeline.
-        # More info on this can be found at
-        # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=server
+            # Some browsers require that extra HTTP headers are explicitly
+            # requested. So set whatever headers are required by the browser in
+            # order to return the evidence needed by the pipeline.
+            # More info on this can be found at
+            # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=server
 
-        set_response_header(flowdata, response)
+            set_response_header(flowdata, response)
 
-        # Generate the HTML
-        response.set_data(render_template(
-            'index.html',
-            data=flowdata,
-            utils=ExampleUtils,
-            response=response))
+            # Generate the HTML
+            response.set_data(render_template(
+                'index.html',
+                data=flowdata,
+                utils=ExampleUtils,
+                response=response))
 
-        return response
+            return response
 
         
     # Typically, something like this will not be necessary.
@@ -214,7 +190,7 @@ class GettingStartedWeb():
         configFile = Path(__file__).resolve().parent.joinpath("config.json").read_text()
         config = json.loads(configFile)
 
-        # A data file named in the 51DEGREES_DD_PATH environment variable takes
+        # A data file named in the _51DEGREES_DD_PATH environment variable takes
         # the place of the one in config.json. This lets the example run
         # against a paid data file without editing the configuration.
         envDataFile = ExampleUtils.get_data_file_path()
@@ -223,7 +199,7 @@ class GettingStartedWeb():
             if not os.path.exists(envDataFile):
                 raise Exception("The device detection data file " +
                     f"'{envDataFile}' named in the environment variable " +
-                    f"'{ExampleUtils.DATA_FILE_ENV_VAR}' does not exist.")
+                    f"'{ExampleUtils.DD_PATH_ENV_VAR}' does not exist.")
             ExampleUtils.set_data_file_in_config(config, envDataFile)
             return config
 
@@ -246,10 +222,11 @@ class GettingStartedWeb():
         if foundDataFile == False:
             raise Exception("Failed to find a device detection data file matching " +
                 f"'{dataFile}'. If using the lite file, then make sure the " +
-                "device-detection-data submodule has been updated by running " +
-                "`git submodule update --recursive`. Otherwise, ensure that the filename " +
+                "data submodule is there, by running " +
+                "`git submodule update --init --recursive`, and run this " +
+                "example again to download the file. Otherwise, ensure that the filename " +
                 "is correct in config.json, or set the environment variable " +
-                f"'{ExampleUtils.DATA_FILE_ENV_VAR}' to the path of the data file.")
+                f"'{ExampleUtils.DD_PATH_ENV_VAR}' to the path of the data file.")
 
         return config
 

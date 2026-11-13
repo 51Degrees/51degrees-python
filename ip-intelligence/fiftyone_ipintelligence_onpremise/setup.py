@@ -250,6 +250,11 @@ setup(
     version=read("version.txt"),
     author="51Degrees Engineering",
     author_email="engineering@51degrees.com",
+    project_urls={
+        "Homepage": "https://51degrees.com/ip-intelligence?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_onpremise&utm_term=homepage",
+        "Documentation": "https://51degrees.com/documentation/_ip_intelligence__index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_onpremise&utm_term=documentation",
+        "Source": "https://github.com/51Degrees/51degrees-python",
+    },
     description = """IP Intelligence and IP geolocation for Python that finds an IP address's likely location (country, region, town, and coordinates), connection type, and network by reading a data file on your server. An alternative to MaxMind and IPinfo.""",
     keywords=[
         "51degrees",
@@ -272,5 +277,12 @@ setup(
     py_modules=["fiftyone_ipintelligence_onpremise"],
     packages=["fiftyone_ipintelligence_onpremise"],
     package_dir={"": "src"},
-    install_requires=["fiftyone_ipintelligence_shared", "fiftyone_pipeline_engines_fiftyone"],
+    install_requires=[
+        "fiftyone_ipintelligence_shared",
+        "fiftyone_pipeline_engines_fiftyone",
+        # The first versions with close(), which releases the native memory
+        # this package holds.
+        "fiftyone_pipeline_core>=4.5.42",
+        "fiftyone_pipeline_engines>=4.5.42",
+    ],
 )

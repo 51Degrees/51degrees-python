@@ -20,7 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-from .evidence_keyfilter import EvidenceKeyFilter
+from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 
 
 class FlowElement(object):
@@ -77,17 +77,30 @@ class FlowElement(object):
 
         pass
 
+    def close(self):
+
+        """!
+        Release the resources the element holds. The pipeline calls this
+        when it is closed. This element holds none, and elements that hold
+        native data or threads override it.
+
+        """
+
+        pass
+
     def get_evidence_key_filter(self):
 
         """!
-        Filter FlowData evidence using the FlowElement's EvidenceKeyFilter
+        The evidence this element accepts. An element overrides this to name
+        the evidence that can change its results. One that does not accepts
+        no evidence, so it never widens what the pipeline keeps.
 
         @rtype: EvidenceKeyFilter
         @return: Returns an EvidenceKeyFilter
 
         """
 
-        return EvidenceKeyFilter()
+        return BasicListEvidenceKeyFilter([])
 
     def filter_evidence(self, flowdata):
 

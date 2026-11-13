@@ -25,6 +25,8 @@ from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
 from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
 
+from .constants import RESULTS_CLOSED
+
 class OnPremiseMissingPropertyService(MissingPropertyService):
 
     def check(self, key, flow_element):
@@ -58,6 +60,33 @@ class SwigData(AspectData):
         self.swig_results = swig_results
 
         self.missing_property_service = OnPremiseMissingPropertyService()
+
+    def close(self):
+
+        """!
+        Release the native results, which keep the engine's data in memory
+        while they are held, even after the engine is closed. Values already
+        read are unaffected, and reading a property afterwards raises an
+        exception. Closing the FlowData closes its results.
+        """
+
+        self.swig_results = None
+
+    def get(self, key):
+
+        """!
+        Get a property value, once the results are known to be open
+        @type key: string
+        @param key: The key of the property to retrieve
+        @returns mixed
+        """
+
+        # Checked here, because AspectData.get turns an exception from
+        # get_internal into a missing property message.
+        if self.swig_results is None:
+            raise Exception(RESULTS_CLOSED)
+
+        return super(SwigData, self).get(key)
 
     def get_internal(self, key):
 
@@ -106,23 +135,29 @@ class SwigData(AspectData):
 
             value = None
 
+            # Read by the property's index from the engine's build-time
+            # table. A name outside the table is read by name, which gives
+            # the native no value message.
+            target = getattr(self.flow_element, "property_indexes", {}).get(
+                key, this_property["name"])
+
             if this_property["type"] == "bool":
-                value = self.swig_results.getValueAsBool(this_property["name"])
+                value = self.swig_results.getValueAsBool(target)
 
             if this_property["type"] == "string":
-                value = self.swig_results.getValueAsString(this_property["name"])
+                value = self.swig_results.getValueAsString(target)
 
             if this_property["type"] == "javascript":
-                value = self.swig_results.getValueAsString(this_property["name"])
+                value = self.swig_results.getValueAsString(target)
             
             if this_property["type"] == "int":
-                value = self.swig_results.getValueAsInteger(this_property["name"])
+                value = self.swig_results.getValueAsInteger(target)
 
             if this_property["type"] == "double":
-                value = self.swig_results.getValueAsDouble(this_property["name"])
+                value = self.swig_results.getValueAsDouble(target)
 
             if this_property["type"] == "string[]":
-                value = self.swig_results.getValues(this_property["name"])
+                value = self.swig_results.getValues(target)
    
 
             # Check for value / no value message

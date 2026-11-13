@@ -25,7 +25,7 @@
 #
 # This example measures the performance of the on-premise IP intelligence
 # engine. It processes the IP addresses from the evidence file supplied in
-# the ip-intelligence-data repository and reports the number of IP lookups
+# the data repository and reports the number of IP lookups
 # performed per second.
 #
 # Requesting fewer properties reduces processing time. If you do not specify
@@ -35,9 +35,12 @@
 #
 # The native engine holds the Python GIL for the duration of each lookup, so
 # threads cannot run lookups in parallel. Parallelism therefore uses worker
-# processes, each building its own pipeline. With the LowMemory profile the
-# memory mapped data file is shared between the processes by the operating
-# system, so a large enterprise data file is not duplicated per worker.
+# processes, each building its own pipeline. With the default MaxPerformance
+# profile each worker loads the whole data file into its own memory, so the
+# memory used grows with the number of workers. With -p LowMemory each worker
+# reads the data file from disk as it needs it, and the operating system's
+# file cache holds one copy for all the workers, so a large Enterprise data
+# file is not held once per worker.
 #
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
@@ -55,12 +58,16 @@ from ruamel.yaml import YAML
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_pipeline_core.logger import Logger
-from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
 from fiftyone_ipintelligence_shared.example_constants import EVIDENCE_FILE_NAME
 
 # The IP intelligence properties used to measure performance. Restricting the
 # work to a single component keeps the benchmark focused on lookup speed.
 PERFORMANCE_PROPERTY = "registeredcountry"
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-performance_console.py&utm_term=enterprise-data-file"
 
 # The number of records processed before timing starts, so that any lazy
 # initialisation is not included in the timed run.
@@ -84,11 +91,13 @@ def _build_pipeline(data_file, performance_profile, logger=None):
 
 
 def _process_record(pipeline, record):
-    data = pipeline.create_flowdata()
-    data.evidence.add_from_dict(record)
-    data.process()
-    value = ExampleUtils.get_value(data.ip, PERFORMANCE_PROPERTY)
-    return value is not None and value.has_value()
+    # The FlowData is closed when the function returns, which releases the
+    # results of the lookup straight away.
+    with pipeline.create_flowdata() as data:
+        data.evidence.add_from_dict(record)
+        data.process()
+        value = ExampleUtils.get_value(data.ip, PERFORMANCE_PROPERTY)
+        return value is not None and value.has_value()
 
 
 def _time_lookups(pipeline, records):
@@ -115,8 +124,10 @@ def _worker(data_file, performance_profile, records, queue):
     count and elapsed seconds back to the parent.
     """
 
-    pipeline = _build_pipeline(data_file, performance_profile)
-    elapsed = _time_lookups(pipeline, records)
+    # The pipeline is closed at the end of the with block, which releases
+    # the native data it holds.
+    with _build_pipeline(data_file, performance_profile) as pipeline:
+        elapsed = _time_lookups(pipeline, records)
     queue.put((len(records), elapsed))
 
 
@@ -156,9 +167,10 @@ class PerformanceConsole():
             # wall time of the run.
             elapsed = max(elapsed for _records, elapsed in results)
         else:
-            pipeline = _build_pipeline(data_file, performance_profile, logger)
-            ExampleUtils.check_data_file(pipeline, logger)
-            elapsed = _time_lookups(pipeline, evidence)
+            with _build_pipeline(
+                    data_file, performance_profile, logger) as pipeline:
+                ExampleUtils.check_data_file(pipeline, logger)
+                elapsed = _time_lookups(pipeline, evidence)
 
         per_second = count / elapsed if elapsed > 0 else 0
         ms_per_lookup = (elapsed / count) * 1000 if count > 0 else 0
@@ -209,7 +221,9 @@ def main(argv):
         help="Performance profile: MaxPerformance (default) or LowMemory")
     args = ap.parse_args(argv)
 
-    data_file = args.data_file or ExampleUtils.find_file(ENTERPRISE_DATAFILE_NAME)
+    # By default the free ASN data file is used, which is far smaller than the
+    # Lite file and is downloaded when it is missing.
+    data_file = args.data_file or ExampleUtils.find_file(ASN_DATAFILE_NAME)
     evidence_file = args.evidence_file or ExampleUtils.find_file(EVIDENCE_FILE_NAME)
 
     logger = Logger(min_level="info")
@@ -222,11 +236,14 @@ def main(argv):
         if args.json_output:
             with open(args.json_output, "w") as fout:
                 json.dump(results, fout)
+        if ExampleUtils.is_free_data_file_at(data_file):
+            print("")
+            print(ExampleUtils.get_enterprise_offer(CONTACT_US))
     else:
         logger.log("error",
             "Failed to find a data file or evidence file. Make sure the "
-            "ip-intelligence-data submodule has been updated by running "
-            "`git submodule update --recursive`. To obtain an enterprise "
+            "data submodule is there, by running "
+            "`git submodule update --init --recursive`. To obtain an enterprise "
             "data file for testing, please contact us: "
             "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-performance_console.py&utm_term=data-file-required")
 

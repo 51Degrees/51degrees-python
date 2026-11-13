@@ -1,8 +1,8 @@
 # 51Degrees IP Intelligence Engines
 
-![51Degrees](https://51degrees.com/img/logo.png?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "Data rewards the curious") **Python IP Intelligence**
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python IP Intelligence**
 
-[Developer Documentation](https://51degrees.com/ip-intelligence-python/index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "developer documentation")
+[Developer Documentation](https://51degrees.com/documentation/_ip_intelligence__quickstart.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-ip-intelligence-engines "developer documentation")
 
 ## Introduction
 
@@ -19,19 +19,16 @@ design of this API.
 
 ## Dependencies
 
-For runtime dependencies, see our
-[dependencies](https://51degrees.com/documentation/_info__dependencies.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies)
-page. The [tested versions](https://51degrees.com/documentation/_info__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies)
+The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies)
 page shows the Python versions that we currently test against.
 
 ### Git submodules
 
 The on-premise engine wraps the native
 [51degrees-cxx](https://github.com/51Degrees/51degrees-cxx/blob/main/docs/ipi/README.md)
-library, and the
-[ip-intelligence-data](https://github.com/51Degrees/ip-intelligence-data)
-repository (data and evidence files used for testing) is also included, both
-as git submodules. When cloning, use:
+library, which is included as the `cxx` git submodule. It has the
+[data](https://github.com/51Degrees/data) repository (data and evidence files
+used for testing) as its own submodule, at `cxx/data`. When cloning, use:
 
 ```
 git clone --recurse-submodules https://github.com/51Degrees/51degrees-python.git
@@ -45,13 +42,25 @@ git submodule update --init --recursive
 
 ### Data files
 
-The on-premise engine requires a `.ipi` data file. The
-[ip-intelligence-data](https://github.com/51Degrees/ip-intelligence-data)
-submodule provides a freely available network-only data file
+The on-premise engine requires a `.ipi` data file. The data repository's
+`cxx/data/ip-intelligence` folder holds the evidence files used for testing,
+and links to a freely available network-only data file
 (`51Degrees-IPIV4AsnIpiV41.ipi`), which the examples tests and
-`CommittedDataFileTests` use, along with the evidence files used for
-testing. The on-premise unit tests default to
-`assets/51Degrees-LiteIpiV41.ipi`.
+`AsnDataFileTests` use. The linked files are not stored in a repository.
+Download them from the root of this repository by running:
+
+```
+sh cxx/data/get-data-files.sh ip-intelligence
+```
+
+or, in PowerShell:
+
+```
+./cxx/data/get-data-files.ps1 ip-intelligence
+```
+
+An example whose file is missing runs the script for that file itself. The
+on-premise unit tests default to `assets/51Degrees-LiteIpiV41.ipi`.
 
 For the full set of properties (location, registration, etc.) an enterprise
 data file is required. To obtain one for testing, please
@@ -59,12 +68,12 @@ data file is required. To obtain one for testing, please
 line argument to the examples, or place it within the project space.
 
 Note: the engine reads exactly one data file format version, set by
-`FIFTYONE_DEGREES_IPI_TARGET_VERSION_MAJOR` and `_MINOR` in the
-`ip-intelligence-cxx` submodule's `src/ipi.c`, and refuses any other as
-"an unsupported version". Move the `ip-intelligence-cxx` and
-`ip-intelligence-data` pins together. `CommittedDataFileTests` in
+`FIFTYONE_DEGREES_IPI_TARGET_VERSION_MAJOR` and `_MINOR` in the `cxx`
+submodule's `src/ipi/ipi.c`, and refuses any other as "an unsupported
+version". The ASN data file is downloaded from the Distributor, which always
+serves the latest one published, so `AsnDataFileTests` in
 [test_ipintelligence.py](fiftyone_ipintelligence_onpremise/tests/test_ipintelligence.py)
-fails when the two disagree.
+fails when the engine cannot read the format 51Degrees publishes.
 
 ## Folders
 
@@ -77,8 +86,6 @@ fails when the two disagree.
   wraps ip-intelligence-cxx via SWIG.
 - `fiftyone_ipintelligence_shared` - code shared between the engines.
 - `fiftyone_ipintelligence_examples` - usage examples for both engines.
-- `ip-intelligence-data` - submodule containing the test data file and
-  evidence files used by the examples and tests.
 
 ## Installation
 
@@ -113,10 +120,10 @@ cd fiftyone_ipintelligence_examples && python -m pytest tests
 ```
 
 - The cloud tests run against a mocked cloud service, so no resource
-  key is required. Set the `resource_key` environment variable to also
+  key is required. Set the `_51DEGREES_RESOURCE_KEY` environment variable to also
   exercise the live cloud service.
 - The on-premise tests require a data file (see Data files above). Set
-  the `IPINTELLIGENCEDATAFILE` environment variable to use a data file
+  the `_51DEGREES_IPI_PATH` environment variable to use a data file
   from a custom location.
 
 ## Examples

@@ -39,6 +39,13 @@ class OnPremiseGettingStartedWebTests(flask_unittest.ClientTestCase):
     config = GettingStartedWeb.build_config()
     app = GettingStartedWeb().build(config, logger).app
 
+    # The example's pipeline lives as long as its app, so it is closed once
+    # the tests are finished with the app.
+    @classmethod
+    def tearDownClass(cls):
+        GettingStartedWeb.pipeline.close()
+        super().tearDownClass()
+
     def test_onpremise_getting_started_web(self, client):
         response = client.get('/')
         self.assertEqual(200, response.status_code)
@@ -74,7 +81,7 @@ class OnPremiseGettingStartedWebConfigTests(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix=".hash", delete=False) as file:
             path = file.name
         try:
-            with mock.patch.dict(os.environ, {ExampleUtils.DATA_FILE_ENV_VAR: path}):
+            with mock.patch.dict(os.environ, {ExampleUtils.DD_PATH_ENV_VAR: path}):
                 config = GettingStartedWeb.build_config()
             self.assertEqual(
                 os.path.abspath(path),
@@ -86,7 +93,7 @@ class OnPremiseGettingStartedWebConfigTests(unittest.TestCase):
     # name, rather than the example silently falling back to config.json.
     def test_missing_data_file_from_environment(self):
         missing = os.path.join(tempfile.gettempdir(), "no-such-51degrees-file.hash")
-        with mock.patch.dict(os.environ, {ExampleUtils.DATA_FILE_ENV_VAR: missing}):
+        with mock.patch.dict(os.environ, {ExampleUtils.DD_PATH_ENV_VAR: missing}):
             with self.assertRaises(Exception) as context:
                 GettingStartedWeb.build_config()
-        self.assertIn(ExampleUtils.DATA_FILE_ENV_VAR, str(context.exception))
+        self.assertIn(ExampleUtils.DD_PATH_ENV_VAR, str(context.exception))
