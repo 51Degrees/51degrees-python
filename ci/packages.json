@@ -40,6 +40,14 @@
     "Publish": true
   },
   {
+    "Name": "fiftyone_pipeline_derivedproperty",
+    "Product": "pipeline",
+    "Path": "pipeline/fiftyone_pipeline_derivedproperty",
+    "Ignore": ["**/tox.ini"],
+    "DependsOn": ["fiftyone_pipeline_core"],
+    "Publish": false
+  },
+  {
     "Name": "fiftyone_pipeline_did",
     "Product": "pipeline",
     "Path": "pipeline/fiftyone_pipeline_did",
