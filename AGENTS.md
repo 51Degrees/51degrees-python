@@ -342,6 +342,18 @@ A package's `ExtraPaths` in `ci/packages.json` cannot be a folder inside
 cxx update therefore releases no package, even when it brings new translations
 in `cxx/data/ip-intelligence`.
 
+`pipeline/fiftyone_pipeline_derivedproperty` runs the scripts of
+[derived-properties](https://github.com/51Degrees/derived-properties), which is
+its submodule `src/fiftyone_pipeline_derivedproperty/derived-properties`, inside
+the package so that the wheel carries its `scripts` folder (`MANIFEST.in`) and
+nothing else from it. Its tests run every case file in the submodule's `tests`
+folder, so moving the submodule moves the cases the tests run. `parse.py`,
+`validate.py`, `evaluate.py` and `canonical.py` follow the reference tools in
+the submodule's `tools` folder function for function, with `jsvalues.py`
+holding the JavaScript rules they rely on, so a change there is made here the
+same way. The package is `"Publish": false` in `ci/packages.json`, so it is
+tested in every build and not published.
+
 ## Releases
 
 Pull requests go to `rc`, not `main`, and stay drafts until they have been
