@@ -13,7 +13,7 @@ $ErrorActionPreference = "Stop"
 # build-package.ps1 and publish-package.ps1, all from the same release plan.
 $plan = @(Get-ReleasePlan $RepoName)
 if ($plan.Count -gt 0) {
-    $label = ($plan.Version | Sort-Object { [version]$_ })[-1]
+    $label = @($plan.Version | Sort-Object { [version]$_ })[-1]
 } else {
     # Nothing to release. Any valid version will do, because
     # package-update-required.ps1 stops the publish before it is used.
