@@ -32,9 +32,11 @@ import unittest
 import urllib.error
 import urllib.parse
 import urllib.request
+import warnings
 from datetime import timedelta
 from http.server import HTTPServer
 from pathlib import Path
+from unittest import mock
 
 from fiftyone_pipeline_did import DidClient
 
@@ -174,6 +176,126 @@ class CreatorContextServerTests(unittest.TestCase):
         self.assertEqual(502, status)
         self.assertEqual("application/json", content_type)
         self.assertIn("connection refused", json.loads(body)["error"])
+
+
+class ServerEndpointVariableTests(unittest.TestCase):
+    """The demo reads the cloud API base from the environment itself,
+    because its page needs the same value as its client, so it follows the
+    same two names as the DidClient. The old name is still read when the
+    new one is not set."""
+
+    NEW_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
+    OLD_VARIABLE = "FOD_CLOUD_API_URL"
+
+    def setUp(self):
+        # Each test starts with neither name set, and what it sets is put
+        # back afterwards.
+        environment = mock.patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        os.environ.pop(self.NEW_VARIABLE, None)
+        os.environ.pop(self.OLD_VARIABLE, None)
+
+    def load_recording_warnings(self):
+        """The server module, loaded afresh so that it reads the
+        environment again, with the warnings its import gave that say the
+        old endpoint variable is deprecated and name the new one."""
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            module = load_server()
+        reports = [
+            warning for warning in caught
+            if issubclass(warning.category, FutureWarning)
+            and self.OLD_VARIABLE in str(warning.message)
+            and self.NEW_VARIABLE in str(warning.message)]
+        return module, reports
+
+    def test_api_defaults_to_the_public_cloud(self):
+        module, reports = self.load_recording_warnings()
+        self.assertEqual("https://cloud.51degrees.com/api/v4/", module.API)
+        self.assertEqual([], reports)
+
+    def test_api_read_from_the_new_variable(self):
+        os.environ[self.NEW_VARIABLE] = "https://private.example/api/v4"
+        module, reports = self.load_recording_warnings()
+        self.assertEqual("https://private.example/api/v4/", module.API)
+        self.assertEqual([], reports)
+
+    def test_api_read_from_the_old_variable_and_reported(self):
+        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
+        module, reports = self.load_recording_warnings()
+        self.assertEqual("https://old.example/api/v4/", module.API)
+        self.assertEqual(1, len(reports))
+
+    def test_new_variable_wins_over_the_old_one(self):
+        os.environ[self.NEW_VARIABLE] = "https://private.example/api/v4"
+        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
+        module, reports = self.load_recording_warnings()
+        self.assertEqual("https://private.example/api/v4/", module.API)
+        self.assertEqual([], reports)
+
+
+class ServerKeyVariableTests(unittest.TestCase):
+    """The demo reads its two keys from the environment, each under its
+    new name first and then under the name it had before."""
+
+    NAMES = (
+        "_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY",
+        "_51DEGREES_LICENSE_KEY", "LICENSE_KEY")
+
+    def setUp(self):
+        # Each test starts with none of the names set, and what it sets is
+        # put back afterwards.
+        environment = mock.patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        for name in self.NAMES:
+            os.environ.pop(name, None)
+
+    def load(self):
+        """The server module, loaded afresh with the environment as it is,
+        and the warnings that say an old name is deprecated."""
+        spec = importlib.util.spec_from_file_location(
+            "creator_context_server_keys", SERVER_PY)
+        module = importlib.util.module_from_spec(spec)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            spec.loader.exec_module(module)
+        reports = [
+            str(warning.message) for warning in caught
+            if issubclass(warning.category, FutureWarning)
+            and "is deprecated" in str(warning.message)]
+        return module, reports
+
+    def test_keys_are_read_from_their_old_names_and_reported(self):
+        os.environ["RESOURCE_KEY"] = "old-resource-key"
+        os.environ["LICENSE_KEY"] = "old-licence-key"
+        module, reports = self.load()
+        self.assertEqual("old-resource-key", module.RESOURCE)
+        self.assertEqual("old-licence-key", module.LICENCE)
+        self.assertEqual(2, len(reports))
+        self.assertTrue(any(
+            "RESOURCE_KEY" in report and "_51DEGREES_RESOURCE_KEY" in report
+            for report in reports))
+        self.assertTrue(any(
+            "LICENSE_KEY" in report and "_51DEGREES_LICENSE_KEY" in report
+            for report in reports))
+
+    def test_new_names_win_and_nothing_is_reported(self):
+        os.environ["_51DEGREES_RESOURCE_KEY"] = "new-resource-key"
+        os.environ["_51DEGREES_LICENSE_KEY"] = "new-licence-key"
+        os.environ["RESOURCE_KEY"] = "old-resource-key"
+        os.environ["LICENSE_KEY"] = "old-licence-key"
+        module, reports = self.load()
+        self.assertEqual("new-resource-key", module.RESOURCE)
+        self.assertEqual("new-licence-key", module.LICENCE)
+        self.assertEqual([], reports)
+
+    def test_no_keys_gives_none_and_an_empty_licence(self):
+        module, reports = self.load()
+        self.assertIsNone(module.RESOURCE)
+        self.assertEqual("", module.LICENCE)
+        self.assertEqual([], reports)
 
 
 if __name__ == "__main__":

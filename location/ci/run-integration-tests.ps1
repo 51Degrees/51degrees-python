@@ -11,6 +11,10 @@ if (!$Keys.TestResourceKey) {
         "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
 }
 
+# The examples and tests read the resource key from _51DEGREES_RESOURCE_KEY,
+# and common-ci sets only the older resource_key, so the key is set here.
+$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+
 ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages . -Keys $Keys
 
 exit $LASTEXITCODE
