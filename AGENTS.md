@@ -334,14 +334,6 @@ draft and has no review requested. When a release is wanted, one pull request
 merges `rc` into `main`, and the "Only rc into main" check fails a pull request
 into `main` from any other branch.
 
-## Releases
-
-Pull requests go to `rc`, not `main`, and stay drafts until they have been
-reviewed, because the nightly merges any pull request into `rc` that is not a
-draft and has no review requested. When a release is wanted, one pull request
-merges `rc` into `main`, and the "Only rc into main" check fails a pull request
-into `main` from any other branch.
-
 ## History
 
 The four repositories were brought in with `git subtree add`, so commit SHAs
