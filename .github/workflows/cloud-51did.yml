@@ -29,7 +29,7 @@ on:
   schedule:
     - cron: '30 5 * * *'
   pull_request:
-    branches: [main]
+    branches: [main, rc]
     paths:
       - 'pipeline/fiftyone_pipeline_did/**'
       - 'pipeline/owid-python/**'
