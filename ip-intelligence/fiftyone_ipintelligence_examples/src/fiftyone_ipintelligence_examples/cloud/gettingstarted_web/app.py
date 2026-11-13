@@ -37,6 +37,7 @@
 
 from flask import Flask, request
 
+from fiftyone_pipeline_core.web import webevidence
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_shared.constants import Constants
@@ -62,6 +63,10 @@ def index():
 
     # Create the flowdata object for this request.
     flowdata = pipeline.create_flowdata()
+
+    # Hand the whole request to the pipeline. Each engine takes the
+    # Evidence it reads from it, and usage sharing takes the request.
+    flowdata.evidence.add_from_dict(webevidence(request))
 
     # Use the IP address supplied as a query parameter, or fall back
     # to the address of the requester.
