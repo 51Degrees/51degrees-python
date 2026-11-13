@@ -30,10 +30,13 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import CloudRequ
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
+from .live_cloud import read_environment
+
 
 class CloudEngineTests(unittest.TestCase):
     def setUp(self):
-        self.resource_key = os.environ.get("_51DEGREES_RESOURCE_KEY")
+        self.resource_key = read_environment(
+            "_51DEGREES_RESOURCE_KEY", "resource_key")
 
         self.assertIsNotNone(
             self.resource_key,

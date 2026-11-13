@@ -59,8 +59,8 @@ class DeviceDetectionTests(unittest.TestCase):
 
         pipeline = DeviceDetectionCloudPipelineBuilder(resource_key = self.resource_key).build()
 
-        self.assertTrue(pipeline.flow_elements[0].datakey == "cloud")
-        self.assertTrue(pipeline.flow_elements[1].datakey == "device")
+        self.assertIn("cloud", pipeline.flow_elements_list)
+        self.assertIn("device", pipeline.flow_elements_list)
 
     def test_properties_cloud(self):
         """!
@@ -69,7 +69,7 @@ class DeviceDetectionTests(unittest.TestCase):
         
         pipeline = DeviceDetectionCloudPipelineBuilder(resource_key = self.resource_key).build()
 
-        properties = pipeline.flow_elements[1].get_properties()
+        properties = pipeline.get_element("device").get_properties()
 
         self.assertTrue(len(properties.keys()) > 0)
 

@@ -52,7 +52,8 @@
 # ```
 #
 # ## Lite Data File
-# Lite data files (free-to-use, limited capabilities, no license key required) are created roughly
+# Lite data files (free-to-use, with a small number of Properties, no
+# license key required) are created roughly
 # once a month and cannot be updated using auto-update, they may be downloaded with the
 # scripts in the [data](https://github.com/51Degrees/data) repository on GitHub.
 #
@@ -170,7 +171,12 @@ from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
 from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = "_51DEGREES_LICENSE_KEY"
+# The environment variable checked for the licence key when none is given
+# on the command line.
+UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
+# Deprecated. Use UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE. The name that
+# variable had before, read when the new one is not set.
+UPDATE_EXAMPLE_LICENSE_KEY_NAME = ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR
 # Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
@@ -214,7 +220,7 @@ class DataFileUpdateConsole():
 		output("Updating the data file downloads the Enterprise data file, "
 			"which needs a licence key. Give the key as the first command line "
 			f"argument, or in the environment variable "
-			f"'{UPDATE_EXAMPLE_LICENSE_KEY_NAME}'. Contact us for a key and a "
+			f"'{UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE}'. Contact us for a key and a "
 			f"copy at {CONTACT_US}")
 
 	def run(self, data_file, license_key, interactive, logger, output):
@@ -222,7 +228,7 @@ class DataFileUpdateConsole():
 
 		# try to find a license key
 		if not license_key:
-			license_key = KeyUtils.get_named_key(UPDATE_EXAMPLE_LICENSE_KEY_NAME)
+			license_key = ExampleUtils.get_license_key()
 
 		if not license_key:
 			self.explain_license_key(data_file, output)
@@ -354,6 +360,9 @@ class DataFileUpdateConsole():
 					output(f"Update on file modification complete, status: {update_event.status}")
 				else:
 					output("Update on file modification timed out")
+			elif update_event.status == UpdateStatus.AUTO_UPDATE_NOT_NEEDED:
+				output("The data file is already the latest published, "
+				       "so there is nothing to download")
 			else:
 				logger.log("error", "Auto update was not successful, abandoning example")
 				error_message = f"Auto update failed: {update_event.status}"

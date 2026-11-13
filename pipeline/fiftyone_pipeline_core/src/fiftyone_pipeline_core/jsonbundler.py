@@ -124,9 +124,9 @@ class JSONBundlerElement(FlowElement):
         for flow_element in flowdata.pipeline.flow_elements:
 
             if (flow_element.datakey == "jsonbundler" or
-                flow_element.datakey == "sequence" or 
                 flow_element.datakey == "javascriptbuilder" or
-                flow_element.datakey == "set-headers"):
+                flow_element.datakey == "set-headers" or
+                flow_element.datakey == "cloud"):
                 continue
             
             properties = flow_element.get_properties()
@@ -175,13 +175,6 @@ class JSONBundlerElement(FlowElement):
                 value = None
                 null_reason = "Unknown"
                 no_value = False
-
-                # Check if property has delayed execution and set in JSON if yes
-
-
-                if propertykey in property_cache["delayExecutionList"]:
-                    output[flow_element.datakey.lower()][propertykey.lower() + "delayexecution"] = True
-                
 
                 # Check if property has any delayed execution evidence properties and set in JSON if yes
 
@@ -247,6 +240,12 @@ class JSONBundlerElement(FlowElement):
                     output[flow_element.datakey.lower()][propertykey.lower()] = value
                     if value is None:
                         output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
+
+                # A Property with delayed execution is marked only when it
+                # has a value.
+                if (value is not None and
+                        propertykey in property_cache["delayExecutionList"]):
+                    output[flow_element.datakey.lower()][propertykey.lower() + "delayexecution"] = True
 
                 if sequence < 10:
 

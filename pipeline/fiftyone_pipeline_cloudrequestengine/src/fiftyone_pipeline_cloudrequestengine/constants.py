@@ -23,6 +23,21 @@
 class Constants:
     # Environment variable to set cloud end point
     CLOUD_ENDPOINT = "_51DEGREES_CLOUD_ENDPOINT"
+
+    # @deprecated Use Constants.CLOUD_ENDPOINT. This holds the old name of
+    # the cloud end point environment variable, which the engine reads
+    # through this constant when CLOUD_ENDPOINT is not set, so code that
+    # passes this constant to the environment reads and sets the old
+    # variable.
+    FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"
+
+    # Message when the cloud end point came from the old environment
+    # variable. The first value is the old name and the second the new one.
+    MESSAGE_OLD_ENDPOINT_VARIABLE = (
+        "The {0} environment variable is deprecated and {1} replaces it. "
+        "The cloud endpoint was read from {0} because {1} is not set, so "
+        "set {1} to the same value.")
+
     # Default cloud end point
     BASE_URL_DEFAULT = "https://cloud.51degrees.com/api/v4/"
 	
@@ -115,18 +130,23 @@ class Constants:
         "properties it wants. Set requested_properties to the fully "
         "qualified names wanted, for example "
         "['device.ismobile', 'device.iscrawler'].")
-    MESSAGE_PROPERTIES_IGNORED_WITH_RESOURCE_KEY = (
-        "CloudRequestEngine has requested_properties and a resource key. "
-        "The cloud service ignores the list whenever a resource key is "
-        "present and answers with everything the resource key carries, so "
-        "the caller would believe the response had narrowed when it had "
-        "not. Either leave out requested_properties, or authenticate with "
-        "a licence key alone.")
 
-    # Logged once when a request named properties and the response left
-    # some of them out without saying so.
+    # Logged once when a request with a licence key named properties and
+    # the response left some of them out without saying so. Both the
+    # licence behind a resource key and a licence key beside it decide
+    # what comes back, so the message names the keys rather than one key.
     MESSAGE_PROPERTIES_NOT_COVERED = (
         "The cloud service did not return the requested properties {} in "
-        "its answer. They are not covered by the licence key in use, so "
-        "they will be missing from every result. The other requested "
+        "its answer. They are not covered by the keys in use, so they "
+        "will be missing from every result. The other requested "
         "properties came back and are usable.")
+    # Logged once when a request with a resource key and no licence key
+    # named properties and the response left some of them out. Without a
+    # licence key a property no licence grants comes back as null with a
+    # reason, so a name left out is not a property.
+    MESSAGE_PROPERTIES_NOT_KNOWN = (
+        "The cloud service did not return the requested properties {} in "
+        "its answer. Every property is answered, with a reason when it has "
+        "no value, so these names are not properties. Check the spelling "
+        "of each one. The other requested properties came back and are "
+        "usable.")

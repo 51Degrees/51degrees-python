@@ -26,6 +26,7 @@ import os
 import shlex
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -42,12 +43,35 @@ class ExampleUtils:
     # resource key variable starts with "_51DEGREES_RESOURCE_KEY".
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
+    # Deprecated. Use RESOURCE_KEY_ENV_VAR. The name the resource key
+    # variable had before, read when RESOURCE_KEY_ENV_VAR is not set.
+    LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
+
+    # The environment variable the data file update example reads a licence
+    # key from.
+    LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
+
+    # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
+    # variable had before, read when LICENSE_KEY_ENV_VAR is not set.
+    LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
+
+    # The environment variable naming a cloud service other than the public
+    # one.
+    CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
+
+    # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
+    # before, read when CLOUD_ENDPOINT_ENV_VAR is not set.
+    ENDPOINT_ENV_VAR = "cloud_endpoint"
 
     # The environment variable an on-premise example reads the path of its
     # device detection data file from, when one is given, in place of the
     # file named in its configuration.
-    DATA_FILE_ENV_VAR = "_51DEGREES_DD_PATH"
+    DD_PATH_ENV_VAR = "_51DEGREES_DD_PATH"
+
+    # Deprecated. Use DD_PATH_ENV_VAR. The name that variable had before,
+    # read when DD_PATH_ENV_VAR is not set. A POSIX shell cannot set it,
+    # because it starts with a digit.
+    DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"
 
     # The data repository's device detection folder, from the root of a
     # checkout of this repository. Each file the data repository links to
@@ -161,7 +185,24 @@ class ExampleUtils:
 
     @staticmethod
     def get_resource_key():
-        return ExampleUtils.__get_env_variable(ExampleUtils.RESOURCE_KEY_ENV_VAR)
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.RESOURCE_KEY_ENV_VAR,
+            ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR)
+
+    @staticmethod
+    def get_license_key():
+        """!
+        The licence key from the environment, or an empty string. The old
+        name is also read in upper case, as it was before.
+        """
+
+        return (
+            ExampleUtils.__get_env_variable(
+                ExampleUtils.LICENSE_KEY_ENV_VAR,
+                ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR)
+            or ExampleUtils.__get_env_variable(
+                ExampleUtils.LICENSE_KEY_ENV_VAR,
+                ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR.upper()))
 
     @staticmethod
     def get_missing_resource_key_message():
@@ -176,18 +217,41 @@ class ExampleUtils:
 
     @staticmethod
     def get_data_file_path():
-        return ExampleUtils.__get_env_variable(ExampleUtils.DATA_FILE_ENV_VAR)
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.DD_PATH_ENV_VAR, ExampleUtils.DATA_FILE_ENV_VAR)
 
     @staticmethod
     def get_cloud_endpoint():
-        return ExampleUtils.__get_env_variable(ExampleUtils.ENDPOINT_ENV_VAR)
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
+            ExampleUtils.ENDPOINT_ENV_VAR)
+
+    # The old names already reported as deprecated, so each is reported
+    # once.
+    __reported_old_names = set()
 
     @staticmethod
-    def __get_env_variable(name):
-        if name in os.environ:
-            return os.environ[name]
-        else:
+    def __get_env_variable(name, old_name):
+        """!
+        The value of the environment variable name, or an empty string.
+        When name is unset or empty the name the variable had before is
+        read, and using it prints once that the old name is deprecated.
+        """
+
+        value = os.environ.get(name)
+        if value:
+            return value
+        value = os.environ.get(old_name)
+        if not value:
             return ""
+        if old_name not in ExampleUtils.__reported_old_names:
+            ExampleUtils.__reported_old_names.add(old_name)
+            print(
+                f"The {old_name} environment variable is deprecated and {name} "
+                f"replaces it. The value was read from {old_name} because {name} "
+                f"is not set, so set {name} to the same value.",
+                file=sys.stderr)
+        return value
 
     # Find the specified file. A path to a file that exists is returned as
     # it is. Next, the data repository's folder is checked in the working

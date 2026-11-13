@@ -51,12 +51,13 @@ from fiftyone_pipeline_did import (
 )
 from fiftyone_pipeline_did.did_client import USER_AGENT
 
-from .live_cloud import answered_without, find_resource_key, no_resource_key
+from .live_cloud import (
+    answered_without, find_resource_key, no_resource_key, read_environment)
 
 pytestmark = pytest.mark.live
 
 RESOURCE_KEY = find_resource_key()
-LICENCE_KEY = os.environ.get("_51DEGREES_LICENSE_KEY")
+LICENCE_KEY = read_environment("_51DEGREES_LICENSE_KEY", "license_key")
 
 FODID = "the FODid product"
 MARKETING = "the CloudV5FODiD product"

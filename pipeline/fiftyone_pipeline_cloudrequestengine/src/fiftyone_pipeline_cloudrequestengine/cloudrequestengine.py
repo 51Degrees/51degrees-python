@@ -24,6 +24,7 @@ from __future__ import absolute_import
 
 import json
 import os
+import threading
 import warnings
 from functools import cached_property
 from json import JSONDecodeError
@@ -48,6 +49,50 @@ except ImportError:
     from urllib.parse import urlencode
 
 
+# Whether the old end point variable has been reported as deprecated, so
+# that it is reported once however many engines are built.
+_old_endpoint_reported = False
+_old_endpoint_lock = threading.Lock()
+
+
+def _endpoint_from_environment():
+
+    """!
+    The cloud end point the environment gives, or None when it gives none.
+
+    Constants.CLOUD_ENDPOINT is read first. When it is unset or empty the
+    variable Constants.FOD_CLOUD_API_URL names is read, which is the old
+    name, and the first use of it is reported as deprecated. The report is
+    a FutureWarning, which Python shows by default, because the people who
+    set the variable are the ones running the application.
+
+    @rtype: string
+    @return: the end point, or None
+    """
+
+    global _old_endpoint_reported
+
+    endpoint = os.environ.get(Constants.CLOUD_ENDPOINT)
+    if endpoint:
+        return endpoint
+
+    old_name = Constants.FOD_CLOUD_API_URL
+    endpoint = os.environ.get(old_name)
+    if not endpoint:
+        return None
+
+    with _old_endpoint_lock:
+        report = not _old_endpoint_reported
+        _old_endpoint_reported = True
+    if report:
+        # The third frame is the code that built the engine.
+        warnings.warn(
+            Constants.MESSAGE_OLD_ENDPOINT_VARIABLE.format(
+                old_name, Constants.CLOUD_ENDPOINT),
+            FutureWarning, stacklevel=3)
+    return endpoint
+
+
 # Engine that makes a call to the 51Degrees cloud service
 # Returns raw JSON as a "cloud" property under "cloud" datakey
 class CloudRequestEngine(Engine):
@@ -60,9 +105,8 @@ class CloudRequestEngine(Engine):
         license_key, and optionally
         1) requested_properties, the fully qualified names of the
         properties to ask for, as a list or a comma separated string.
-        Required with a license_key alone and refused with a resource_key,
-        because the cloud service ignores the list whenever a resource key
-        is present
+        Required with a license_key alone. Beside a resource_key the cloud
+        service adds them to the properties the resource key carries
         2) a cloud_endpoint to overwrite the default baseurl
         3) an cloud_request_origin to use when making requests
 
@@ -107,7 +151,8 @@ class CloudRequestEngine(Engine):
         self.reported_not_covered = set()
 
         # The endpoint is the cloud_endpoint setting, then the
-        # _51DEGREES_CLOUD_ENDPOINT environment variable, then
+        # _51DEGREES_CLOUD_ENDPOINT environment variable, then that
+        # variable's deprecated old name FOD_CLOUD_API_URL, then
         # cloud.51degrees.com. A host other than cloud.51degrees.com
         # would be used to (a) use an on premise web server, or (b) use
         # a privately hosted version of the 51Degrees cloud for
@@ -117,8 +162,8 @@ class CloudRequestEngine(Engine):
         if "cloud_endpoint" in settings:
             self.baseURL = settings["cloud_endpoint"]
         else:
-            self.baseURL = os.environ.get(Constants.CLOUD_ENDPOINT)
-            if self.baseURL is None or (self.baseURL is not None and self.baseURL == ""):
+            self.baseURL = _endpoint_from_environment()
+            if self.baseURL is None:
                 self.baseURL = Constants.BASE_URL_DEFAULT
 
         # Make sure if baseURL does not end with '/', one will be appended
@@ -181,9 +226,7 @@ class CloudRequestEngine(Engine):
         Add to the properties each request asks for, after the engine is
         built. The names are trimmed and lower-cased as the constructor
         does, so a name given in the case the documentation uses still
-        matches the answer, and the credential rules are checked again,
-        because a list only has meaning on a licence key alone and the
-        constructor's check cannot see a list added later.
+        matches the answer.
 
         @type names: list or string
         @param names: the names to add, as a list or one comma separated
@@ -192,7 +235,6 @@ class CloudRequestEngine(Engine):
 
         self.requested_properties.extend(
             self.setting_names({"names": names}, "names"))
-        self.check_credentials()
 
     def check_credentials(self):
 
@@ -212,10 +254,6 @@ class CloudRequestEngine(Engine):
 
         if has_resource_key == False and has_requested_properties == False:
             raise ValueError(Constants.MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES)
-
-        if has_resource_key == True and has_requested_properties == True:
-            raise ValueError(
-                Constants.MESSAGE_PROPERTIES_IGNORED_WITH_RESOURCE_KEY)
 
     def get_credentials(self):
 
@@ -277,12 +315,10 @@ class CloudRequestEngine(Engine):
         """
 
         # Get properties for all engines. A resource key alone goes in the
-        # query string as it always has. A licence key identifies an
-        # account, so it is posted in the body instead, where it stays out
-        # of request logs. The cloud service reads both keys from either
-        # place, answers a licence key alone with everything the licence
-        # entitles, and widens a resource key's answer by the products a
-        # licence key sent beside it grants.
+        # query string. A licence key identifies an account, so it is
+        # posted in the body instead, where it stays out of request logs.
+        # The cloud service reads both keys from either place, and answers
+        # a licence key alone with every property the licence entitles.
 
         propertiesURL = self.baseURL + "accessibleProperties"
 
@@ -430,7 +466,7 @@ class CloudRequestEngine(Engine):
 
         """
    
-        # A resource key names the route, as it always has. A licence key
+        # A resource key names the route. A licence key
         # alone has no resource key to put there, so it uses the data
         # endpoint that takes none and travels in the body with the list
         # of properties wanted.
@@ -488,13 +524,16 @@ class CloudRequestEngine(Engine):
         Compare the properties a request asked for with the ones its answer
         carries, and warn once about any it left out.
 
-        The cloud service drops a property the licence key does not cover
-        without naming it, whenever the request also asked for a property
-        the key does cover, so the engine has to notice the difference
-        itself. A property that is present but null counts as answered,
+        With a licence key, the cloud service drops a property the licence
+        key does not cover without naming it, whenever the request also
+        asked for a property the key does cover, so the engine has to
+        notice the difference itself. With a resource key and no licence
+        key, a property no licence grants comes back as null with a reason,
+        so a name left out is not a property, and the warning says that
+        instead. A property that is present but null counts as answered,
         because it carries a nullreason beside it saying why it has no
         value on this request, which is a different matter from
-        entitlement. The answer cannot change while the key and the list
+        entitlement. The answer cannot change while the keys and the list
         stay the same, so each distinct list is reported once.
 
         @type result: string
@@ -507,9 +546,15 @@ class CloudRequestEngine(Engine):
 
         try:
             answer = json.loads(result)
-        except JSONDecodeError:
+        except (AttributeError, JSONDecodeError, TypeError, ValueError):
             # validate_response has already dealt with an answer that is
             # not JSON, so there is nothing to compare here.
+            return
+
+        # An answer that parses but is not an object, such as an array,
+        # has no sections to look in. Reporting must not fail the request,
+        # which succeeded, so there is nothing to say.
+        if isinstance(answer, dict) == False:
             return
 
         not_covered = []
@@ -524,9 +569,10 @@ class CloudRequestEngine(Engine):
         self.reported_not_covered.add(requested)
 
         if len(not_covered) > 0:
-            warnings.warn(
-                Constants.MESSAGE_PROPERTIES_NOT_COVERED.format(
-                    ", ".join(not_covered)))
+            message = (Constants.MESSAGE_PROPERTIES_NOT_COVERED
+                       if self.license_key != ""
+                       else Constants.MESSAGE_PROPERTIES_NOT_KNOWN)
+            warnings.warn(message.format(", ".join(not_covered)))
 
     def get_content(self, flowData):
 

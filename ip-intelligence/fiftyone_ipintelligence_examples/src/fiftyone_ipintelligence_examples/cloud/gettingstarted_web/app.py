@@ -91,7 +91,7 @@ def main(resource_key = None):
     if not resource_key:
         raise Exception(
             "No resource key specified in the environment variable "
-            f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. Obtain one from "
+            f"'{ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR}'. Obtain one from "
             "https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required")
     build_pipeline(resource_key)
     app.run(debug=False)
