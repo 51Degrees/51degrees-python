@@ -5,6 +5,8 @@ check, so every check ends and is reported, and one data file has one chain
 of scheduled checks.
 """
 
+import os
+import tempfile
 import threading
 import unittest
 from unittest import mock
@@ -177,6 +179,50 @@ class UpdateGuardTests(unittest.TestCase):
         self.assertEqual(2, self.data_file.refreshes)
         self.assertEqual(b"given", self.data_file.data)
         self.assertEqual(1, len(results))
+
+    def test_an_update_waits_for_a_file_system_watcher_refresh(self):
+        # A data file on disk that the watcher finds changed, whose refresh
+        # waits until the test lets it go.
+        handle, path = tempfile.mkstemp()
+        os.close(handle)
+        self.addCleanup(os.remove, path)
+        self.data_file.path = path
+        self.data_file.last_changed_time = 0
+        refreshing = threading.Event()
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def refresh():
+            refreshing.set()
+            release.wait(WAIT_SECONDS)
+
+        self.data_file.refresh = refresh
+        calls = []
+        patch = mock.patch.object(
+            requests, "get",
+            lambda *a, **k: calls.append(self.data_file.updating) or
+            answer(304))
+        patch.start()
+        self.addCleanup(patch.stop)
+
+        watcher = threading.Thread(
+            target=self.service.track_local_data_file_changes,
+            args=[self.data_file])
+        watcher.start()
+        self.assertTrue(refreshing.wait(WAIT_SECONDS))
+        self.assertTrue(self.data_file.updating)
+        update = threading.Thread(
+            target=self.service.update_data_file, args=[self.data_file])
+        update.start()
+        update.join(STILL_WAITING_SECONDS)
+        self.assertTrue(update.is_alive())
+        self.assertEqual([], calls)
+        release.set()
+        watcher.join(WAIT_SECONDS)
+        update.join(WAIT_SECONDS)
+
+        self.assertEqual([True], calls)
+        self.assertFalse(self.data_file.updating)
 
     def test_updating_is_clear_after_an_update_so_the_next_one_runs(self):
         with mock.patch.object(requests, "get", lambda *a, **k: answer(200)):
