@@ -202,10 +202,10 @@ describes.
 The cloud examples need a resource key, which a person creates in the
 configurator, so ask for one if none is set. A key with the properties the
 Device Detection cloud example uses can be made
-[here](https://configure.51degrees.com/1QWJwHxl?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples),
+[here](https://51degrees.com/configure/1QWJwHxl?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples),
 which is the configuration the example's own message names, and a key for IP
 Intelligence in the
-[configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
+[configuration page](https://51degrees.com/configure/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
 
 The Device Detection and IP Intelligence cloud examples take the key as
 their first argument, or from `_51DEGREES_RESOURCE_KEY`.
@@ -250,6 +250,19 @@ example logs an error that names the variable and the configurator.
   assets, and the IP Intelligence example tests use the Asn file and throw
   their output away.
 
+## Environment variable names
+
+[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.md)
+holds every environment variable name that the packages, tests, examples and
+CI scripts of every language read, with what each name holds and the
+deprecated names each replaced. The list decides. Use the names it gives, and
+when a change needs a new name, or reads an old name again, change
+[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.json)
+in common-ci in the same piece of work. This repository's own name
+check, [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1), still keeps a
+list of its own. Where the two differ, common-ci's list is the one to
+follow.
+
 ## Products keep their own CI scripts
 
 Each product folder still has the `ci/` scripts it had as its own repository,
@@ -262,16 +275,33 @@ product is built or tested belongs in that product's `ci/`, not in the root.
 A change touches a product when it is in that product's folder, or in a
 package another product depends on; a change outside every product folder
 touches all of them ([ci/packages.ps1](ci/packages.ps1),
-`Resolve-AffectedProducts`).
+`Resolve-AffectedProducts`). A pull request's changes are measured from the
+branch it merges into, `rc`.
+
+[ci/select-options.ps1](ci/select-options.ps1) chooses the entries a pull
+request runs. The standard set is Python 3.14 and 3.10 on Linux, with the
+Selenium contract on 3.14 alone. A native change adds Windows, a packaging
+change adds the other Python versions on Linux, and a change outside the
+product folders or to a `ci/` folder adds every entry but macOS. macOS and
+performance run only when `rc` itself or the release pull request is built,
+which `.github/workflows/release-pull-request.yml` does on every entry.
 
 ## Versions are per package
 
 Every package is versioned and tagged on its own, `<package>/<version>`. A
-package is released when its folders changed since its last tag, or when a
-package it depends on is released. The examples packages are tested but never
-published. common-ci's publish carries one version; here it is only a label,
-and the release plan in `ci/packages.ps1` decides what is built, published
-and tagged. Never push a plain `4.5.x` tag: nothing here reads one.
+package is released when a file that counts in its folders changed since its
+last tag, or when a package it depends on is released. Documentation
+(`*.md`, `docs/`), tests (`tests/`, `test/`), examples (`examples/`) and
+`LICENSE` files do not count, nor do files a package's `Ignore` globs in
+`ci/packages.json` match, unless it sets `IgnoreDefaults` to false. A
+`setup.py`, `setup.cfg` or `pyproject.toml` whose change is only to the
+description, keywords, urls, classifiers, readme, authors or maintainers does
+not count either, which `ci/release-plan-filter.ps1` works out with Python.
+The examples packages are tested but never published. common-ci's publish
+carries one version, which here is only a label, and the release plan
+decides what is built, published and tagged. The release plan is common-ci's
+`steps/release-plan.ps1`, which `ci/packages.ps1` loads, and common-ci tests
+it. Never push a plain `4.5.x` tag, because nothing here reads one.
 
 `ci/packages.json` is the list of packages and what each depends on. Add a
 package there, with a `FirstVersion` if it has never been released, or it is
@@ -312,14 +342,6 @@ A package's `ExtraPaths` in `ci/packages.json` cannot be a folder inside
 `cxx`, because git reports any change there as a change to `cxx` itself. A
 cxx update therefore releases no package, even when it brings new translations
 in `cxx/data/ip-intelligence`.
-
-## Releases
-
-Pull requests go to `rc`, not `main`, and stay drafts until they have been
-reviewed, because the nightly merges any pull request into `rc` that is not a
-draft and has no review requested. When a release is wanted, one pull request
-merges `rc` into `main`, and the "Only rc into main" check fails a pull request
-into `main` from any other branch.
 
 ## Releases
 

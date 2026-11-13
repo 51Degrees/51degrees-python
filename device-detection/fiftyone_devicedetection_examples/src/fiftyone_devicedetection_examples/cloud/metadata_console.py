@@ -123,7 +123,7 @@ def main(argv):
             "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-metadata_console.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this " +
             "example can be created for free at " +
-            "https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-metadata_console.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/configure/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-metadata_console.py&utm_term=resource-key-required. " +
             "Once complete, populate the environment variable " +
             "mentioned at the start of this message with the key.")
 
