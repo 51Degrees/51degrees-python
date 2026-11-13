@@ -334,3 +334,11 @@ into `main` from any other branch.
 The four repositories were brought in with `git subtree add`, so commit SHAs
 match the originals. Use `git log --follow` to trace a file back through the
 import.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.
