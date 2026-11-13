@@ -39,7 +39,7 @@
 #
 # A resource key carries the list of properties it returns. Create one
 # carrying device detection and IP intelligence properties for free at
-# https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_console.py&utm_term=header
+# https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_console.py&utm_term=header
 # and set the _51DEGREES_RESOURCE_KEY environment variable to it, or pass it
 # as the first argument.
 #
@@ -296,7 +296,7 @@ def main(argv):
             "A resource key carrying the device detection and IP "
             "intelligence properties this example uses can be created for "
             "free at "
-            "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_console.py&utm_term=resource-key-required. "
+            "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_console.py&utm_term=resource-key-required. "
             "Once complete, set the first environment variable named at "
             "the start of this message to the key.")
         return

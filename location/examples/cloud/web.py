@@ -36,7 +36,7 @@ from fiftyone_pipeline_core.web import json_response, webevidence
 
 # First create the location pipeline with the desired settings.
 
-# You need to create a resource key at https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=top
+# You need to create a resource key at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=top
 # and paste it into the code, replacing !!YOUR_RESOURCE_KEY!! below.
 # Alternatively, add a _51DEGREES_RESOURCE_KEY environment variable.
 # resource_key is the old name of that variable. It is deprecated, and is
@@ -70,9 +70,9 @@ if not resource_key:
 if resource_key == "!!YOUR_RESOURCE_KEY!!":
     print("""
     You need to create a resource key at
-    https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required and paste it into the code,
+    https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required and paste it into the code,
     'replacing !!YOUR_RESOURCE_KEY!!
-    To get a resourcekey with the properties used in this example go to https://configure.51degrees.com/GCrtGh1L?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required
+    To get a resourcekey with the properties used in this example go to https://51degrees.com/configure/GCrtGh1L?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required
     """)
 else:
 
