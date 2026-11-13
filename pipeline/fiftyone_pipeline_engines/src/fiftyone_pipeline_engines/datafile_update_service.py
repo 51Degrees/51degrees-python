@@ -93,10 +93,21 @@ class DataFileUpdateService():
         if pipeline != None:
             self.pipeline = pipeline
         self.on_complete_methods = []
-        # Held while the updating flag and the pending check of a data file
-        # are read and changed, so two threads cannot both start an update
-        # or both schedule the next check.
+        # Held while a data file's update lock is made and while its pending
+        # check is replaced, so two threads cannot make two locks or leave
+        # two checks pending.
         self._lock = threading.Lock()
+        # The update lock of each data file, by the data file's id.
+        self._update_locks = {}
+
+    def _update_lock(self, data_file):
+        # One update of a data file runs at a time. A second one waits for
+        # the first and then makes its own check, so every check ends and is
+        # reported. Re-entrant, so that an update complete callback can start
+        # an update of the same data file.
+        with self._lock:
+            return self._update_locks.setdefault(
+                id(data_file), threading.RLock())
 
     def __emit(self, status, data_file):
         # A callback that raises stops the callbacks after it, as .NET's service
@@ -123,16 +134,15 @@ class DataFileUpdateService():
         if not self.__is_registered(data_file):
             return False
 
-        # Exit if already updating.
-        with self._lock:
-            if data_file.updating:
-                return False
+        # The file system watcher reads updating to leave a changed file
+        # alone while an update runs.
+        with self._update_lock(data_file):
+            was_updating = data_file.updating
             data_file.updating = True
-
-        try:
-            return self._update_data_file(data_file)
-        finally:
-            data_file.updating = False
+            try:
+                return self._update_data_file(data_file)
+            finally:
+                data_file.updating = was_updating
 
     def _update_data_file(self, data_file):
 
@@ -278,8 +288,6 @@ class DataFileUpdateService():
 
         status = self._refresh(data_file)
 
-        data_file.updating = False
-
         self.__emit(status, data_file)
         self.check_next_update(data_file)
 
@@ -307,6 +315,13 @@ class DataFileUpdateService():
         if not self.__is_registered(data_file):
             return UpdateStatus.AUTO_UPDATE_NOT_NEEDED
 
+        # Waits for an update of the same data file that is running, as a
+        # second update does.
+        with self._update_lock(data_file):
+            return self._update_from_memory(data_file, data)
+
+    def _update_from_memory(self, data_file, data):
+        was_updating = data_file.updating
         if data_file.download and getattr(data_file, "path", None):
             data_file.updating = True
             try:
@@ -314,7 +329,7 @@ class DataFileUpdateService():
                 if status is None:
                     status = self._refresh(data_file)
             finally:
-                data_file.updating = False
+                data_file.updating = was_updating
             self.__emit(status, data_file)
             return status
 
@@ -324,7 +339,7 @@ class DataFileUpdateService():
         try:
             status = self._refresh(data_file, from_file=False)
         finally:
-            data_file.updating = False
+            data_file.updating = was_updating
 
         if status != UpdateStatus.AUTO_UPDATE_SUCCESS:
             data_file.data = previous
@@ -402,7 +417,6 @@ class DataFileUpdateService():
     def _update_failed(self, data_file, status):
         # An update that ends without new data. The next check is the next
         # scheduled one, never an immediate repeat of a check on start-up.
-        data_file.updating = False
         self.__emit(status, data_file)
         self.check_next_update(data_file, run_after_error=True)
         return False

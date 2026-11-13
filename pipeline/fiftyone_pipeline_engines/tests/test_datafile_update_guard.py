@@ -1,8 +1,8 @@
 
 """
-An update does not start while another is running, and one data file has one
-chain of scheduled checks, as the data updates specification asks of a
-refresh mechanism that MUST be thread safe.
+An update of a data file waits for one that is running and then makes its own
+check, so every check ends and is reported, and one data file has one chain
+of scheduled checks.
 """
 
 import threading
@@ -18,6 +18,9 @@ from .test_datafile_update_service import RecordingPipeline
 URL = "https://example.com/update"
 # The longest a test waits for another thread.
 WAIT_SECONDS = 10
+# How long a test gives an update that should be waiting to show that it is.
+# An update that does not wait has made its request and ended well within it.
+STILL_WAITING_SECONDS = 0.5
 
 
 class FakeEngine:
@@ -51,7 +54,7 @@ class MemoryDataFile:
         return None
 
     def refresh(self):
-        pass
+        self.refreshes = getattr(self, "refreshes", 0) + 1
 
 
 def answer(status):
@@ -99,32 +102,81 @@ class UpdateGuardTests(unittest.TestCase):
     def live(self):
         return [timer for timer in self.timers if timer.live]
 
-    def test_an_update_does_not_start_while_another_is_running(self):
+    def start_blocked_update(self, calls, statuses):
+        # Starts an update whose request waits until the event returned is
+        # set, and returns once that request has been made. Each request
+        # adds whether the data file was updating to calls, and each report
+        # adds its status to statuses.
         started = threading.Event()
         release = threading.Event()
-        calls = []
 
         def get(url, headers=None, **kwargs):
-            calls.append(url)
+            calls.append(self.data_file.updating)
             if len(calls) == 1:
                 started.set()
                 release.wait(WAIT_SECONDS)
             return answer(200)
 
-        results = []
-        with mock.patch.object(requests, "get", get):
-            first = threading.Thread(
-                target=lambda: results.append(
-                    self.service.update_data_file(self.data_file)))
-            first.start()
-            self.assertTrue(started.wait(WAIT_SECONDS))
-            second = self.service.update_data_file(self.data_file)
-            release.set()
-            first.join(WAIT_SECONDS)
+        self.service.on_complete(
+            lambda status, data_file: statuses.append(status))
+        patch = mock.patch.object(requests, "get", get)
+        patch.start()
+        self.addCleanup(patch.stop)
+        # A test that fails before it releases the request still lets the
+        # thread end.
+        self.addCleanup(release.set)
+        first = threading.Thread(
+            target=self.service.update_data_file, args=[self.data_file])
+        first.start()
+        self.assertTrue(started.wait(WAIT_SECONDS))
+        return first, release
 
-        self.assertFalse(second)
+    def test_a_second_update_waits_for_the_first_then_makes_its_own_check(self):
+        calls = []
+        statuses = []
+        results = []
+        first, release = self.start_blocked_update(calls, statuses)
+        second = threading.Thread(
+            target=lambda: results.append(
+                self.service.update_data_file(self.data_file)))
+        second.start()
+        second.join(STILL_WAITING_SECONDS)
+        self.assertTrue(second.is_alive())
         self.assertEqual(1, len(calls))
+        release.set()
+        first.join(WAIT_SECONDS)
+        second.join(WAIT_SECONDS)
+
+        self.assertEqual(2, len(calls))
         self.assertEqual([True], results)
+        self.assertEqual(2, len(statuses))
+
+    def test_updating_is_set_while_an_update_runs(self):
+        calls = []
+        first, release = self.start_blocked_update(calls, [])
+        self.assertTrue(self.data_file.updating)
+        release.set()
+        first.join(WAIT_SECONDS)
+        self.assertEqual([True], calls)
+        self.assertFalse(self.data_file.updating)
+
+    def test_an_update_from_memory_waits_for_a_running_update(self):
+        first, release = self.start_blocked_update([], [])
+        results = []
+        memory = threading.Thread(
+            target=lambda: results.append(
+                self.service.update_from_memory(self.data_file, b"given")))
+        memory.start()
+        memory.join(STILL_WAITING_SECONDS)
+        self.assertTrue(memory.is_alive())
+        self.assertEqual(0, getattr(self.data_file, "refreshes", 0))
+        release.set()
+        first.join(WAIT_SECONDS)
+        memory.join(WAIT_SECONDS)
+
+        self.assertEqual(2, self.data_file.refreshes)
+        self.assertEqual(b"given", self.data_file.data)
+        self.assertEqual(1, len(results))
 
     def test_updating_is_clear_after_an_update_so_the_next_one_runs(self):
         with mock.patch.object(requests, "get", lambda *a, **k: answer(200)):
