@@ -1,0 +1,2 @@
+pipeline/fiftyone_pipeline_engines_fiftyone/tests
+pipeline/fiftyone_pipeline_core/tests
