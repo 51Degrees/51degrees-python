@@ -1,0 +1,55 @@
+name: CI script tests
+
+# Runs the Pester tests of the scripts in ci/, which choose what a pull request
+# builds and what a publish releases. common-ci's main is checked out beside
+# this repository, where ci/dispatch.Tests.ps1 looks for it.
+on:
+  pull_request:
+    paths:
+      - 'ci/**'
+      - '.github/workflows/ci-script-tests.yml'
+  push:
+    branches:
+      - main
+      - rc
+    paths:
+      - 'ci/**'
+      - '.github/workflows/ci-script-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pester:
+    name: CI script tests on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: 51degrees-python
+          persist-credentials: false
+
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          path: common-ci
+          persist-credentials: false
+
+      - name: Run the tests
+        shell: pwsh
+        working-directory: 51degrees-python
+        run: |
+          $configuration = New-PesterConfiguration
+          $configuration.Run.Path = @(Get-ChildItem ci -Filter *.Tests.ps1 |
+              ForEach-Object FullName)
+          $configuration.Run.Exit = $true
+          $configuration.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $configuration
