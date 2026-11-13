@@ -1,0 +1,40 @@
+name: Temporary release plan checks
+on:
+  push:
+    branches: ['tmp/pyowner-*']
+jobs:
+  pester:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: 51degrees-python
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          path: common-ci
+      - name: Pester
+        shell: pwsh
+        working-directory: 51degrees-python
+        run: |
+          python --version
+          $c = New-PesterConfiguration
+          $c.Run.Path = @(Get-ChildItem ci -Filter *.Tests.ps1 | ForEach-Object FullName)
+          $c.Run.Exit = $true
+          $c.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $c
+      - name: Release plan of HEAD
+        if: always()
+        shell: pwsh
+        working-directory: 51degrees-python
+        run: |
+          . ./ci/packages.ps1
+          Get-ReleasePlan . | Format-Table Name, Version, Previous, Reason -AutoSize | Out-String -Width 250
+          & ./ci/get-next-package-version.ps1 -RepoName . -VariableName Label
+          "Label: $global:Label"
