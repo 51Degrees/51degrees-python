@@ -1,9 +1,11 @@
-# Tests for ci/packages.ps1.
+# Tests for ci/packages.ps1 and ci/release-plan-filter.ps1.
 #
 # The selection rules are tested against a small package list written here, so
-# a test states exactly which graph it relies on. The release plan reads tags
-# and diffs, so those tests build a throwaway git repository. One test reads the
-# real packages.json, to catch a typo in a dependency name or a cycle.
+# a test states exactly which graph it relies on. The release plan, which
+# packages.ps1 loads from common-ci, is tested there. The tests of this
+# repository's filter and of the build plan read tags and diffs, so they build
+# a throwaway git repository. Some tests read the real packages.json, to catch
+# a typo in a dependency name or a cycle, and to check its Ignore globs.
 
 BeforeAll {
     . (Join-Path $PSScriptRoot 'packages.ps1')
@@ -75,40 +77,6 @@ AfterEach {
     $script:Repo = $null
 }
 
-Describe 'Get-DependentClosure' {
-    It 'adds every package that depends on a changed one, through others' {
-        $closure = Get-DependentClosure $script:Graph @('core')
-        $closure | Sort-Object | Should -Be @(
-            'core', 'dd', 'engines', 'examples', 'ipi', 'location')
-    }
-
-    It 'adds nothing for a package nothing depends on' {
-        Get-DependentClosure $script:Graph @('did') | Should -Be @('did')
-    }
-
-    It 'is empty when given nothing' {
-        @(Get-DependentClosure $script:Graph @()).Count | Should -Be 0
-    }
-}
-
-Describe 'Sort-ByDependency' {
-    It 'puts every package after the packages it depends on' {
-        $order = Sort-ByDependency $script:Graph @('dd', 'engines', 'core')
-        $order | Should -Be @('core', 'engines', 'dd')
-    }
-
-    It 'ignores dependencies that are not being sorted' {
-        Sort-ByDependency $script:Graph @('dd') | Should -Be @('dd')
-    }
-
-    It 'refuses a cycle rather than looping' {
-        $cycle = @(
-            New-Package 'a' 'p' 'p/a' @('b')
-            New-Package 'b' 'p' 'p/b' @('a'))
-        { Sort-ByDependency $cycle @('a', 'b') } | Should -Throw '*cycle*'
-    }
-}
-
 Describe 'Resolve-AffectedProducts' {
     It 'tests only the product of a package nothing depends on' {
         Resolve-AffectedProducts $script:Graph @('device/dd/a.py') |
@@ -144,168 +112,6 @@ Describe 'Resolve-AffectedProducts' {
         # 'location' must not claim 'location-extra/...'.
         Resolve-AffectedProducts $script:Graph @('location-extra/x') |
             Should -Be @('pipeline', 'device', 'location', 'ipi')
-    }
-}
-
-Describe 'Get-ReleasePlan' {
-    It 'releases nothing but first releases when nothing changed since the tags' {
-        $script:Repo = New-Repo $script:AllFiles $script:AllTags
-        Add-Commit $script:Repo @()
-        $plan = @(Get-ReleasePlan $script:Repo $script:Graph)
-        $plan.Name | Should -Be @('ipi')
-        $plan[0].Version | Should -Be '4.5.0'
-        $plan[0].Reason | Should -Be 'first release'
-    }
-
-    It 'releases a changed package at the next patch, and its dependents' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('pipeline/engines/a.py')
-        $plan = @(Get-ReleasePlan $script:Repo $script:Graph)
-        $plan.Name | Should -Be @('engines', 'dd', 'ipi')
-        ($plan | Where-Object Name -eq 'engines').Version | Should -Be '4.5.39'
-        ($plan | Where-Object Name -eq 'dd').Version | Should -Be '4.5.97'
-        ($plan | Where-Object Name -eq 'dd').Reason |
-            Should -Be 'a package it depends on is released'
-        ($plan | Where-Object Name -eq 'ipi').Version | Should -Be '4.5.1'
-    }
-
-    It 'releases a vendoring package when the vendored folder changes' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('pipeline/owid/a.py')
-        @(Get-ReleasePlan $script:Repo $script:Graph).Name | Should -Be @('did')
-    }
-
-    It 'releases nothing for a change to an unpublished package' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('device/examples/a.py')
-        @(Get-ReleasePlan $script:Repo $script:Graph).Count | Should -Be 0
-    }
-
-    It 'releases nothing for a change outside every package' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('ci/build.ps1', 'device/docs/a.md')
-        @(Get-ReleasePlan $script:Repo $script:Graph).Count | Should -Be 0
-    }
-
-    It 'releases nothing a second time from a commit already released' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('device/dd/a.py')
-        git -C $script:Repo tag 'dd/4.5.97'
-        @(Get-ReleasePlan $script:Repo $script:Graph).Count | Should -Be 0
-    }
-
-    It 'continues from the highest tag, not the latest one made' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + @(
-            'ipi/4.5.0', 'dd/4.5.9'))
-        Add-Commit $script:Repo @('device/dd/a.py')
-        (@(Get-ReleasePlan $script:Repo $script:Graph) |
-            Where-Object Name -eq 'dd').Version | Should -Be '4.5.97'
-    }
-
-    It 'does not read another package''s tags as its own' {
-        # 'ipi' must not see tags of a package whose name starts with 'ipi'.
-        $graph = $script:Graph + (New-Package 'ipi_cloud' 'ipi' 'ipi/cloud' -FirstVersion '4.5.0')
-        $script:Repo = New-Repo ($script:AllFiles + 'ipi/cloud/a.py') (
-            $script:AllTags + 'ipi_cloud/4.5.7')
-        $plan = @(Get-ReleasePlan $script:Repo $graph)
-        ($plan | Where-Object Name -eq 'ipi').Version | Should -Be '4.5.0'
-    }
-
-    It 'plans a changed package for a caller that stops on native errors' {
-        # publish-package.ps1 stops on a failing native command; 'git diff
-        # --quiet' exiting 1 for a changed package once failed the publish.
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('device/dd/a.py')
-        $plan = & {
-            $ErrorActionPreference = 'Stop'
-            $PSNativeCommandUseErrorActionPreference = $true
-            @(Get-ReleasePlan $script:Repo $script:Graph)
-        }
-        $plan.Name | Should -Be @('dd')
-    }
-
-    It 'reads the tags whatever folder it runs from' {
-        # PowerShell expands a wildcard in a native command's argument into
-        # matching files, so a tag pattern run from a folder that holds a
-        # folder of the same name, as the repository root holds 'location',
-        # once found no tags.
-        $script:Repo = New-Repo $script:AllFiles $script:AllTags
-        $here = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
-        $null = New-Item -ItemType Directory -Force (Join-Path $here 'location')
-        $null = New-Item -ItemType File (Join-Path $here 'location' 'setup.py')
-        Push-Location $here
-        try {
-            (Get-ReleasedVersions $script:Repo 'location')[-1] | Should -Be ([version]'4.5.4')
-        } finally {
-            Pop-Location
-            Remove-Item -Recurse -Force $here
-        }
-    }
-
-    It 'refuses a never-released package with no FirstVersion' {
-        $graph = @(New-Package 'new' 'p' 'p/new')
-        $script:Repo = New-Repo @('p/new/a.py') @()
-        { Get-ReleasePlan $script:Repo $graph } | Should -Throw '*FirstVersion*'
-    }
-
-    It 'says how many files counted' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('device/dd/a.py', 'device/dd/b.py')
-        (@(Get-ReleasePlan $script:Repo $script:Graph) |
-            Where-Object Name -eq 'dd').Reason |
-            Should -Be 'changed since 4.5.96 (2 files)'
-    }
-
-    It 'releases nothing for a change only to documentation, tests or examples' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @(
-            'device/dd/readme.md', 'device/dd/docs/guide.txt',
-            'device/dd/tests/test_a.py', 'device/dd/test/a.py',
-            'device/dd/examples/a.py', 'device/dd/LICENSE',
-            'pipeline/core/sub/notes.md')
-        @(Get-ReleasePlan $script:Repo $script:Graph).Count | Should -Be 0
-    }
-
-    It 'ignores documentation, tests and examples whatever their case' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @(
-            'device/dd/README.MD', 'device/dd/Tests/a.py',
-            'device/dd/Examples/a.py')
-        @(Get-ReleasePlan $script:Repo $script:Graph).Count | Should -Be 0
-    }
-
-    It 'releases for the code changed beside the documentation' {
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('device/dd/readme.md', 'device/dd/a.py')
-        $plan = @(Get-ReleasePlan $script:Repo $script:Graph)
-        $plan.Name | Should -Be @('dd')
-        $plan[0].Reason | Should -Be 'changed since 4.5.96 (1 file)'
-    }
-
-    It 'leaves out the files a package''s Ignore globs match' {
-        $graph = @($script:Graph | ForEach-Object { $_.PSObject.Copy() })
-        ($graph | Where-Object Name -eq 'dd') |
-            Add-Member Ignore @('device/dd/tox.ini')
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('device/dd/tox.ini')
-        @(Get-ReleasePlan $script:Repo $graph).Count | Should -Be 0
-    }
-
-    It 'counts documentation for a package that turns the defaults off' {
-        $graph = @($script:Graph | ForEach-Object { $_.PSObject.Copy() })
-        ($graph | Where-Object Name -eq 'dd') | Add-Member IgnoreDefaults $false
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('device/dd/readme.md')
-        @(Get-ReleasePlan $script:Repo $graph).Name | Should -Be @('dd')
-    }
-
-    It 'refuses IgnoreDefaults given as text' {
-        $graph = @($script:Graph | ForEach-Object { $_.PSObject.Copy() })
-        ($graph | Where-Object Name -eq 'dd') | Add-Member IgnoreDefaults 'false'
-        $script:Repo = New-Repo $script:AllFiles ($script:AllTags + 'ipi/4.5.0')
-        Add-Commit $script:Repo @('device/dd/readme.md')
-        { Get-ReleasePlan $script:Repo $graph } |
-            Should -Throw '*IgnoreDefaults*true or false*'
     }
 }
 
