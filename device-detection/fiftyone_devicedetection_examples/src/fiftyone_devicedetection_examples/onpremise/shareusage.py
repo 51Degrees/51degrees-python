@@ -65,13 +65,6 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_shared.example_constants import EVIDENCE_FILE_NAME
 from ruamel.yaml import YAML
 
-# Disable SSL verification for testing
-import urllib3
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-import requests
-_original_post = requests.post
-requests.post = lambda *args, **kwargs: _original_post(*args, **{**kwargs, 'verify': False})
-
 # Configurable settings
 REQUESTED_PACKAGE_SIZE = 10    # Send after 10 entries (default is 10)
 SHARE_PERCENTAGE = 1           # Share 100% of data (1 = 100%)
