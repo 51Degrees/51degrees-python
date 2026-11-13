@@ -2,8 +2,8 @@
 #
 # Each test builds a throwaway repository with two products, 'alpha' and
 # 'beta', whose ci/ scripts are written by the test, and runs the dispatcher
-# from a folder laid out like a common-ci checkout, with common-ci's real
-# steps/run-script.ps1, because that is how common-ci calls it.
+# from a folder laid out like a common-ci checkout, with a copy of common-ci's
+# real steps folder, because that is how common-ci calls it.
 
 BeforeAll {
     . (Join-Path $PSScriptRoot 'dispatch.ps1')
@@ -17,6 +17,10 @@ BeforeAll {
     if ((Test-Path $script:RunScript) -eq $false) {
         throw "common-ci not found at '$commonCi'; set COMMON_CI to a checkout of it"
     }
+    # The whole steps folder is copied, because ci/packages.ps1 loads the
+    # release plan from the common-ci checkout that holds this repository's
+    # folder, and the release plan may load other steps beside it.
+    $script:Steps = Join-Path $commonCi 'steps'
 
     # A repository with packages.json naming one package in each product.
     function New-ProductRepo {
@@ -45,8 +49,8 @@ BeforeAll {
     # A folder laid out like a common-ci checkout, which the dispatcher runs in.
     function New-CommonCi {
         $path = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
-        $steps = New-Item -ItemType Directory -Force (Join-Path $path 'steps')
-        Copy-Item $script:RunScript $steps
+        $null = New-Item -ItemType Directory -Force $path
+        Copy-Item -Recurse $script:Steps (Join-Path $path 'steps')
         return $path
     }
 }
