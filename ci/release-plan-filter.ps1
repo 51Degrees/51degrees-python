@@ -9,8 +9,9 @@ $ErrorActionPreference = "Stop"
 # Called by the release plan for each package with changed files left once
 # the Ignore globs have left theirs out, and returns the files that count.
 # A pyproject.toml, setup.py or setup.cfg whose change since $From is only to
-# the description, keywords, urls, classifiers, readme or authors does not
-# count, which release-plan-filter.py works out. Every other file counts.
+# the description, keywords, urls, classifiers, readme, authors or maintainers
+# does not count, which release-plan-filter.py works out. Every other file
+# counts.
 #
 # Python is required rather than optional, because a job that counted every
 # file would plan different releases from a job that could compare them.
