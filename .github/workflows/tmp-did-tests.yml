@@ -29,4 +29,4 @@ jobs:
         run: python -m pytest pipeline/fiftyone_pipeline_did/tests/test_did_client.py pipeline/fiftyone_pipeline_did/tests/test_fodid.py -v -rs 2>&1 | grep -E "PASSED|FAILED|ERROR|SKIPPED|passed|failed|error" ; exit ${PIPESTATUS[0]}
       - name: Whole package
         if: always()
-        run: python -m pytest pipeline/fiftyone_pipeline_did/tests -q
+        run: python -m pytest pipeline/fiftyone_pipeline_did/tests -q -m "not live and not tier"
