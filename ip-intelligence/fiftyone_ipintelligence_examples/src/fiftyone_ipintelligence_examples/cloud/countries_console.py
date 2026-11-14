@@ -79,9 +79,14 @@ FIND_OUT_MORE = [
      "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-countries_console.py&utm_term=find-out-more-pricing"),
     ("IP intelligence for Python",
      "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
-    ("IP intelligence engine",
-     "https://github.com/51Degrees/51degrees-cxx"),
 ]
+
+
+def print_find_out_more(output):
+    message = ["=" * 79 + "\n", "Find out more:\n"]
+    for label, url in FIND_OUT_MORE:
+        message.append(f"\t{label}: {url}\n")
+    output("".join(message))
 
 
 class CountriesConsole():
@@ -109,11 +114,6 @@ class CountriesConsole():
             output(
                 "The resource key in use does not carry the translated "
                 f"country names. Create a key that does at {CONFIGURE}\n")
-
-        message = ["=" * 79 + "\n", "Find out more:\n"]
-        for label, url in FIND_OUT_MORE:
-            message.append(f"\t{label}: {url}\n")
-        output("".join(message))
 
     def analyse_evidence(self, evidence, pipeline, output):
 
@@ -204,6 +204,9 @@ def main(argv):
             "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-countries_console.py&utm_term=resource-key-required. "
             "Once complete, populate the environment variable mentioned at "
             "the start of this message with the key.")
+
+    # Every end of the example, with or without a key, finishes here.
+    print_find_out_more(print)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
