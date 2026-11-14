@@ -157,6 +157,15 @@ class FindOutMoreAtEarlyEndsTests(unittest.TestCase):
             with self.subTest(example=name):
                 self.assertIn("Find out more:", printed_by(lambda: main([])))
 
+    def test_cloud_web_example_when_its_server_stops(self):
+        # The pipeline and the server are stood in for, so main returns at
+        # once, as it does when the server stops.
+        web = cloud_gettingstarted_web
+        with mock.patch.object(web, "build_pipeline"):
+            with mock.patch.object(web.app, "run"):
+                printed = printed_by(lambda: web.main("a key"))
+        self.assertIn("Find out more:", printed)
+
     def test_onpremise_examples_without_a_data_file(self):
         examples = {
             "compare_console": compare_console.main,
