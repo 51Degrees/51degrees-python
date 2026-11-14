@@ -46,6 +46,10 @@ NO_IP_KEY = no_resource_key(
 NO_MIXED_KEY = no_resource_key(
     "the device and ip products",
     "device detection and IP Intelligence properties together")
+NO_COUNTRIES_KEY = no_resource_key(
+    "the ip and countrynamestranslated products",
+    "the countries an IP address is most likely in, with their names "
+    "translated")
 
 # The mixed examples combine IP intelligence with device detection, which is
 # an optional dependency. Their tests only run when it is installed.
@@ -192,6 +196,20 @@ class ExampleTests(unittest.TestCase):
         from fiftyone_ipintelligence_examples.cloud.mixed_console import MixedConsole
         example = MixedConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
+
+    def test_cloud_countries_console(self):
+        if not resource_key:
+            self.fail(NO_COUNTRIES_KEY)
+        from fiftyone_ipintelligence_examples.cloud.countries_console import (
+            CountriesConsole, EVIDENCE_VALUES, LIST_HEADING)
+        printed = []
+        CountriesConsole().run(
+            resource_key, Logger(min_level="error"), printed.append)
+        # Every address gets its list, which needs a key carrying the
+        # translated country names.
+        output = "\n".join(printed)
+        self.assertEqual(
+            output.count(LIST_HEADING), len(EVIDENCE_VALUES), output)
 
 
 if __name__ == "__main__":
