@@ -86,7 +86,7 @@ class Constants:
     # requested properties from, in the query string of a GET and in the
     # form body of a POST. See the Credentials section of the cloud request
     # engine specification:
-    # https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials
+    # https://github.com/51Degrees/specifications/blob/6570727d2af6967390d3c4fbec77b9cf0540d3f3/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials
     RESOURCE_PARAMETER = "resource"
     LICENSE_PARAMETER = "license"
     VALUES_PARAMETER = "values"
