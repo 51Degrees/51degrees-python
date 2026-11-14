@@ -22,6 +22,7 @@
 
 import datetime
 import gzip
+import http.server
 import os
 import random
 import shutil
@@ -781,6 +782,116 @@ class ContentTests(UpdateServiceTestCase):
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED],
             self.statuses)
+
+
+# The bytes a short download sends, and how many it promises.
+SENT = b"x" * 100
+PROMISED = 1000
+
+
+class ShortDownloadHandler(http.server.BaseHTTPRequestHandler):
+    """Answers 200 and closes the connection before the whole file has been
+    sent, with the length given in Content-Length or in chunks."""
+
+    protocol_version = "HTTP/1.1"
+    chunked = False
+
+    def do_GET(self):
+        self.send_response(200)
+        if self.chunked:
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+            # One chunk, then the connection closes with no last chunk.
+            self.wfile.write(b"%x\r\n" % len(SENT) + SENT + b"\r\n")
+        else:
+            self.send_header("Content-Length", str(PROMISED))
+            self.end_headers()
+            self.wfile.write(SENT)
+        self.wfile.flush()
+        self.close_connection = True
+
+    def log_message(self, format, *args):
+        pass
+
+
+class ShortDownloadTests(unittest.TestCase):
+    """A response that ends before the whole file arrived is reported as an
+    error accessing the data update service, and the data in use is kept."""
+
+    def serve(self, chunked):
+        handler = type(
+            "Handler", (ShortDownloadHandler,), {"chunked": chunked})
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return "http://127.0.0.1:" + str(server.server_address[1]) + "/update"
+
+    def check_short_download(self, chunked):
+        pipeline = RecordingPipeline()
+        service = DataFileUpdateService(pipeline)
+        statuses = []
+        service.on_complete(lambda status, data_file: statuses.append(status))
+        data_file = HttpDataFile()
+        data_file.verify_if_modified_since = False
+        data_file.url = self.serve(chunked)
+
+        self.assertFalse(service.update_data_file(data_file))
+
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], statuses)
+        errors = [message for level, message in pipeline.logs
+                  if level == "error"]
+        self.assertTrue(
+            any(message.startswith(
+                CHECK_ERROR + "Error accessing data update service at '" +
+                data_file.url + "' for engine 'FakeEngine'")
+                for message in errors),
+            errors)
+        self.assertEqual(b"old", data_file.data)
+        self.assertEqual([], data_file.refreshed)
+
+    def testAResponseShorterThanItsContentLengthIsAnAccessError(self):
+        self.check_short_download(chunked=False)
+
+    def testTheLengthIsCheckedWhicheverHttpLibraryIsInstalled(self):
+        # urllib3 before version 2 gives requests the bytes that arrived
+        # with no error, so the service compares them with Content-Length
+        # itself. A reply that holds fewer bytes stands in for that here.
+        pipeline = RecordingPipeline()
+        service = DataFileUpdateService(pipeline)
+        statuses = []
+        service.on_complete(lambda status, data_file: statuses.append(status))
+        data_file = HttpDataFile()
+        reply = response(200, SENT)
+        reply.headers = {"content-length": str(PROMISED)}
+        with mock.patch.object(requests, "get", lambda url, **kwargs: reply):
+            self.assertFalse(service.update_data_file(data_file))
+
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], statuses)
+        self.assertIn(
+            ("error",
+             CHECK_ERROR + "Error accessing data update service at '" + URL +
+             "' for engine 'FakeEngine'. Error detail: The response ended "
+             "after 100 of the 1000 bytes it gave as its Content-Length."),
+            pipeline.logs)
+        self.assertEqual(b"old", data_file.data)
+
+    def testAResponseInAContentEncodingIsNotMeasured(self):
+        # Content-Length counts the encoded bytes, and requests gives the
+        # decoded ones, so the two are not compared.
+        pipeline = RecordingPipeline()
+        service = DataFileUpdateService(pipeline)
+        data_file = HttpDataFile()
+        reply = response(200, SENT)
+        reply.headers = {
+            "content-length": str(PROMISED), "content-encoding": "gzip"}
+        with mock.patch.object(requests, "get", lambda url, **kwargs: reply):
+            self.assertTrue(service.update_data_file(data_file))
+        self.assertEqual(SENT, data_file.data)
+
+    def testAChunkedResponseCutShortIsAnAccessError(self):
+        self.check_short_download(chunked=True)
 
 
 if __name__ == "__main__":

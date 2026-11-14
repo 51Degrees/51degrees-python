@@ -199,6 +199,20 @@ class DataFileUpdateService():
             self._log_check_error(message)
             return self._update_failed(data_file, status)
 
+        # A response that ended before the whole file arrived is an error
+        # accessing the service. urllib3 2 raises one, which the request
+        # above catches, but urllib3 1 gives the bytes that arrived, so the
+        # length is checked here as well.
+        short = self._cut_short(response)
+        if short is not None:
+            self._log_check_error(
+                "Error accessing data update service at '" + shown_url +
+                "' for engine '" + engine + "'",
+                "The response ended after " + str(short[0]) + " of the " +
+                str(short[1]) + " bytes it gave as its Content-Length.")
+            return self._update_failed(
+                data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+
         # Verify the MD5 hash if enabled and the answer gives one.
 
         header_md5 = response.headers.get("content-md5")
@@ -430,6 +444,23 @@ class DataFileUpdateService():
             return text
         return (text + ("" if text.endswith(".") else ".") +
                 " Error detail: " + mask_licence_keys_in_text(cause))
+
+    @staticmethod
+    def _cut_short(response):
+        # The bytes received and the Content-Length, when fewer arrived than
+        # it gave, or None. With a Content-Encoding the length counts the
+        # encoded bytes and requests gives the decoded ones, so the two are
+        # not compared.
+        promised = response.headers.get("content-length")
+        encoding = response.headers.get("content-encoding", "identity")
+        if promised is None or encoding.strip().lower() != "identity":
+            return None
+        try:
+            promised = int(promised)
+        except ValueError:
+            return None
+        received = len(response.content)
+        return (received, promised) if received < promised else None
 
     @staticmethod
     def _engine_type(data_file):
