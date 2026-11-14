@@ -161,12 +161,11 @@ class CloudEngine(Engine):
         """
 
         engine = self._request_engine
-        known = getattr(engine, "known_flow_element_properties", None)
-        if known is None:
+        if not hasattr(engine, "known_flow_element_properties"):
             # An element that stands in for the CloudRequestEngine, such
             # as one in a test, gives its properties directly.
             return engine.flow_element_properties
-        return known()
+        return engine.known_flow_element_properties()
 
     def pipeline_element_not_found(self, element, flowdata):
         """!
