@@ -276,6 +276,16 @@ class SequenceElementProcessTests(unittest.TestCase):
                     {"query.session-id": "abc", "query.sequence": value}),
                 repr(value))
 
+    def testSequenceNumberThatIsNegativeOrHasAFractionIsAbsent(self):
+        # Given as numbers rather than as text. process() raises when an
+        # element records an error, so reaching the check means none was.
+        for value in (-5, 1.5):
+            self.assertEqual(
+                ("abc", 1),
+                self.process(
+                    {"query.session-id": "abc", "query.sequence": value}),
+                repr(value))
+
     def testLeadingZerosAreAllowed(self):
         self.assertEqual(
             ("abc", 6),
