@@ -33,6 +33,7 @@ import runpy
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest import mock
 
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 
@@ -54,8 +55,15 @@ class PackageGettingStartedFromRootTests(unittest.TestCase):
         folder = os.getcwd()
         os.chdir(ROOT)
         try:
-            with redirect_stdout(printed):
-                runpy.run_path(str(EXAMPLE), run_name="__main__")
+            # The free file is the one under test, so a data file named in
+            # the environment, as CI names the Enterprise file, is set
+            # aside.
+            with mock.patch.dict(os.environ):
+                for name in (ExampleUtils.IPI_PATH_ENV_VAR,
+                             ExampleUtils.DATA_FILE_ENV_VAR):
+                    os.environ.pop(name, None)
+                with redirect_stdout(printed):
+                    runpy.run_path(str(EXAMPLE), run_name="__main__")
         finally:
             os.chdir(folder)
         said = printed.getvalue()
@@ -64,6 +72,24 @@ class PackageGettingStartedFromRootTests(unittest.TestCase):
             + ExampleUtils.NEEDS_ENTERPRISE,
             said)
         self.assertIn(CONTACT_US_TAG, said)
+
+    def test_reads_the_data_file_from_the_environment(self):
+        # A data file named in _51DEGREES_IPI_PATH that is not there makes
+        # the example stop naming it, which shows the variable was read.
+        missing = str(
+            ROOT / "no-such-folder" / "named-by-the-environment.ipi")
+        folder = os.getcwd()
+        os.chdir(ROOT)
+        try:
+            with mock.patch.dict(os.environ, {"_51DEGREES_IPI_PATH": missing}):
+                with mock.patch("requests.post"):
+                    with redirect_stdout(io.StringIO()):
+                        with self.assertRaises(Exception) as caught:
+                            runpy.run_path(
+                                str(EXAMPLE), run_name="__main__")
+        finally:
+            os.chdir(folder)
+        self.assertIn(missing, str(caught.exception))
 
 
 if __name__ == "__main__":
