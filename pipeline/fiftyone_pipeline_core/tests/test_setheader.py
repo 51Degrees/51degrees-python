@@ -83,30 +83,60 @@ class SetHeaderUACHTests(unittest.TestCase):
         response = set_response_header(flowdata, response)
         self.assertEqual(expected_value, Constants.ACCEPTCH_HEADER in response.headers)
 
-    # Test get response header function for valid formats.
+    # Test get response header function for valid formats. The name is
+    # SetHeader[Identifier][HeaderName], and the identifier has no upper-case
+    # characters after its first character, which may be either case.
     @parameterized.expand([
         ("SetHeaderBrowserAccept-CH", "Accept-CH"),
+        ("SetHeaderHardwareAccept-CH", "Accept-CH"),
+        ("SetHeaderPlatformAccept-CH", "Accept-CH"),
         ("SetHeaderBrowserCritical-CH", "Critical-CH"),
-        ("SetHeaderUnknownAccept-CH", "Accept-CH")
+        ("SetHeaderUnknownAccept-CH", "Accept-CH"),
+        ("SetHeaderbrowserAccept-CH", "Accept-CH"),
+        # The header name holds the identifier, which must be kept.
+        ("SetHeaderAcceptAccept-CH", "Accept-CH")
         ])
     def test_get_response_header_name(self, property_key, expected_value):
         setHeaderElement = SetHeaderElement()
         actual_value = setHeaderElement.get_response_header_name(property_key)
         self.assertEqual(expected_value, actual_value)
 
-    # Test get response header function raises exception 
+    # Test get response header function raises exception
     # for invalid property formats.
     @parameterized.expand([
     ("TestBrowserAccept-CH", Messages.PROPERTY_NOT_SET_HEADER),
-    ("SetHeaderbrowserAccept-CH", Messages.WRONG_PROPERTY_FORMAT),
-    ("SetHeaderBrowseraccept-ch", Messages.WRONG_PROPERTY_FORMAT)
+    ("SetHeaderBrowseraccept-ch", Messages.WRONG_PROPERTY_FORMAT),
+    ("SetHeaderbrowser", Messages.WRONG_PROPERTY_FORMAT),
+    ("SetHeaderBrowser", Messages.WRONG_PROPERTY_FORMAT),
+    ("SetHeader", Messages.WRONG_PROPERTY_FORMAT)
     ])
-    def test_get_response_header_name(self, property_value, expected_message):
+    def test_get_response_header_name_error(
+            self, property_value, expected_message):
 
         setHeaderElement = SetHeaderElement()
-        try:
+        with self.assertRaises(Exception) as caught:
             setHeaderElement.get_response_header_name(property_value)
-        except Exception as e:
-            message = str(e)
 
-        self.assertEqual(expected_message.format(property_value), message)
+        self.assertEqual(
+            expected_message.format(property_value), str(caught.exception))
+
+    # Only a property whose name starts with SetHeader is for a response
+    # header, so a name that holds SetHeader later on is left alone.
+    def test_get_setheader_properties_pipeline_needs_the_prefix(self):
+
+        class Element(object):
+            datakey = "device"
+
+            def get_properties(self):
+                return {
+                    "setheaderbrowseraccept-ch": {
+                        "name": "SetHeaderBrowserAccept-CH"},
+                    "notsetheaderbrowseraccept-ch": {
+                        "name": "NotSetHeaderBrowserAccept-CH"}}
+
+        class Pipeline(object):
+            flow_elements = [Element()]
+
+        self.assertEqual(
+            {"device": ["SetHeaderBrowserAccept-CH"]},
+            SetHeaderElement().get_setheader_properties_pipeline(Pipeline()))
