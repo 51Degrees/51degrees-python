@@ -174,15 +174,15 @@ if __name__ == "__main__":
 
     # Now we make a function that returns results of the user agent matching
 
-    threads = mp.cpu_count()
+    # One process for each processor, but never more processes than
+    # User-Agents.
+    threads = max(1, min(mp.cpu_count(), number_of_user_agents))
 
     print("Using " + str(threads) + " threads")
 
-    chunk_size = int(number_of_user_agents / threads)
-
-    # Split lists by number of threads
-    split_lists = [user_agents[x:x+chunk_size]
-                for x in range(0, len(user_agents), chunk_size)]
+    # Give each process every threads-th User-Agent, so that every one is
+    # processed whether or not the count divides by the number of processes.
+    split_lists = [user_agents[x::threads] for x in range(threads)]
 
     calibration = run(args.data_file, skip=True)
 
