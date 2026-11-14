@@ -137,7 +137,6 @@ class CloudEngine(Engine):
             carried = self._known_properties()
             if carried is None:
                 return
-            self._properties_final = True
 
             # The accessible properties come from the cloud service for
             # the key in use, a resource key or a licence key, so a section
@@ -149,6 +148,10 @@ class CloudEngine(Engine):
                 self.properties = {}
             else:
                 self.properties = carried[self.datakey]
+
+            # Set last, because a reader that finds it set does not wait
+            # for the lock.
+            self._properties_final = True
 
     def _known_properties(self):
 
