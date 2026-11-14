@@ -49,6 +49,7 @@ class OnPremiseGettingStartedWebTests(flask_unittest.ClientTestCase):
     def test_onpremise_getting_started_web(self, client):
         response = client.get('/')
         self.assertEqual(200, response.status_code)
+        self.assertIn(b"Find out more", response.data)
 
     # The page references the client-side script by the '/51Degrees.core.js' name used
     # by the web integrations in the other Pipeline APIs, so check that the route
