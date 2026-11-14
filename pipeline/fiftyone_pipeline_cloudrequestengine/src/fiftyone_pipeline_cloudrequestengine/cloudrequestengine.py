@@ -473,7 +473,9 @@ class CloudRequestEngine(Engine):
         check_for_error_messages=True,
     ):
         """!
-        Validate the JSON response from the cloud service.
+        Validate the JSON response from the cloud service. Each entry in
+        the warnings list of the response is given as a warning, with the
+        licence key masked, and does not fail the request.
 
         @type: Response
         @param: Response returned from the cloud service.
@@ -505,6 +507,8 @@ class CloudRequestEngine(Engine):
 
             if has_errors:
                 messages.append(json.dumps(json_response["errors"]))
+
+            self._warn_response_warnings(json_response)
 
         # If there were no errors but there was also no other data
         # in the response then add an explanation to the list of
@@ -553,6 +557,22 @@ class CloudRequestEngine(Engine):
             text = text.replace(
                 self.license_key, mask_licence_key(self.license_key))
         return text
+
+    def _warn_response_warnings(self, json_response):
+
+        """!
+        Give each entry in the warnings list of a cloud answer as a
+        warning, with the licence key masked. An answer with no such list
+        gives none.
+        """
+
+        if not isinstance(json_response, dict):
+            return
+        entries = json_response.get("warnings")
+        if not isinstance(entries, list):
+            return
+        for entry in entries:
+            warnings.warn(self.masked(str(entry)))
 
     def make_cloud_request(self, type, url, content = None):
 
