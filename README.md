@@ -31,7 +31,7 @@ own folder, which has its own README.
 
 | Product | Folder | PyPI packages |
 | --- | --- | --- |
-| Pipeline API | [pipeline](pipeline/readme.md) | `fiftyone_pipeline_core`, `_engines`, `_engines_fiftyone`, `_cloudrequestengine`, `_translation`, `_did` |
+| Pipeline API | [pipeline](pipeline/readme.md) | `fiftyone_pipeline_core`, `_engines`, `_engines_fiftyone`, `_cloudrequestengine`, `_translation`, `_did`, `_derivedproperty` (not yet published) |
 | Device Detection | [device-detection](device-detection/readme.md) | `fiftyone_devicedetection`, `_shared`, `_cloud`, `_onpremise` |
 | IP Intelligence | [ip-intelligence](ip-intelligence/readme.md) | `fiftyone_ipintelligence`, `_shared`, `_cloud`, `_onpremise`, `_translation` |
 | Location | [location](location/readme.md) | `fiftyone_location` |

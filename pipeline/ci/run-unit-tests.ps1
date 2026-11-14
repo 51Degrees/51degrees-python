@@ -9,7 +9,7 @@ param (
 $addopts = $env:PYTEST_ADDOPTS
 $env:PYTEST_ADDOPTS = '-m "not live"'
 try {
-    $packages = "fiftyone_pipeline_core", "fiftyone_pipeline_engines", "fiftyone_pipeline_engines_fiftyone", "fiftyone_pipeline_translation", "fiftyone_pipeline_did"
+    $packages = "fiftyone_pipeline_core", "fiftyone_pipeline_engines", "fiftyone_pipeline_engines_fiftyone", "fiftyone_pipeline_translation", "fiftyone_pipeline_did", "fiftyone_pipeline_derivedproperty"
     ./python/run-unit-tests.ps1 -RepoName $RepoName -Packages $packages
 } finally {
     $env:PYTEST_ADDOPTS = $addopts
