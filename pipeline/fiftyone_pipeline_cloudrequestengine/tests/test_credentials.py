@@ -50,11 +50,6 @@ class TestCredentials(CloudRequestEngineTestsBase):
         back the requests the mock client saw.
         """
 
-        # The accessible properties are fetched on first use, which a
-        # cloud engine after this one would trigger when it registers, so
-        # trigger it here as that engine would.
-        engine.flow_element_properties  # noqa
-
         pipeline = PipelineBuilder().add(engine).build()
         data = pipeline.create_flowdata()
         data.evidence.add("query.User-Agent", "iPhone")
@@ -162,7 +157,13 @@ class TestCredentials(CloudRequestEngineTestsBase):
 
         self.assertIn("device", engine.flow_element_properties)
 
-        request_type, url, content = engine.http_client.requests[-1]
+        # The engine also asks for the evidence keys when it is built, so
+        # the request for the properties is found by its address.
+        properties_requests = [
+            request for request in engine.http_client.requests
+            if "accessibleProperties" in request[1]]
+        self.assertEqual(1, len(properties_requests))
+        request_type, url, content = properties_requests[0]
         self.assertEqual("POST", request_type)
         self.assertEqual(
             Constants.BASE_URL_DEFAULT + "accessibleProperties", url)
