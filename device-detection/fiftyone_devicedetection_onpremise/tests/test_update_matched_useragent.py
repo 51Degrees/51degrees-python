@@ -84,9 +84,10 @@ class UpdateMatchedUserAgentTests(unittest.TestCase):
             self._user_agents(update_matched_useragent=True))
 
     def test_turned_off_leaves_user_agents_empty(self):
-        user_agents = self._user_agents(update_matched_useragent=False)
-        self.assertGreaterEqual(len(user_agents), 1)
-        self.assertEqual([""] * len(user_agents), user_agents)
+        # UserAgents is populated only when the option is on, and its
+        # default is an empty list.
+        self.assertEqual(
+            [], self._user_agents(update_matched_useragent=False))
 
 
 @unittest.skipUnless(
