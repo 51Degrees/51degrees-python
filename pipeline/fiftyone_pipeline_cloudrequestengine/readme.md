@@ -58,6 +58,26 @@ See the [Credentials section of the cloud request engine specification](https://
 and the rules in
 [`cloudrequestengine.py`](src/fiftyone_pipeline_cloudrequestengine/cloudrequestengine.py).
 
+## When the engine is built
+
+The engine asks the cloud service for the properties the key carries and
+the evidence keys the service accepts when it is constructed, so a
+pipeline built with it has both before the first request. When the cloud
+service refuses either request, with an answer from 400 to 499 such as
+the one for a resource key that is not valid, the constructor raises
+`CloudRequestException`. Any other failure, such as the service being
+unreachable, a timeout or an answer of 500 or more, gives a warning and
+the engine is still built, so a cloud outage does not stop the
+application starting. The engine then asks again when it is first used,
+and a failure at that point is an error of that request, which
+`suppress_process_exceptions` decides whether to raise. Until then the
+cloud engines after it have no property metadata.
+
+Each entry in the `warnings` list of an answer from the cloud service is
+given as a warning, with any licence key masked.
+
+See the [Start-up activity section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#start-up-activity).
+
 ## Pointing the engine at another host
 
 The engine calls `https://cloud.51degrees.com/api/v4/` unless told
