@@ -125,10 +125,12 @@ def main(resource_key = None):
             "https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. "
             "Once complete, populate the environment variable mentioned at "
             "the start of this message with the key.")
-        return
+    else:
+        build_pipeline(resource_key)
+        app.run(debug=False)
 
-    build_pipeline(resource_key)
-    app.run(debug=False)
+    # Every end, with no key or once the server stops, finishes here.
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 
 if __name__ == "__main__":
