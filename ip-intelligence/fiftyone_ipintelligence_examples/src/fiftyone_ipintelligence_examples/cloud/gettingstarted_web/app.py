@@ -42,6 +42,18 @@ from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligenc
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_shared.constants import Constants
 
+# Where to go next, shown at the end of the page.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=find-out-more-ip-intelligence"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=find-out-more-pricing"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+]
+
 app = Flask(__name__)
 
 pipeline = None
@@ -87,6 +99,7 @@ def index():
         <li>Registered Country: {get_value(ip_data, "registeredcountry")}</li>
     </ul>
     <p>Add ?client-ip=x.x.x.x to the url to lookup a different address.</p>
+    {ExampleUtils.get_find_out_more_html(FIND_OUT_MORE)}
     """
 
 

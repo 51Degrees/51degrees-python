@@ -46,6 +46,18 @@ SOME_IP_ADDRESS = "8.8.8.8"
 # Long values are truncated to this many characters for readability.
 MAX_VALUE_LENGTH = 200
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-getallproperties_console.py&utm_term=find-out-more-ip-intelligence"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-getallproperties_console.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-getallproperties_console.py&utm_term=find-out-more-pricing"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+]
+
 
 class GetAllPropertiesConsole():
     def run(self, resource_key, logger, output, cloud_endpoint = None):
@@ -108,6 +120,8 @@ def main(argv):
             "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-getallproperties_console.py&utm_term=resource-key-required. "
             "A resource key with the properties required by this example "
             "can be created for free at https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-getallproperties_console.py&utm_term=resource-key-required.")
+
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

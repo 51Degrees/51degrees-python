@@ -21,6 +21,7 @@
 # *********************************************************************
 
 from datetime import datetime, timedelta
+import html
 import os
 import shlex
 import shutil
@@ -373,6 +374,43 @@ class ExampleUtils:
         return ("This example used a free data file. The Enterprise data "
                 "file adds the location, range and connection properties. "
                 f"Contact us for a copy at {contact_us}")
+
+    @staticmethod
+    def print_find_out_more(links, output=print, prefix=""):
+
+        """!
+        Write the "Find out more" section that an example ends with, a line
+        of "=" and then each label with its link. links is a list of label
+        and link pairs, and output takes one string, as print does.
+        @param prefix: Starts each line, so that an example writing YAML can
+        write the section as comments.
+        """
+
+        message = ["=" * 79, "Find out more:"]
+        for label, url in links:
+            message.append(f"\t{label}: {url}")
+        output("\n".join(prefix + line for line in message) + "\n")
+
+    @staticmethod
+    def get_find_out_more_html(links):
+
+        """!
+        The "Find out more" section that a web example's page ends with.
+        links is a list of label and link pairs. A repository is shown by
+        its address, and any other link by its label.
+        """
+
+        items = []
+        for label, url in links:
+            href = html.escape(url)
+            label = html.escape(label)
+            if url.startswith("https://github.com/"):
+                items.append(
+                    f"<li>{label}: <a href=\"{href}\">{href}</a></li>")
+            else:
+                items.append(f"<li><a href=\"{href}\">{label}</a></li>")
+        return ("<h3 class=\"c-eg-page__heading\">Find out more</h3>\n"
+                "<ul>\n" + "\n".join(items) + "\n</ul>")
 
     @staticmethod
     def __open(data_file):
