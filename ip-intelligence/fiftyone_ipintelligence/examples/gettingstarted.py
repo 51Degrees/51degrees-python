@@ -21,6 +21,11 @@
 # *********************************************************************
 
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
+from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-examples-gettingstarted.py&utm_term=enterprise-data-file"
 
 # Where to go next, printed when the example ends.
 FIND_OUT_MORE = [
@@ -38,7 +43,9 @@ FIND_OUT_MORE = [
 
 # First create the IP intelligence pipeline with the desired settings.
 
-data_file = "../../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
+# The free Lite data file, found in the folder this runs in or a folder
+# above it, or downloaded when it is missing.
+data_file = ExampleUtils.find_file("51Degrees-LiteV41.ipi")
 resource_key = "!!YOUR_RESOURCE_KEY!!"
 
 # Uncommment the line below 'On-Premise' and comment the line below 'Cloud' to
@@ -78,6 +85,15 @@ with pipeline:
         else:
             # Output why the value isn't meaningful
             print(flowdata1.ip.registeredname.no_value_message())
+
+        # The country is only in the Enterprise data file, so the free Lite
+        # data file says so and where to ask for a copy.
+        print("Which country is IP address " + ipv4_address + " in? ")
+        if ExampleUtils.has_property(pipeline.get_element("ip"), "country"):
+            print(ExampleUtils.get_human_readable(flowdata1.ip, "country"))
+        else:
+            print(ExampleUtils.NEEDS_ENTERPRISE)
+            print(ExampleUtils.get_enterprise_note(CONTACT_US))
 
     # Now we do the same with a new IP address, this time an IPv6 one
 

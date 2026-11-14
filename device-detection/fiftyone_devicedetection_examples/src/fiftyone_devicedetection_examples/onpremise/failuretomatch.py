@@ -23,6 +23,10 @@
 from fiftyone_devicedetection_onpremise.devicedetection_onpremise_pipelinebuilder import DeviceDetectionOnPremisePipelineBuilder
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-failuretomatch.py&utm_term=enterprise-data-file"
+
 # Where to go next, printed when the example ends.
 FIND_OUT_MORE = [
     ("Device detection",
@@ -74,6 +78,16 @@ with pipeline:
         else:
             # Output why the value isn't meaningful
             print(flowdata1.device.ismobile.no_value_message())
+
+        # The hardware vendor is only in the Enterprise data file, so the
+        # free Lite data file says so and where to ask for a copy.
+        vendor = ExampleUtils.get_enterprise_value(
+            pipeline.get_element("device"), flowdata1.device,
+            "hardwarevendor")
+        print("Who made the device? ")
+        print(vendor)
+        if vendor == ExampleUtils.NEEDS_ENTERPRISE:
+            print(ExampleUtils.get_enterprise_note(CONTACT_US))
 
     # Now we do the same with a new User-Agent, this time a corrupted one
 

@@ -27,6 +27,7 @@
 
 import io
 import os
+import runpy
 import unittest
 from contextlib import redirect_stdout
 from unittest import mock
@@ -122,6 +123,23 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         printed = run_without_settings(datafileupdate_console.main)
         self.assertIn("The data file in use is the 'Lite' file", printed)
         self.assertIn(datafileupdate_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
+
+    def test_failuretomatch(self):
+        # This example has no main, and runs when it is run as a module. Its
+        # pipeline shares usage, so nothing is sent from a test.
+        with mock.patch("requests.post"):
+            printed = run_without_settings(lambda argv: runpy.run_module(
+                "fiftyone_devicedetection_examples.onpremise.failuretomatch",
+                run_name="__main__"))
+        self.assertIn(
+            "Who made the device? \n" + ExampleUtils.NEEDS_ENTERPRISE,
+            printed)
+        self.assertIn(
+            "utm_content=fiftyone_devicedetection_examples-src-"
+            "fiftyone_devicedetection_examples-onpremise-failuretomatch.py"
+            "&utm_term=enterprise-data-file",
+            printed)
         self.assertIn("Find out more:", printed)
 
     # The two examples below need files that are not free, so in a fresh

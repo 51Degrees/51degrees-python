@@ -21,6 +21,11 @@
 # *********************************************************************
 
 from fiftyone_devicedetection.devicedetection_pipelinebuilder import DeviceDetectionPipelineBuilder
+from fiftyone_devicedetection_examples.example_utils import ExampleUtils
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection-examples-gettingstarted.py&utm_term=enterprise-data-file"
 
 # Where to go next, printed when the example ends.
 FIND_OUT_MORE = [
@@ -38,7 +43,9 @@ FIND_OUT_MORE = [
 
 # First create the device detection pipeline with the desired settings.
 
-data_file = "../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
+# The free Lite data file, found in the folder this runs in or a folder
+# above it, or downloaded when it is missing.
+data_file = ExampleUtils.find_file("51Degrees-LiteV4.1.hash")
 resource_key = "!!YOUR_RESOURCE_KEY!!"
 
 # Uncommment the line below 'On-Premise' and comment the line below 'Cloud' to 
@@ -95,6 +102,16 @@ with pipeline:
         else:
             # Output why the value isn't meaningful
             print(flowdata2.device.ismobile.no_value_message())
+
+        # The hardware vendor is only in the Enterprise data file, so the
+        # free Lite data file says so and where to ask for a copy.
+        engine = pipeline.get_element("device")
+        vendor = ExampleUtils.get_enterprise_value(
+            engine, flowdata2.device, "hardwarevendor")
+        print("Who made the device? ")
+        print(vendor)
+        if vendor == ExampleUtils.NEEDS_ENTERPRISE:
+            print(ExampleUtils.get_enterprise_note(CONTACT_US))
 
 print("=" * 79)
 print("Find out more:")
