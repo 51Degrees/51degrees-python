@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
       - name: Test the usage record
         run: |
           python3 -m venv "$RUNNER_TEMP/venv"
