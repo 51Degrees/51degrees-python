@@ -38,9 +38,12 @@ EXAMPLE = (Path(__file__).resolve().parents[1] / "examples" /
 DATE_OF_BIRTH = "1990-03-25"
 STAR_SIGN = "aries"
 
-# The cookie the example's JavaScript sets with the browser's latitude.
-SOUTHERN_LATITUDE = "latitude=-33.9"
-NORTHERN_LATITUDE = "latitude=51.5"
+# The cookie the example's JavaScript sets with the browser's latitude. The
+# test client sends only the cookies it holds, and drops a Cookie header
+# passed with a request, so each test sets the cookie on the client.
+LATITUDE_COOKIE = "latitude"
+SOUTHERN_LATITUDE = "-33.9"
+NORTHERN_LATITUDE = "51.5"
 
 
 def load_example():
@@ -89,15 +92,16 @@ class ClientSideEvidenceExampleTests(unittest.TestCase):
         self.assertIn(f"<p>Your starsign is {STAR_SIGN}</p>", page)
 
     def test_page_gives_the_hemisphere_for_the_latitude_cookie(self):
-        page = self.get_page(headers={"Cookie": NORTHERN_LATITUDE})
+        self.client.set_cookie(LATITUDE_COOKIE, NORTHERN_LATITUDE)
+        page = self.get_page()
 
         self.assertIn(
             "<p>Look at the Northern hemisphere stars tonight!</p>", page)
 
     def test_json_route_gives_both_for_the_page_script(self):
+        self.client.set_cookie(LATITUDE_COOKIE, SOUTHERN_LATITUDE)
         response = self.client.post(
-            "/json", data={"dateOfBirth": DATE_OF_BIRTH},
-            headers={"Cookie": SOUTHERN_LATITUDE})
+            "/json", data={"dateOfBirth": DATE_OF_BIRTH})
         text = response.get_data(as_text=True)
 
         self.assertEqual(200, response.status_code, text)
