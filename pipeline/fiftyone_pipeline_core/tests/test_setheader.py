@@ -119,3 +119,24 @@ class SetHeaderUACHTests(unittest.TestCase):
 
         self.assertEqual(
             expected_message.format(property_value), str(caught.exception))
+
+    # Only a property whose name starts with SetHeader is for a response
+    # header, so a name that holds SetHeader later on is left alone.
+    def test_get_setheader_properties_pipeline_needs_the_prefix(self):
+
+        class Element(object):
+            datakey = "device"
+
+            def get_properties(self):
+                return {
+                    "setheaderbrowseraccept-ch": {
+                        "name": "SetHeaderBrowserAccept-CH"},
+                    "notsetheaderbrowseraccept-ch": {
+                        "name": "NotSetHeaderBrowserAccept-CH"}}
+
+        class Pipeline(object):
+            flow_elements = [Element()]
+
+        self.assertEqual(
+            {"device": ["SetHeaderBrowserAccept-CH"]},
+            SetHeaderElement().get_setheader_properties_pipeline(Pipeline()))
