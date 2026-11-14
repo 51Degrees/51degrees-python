@@ -517,8 +517,9 @@ redeemed.factors                  # on a mismatch, on a misconfigured
                                   #   is NOT_RECORDED, whatever the
                                   #   overall result. Name to FactorResult
                                   #   (VERIFIED, MISMATCH, MISCONFIGURED
-                                  #   or NOT_RECORDED) or None where
-                                  #   nothing was compared, for
+                                  #   or NOT_RECORDED), where a null or a
+                                  #   word this package does not know
+                                  #   reads as MISMATCH, for
                                   #   transport, device,
                                   #   browserip, connectionip, asn,
                                   #   platformname, platformversion,
