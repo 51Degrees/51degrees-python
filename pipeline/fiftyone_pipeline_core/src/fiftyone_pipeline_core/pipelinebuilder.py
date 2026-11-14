@@ -28,6 +28,17 @@ from .sequenceelement import SequenceElement
 from .setheaderelement import SetHeaderElement
 import importlib
 
+# The data keys of the JSONBundler and the JavaScriptBuilder.
+JSON_BUILDER_KEY = "jsonbundler"
+JAVASCRIPT_BUILDER_KEY = "javascriptbuilder"
+
+
+def _data_key(element):
+
+    # Flow data keeps each element's results under its data key in lower
+    # case, so two keys that differ only in letters are the same key.
+    return str(element.datakey).lower()
+
 
 class PipelineBuilder(object):
     """
@@ -40,6 +51,9 @@ class PipelineBuilder(object):
     def __init__(self, settings= {}):
         """
         Pipeline Builder constructor.
+        The SequenceElement, JSONBundler, JavaScriptBuilder and
+        SetHeaderElement switches below each add their element only when the
+        caller has not added one with the same data key.
         @type settings: dictionary
         @param settings : settings for the pipeline builder including:
         `add_javascript_builder (Bool)` - Whether to add the JavaScriptBuilder, with the
@@ -188,13 +202,51 @@ class PipelineBuilder(object):
 
         """
 
-        flow_elements = (
-            self.get_sequence_elements() +
-            self.flow_elements +
-            self.get_javascript_elements() +
-            self.get_setheader_elements())
+        flow_elements = self._add_web_elements(self.flow_elements)
 
         return Pipeline(flow_elements, logger=self.logger, suppress_process_exceptions=self.suppress_process_exceptions, data_file_update_service=self.data_file_update_service, auto_close_elements=self.auto_close_elements)
+
+    def _add_web_elements(self, flow_elements):
+
+        """!
+        The caller's elements with each web integration element the settings
+        ask for, unless the caller added one with the same data key. The
+        SequenceElement goes first and the others after every other element,
+        except that a JSONBundler goes immediately before a JavaScriptBuilder
+        the caller added, because the JavaScriptBuilder reads the
+        JSONBundler's results.
+
+        @type flow_elements: list
+        @param flow_elements: The FlowElements the caller added
+        @rtype: list
+        @return: Returns a new list of FlowElements
+        """
+
+        present = set(_data_key(element) for element in flow_elements)
+
+        def absent(element):
+            return _data_key(element) not in present
+
+        elements = [element for element in self.get_sequence_elements()
+                    if absent(element)]
+        elements.extend(flow_elements)
+
+        for element in self.get_javascript_elements():
+            if not absent(element):
+                continue
+            builder = next(
+                (index for index, added in enumerate(elements)
+                 if _data_key(added) == JAVASCRIPT_BUILDER_KEY),
+                None)
+            if _data_key(element) == JSON_BUILDER_KEY and builder is not None:
+                elements.insert(builder, element)
+            else:
+                elements.append(element)
+
+        elements.extend(element for element in self.get_setheader_elements()
+                        if absent(element))
+
+        return elements
 
     def add_logger(self, logger):
         """
