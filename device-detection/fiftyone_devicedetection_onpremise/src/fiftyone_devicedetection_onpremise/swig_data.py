@@ -29,6 +29,10 @@ from fiftyone_pipeline_engines.missingproperty_service import MissingPropertySer
 
 from .constants import RESULTS_CLOSED
 
+# The names of the C library's match methods, in the order of its
+# fiftyoneDegreesHashMatchMethod values, which getMethod returns.
+MATCH_METHODS = ("NONE", "PERFORMANCE", "COMBINED", "PREDICTIVE")
+
 class OnPremiseMissingPropertyService(MissingPropertyService):
 
     def check(self, key, flow_element):
@@ -125,7 +129,10 @@ class SwigData(AspectData):
             return AspectPropertyValue(value = self.swig_results.getDifference())
 
         if key == 'method':
-            return AspectPropertyValue(value = self.swig_results.getMethod())
+            method = self.swig_results.getMethod()
+            return AspectPropertyValue(
+                value = MATCH_METHODS[method]
+                if 0 <= method < len(MATCH_METHODS) else "NONE")
 
         if key == 'matchednodes':
             return AspectPropertyValue(value = self.swig_results.getMatchedNodes())

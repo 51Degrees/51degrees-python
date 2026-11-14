@@ -37,7 +37,6 @@
 
 from flask import Flask, request
 
-from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.web import webevidence
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
@@ -107,30 +106,13 @@ def index():
 def main(resource_key = None):
     if not resource_key:
         resource_key = ExampleUtils.get_resource_key()
-
-    # Configure a logger to output to the console.
-    logger = Logger(min_level="info")
-
-    # With no key there is nothing to serve, so say how to get one and
-    # start no server.
     if not resource_key:
-        logger.log("error",
+        raise Exception(
             "No resource key specified in the environment variable "
-            f"'{ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR}'. The 51Degrees cloud "
-            "service is accessed using a 'ResourceKey'. For more "
-            "information see "
-            "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. "
-            "A resource key with the properties required by this example "
-            "can be created for free at "
-            "https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. "
-            "Once complete, populate the environment variable mentioned at "
-            "the start of this message with the key.")
-    else:
-        build_pipeline(resource_key)
-        app.run(debug=False)
-
-    # Every end, with no key or once the server stops, finishes here.
-    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
+            f"'{ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR}'. Obtain one from "
+            "https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required")
+    build_pipeline(resource_key)
+    app.run(debug=False)
 
 
 if __name__ == "__main__":
