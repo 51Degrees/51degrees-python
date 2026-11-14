@@ -117,3 +117,6 @@ class DeviceDetectionDataFile(DataFile):
             self.flow_element.engine.refreshDataFromMemory(self.data)
         else:
             self.flow_element.engine.refreshData()
+
+        # The new data may accept other Evidence keys.
+        self.flow_element.read_evidence_keys()
