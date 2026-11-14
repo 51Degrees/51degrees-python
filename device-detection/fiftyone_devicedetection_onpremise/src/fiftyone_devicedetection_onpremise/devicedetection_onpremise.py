@@ -242,6 +242,11 @@ class DeviceDetectionOnPremise(Engine):
         if update_matched_useragent is not None:
             config.setUpdateMatchedUserAgent(update_matched_useragent)
 
+        # Whether the matched User-Agents are recorded, which the native
+        # default turns on. UserAgents is empty when they are not.
+        self.update_matched_useragent = (
+            update_matched_useragent is None or bool(update_matched_useragent))
+
         if allow_unmatched == True or allow_unmatched == False:
             config.setAllowUnmatched(allow_unmatched)
 
