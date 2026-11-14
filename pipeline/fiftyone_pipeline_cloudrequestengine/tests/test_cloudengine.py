@@ -142,9 +142,7 @@ class CloudEngineTests(unittest.TestCase):
         appropriate data to be set in the CloudRequestException.
         """
         with self.assertRaises(CloudRequestException) as context:
-            engine = CloudRequestEngine({"resource_key": "resource_key"})
-            # trigger the lazy load of the properties
-            engine.flow_element_properties  # noqa
+            CloudRequestEngine({"resource_key": "resource_key"})
 
         self.assertNotEqual(context.exception.httpStatusCode, 0, "Status code should not be 0")
         self.assertIsNotNone(context.exception.responseHeaders, "Response headers are not populated")
