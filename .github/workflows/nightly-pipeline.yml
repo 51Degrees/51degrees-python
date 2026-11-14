@@ -15,9 +15,9 @@ on:
         default: ''
   schedule:
     # The 51degrees-cxx nightly starts at 00:35 and ends by about 02:35, so
-    # its release reaches this submodule update the same night. The Java and
-    # Node nightlies start at 03:00 and want macOS runners too, so this one
-    # starts after them.
+    # its release reaches this submodule update the same night. The Node.js
+    # nightly starts at 02:30 and the Java nightly at 03:00, and both want
+    # macOS runners too, so this one starts after them.
     - cron: '0 5 * * *'
 
 jobs:
