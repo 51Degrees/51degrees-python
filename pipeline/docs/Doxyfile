@@ -897,6 +897,7 @@ EXCLUDE_SYMBOLS        =
 # command).
 
 EXAMPLE_PATH           = ../fiftyone_pipeline_core/examples \
+                         ../fiftyone_pipeline_engines/examples \
                          ../fiftyone_pipeline_engines_fiftyone/examples \
                          ../fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples \
                          ../../../documentation/src/snippets
