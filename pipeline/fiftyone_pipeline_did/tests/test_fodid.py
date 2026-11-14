@@ -1252,6 +1252,39 @@ class FodIdVersionTests(unittest.TestCase):
                 self.assertIn("version {0}".format(version),
                               str(caught.exception))
 
+    def test_a_payload_too_short_for_the_header_is_refused_for_its_version(
+            self):
+        # The version is in the flags byte, the first byte of the payload,
+        # so a payload of one byte is enough to read it. The 5 byte header
+        # belongs to the layout of version 0, so a shorter payload naming
+        # another version is refused for that version and not as too
+        # short. A short version 0 payload is still too short, which
+        # test_payload_shorter_than_the_header_reports_payload_too_short
+        # covers.
+        for length in range(1, HEADER_LENGTH):
+            for version in (1, 2, 3):
+                payload = with_payload_version(
+                    bytes([CANONICAL_FLAGS] * length), version)
+                owid = self.factory.signed_owid(payload)
+                with self.subTest(length=length, version=version):
+                    for result in (
+                            FodId.try_from_base64(owid.as_base64()),
+                            FodId.try_from_byte_array(owid.as_byte_array())):
+                        self.assertFalse(result.ok)
+                        self.assertIs(
+                            FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION,
+                            result.status)
+                        self.assertIsNone(result.value)
+                    for read, value in (
+                            (FodId.from_base64, owid.as_base64()),
+                            (FodId.from_byte_array, owid.as_byte_array()),
+                            (FodId.from_owid, owid),
+                            (FodId, owid)):
+                        with self.assertRaises(ValueError) as caught:
+                            read(value)
+                        self.assertIn("version {0}".format(version),
+                                      str(caught.exception))
+
     def test_the_version_is_read_apart_from_the_usage_and_type_bits(self):
         # A reader masking the wrong bits would refuse a version 0
         # identifier or let a later version through, so every combination
