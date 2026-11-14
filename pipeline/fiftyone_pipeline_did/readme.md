@@ -319,10 +319,10 @@ from the `try_` readers and never an exception. The raising readers,
 `from_base64`, `from_byte_array`, `from_owid` and the constructor, read
 through the same logic and keep their documented exceptions for callers
 who prefer them, being `TypeError` for `None` or a wrong input type,
-`ValueError` for `PAYLOAD_TOO_SHORT`, `INVALID_TYPE_PAYLOAD_LENGTH` and
-`UNSUPPORTED_PAYLOAD_VERSION`, and `OwidError` for every other status,
-with the message naming the status. The three raising `ValueError` are
-the three the payload rules produce, whilst every other status comes
+`ValueError` for `PAYLOAD_TOO_SHORT`, `INVALID_TYPE_PAYLOAD_LENGTH`,
+`UNSUPPORTED_PAYLOAD_VERSION` and `NO_USAGE`, and `OwidError` for every
+other status, with the message naming the status. The four raising
+`ValueError` are the four the payload rules produce, whilst every other status comes
 from the envelope. Signature verification against a key that cannot be
 decoded, a key list that cannot be fetched, and a cloud answer other than
 the one asked for remain exceptions, because they are faults in the
