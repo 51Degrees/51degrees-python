@@ -80,7 +80,10 @@ class DeviceDetectionPipelineBuilder(PipelineBuilder):
         @type restricted_properties: list
         @param restricted_properties: List of property keys to limit the engine to
         @type license_keys: string
-        @param licence_keys: licencekeys to use for the data file update service
+        @param licence_keys: licence keys to use for the data file update service.
+        Needed only when auto_update or update_on_start is on with the default
+        data_update_url, and the engine refuses to build without one then. The
+        file system watcher needs no key.
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type max_matched_useragent_length: int

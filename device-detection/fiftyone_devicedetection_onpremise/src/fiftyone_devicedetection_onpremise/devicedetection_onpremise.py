@@ -36,6 +36,16 @@ from .DeviceDetectionHashEngineModule import *
 from .swig_data import SwigData
 from .devicedetection_datafile import DeviceDetectionDataFile
 
+# The Distributor, which serves data files only to a licence key.
+DISTRIBUTOR_URL = "https://distributor.51degrees.com/api/v2/download"
+
+LICENCE_KEY_REQUIRED_FOR_UPDATES = (
+    "Some enabled features ({}) require a licence key but one has not been "
+    "supplied. Supply one with licence_keys, or set {} to False to build "
+    "without one. The file system watcher needs no licence key. A key can be "
+    "obtained from the 51Degrees website: "
+    "https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-src-fiftyone_devicedetection_onpremise-devicedetection_onpremise.py&utm_term=licence-key-required-for-updates")
+
 
 class DeviceDetectionOnPremise(Engine):
     """!
@@ -66,7 +76,7 @@ class DeviceDetectionOnPremise(Engine):
         reuse_temp_file=False,
         concurrency=multiprocessing.cpu_count(),
         update_on_start=False,
-        data_update_url="https://distributor.51degrees.com/api/v2/download",
+        data_update_url=DISTRIBUTOR_URL,
         use_predictive_graph=None,
         use_performance_graph=None,
         data_update_use_url_formatter=True,
@@ -87,7 +97,10 @@ class DeviceDetectionOnPremise(Engine):
         @type restricted_properties: list
         @param restricted_properties: List of property keys to limit the engine to
         @type license_keys: string
-        @param licence_keys: licencekeys to use for the data file update service
+        @param licence_keys: licence keys to use for the data file update service.
+        Needed only when auto_update or update_on_start is on with the default
+        data_update_url, and the engine refuses to build without one then. The
+        file system watcher needs no key.
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type max_matched_useragent_length: int
@@ -151,6 +164,19 @@ class DeviceDetectionOnPremise(Engine):
         if not data_file_path and not data:
             raise Exception("data_file_path or data is required")
 
+        # Only polling and the update on start-up download from the
+        # Distributor, so only they need a licence key. The file system
+        # watcher needs none.
+        auto_update = bool(auto_update)
+        update_on_start = bool(update_on_start)
+        if data_update_url == DISTRIBUTOR_URL and not licence_keys:
+            need_key = [name for name, on in (
+                ("auto_update", auto_update),
+                ("update_on_start", update_on_start)) if on]
+            if need_key:
+                raise Exception(LICENCE_KEY_REQUIRED_FOR_UPDATES.format(
+                    ", ".join(need_key), " and ".join(need_key)))
+
         if data_file_path:
             if os.path.isfile(data_file_path) == False and not update_on_start:
                 raise Exception("There is no file at " + data_file_path)
@@ -161,9 +187,6 @@ class DeviceDetectionOnPremise(Engine):
                 raise Exception("Data file name must end in .hash")
         else:
             self.data = data
-
-        if not licence_keys and licence_keys != "":
-            raise Exception("licence key is required. A key can be obtained from the 51Degrees website: https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-src-fiftyone_devicedetection_onpremise-devicedetection_onpremise.py&utm_term=licence-key-required. If you do not wish to use a key then you can specify an empty string, but this will cause automatic updates to be disabled.")
 
         #   Create SWIG wrapper vector for restricted properties and add
 
@@ -250,15 +273,6 @@ class DeviceDetectionOnPremise(Engine):
         self.config = config
         self.properties_list = properties_list
         self.data_file_path = data_file_path
-
-        # Disable features that require a licence key if one was not supplied.
-
-        if licence_keys:
-            auto_update = auto_update and (len(licence_keys) > 0)
-            update_on_start = update_on_start and (len(licence_keys) > 0)
-        else:
-            auto_update = False
-            update_on_start = False
 
         if auto_update or update_on_start or file_system_watcher:
 
