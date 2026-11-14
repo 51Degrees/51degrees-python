@@ -1,0 +1,2 @@
+pipeline/fiftyone_pipeline_cloudrequestengine/tests
+ip-intelligence/fiftyone_ipintelligence_cloud/tests

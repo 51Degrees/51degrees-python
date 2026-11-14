@@ -1,0 +1,3 @@
+pipeline/fiftyone_pipeline_cloudrequestengine/tests/test_discovery_at_build.py
+pipeline/fiftyone_pipeline_cloudrequestengine/tests/test_credentials.py
+pipeline/fiftyone_pipeline_cloudrequestengine/tests/test_cloudresponse.py
