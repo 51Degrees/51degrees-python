@@ -21,6 +21,11 @@
 # *********************************************************************
 
 
+# The message value() raises with when there is no value and no reason was
+# given, the same as .NET's.
+NO_VALUE_MESSAGE = "This instance does not have a set value"
+
+
 class AspectPropertyValue(object):
     
     """!
@@ -66,8 +71,8 @@ class AspectPropertyValue(object):
 
         """!
         Get the value out of the AspectPropertyValue wrapper
-        Note that this will return an error (including no_value_message if set)
-        if there is no value. So check has_value() first to be sure.
+        With no value this raises, with no_value_message or, when that is
+        not set, NO_VALUE_MESSAGE. So check has_value() first to be sure.
 
         @rtype mixed
         @return the stored value
@@ -77,7 +82,7 @@ class AspectPropertyValue(object):
         if self.__hasValue:
             return self.__value
         else:
-            raise Exception(self.no_value_message())
+            raise Exception(self.no_value_message() or NO_VALUE_MESSAGE)
 
     def no_value_message(self):
 
