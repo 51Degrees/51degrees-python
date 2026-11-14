@@ -478,7 +478,12 @@ class DeviceDetectionOnPremise(Engine):
         evidence = EvidenceDeviceDetectionSwig()
 
         # The native evidence takes text, and the Sequence Element adds a number.
+        # Evidence keys ignore case, but the native evidence matches a key's
+        # prefix with case, so the prefix is given in lower case.
         for key, value in flow_data.evidence.get_all().items():
+            prefix, dot, field = key.partition(".")
+            if dot:
+                key = prefix.lower() + dot + field
             evidence.__setitem__(key, str(value))
 
         result = self.engine.process(evidence)

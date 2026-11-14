@@ -20,8 +20,29 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .evidence_keyfilter import EvidenceKeyFilter
 from .flowdata import FlowData
 from .logger import Logger
+
+
+class PipelineEvidenceKeyFilter(EvidenceKeyFilter):
+
+    """!
+    The Evidence a Pipeline accepts, being every key one of its FlowElements
+    accepts. Each element's filter is read when a key is checked, as an
+    element's list can change once its data or the cloud service's answer
+    arrives.
+
+    """
+
+    def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+    def filter_evidence_key(self, key):
+        return any(
+            element.get_evidence_key_filter().filter_evidence_key(key)
+            for element in self.pipeline.flow_elements_list.values())
+
 
 class Pipeline:
 
@@ -167,6 +188,19 @@ class Pipeline:
         """
 
         return self.flow_elements_list[key]
+
+    def get_evidence_key_filter(self):
+
+        """!
+        The Evidence the Pipeline accepts, being every key one of its
+        FlowElements accepts.
+
+        @rtype: EvidenceKeyFilter
+        @return: Returns an EvidenceKeyFilter
+
+        """
+
+        return PipelineEvidenceKeyFilter(self)
 
     def element_not_found(self, element, flowdata):
         """!
