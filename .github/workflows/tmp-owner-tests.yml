@@ -1,0 +1,40 @@
+name: Temporary Python test runs
+on:
+  push:
+    branches: ['tmp/pyowner-test-*']
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then PY=python; else PY=python3; fi
+          $PY --version
+          $PY -m venv .venv
+          if [ -f .venv/Scripts/activate ]; then . .venv/Scripts/activate; else . .venv/bin/activate; fi
+          python -m pip install -q pytest parameterized requests_mock flask -e pipeline/fiftyone_pipeline_core -e pipeline/fiftyone_pipeline_engines -e pipeline/fiftyone_pipeline_cloudrequestengine -e pipeline/fiftyone_pipeline_engines_fiftyone -e ip-intelligence/fiftyone_ipintelligence_shared -e ip-intelligence/fiftyone_ipintelligence_cloud
+      - name: Listed tests
+        env:
+          PYTHONPATH: ${{ github.workspace }}/ip-intelligence/fiftyone_ipintelligence_onpremise/src${{ runner.os == 'Windows' && ';' || ':' }}${{ github.workspace }}/device-detection/fiftyone_devicedetection_onpremise/src
+        run: |
+          if [ -f .venv/Scripts/activate ]; then . .venv/Scripts/activate; else . .venv/bin/activate; fi
+          status=0
+          for f in $(cat tmp-tests.txt | tr -d '\r'); do python -m pytest "$f" -v -m "not live" || status=1; done
+          exit $status
+      - name: Suites
+        if: always() && hashFiles('tmp-suites.txt') != ''
+        run: |
+          if [ -f .venv/Scripts/activate ]; then . .venv/Scripts/activate; else . .venv/bin/activate; fi
+          status=0
+          for d in $(cat tmp-suites.txt | tr -d '\r'); do python -m pytest "$d" -q -m "not live" || status=1; done
+          exit $status
