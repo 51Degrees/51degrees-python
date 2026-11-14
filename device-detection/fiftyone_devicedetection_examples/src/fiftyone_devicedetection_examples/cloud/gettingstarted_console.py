@@ -45,6 +45,18 @@ from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=find-out-more-device-detection"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=find-out-more-pricing"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+]
+
 class GettingStartedConsole():
     def run(self, config, logger, output):
 
@@ -58,6 +70,8 @@ class GettingStartedConsole():
         # carry out some sample detections
         for values in self.EvidenceValues:
             self.analyseEvidence(values, pipeline, output)
+
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output)
 
     def analyseEvidence(self, evidence, pipeline, output):
 
@@ -179,6 +193,7 @@ def main(argv):
             "created for free at https://51degrees.com/configure/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-gettingstarted_console.py&utm_term=resource-key-required. " +
             "Once complete, populate the config file or environment variable " +
             "mentioned at the start of this message with the key.")
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE)
     else:
         GettingStartedConsole().run(config, logger, print)
 

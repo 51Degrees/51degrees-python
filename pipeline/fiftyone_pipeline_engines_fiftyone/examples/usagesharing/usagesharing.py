@@ -44,7 +44,7 @@
 #
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_engines_fiftyone/examples/usagesharing/usagesharing.py).
 #
-# Expected output:
+# Expected output, before the Find out more section:
 # ```
 # Constructing pipeline from configuration file.
 # 
@@ -57,6 +57,16 @@ import os
 import json
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_engines_fiftyone.share_usage import ShareUsage
+
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Usage sharing",
+     "https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_engines_fiftyone-examples-usagesharing-usagesharing.py&utm_term=find-out-more-usage-sharing"),
+    ("Pipeline API documentation",
+     "https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_engines_fiftyone-examples-usagesharing-usagesharing.py&utm_term=find-out-more-documentation"),
+    ("Pipeline API for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
+]
 
 print("Constructing pipeline from configuration file.")
 print()
@@ -78,3 +88,8 @@ with open(os.path.join(dir, '51d.json')) as json_file:
 print("""Pipeline created with share usage element. Evidence processed 
 with this pipeline will now be periodically shared with 51Degrees using 
 the specified configuration.""")
+
+print("=" * 79)
+print("Find out more:")
+for label, url in FIND_OUT_MORE:
+    print(f"\t{label}: {url}")

@@ -52,6 +52,20 @@ SAMPLE_TERMS_OFFSET = 37        # the Terms byte follows the match key
 SAMPLE_TERMS = 1                # index 1, the Model Terms for Marketing
                                 # version 2
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("51Did",
+     "https://51degrees.com/developers/51did?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-fodid_example.py&utm_term=find-out-more-51did"),
+    ("51Did documentation",
+     "https://51degrees.com/documentation/_identifiers_51_did.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-fodid_example.py&utm_term=find-out-more-documentation"),
+    ("51Did inspector",
+     "https://51degrees.com/developers/51did-inspector?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-fodid_example.py&utm_term=find-out-more-51did-inspector"),
+    ("Pipeline API for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
+    ("Specifications",
+     "https://github.com/51Degrees/specifications"),
+]
+
 
 def sample_payload():
     """A canonical 38-byte Probabilistic payload: the flags byte, License
@@ -108,6 +122,11 @@ def run():
         raise AssertionError(
             "Expected a different envelope but the same match key across "
             "reissues.")
+
+    print("=" * 79)
+    print("Find out more:")
+    for label, url in FIND_OUT_MORE:
+        print(f"\t{label}: {url}")
 
 
 if __name__ == "__main__":

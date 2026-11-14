@@ -41,8 +41,45 @@ from fiftyone_pipeline_core.web import json_response, webevidence
 # Alternatively, add a _51DEGREES_RESOURCE_KEY environment variable.
 # resource_key is the old name of that variable. It is deprecated, and is
 # read only when _51DEGREES_RESOURCE_KEY is not set.
+import html
 import os
 import sys
+
+# Where to go next, shown at the end of the page, and printed when there is
+# no resource key.
+FIND_OUT_MORE = [
+    ("Geolocation",
+     "https://51degrees.com/geolocation?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=find-out-more-geolocation"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=find-out-more-pricing"),
+    ("Location for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/location"),
+]
+
+
+def print_find_out_more():
+    """Print the Find out more section, a line of "=" and then each label
+    with its link."""
+    print("=" * 79)
+    print("Find out more:")
+    for label, url in FIND_OUT_MORE:
+        print(f"\t{label}: {url}")
+
+
+def find_out_more_html():
+    """The Find out more section for the end of the page. A repository is
+    shown by its address, and any other link by its label."""
+    items = ""
+    for label, url in FIND_OUT_MORE:
+        href = html.escape(url)
+        label = html.escape(label)
+        if url.startswith("https://github.com/"):
+            items += f"<li>{label}: <a href=\"{href}\">{href}</a></li>"
+        else:
+            items += f"<li><a href=\"{href}\">{label}</a></li>"
+    return f"<h3>Find out more</h3><ul>{items}</ul>"
 
 
 def read_environment(name, old_name):
@@ -74,6 +111,7 @@ if resource_key == "!!YOUR_RESOURCE_KEY!!":
     'replacing !!YOUR_RESOURCE_KEY!!
     To get a resourcekey with the properties used in this example go to https://51degrees.com/configure/GCrtGh1L?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required
     """)
+    print_find_out_more()
 else:
 
     # Here we add some callback settings for the page to make a request with extra evidence from the client side, in this case the Flask /json route we will make below
@@ -165,5 +203,8 @@ else:
 
 
         """
+
+        # Where to go next.
+        output += find_out_more_html()
 
         return output

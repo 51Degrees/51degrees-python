@@ -159,7 +159,7 @@ class GettingStartedConsole():
         ("Time Zone Offset", "timezoneoffset"),
     ]
 
-    # Where to go next, printed after the results.
+    # Where to go next, printed when the example ends.
     FIND_OUT_MORE = [
         ("Device detection",
          "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_console.py&utm_term=find-out-more-device-detection"),
@@ -199,8 +199,19 @@ class GettingStartedConsole():
         for evidence in self.EVIDENCE:
             self.analyse_evidence(evidence, pipeline, output)
 
+        self.print_find_out_more(output)
+
+    @classmethod
+    def print_find_out_more(cls, output):
+
+        """!
+        Write the "Find out more" section, a line of "=" and then each label
+        with its link. The example ends with it, whether it ran or stopped
+        early.
+        """
+
         message = ["=" * 79, "Find out more:"]
-        for label, url in self.FIND_OUT_MORE:
+        for label, url in cls.FIND_OUT_MORE:
             message.append(f"\t{label}: {url}")
         output("\n".join(message) + "\n")
 
@@ -299,6 +310,7 @@ def main(argv):
             "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_console.py&utm_term=resource-key-required. "
             "Once complete, set the first environment variable named at "
             "the start of this message to the key.")
+        GettingStartedConsole.print_find_out_more(print)
         return
 
     try:
@@ -311,6 +323,7 @@ def main(argv):
         # refused it, for example because the key is limited to domains
         # that do not include the origin sent.
         logger.log("error", str(error))
+        GettingStartedConsole.print_find_out_more(print)
         return
 
     GettingStartedConsole().run(pipeline, print)

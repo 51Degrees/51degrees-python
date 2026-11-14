@@ -65,6 +65,18 @@ def stderr_print(*args, **kwargs):
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-profile_metadata_console.py&utm_term=enterprise-data-file"
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-profile_metadata_console.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-profile_metadata_console.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 
 class ProfileMetadataConsole():
     # Properties we want to extract from each hardware profile
@@ -203,6 +215,9 @@ def main(argv):
 
     if data_file is not None:
         ProfileMetadataConsole().run(data_file, output_file, logger, output_func, limit)
+        # The links go where the progress messages went, so that JSON
+        # written to standard output stays valid.
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output_func)
     else:
         # Only the Enterprise data file has the properties the example lists,
         # so without one it says so and where to ask for one, and stops.
@@ -211,6 +226,7 @@ def main(argv):
               "file has. Give the path to an Enterprise data file as the "
               "first command line argument, or contact us for a copy at "
               f"{CONTACT_US}")
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 
 if __name__ == "__main__":

@@ -41,6 +41,18 @@ from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-metadata_console.py&utm_term=enterprise-data-file"
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-metadata_console.py&utm_term=find-out-more-ip-intelligence"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-metadata_console.py&utm_term=find-out-more-enterprise-data-file"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+    ("IP intelligence engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 
 class MetadataConsole():
     def run(self, data_file, logger, output):
@@ -83,6 +95,8 @@ def main(argv):
             "`git submodule update --init --recursive`, and run this "
             "example again to download the file, or supply the path to a "
             "data file as the first command line argument.")
+
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
