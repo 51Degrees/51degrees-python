@@ -85,7 +85,8 @@ class DeviceDetectionOnPremise(Engine):
         @type auto_update: bool
         @param auto_update: whether to automatically update the datafile when required
         @type restricted_properties: list
-        @param restricted_properties: List of property keys to limit the engine to
+        @param restricted_properties: Property names to limit the engine to,
+        as a list or as one comma-separated string
         @type license_keys: string
         @param licence_keys: licencekeys to use for the data file update service
         @type download: bool
@@ -168,6 +169,16 @@ class DeviceDetectionOnPremise(Engine):
         #   Create SWIG wrapper vector for restricted properties and add
 
         restricted_properties_vector = VectorStringSwig()
+
+        # A configuration file gives a list of names as one comma-separated
+        # string. A list is copied, so the caller's own list is left as it
+        # was when the metric properties are added below.
+        if isinstance(restricted_properties, str):
+            restricted_properties = [
+                name.strip() for name in restricted_properties.split(",")
+                if name.strip()]
+        elif restricted_properties:
+            restricted_properties = list(restricted_properties)
 
         if restricted_properties:
             for restricted_property in restricted_properties:
@@ -308,16 +319,7 @@ class DeviceDetectionOnPremise(Engine):
         # so every read goes by index.
         self.property_indexes = self.read_property_indexes()
 
-        # Get keys and add to evidenceKey filter
-
-        evidence_keys = engine.getKeys()
-
-        evidence_keys_list = []
-
-        for x in range(evidence_keys.size()):
-            evidence_keys_list.append(evidence_keys.__getitem__(x).lower())
-
-        self.evidence_keys_list = evidence_keys_list
+        self.read_evidence_keys()
 
         # Get properties list
 
@@ -342,6 +344,19 @@ class DeviceDetectionOnPremise(Engine):
         # Special properties
         for key, property in self.get_metric_properties().items():
             self.properties[key] = property
+
+    def read_evidence_keys(self):
+
+        """!
+        Reads the Evidence keys the data in use accepts. The keys come from
+        the data file, so they are read at start-up and again after every
+        refresh.
+        """
+
+        evidence_keys = self.engine.getKeys()
+        self.evidence_keys_list = [
+            evidence_keys.__getitem__(x).lower()
+            for x in range(evidence_keys.size())]
 
     def read_property_indexes(self):
 
