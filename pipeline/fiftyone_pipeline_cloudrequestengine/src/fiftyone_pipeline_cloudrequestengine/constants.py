@@ -82,6 +82,21 @@ class Constants:
     # error message when non-success status is returned.
     MESSAGE_ERROR_CODE_RETURNED = "Cloud service at '{}' returned status code '{}' with content {}"
 
+    # The HTTP statuses from which the cloud service refused a request
+    # (400 to 499) and failed to answer it (500 and above). A refusal of a
+    # discovery request fails the build, as no retry can change it.
+    HTTP_CLIENT_ERROR_MIN = 400
+    HTTP_SERVER_ERROR_MIN = 500
+
+    # Given as a warning when the engine is built without a discovery
+    # result. The first value names what is missing and the second gives
+    # each error.
+    MESSAGE_DISCOVERY_RETRY = (
+        "The cloud request engine could not get {} from the cloud service "
+        "when it was built, so it will ask again when it is first used. {}")
+    DISCOVERY_PROPERTIES = "the accessible properties"
+    DISCOVERY_EVIDENCE_KEYS = "the evidence keys"
+
     # The keys the cloud service reads its credentials and the list of
     # requested properties from, in the query string of a GET and in the
     # form body of a POST. See the Credentials section of the cloud request
