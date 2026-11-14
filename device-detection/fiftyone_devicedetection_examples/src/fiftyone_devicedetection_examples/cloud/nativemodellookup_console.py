@@ -45,6 +45,18 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import CloudRequest
 from fiftyone_devicedetection_shared.constants import Constants
 from fiftyone_devicedetection_cloud.hardwareprofile_cloud import HardwareProfileCloud
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=find-out-more-device-detection"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=find-out-more-pricing"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+]
+
 class NativeModelLookupConsole():
     def run(self, resource_key, logger, output, cloudEndPoint = ""):
 
@@ -81,6 +93,8 @@ class NativeModelLookupConsole():
         self.analyseModel(self._nativeModel1, pipeline, output)
         # Repeat for an alternative native model name.
         self.analyseModel(self._nativeModel2, pipeline, output)
+
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output)
 
     def analyseModel(self, nativemodel, pipeline, output):
         # Create the FlowData instance.
@@ -136,6 +150,7 @@ def main(argv):
             "https://51degrees.com/configure/QKyYH5XT?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=resource-key-required. You can now populate the " +
             "environment variable mentioned at the start of this message with the " +
             "resource key or pass it as the first argument on the command line.")
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

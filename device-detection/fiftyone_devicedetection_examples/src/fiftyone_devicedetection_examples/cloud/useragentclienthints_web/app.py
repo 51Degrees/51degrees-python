@@ -52,6 +52,19 @@ from fiftyone_devicedetection_cloud.devicedetection_cloud_pipelinebuilder import
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.web import webevidence, set_response_header
 
+# Where to go next, printed when the example ends. The page ends with the
+# same links, in templates/index.html.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=find-out-more-device-detection"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=find-out-more-pricing"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+]
+
 
 class UserAgentClientHintsWeb():
     app = Flask(__name__)
@@ -142,6 +155,9 @@ def main(argv):
             "https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=resource-key-required. " +
             "Once complete, populated the environment variable " +
             "mentioned at the start of this message with the key.")
+
+    # Printed once the server stops, or straight away when there is no key.
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 
 if __name__ == "__main__":

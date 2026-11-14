@@ -78,6 +78,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         self.assertIn(
             ExampleUtils.get_enterprise_note(gettingstarted_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_countries_console(self):
         printed = run_without_settings(countries_console.main)
@@ -86,12 +87,14 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
             "CountryCodesGeographical and CountryCodesPopulation properties",
             printed)
         self.assertIn(countries_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
     def test_metadata_console(self):
         printed = run_without_settings(metadata_console.main)
         self.assertIn(
             ExampleUtils.get_enterprise_offer(metadata_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_offlineprocessing(self):
         printed = run_without_settings(offlineprocessing.main)
@@ -100,6 +103,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
             "# " + ExampleUtils.get_enterprise_note(
                 offlineprocessing.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_compare_console(self):
         printed = run_without_settings(compare_console.main)
@@ -108,6 +112,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
             "Latitude, Longitude, LocationConfidence and Country properties",
             printed)
         self.assertIn(compare_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
     def test_performance_console(self):
         printed = run_without_settings(
@@ -115,11 +120,13 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         self.assertIn(
             ExampleUtils.get_enterprise_offer(performance_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_datafileupdate_console(self):
         printed = run_without_settings(datafileupdate_console.main)
         self.assertIn("The data file in use is the", printed)
         self.assertIn(datafileupdate_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
     @unittest.skipUnless(
         device_detection_available, "device detection is not installed")
@@ -129,6 +136,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         self.assertIn(
             ExampleUtils.get_enterprise_note(mixed_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
 
 if __name__ == "__main__":

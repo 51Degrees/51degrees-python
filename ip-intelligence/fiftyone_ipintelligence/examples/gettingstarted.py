@@ -22,6 +22,20 @@
 
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-examples-gettingstarted.py&utm_term=find-out-more-ip-intelligence"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-examples-gettingstarted.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-examples-gettingstarted.py&utm_term=find-out-more-resource-keys"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+    ("IP intelligence engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 # First create the IP intelligence pipeline with the desired settings.
 
 data_file = "../../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
@@ -80,3 +94,8 @@ with pipeline:
             print(flowdata2.ip.registeredname.value())
         else:
             print(flowdata2.ip.registeredname.no_value_message())
+
+print("=" * 79)
+print("Find out more:")
+for label, url in FIND_OUT_MORE:
+    print(f"\t{label}: {url}")

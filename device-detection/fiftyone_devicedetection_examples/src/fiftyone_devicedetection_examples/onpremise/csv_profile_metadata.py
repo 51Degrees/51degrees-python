@@ -55,6 +55,18 @@ MULTI_VALUE_COLUMNS = ["TAC", "HardwareName", "NativeName", "NativeModel"]
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-csv_profile_metadata.py&utm_term=enterprise-data-file"
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-csv_profile_metadata.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-csv_profile_metadata.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 
 def flush_print(*args, **kwargs):
     print(*args, **kwargs, flush=True)
@@ -117,6 +129,9 @@ def main(argv):
 
     if csv_file is not None:
         run(csv_file, output_file, output_func, limit)
+        # The links go where the progress messages went, so that JSON
+        # written to standard output stays valid.
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output_func)
     else:
         # The export is not one of the free data files, so the example says
         # what it needs and where to ask for it, and stops.
@@ -124,6 +139,7 @@ def main(argv):
               "export, which is not one of the free data files. Give its "
               "path as the first command line argument, or contact us for a "
               f"copy at {CONTACT_US}")
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 
 if __name__ == "__main__":

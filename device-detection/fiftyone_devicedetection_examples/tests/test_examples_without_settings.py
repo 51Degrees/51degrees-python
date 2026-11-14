@@ -85,18 +85,21 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         self.assertIn(
             ExampleUtils.get_enterprise_note(gettingstarted_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_match_metrics(self):
         printed = run_without_settings(match_metrics.main)
         self.assertIn(
             ExampleUtils.get_enterprise_offer(match_metrics.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_metadata_console(self):
         printed = run_without_settings(metadata_console.main)
         self.assertIn(
             ExampleUtils.get_enterprise_offer(metadata_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_offline_processing(self):
         output = io.StringIO()
@@ -119,6 +122,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         printed = run_without_settings(datafileupdate_console.main)
         self.assertIn("The data file in use is the 'Lite' file", printed)
         self.assertIn(datafileupdate_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
     # The two examples below need files that are not free, so in a fresh
     # clone the search for them finds nothing, which the tests stand in for.
@@ -128,12 +132,14 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
             printed = run_without_settings(csv_profile_metadata.main)
         self.assertIn(csv_profile_metadata.CSV_FILE_NAME, printed)
         self.assertIn(csv_profile_metadata.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
     def test_profile_metadata_console(self):
         with mock.patch.object(ExampleUtils, "find_file", return_value=None):
             printed = run_without_settings(profile_metadata_console.main)
         self.assertIn("only the Enterprise data file has", printed)
         self.assertIn(profile_metadata_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
 
 if __name__ == "__main__":

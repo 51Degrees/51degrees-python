@@ -54,6 +54,18 @@ RECORD_LIMIT = 100
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-offlineprocessing.py&utm_term=enterprise-data-file"
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-offlineprocessing.py&utm_term=find-out-more-ip-intelligence"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-offlineprocessing.py&utm_term=find-out-more-enterprise-data-file"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+    ("IP intelligence engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 
 class OfflineProcessing():
     def run(self, data_file, evidence_yaml, logger, output):
@@ -145,6 +157,10 @@ def main(argv):
             "Failed to find a data file or evidence file. Make sure the "
             "data submodule is there, by running "
             "`git submodule update --init --recursive`.")
+
+    # The results are written as YAML, so the links are written as YAML
+    # comments, which keeps the output valid.
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE, prefix="# ")
 
 if __name__ == "__main__":
     main(sys.argv[1:])

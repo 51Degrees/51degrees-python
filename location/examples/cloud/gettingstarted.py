@@ -25,7 +25,7 @@
 # 
 # @include{doc} example-require-resourcekey.txt
 # 
-# Expected output:
+# Expected output, before the Find out more section:
 # ```
 # What country is at coordinates:-0.9822207999999999, 51.458048?
 # United Kingdom
@@ -43,6 +43,18 @@ from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
 # read only when _51DEGREES_RESOURCE_KEY is not set.
 import os
 import sys
+
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Geolocation",
+     "https://51degrees.com/geolocation?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-gettingstarted.py&utm_term=find-out-more-geolocation"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-gettingstarted.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-gettingstarted.py&utm_term=find-out-more-pricing"),
+    ("Location for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/location"),
+]
 
 
 def read_environment(name, old_name):
@@ -100,3 +112,8 @@ else:
         print(flow_data.location.country.value())
     else:
         print(flow_data.location.country.no_value_message())
+
+print("=" * 79)
+print("Find out more:")
+for label, url in FIND_OUT_MORE:
+    print(f"\t{label}: {url}")

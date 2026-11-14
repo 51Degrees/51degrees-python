@@ -94,6 +94,18 @@ DATA_UPDATE_PRODUCT_TYPE = "V4Enterprise"
 DEFAULT_DATA_FILENAME = os.path.join(
     os.path.expanduser("~"), ENTERPRISE_DATAFILE_NAME)
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=find-out-more-ip-intelligence"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=find-out-more-enterprise-data-file"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+    ("IP intelligence engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 
 class UpdateEvent(threading.Event):
     def __init__(self):
@@ -257,6 +269,10 @@ def main(argv):
     logger = Logger(min_level="info")
 
     DataFileUpdateConsole().run(data_file, license_key, True, logger, print)
+
+    # Printed however the example ended, whether it updated the data file,
+    # had no licence key, or was stopped before the download.
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

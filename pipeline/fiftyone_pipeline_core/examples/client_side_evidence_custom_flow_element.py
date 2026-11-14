@@ -30,11 +30,37 @@
 # This latitude is also then passed in to the flowdata to calculate if 
 # a person is in the northern or southern hemispheres.
 
+import html
+
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_core.web import json_response, webevidence
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.elementdata_dictionary import ElementDataDictionary
+
+# Where to go next, shown at the end of the page.
+FIND_OUT_MORE = [
+    ("Build your own",
+     "https://51degrees.com/build-your-own?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_core-examples-client_side_evidence_custom_flow_element.py&utm_term=find-out-more-build-your-own"),
+    ("Pipeline API documentation",
+     "https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_core-examples-client_side_evidence_custom_flow_element.py&utm_term=find-out-more-documentation"),
+    ("Pipeline API for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
+]
+
+
+def find_out_more_html():
+    """The Find out more section for the end of the page. A repository is
+    shown by its address, and any other link by its label."""
+    items = ""
+    for label, url in FIND_OUT_MORE:
+        href = html.escape(url)
+        label = html.escape(label)
+        if url.startswith("https://github.com/"):
+            items += f"<li>{label}: <a href=\"{href}\">{href}</a></li>"
+        else:
+            items += f"<li><a href=\"{href}\">{label}</a></li>"
+    return f"<h3>Find out more</h3><ul>{items}</ul>"
 
 
 # Function to get star sign from month and day
@@ -246,6 +272,9 @@ def server():
             """
 
     output += "</script>"
+
+    # Where to go next.
+    output += find_out_more_html()
 
     # Return the full output to the page
 
