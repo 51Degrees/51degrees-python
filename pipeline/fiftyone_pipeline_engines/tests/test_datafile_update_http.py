@@ -854,6 +854,42 @@ class ShortDownloadTests(unittest.TestCase):
     def testAResponseShorterThanItsContentLengthIsAnAccessError(self):
         self.check_short_download(chunked=False)
 
+    def testTheLengthIsCheckedWhicheverHttpLibraryIsInstalled(self):
+        # urllib3 before version 2 gives requests the bytes that arrived
+        # with no error, so the service compares them with Content-Length
+        # itself. A reply that holds fewer bytes stands in for that here.
+        pipeline = RecordingPipeline()
+        service = DataFileUpdateService(pipeline)
+        statuses = []
+        service.on_complete(lambda status, data_file: statuses.append(status))
+        data_file = HttpDataFile()
+        reply = response(200, SENT)
+        reply.headers = {"content-length": str(PROMISED)}
+        with mock.patch.object(requests, "get", lambda url, **kwargs: reply):
+            self.assertFalse(service.update_data_file(data_file))
+
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], statuses)
+        self.assertIn(
+            ("error",
+             CHECK_ERROR + "Error accessing data update service at '" + URL +
+             "' for engine 'FakeEngine'. Error detail: The response ended "
+             "after 100 of the 1000 bytes it gave as its Content-Length."),
+            pipeline.logs)
+        self.assertEqual(b"old", data_file.data)
+
+    def testAResponseInAContentEncodingIsNotMeasured(self):
+        # Content-Length counts the encoded bytes, and requests gives the
+        # decoded ones, so the two are not compared.
+        pipeline = RecordingPipeline()
+        service = DataFileUpdateService(pipeline)
+        data_file = HttpDataFile()
+        reply = response(200, SENT)
+        reply.headers = {
+            "content-length": str(PROMISED), "content-encoding": "gzip"}
+        with mock.patch.object(requests, "get", lambda url, **kwargs: reply):
+            self.assertTrue(service.update_data_file(data_file))
+        self.assertEqual(SENT, data_file.data)
+
     def testAChunkedResponseCutShortIsAnAccessError(self):
         self.check_short_download(chunked=True)
 
