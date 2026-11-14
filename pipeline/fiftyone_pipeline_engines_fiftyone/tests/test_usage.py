@@ -816,7 +816,7 @@ class UsageTests(unittest.TestCase):
             "Expected the number of required events to be less than " +
             f"10,000, but was actually '{requiredEvents}'")
 
-    def test_includes_header(self):
+    def test_escapes_xml_characters(self):
         """!
         Check that XML characters are escaped correctly.
         """
