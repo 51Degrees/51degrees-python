@@ -364,55 +364,33 @@ class DeviceDetectionOnPremise(Engine):
         return indexes
 
     def get_metric_properties(self):
-        return { "deviceid": {
-          "name": 'DeviceId',
-          "type": 'string',
-          "category": 'Device metrics',
-          "description": DEVICE_ID_DESCRIPTION,
-          "component": "Match Metrics"
-        },
-        "useragents": {
-          "name": 'UserAgents',
-          "type": 'string',
-          "category": 'Device metrics',
-          "description": USER_AGENTS_DESCRIPTION,
-          "component": "Match Metrics"
-        },
-        "difference": {
-          "name": 'Difference',
-          "type": 'int',
-          "category": 'Device metrics',
-          "description": DIFFERENCE_DESCRIPTION,
-          "component": "Match Metrics"
-        },
-        "matchednodes": {
-            "name": 'MatchedNodes',
-            "type": 'int',
-            "category": 'Device metrics',
-            "description": MATCHED_NODES_DESCRIPTION,
-            "component": "Match Metrics"
-        },
-        "drift": {
-            "name": 'Drift',
-            "type": 'int',
-            "category": 'Device metrics',
-            "description": DRIFT_DESCRIPTION,
-            "component": "Match Metrics"
-        },
-        "iterations": {
-            "name": 'Iterations',
-            "type": 'int',
-            "category": 'Device metrics',
-            "description": ITERATIONS_DESCRIPTION,
-            "component": "Match Metrics"
-        },
-        "method": {
-            "name": 'Method',
-            "type": 'string',
-            "category": 'Device metrics',
-            "description": METHOD_DESCRIPTION,
-            "component": "Match Metrics"
-        }}
+
+        """!
+        Metadata for the match metric properties, which the native code does
+        not give, keyed by name in lower case. The engine lists them after
+        the properties from the data file, in this order. UserAgents is a
+        list of strings, which has the type name "string[]" that the native
+        code gives one.
+        """
+
+        metrics = [
+            ("MatchedNodes", "int", MATCHED_NODES_DESCRIPTION),
+            ("Difference", "int", DIFFERENCE_DESCRIPTION),
+            ("Drift", "int", DRIFT_DESCRIPTION),
+            ("DeviceId", "string", DEVICE_ID_DESCRIPTION),
+            ("UserAgents", "string[]", USER_AGENTS_DESCRIPTION),
+            ("Iterations", "int", ITERATIONS_DESCRIPTION),
+            ("Method", "string", METHOD_DESCRIPTION)]
+
+        return {
+            name.lower(): {
+                "name": name,
+                "type": value_type,
+                "datafiles": list(MATCH_METRICS_DATA_FILES),
+                "category": MATCH_METRICS_CATEGORY,
+                "description": description,
+                "component": MATCH_METRICS_COMPONENT}
+            for name, value_type, description in metrics}
 
     def get_evidence_key_filter(self):
         """!
