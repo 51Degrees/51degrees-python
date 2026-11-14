@@ -25,7 +25,7 @@ import struct
 import unittest
 from datetime import datetime, timezone
 
-from owid import Crypto, Creator, Owid, ParseStatus
+from owid import Crypto, Creator, Owid, ParseStatus, Version
 
 from fiftyone_pipeline_did import (
     FodId,
@@ -184,11 +184,14 @@ class FodIdTests(unittest.TestCase):
                          RANDOM_PAYLOAD_LENGTH)
 
     def test_raw_surface_is_not_public(self):
-        # The raw byte, the layout constants and the old Hash names are
-        # gone. Every field has a typed accessor, and an offset is only
-        # ever wanted in order to read a field by hand, which is the way
-        # that gets the cumulative usage bits wrong. The layout stays
-        # available to this package through the private _layout module.
+        # The raw byte, the layout constants, the payload version and the
+        # old Hash names are gone. Every field has a typed accessor, and an
+        # offset is only ever wanted in order to read a field by hand,
+        # which is the way that gets the cumulative usage bits wrong. The
+        # payload version belongs to the refusal, because a caller has
+        # nothing to decide with it once the payload has been read. The
+        # layout stays available to this package through the private
+        # _layout module.
         fod = FodId.from_base64(
             self.factory.signed_owid_base64(canonical_payload()))
         for name in ("flags", "hash", "date_minutes", "FLAGS_OFFSET",
@@ -196,7 +199,8 @@ class FodIdTests(unittest.TestCase):
                      "MATCH_KEY_OFFSET", "MATCH_KEY_LENGTH",
                      "HEADER_LENGTH", "GUID_LENGTH",
                      "RANDOM_PAYLOAD_LENGTH", "PAYLOAD_LENGTH",
-                     "HASH_OFFSET", "HASH_LENGTH"):
+                     "HASH_OFFSET", "HASH_LENGTH", "payload_version",
+                     "SUPPORTED_PAYLOAD_VERSION"):
             self.assertFalse(hasattr(FodId, name), name)
             self.assertFalse(hasattr(fod, name), name)
 
@@ -502,6 +506,54 @@ class FodIdTests(unittest.TestCase):
         self.assertEqual(owid.as_byte_array(), fod.as_byte_array())
         self.assertEqual(CANONICAL_FLAGS, fod._flags)
         self.assertEqual(CANONICAL_MATCH_KEY, fod.match_key)
+
+    def test_every_envelope_is_read_back_unchanged(self):
+        # A 51Did is made only by reading bytes that are already a complete
+        # envelope, so each kind of envelope comes back byte for byte and
+        # the identifier holds its own copy, not the caller's object.
+        crypto = self.factory.crypto
+        date = datetime(2026, 1, 1, 7, tzinfo=timezone.utc)
+        payload = canonical_payload()
+        cases = (
+            ("version 1", envelope_bytes(
+                crypto, payload, date, Version.VERSION1)),
+            ("version 2", envelope_bytes(
+                crypto, payload, date, Version.VERSION2)),
+            ("version 3", envelope_bytes(
+                crypto, payload, date, Version.VERSION3)),
+            ("long domain", envelope_bytes(
+                crypto, payload, date, domain=LONG_DOMAIN)),
+            ("creator context", envelope_bytes(
+                crypto, bytes(payload) + CONTEXT_SECTION, date)),
+            ("signature that does not verify", envelope_bytes(
+                crypto, payload, date, signature=bytes(64))),
+        )
+        for name, raw in cases:
+            read = Owid.parse_bytes(raw)
+            self.assertTrue(read.ok, "{0}: {1}".format(name, read.status))
+            for reader in (FodId, FodId.from_owid):
+                with self.subTest(name, reader=reader.__name__):
+                    fod = reader(read.owid)
+                    self.assertEqual(raw, fod.as_byte_array())
+                    self.assertIsNot(read.owid, fod._owid)
+                    self.assertEqual(raw, fod._owid.as_byte_array())
+
+    def test_an_envelope_that_does_not_read_back_is_refused(self):
+        # Bytes that are not a complete envelope make no 51Did, so an
+        # object whose bytes stop one byte short of the signature is
+        # refused rather than held.
+        raw = self.factory.signed_bytes(canonical_payload())[:-1]
+
+        class IncompleteEnvelope:
+            def as_byte_array(self):
+                return raw
+
+        for reader in (FodId, FodId.from_owid):
+            with self.subTest(reader=reader.__name__):
+                with self.assertRaises(OwidError) as caught:
+                    reader(IncompleteEnvelope())
+                self.assertIn("could not be read back",
+                              str(caught.exception))
 
     def test_verify_with_wrong_key_returns_false(self):
         fod = FodId.from_base64(
@@ -1251,6 +1303,39 @@ class FodIdVersionTests(unittest.TestCase):
                     FodId.from_base64(base64)
                 self.assertIn("version {0}".format(version),
                               str(caught.exception))
+
+    def test_a_payload_too_short_for_the_header_is_refused_for_its_version(
+            self):
+        # The version is in the flags byte, the first byte of the payload,
+        # so a payload of one byte is enough to read it. The 5 byte header
+        # belongs to the layout of version 0, so a shorter payload naming
+        # another version is refused for that version and not as too
+        # short. A short version 0 payload is still too short, which
+        # test_payload_shorter_than_the_header_reports_payload_too_short
+        # covers.
+        for length in range(1, HEADER_LENGTH):
+            for version in (1, 2, 3):
+                payload = with_payload_version(
+                    bytes([CANONICAL_FLAGS] * length), version)
+                owid = self.factory.signed_owid(payload)
+                with self.subTest(length=length, version=version):
+                    for result in (
+                            FodId.try_from_base64(owid.as_base64()),
+                            FodId.try_from_byte_array(owid.as_byte_array())):
+                        self.assertFalse(result.ok)
+                        self.assertIs(
+                            FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION,
+                            result.status)
+                        self.assertIsNone(result.value)
+                    for read, value in (
+                            (FodId.from_base64, owid.as_base64()),
+                            (FodId.from_byte_array, owid.as_byte_array()),
+                            (FodId.from_owid, owid),
+                            (FodId, owid)):
+                        with self.assertRaises(ValueError) as caught:
+                            read(value)
+                        self.assertIn("version {0}".format(version),
+                                      str(caught.exception))
 
     def test_the_version_is_read_apart_from_the_usage_and_type_bits(self):
         # A reader masking the wrong bits would refuse a version 0

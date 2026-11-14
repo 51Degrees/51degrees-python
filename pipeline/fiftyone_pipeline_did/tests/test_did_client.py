@@ -1244,7 +1244,8 @@ class RedeemTests(unittest.TestCase):
             "device": FactorResult.MISMATCH,
             "browserip": FactorResult.VERIFIED,
             "connectionip": FactorResult.VERIFIED,
-            "asn": None,
+            # A null is not one of the four words, so it is a mismatch.
+            "asn": FactorResult.MISMATCH,
             "platformname": FactorResult.VERIFIED,
             "platformversion": FactorResult.MISMATCH,
             "browsername": FactorResult.VERIFIED,
@@ -1299,12 +1300,16 @@ class RedeemTests(unittest.TestCase):
         self.assertIs(FactorResult.MISMATCH, result.factors["transport"])
         self.assertEqual("mismatch", result.to_dict()["factors"]["transport"])
 
-    def test_a_factor_that_was_not_compared_is_still_none(self):
+    # A null is not one of the four words either, so it is a mismatch too,
+    # and never reads as a factor that matched or one that could not be
+    # compared.
+    def test_a_null_factor_is_a_mismatch(self):
         body = json.dumps({
             "signature": "verified", "context": "mismatch",
             "factors": {"transport": None}})
         result = self.redeem(200, body)
-        self.assertIsNone(result.factors["transport"])
+        self.assertIs(FactorResult.MISMATCH, result.factors["transport"])
+        self.assertEqual("mismatch", result.to_dict()["factors"]["transport"])
 
     def test_each_listed_factor_word_is_read_only_from_its_own_word(self):
         for word, expected in (
@@ -1346,7 +1351,11 @@ class RedeemTests(unittest.TestCase):
         self.assertEqual(1, result.seconds_since_verified)
 
     def test_to_dict_is_the_cloud_shape(self):
-        self.assertEqual(json.loads(REDEEMED_WITH_FACTORS),
+        # Each factor is written as this package read it, so the null for
+        # asn comes back as a mismatch.
+        expected = json.loads(REDEEMED_WITH_FACTORS)
+        expected["factors"]["asn"] = "mismatch"
+        self.assertEqual(expected,
                          self.redeem(200, REDEEMED_WITH_FACTORS).to_dict())
         self.assertEqual(json.loads(REDEEMED_WITHOUT_FACTORS),
                          self.redeem(200, REDEEMED_WITHOUT_FACTORS).to_dict())

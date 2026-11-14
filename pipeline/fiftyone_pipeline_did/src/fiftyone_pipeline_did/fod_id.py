@@ -110,9 +110,11 @@ class FodIdParseStatus(Enum):
     #: The envelope is malformed in a way none of the above describes.
     MALFORMED_ENVELOPE = "MalformedEnvelope"
 
-    #: The envelope was read but its payload is shorter than the 5 byte
-    #: header (flags and licence id), so the identifier type cannot even be
-    #: read.
+    #: The envelope was read but its payload is empty, or names payload
+    #: version 0 and is shorter than the 5 byte header (flags and licence
+    #: id) of that version. A short payload naming another version reports
+    #: :attr:`UNSUPPORTED_PAYLOAD_VERSION`, because the version is read from
+    #: the flags byte alone.
     PAYLOAD_TOO_SHORT = "PayloadTooShort"
     #: The header was read and names a type whose match key needs more
     #: bytes than the payload holds, being a 16 byte GUID match key after
@@ -120,10 +122,10 @@ class FodIdParseStatus(Enum):
     #: Probabilistic and HashedEmail.
     INVALID_TYPE_PAYLOAD_LENGTH = "InvalidTypePayloadLength"
     #: Bits 4 and 5 of the flags byte name a payload layout version this
-    #: package does not know, so no field is read. A later version exists
-    #: precisely because a field moved, so reading the payload under the
-    #: layout this package knows would answer with values that are wrong
-    #: rather than absent.
+    #: package does not know, so no field is read, whatever the length of
+    #: the payload. A later version exists precisely because a field moved,
+    #: so reading the payload under the layout this package knows would
+    #: answer with values that are wrong rather than absent.
     UNSUPPORTED_PAYLOAD_VERSION = "UnsupportedPayloadVersion"
     #: Bits 0 to 2 of the flags byte are all clear, so the payload names no
     #: usage. The cloud writes no flags byte without the non-marketing bit,
@@ -204,11 +206,13 @@ class FodId:
     Bits 4 and 5 of the flags byte say which payload layout the identifier
     follows, and this package reads version 0. A payload naming any other
     version is refused with
-    :attr:`FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION` rather than read
-    under the layout this package knows, because a later version exists
-    precisely because a field moved, so reading one here would answer with
-    values that are wrong rather than absent. The version is not exposed,
-    because a caller has nothing to decide with it.
+    :attr:`FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION`, whatever its
+    length, rather than read under the layout this package knows, because
+    a later version exists precisely because a field moved, so reading one
+    here would answer with values that are wrong rather than absent. The
+    version is read from the flags byte alone, so a payload too short for
+    the header of version 0 is still refused for its version. The version
+    is not exposed, because a caller has nothing to decide with it.
 
     A version 0 payload whose usage bits 0 to 2 are all clear names no usage
     and is refused with :attr:`FodIdParseStatus.NO_USAGE`, because the cloud
@@ -637,9 +641,10 @@ def _read_payload(
         payload: bytes) -> Tuple[FodIdParseStatus, int, int, bytes, int]:
     """Applies the four 51Did payload rules and unpacks the four fields.
 
-    The header must be present before the type can be read, the version it
-    carries must be one this package reads, the usage bits must name a
-    usage, and the type then says how many match key bytes must follow.
+    The version is read from the flags byte alone and must be one this
+    package reads, the header must then be present, the usage bits must
+    name a usage, and the type then says how many match key bytes must
+    follow.
     The Terms byte follows the match key, and anything beyond it is a
     creator context section whose lengths belong to the cloud, so a longer
     payload passes. A
@@ -650,7 +655,7 @@ def _read_payload(
     match key bytes and the Terms index. On failure the four fields are
     zero and empty.
     """
-    if payload is None or len(payload) < HEADER_LENGTH:
+    if payload is None or len(payload) <= FLAGS_OFFSET:
         return FodIdParseStatus.PAYLOAD_TOO_SHORT, 0, 0, b"", 0
     flags = payload[FLAGS_OFFSET]
     # The version is read before any field, because a later version exists
@@ -661,6 +666,10 @@ def _read_payload(
     if _payload_version(flags) != SUPPORTED_PAYLOAD_VERSION:
         return (
             FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION, 0, 0, b"", 0)
+    # Checked after the version, because the header length belongs to the
+    # layout of version 0.
+    if len(payload) < HEADER_LENGTH:
+        return FodIdParseStatus.PAYLOAD_TOO_SHORT, 0, 0, b"", 0
     # Checked after the version, because a later version may have moved
     # the usage bits, so they can only be judged under the layout this
     # package knows.

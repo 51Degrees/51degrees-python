@@ -192,8 +192,11 @@ the Terms says under which document it was created.
 
 Bits 4 and 5 of the flags byte say which payload layout the identifier
 follows, and this package reads version 0. A payload naming version 1, 2
-or 3 is refused with `FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION`, and
-the raising readers name the version they found in the message.
+or 3 is refused with `FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION`,
+whatever its length, and the raising readers name the version they found
+in the message. The version is read from the flags byte alone, because the
+5 byte header belongs to the layout of version 0, so a payload too short
+for that header is refused for its version rather than as too short.
 
 No field is read under the layout this package knows once the version says
 otherwise. A later version exists precisely because a field moved, so
@@ -280,18 +283,19 @@ same whichever language parsed the bytes.
 | `IMPLEMENTATION_CAPACITY_EXCEEDED` | The envelope is consistent but larger than this runtime can hold, or dated past the end of the year 9999 where `datetime` stops. The four byte minute count runs to 15 February 10186, and the read answers with this status rather than raising on such a count |
 | `ABSENT_NODE` | The version 0 marker, which stands for an absent envelope |
 | `MALFORMED_ENVELOPE` | Malformed in a way none of the above describes |
-| `PAYLOAD_TOO_SHORT` | The envelope was read but the payload is shorter than the 5 byte header, so the type cannot be read |
+| `PAYLOAD_TOO_SHORT` | The envelope was read but the payload is empty, or names payload version 0 and is shorter than the 5 byte header of that version |
 | `INVALID_TYPE_PAYLOAD_LENGTH` | The header names a type whose match key needs more bytes than the payload holds |
-| `UNSUPPORTED_PAYLOAD_VERSION` | Bits 4 and 5 of the flags byte name a payload layout version this package does not know, so no field is read |
+| `UNSUPPORTED_PAYLOAD_VERSION` | Bits 4 and 5 of the flags byte name a payload layout version this package does not know, so no field is read, whatever the length of the payload |
 | `NO_USAGE` | Bits 0 to 2 of the flags byte are all clear, so the payload names no usage. The cloud never writes one, so the identifier is damaged or forged |
 
 ### Lower bounds and no upper bound
 
-The payload must hold the 5 byte header before the type can be read, and
-the type then says how many match key bytes must follow, being 16 for
-`RANDOM` and 32 for `PROBABILISTIC` and `HASHED_EMAIL`, as the payload
-layout specification says. The Terms byte follows the match key, and a
-payload ending at the match key reads as terms that are not stated.
+A version 0 payload must hold the 5 byte header before the type can be
+read, and the type then says how many match key bytes must follow,
+being 16 for `RANDOM` and 32 for `PROBABILISTIC` and `HASHED_EMAIL`, as
+the payload layout specification says. The Terms byte follows the match
+key, and a payload ending at the match key reads as terms that are not
+stated.
 `RESERVED` keeps the best-effort reading, being the header fields and
 whatever bytes follow, and because no match key length is defined for it
 there is no byte left over to read as its Terms. Anything beyond the Terms
@@ -315,10 +319,10 @@ from the `try_` readers and never an exception. The raising readers,
 `from_base64`, `from_byte_array`, `from_owid` and the constructor, read
 through the same logic and keep their documented exceptions for callers
 who prefer them, being `TypeError` for `None` or a wrong input type,
-`ValueError` for `PAYLOAD_TOO_SHORT`, `INVALID_TYPE_PAYLOAD_LENGTH` and
-`UNSUPPORTED_PAYLOAD_VERSION`, and `OwidError` for every other status,
-with the message naming the status. The three raising `ValueError` are
-the three the payload rules produce, whilst every other status comes
+`ValueError` for `PAYLOAD_TOO_SHORT`, `INVALID_TYPE_PAYLOAD_LENGTH`,
+`UNSUPPORTED_PAYLOAD_VERSION` and `NO_USAGE`, and `OwidError` for every
+other status, with the message naming the status. The four raising
+`ValueError` are the four the payload rules produce, whilst every other status comes
 from the envelope. Signature verification against a key that cannot be
 decoded, a key list that cannot be fetched, and a cloud answer other than
 the one asked for remain exceptions, because they are faults in the
@@ -517,8 +521,9 @@ redeemed.factors                  # on a mismatch, on a misconfigured
                                   #   is NOT_RECORDED, whatever the
                                   #   overall result. Name to FactorResult
                                   #   (VERIFIED, MISMATCH, MISCONFIGURED
-                                  #   or NOT_RECORDED) or None where
-                                  #   nothing was compared, for
+                                  #   or NOT_RECORDED), where a null or a
+                                  #   word this package does not know
+                                  #   reads as MISMATCH, for
                                   #   transport, device,
                                   #   browserip, connectionip, asn,
                                   #   platformname, platformversion,

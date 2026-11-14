@@ -219,9 +219,10 @@ class SignatureResult(str, Enum):
 
 class FactorResult(str, Enum):
     """The outcome of one factor in a mismatch or a partly misconfigured
-    result. The cloud reports ``null`` for a factor that was not compared,
-    which is passed through as ``None``, and a word this package does not
-    list is read as :attr:`MISMATCH`."""
+    result. Each value is read only from its own word, and anything else,
+    a ``null`` or a word this package does not list, is read as
+    :attr:`MISMATCH`, so it never reads as a factor that matched or one
+    that could not be compared."""
 
     VERIFIED = "verified"
     MISMATCH = "mismatch"
@@ -310,8 +311,9 @@ class SignatureCheck:
     reason: SignatureReason
 
 
-#: The type of a factor value in :attr:`RedeemResult.factors`.
-FactorValue = Optional[FactorResult]
+#: The type of a factor value in :attr:`RedeemResult.factors`, which is
+#: never ``None``.
+FactorValue = FactorResult
 
 #: The shape of an injected transport: an async callable taking the
 #: prepared :class:`urllib.request.Request` and answering the HTTP status
@@ -386,9 +388,10 @@ class RedeemResult:
             else SignatureResult.INVALID if signature == "invalid"
             else SignatureResult.UNKNOWN)
         factors = parsed.get("factors")
-        #: Factor name to :class:`FactorResult` (or ``None`` where nothing
-        #: was compared), present only when the cloud sent ``factors``,
-        #: which is where there is something to diagnose. The names are
+        #: Factor name to :class:`FactorResult`, present only when the cloud
+        #: sent ``factors``, which is where there is something to diagnose.
+        #: A ``null`` factor reads as :attr:`FactorResult.MISMATCH`, as
+        #: every value other than the four words does. The names are
         #: ``transport``, ``device``, ``browserip``, ``connectionip``,
         #: ``asn``, ``platformname``, ``platformversion``, ``browsername``
         #: and ``browserversion``. A version mismatch beside a verified
@@ -439,8 +442,7 @@ class RedeemResult:
         body["context"] = self.context.value
         if self.factors is not None:
             body["factors"] = {
-                name: (value.value if value is not None else None)
-                for name, value in self.factors.items()}
+                name: value.value for name, value in self.factors.items()}
         if self.verified_at is not None:
             # ISO 8601 UTC to the second, as the cloud writes it.
             body["verifiedAt"] = self.verified_at.astimezone(
@@ -462,9 +464,6 @@ def _context_of(text: str) -> ContextResult:
 
 
 def _factor_of(value: Any) -> FactorValue:
-    # Nothing was compared.
-    if value is None:
-        return None
     # The cloud writes lower case words, and the comparison ignores case.
     if isinstance(value, str):
         value = value.lower()
@@ -478,9 +477,9 @@ def _factor_of(value: Any) -> FactorValue:
         return FactorResult.MISCONFIGURED
     if value == "notrecorded":
         return FactorResult.NOT_RECORDED
-    # A word this package does not list, such as one a newer service sends,
-    # is a mismatch, so it never reads as a factor that matched or one that
-    # could not be compared.
+    # Anything else is a mismatch, a null and a word a newer service sends
+    # included, so it never reads as a factor that matched or one that could
+    # not be compared.
     return FactorResult.MISMATCH
 
 
