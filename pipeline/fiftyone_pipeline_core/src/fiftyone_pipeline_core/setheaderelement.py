@@ -104,8 +104,9 @@ class SetHeaderElement(FlowElement):
             # Loop over each flowElement property
             for propertykey, propertymeta in properties.items():
 
-                # Check if the property starts with SetHeader
-                if("setheader" in propertykey):
+                # Property keys are in lower case, and only a name that
+                # starts with SetHeader is for a response header.
+                if propertykey.startswith(SET_HEADER_PREFIX.lower()):
                     setHeader_element_list.append(propertymeta["name"])
 
             # Add SetHeader element list in dict against flowElement.datakey as key
