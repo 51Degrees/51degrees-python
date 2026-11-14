@@ -518,14 +518,25 @@ class DataFileUpdateService():
     def async_update_data_file(self, data_file):
 
         """!
-        Non blocking version of update_data_file
+        Non blocking version of update_data_file, which update polling
+        uses. An error is logged and reported to the callbacks as
+        AUTO_UPDATE_UNKNOWN_ERROR, as the thread has no caller to pass it
+        to, and the next check is still scheduled.
         @type data_file: DataFile
         @param data_file: Datafile to update
         """
-        
-        thread = threading.Thread(name="Update service", target=self.update_data_file, args=[data_file], daemon=True)
+
+        thread = threading.Thread(name="Update service", target=self._update_data_file_caught, args=[data_file], daemon=True)
         thread.start()
         return thread
+
+    def _update_data_file_caught(self, data_file):
+        try:
+            return self.update_data_file(data_file)
+        except Exception as e:
+            self._log_unhandled(data_file, e)
+            return self._update_failed(
+                data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR)
     
     def check_next_update(self, data_file, run_after_error = False):
         """!
