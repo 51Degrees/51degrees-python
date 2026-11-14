@@ -1,0 +1,40 @@
+name: No value message check (throwaway)
+
+on:
+  push:
+    branches:
+      - 'tmp/ipnp-novalue-**'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Core package tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.14']
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Fetch the submodules and the C library's data submodule
+        run: |
+          git submodule update --init --depth 1
+          git -C cxx submodule update --init --depth 1 data
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Give each package a version, as ci/write-package-versions.ps1 does
+        run: |
+          for f in $(git ls-files '*/setup.py'); do
+            d=$(dirname "$f")
+            [ -f "$d/version.txt" ] || echo 4.5.999 > "$d/version.txt"
+          done
+      - name: Install tox
+        run: python -m pip install tox
+      - name: Run the core package's tests
+        working-directory: pipeline/fiftyone_pipeline_core
+        run: tox -e py
