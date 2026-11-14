@@ -39,11 +39,23 @@ class OnPremiseGettingStartedWebTests(flask_unittest.ClientTestCase):
     config = GettingStartedWeb.build_config()
     app = GettingStartedWeb().build(config, logger).app
 
+    # The example's config.json shares usage, so sending is stood in for
+    # while the tests run and while the pipeline closes, and no usage data
+    # leaves the machine the tests run on.
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.sending = mock.patch("requests.post")
+        cls.sending.start()
+
     # The example's pipeline lives as long as its app, so it is closed once
     # the tests are finished with the app.
     @classmethod
     def tearDownClass(cls):
-        GettingStartedWeb.pipeline.close()
+        try:
+            GettingStartedWeb.pipeline.close()
+        finally:
+            cls.sending.stop()
         super().tearDownClass()
 
     def test_onpremise_getting_started_web(self, client):
