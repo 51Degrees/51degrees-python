@@ -1,0 +1,18 @@
+name: Usage rule 1 red test
+on:
+  push:
+    branches:
+      - tmp/usage-rule-1-red
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test the usage record
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          . "$RUNNER_TEMP/venv/bin/activate"
+          pip install cachetools chevron flask jsmin requests
+          export PYTHONPATH="$PWD/pipeline/fiftyone_pipeline_core/src:$PWD/pipeline/fiftyone_pipeline_engines/src:$PWD/pipeline/fiftyone_pipeline_engines_fiftyone/src"
+          cd pipeline/fiftyone_pipeline_engines_fiftyone
+          python -m unittest -v tests.test_share_usage_key_case
