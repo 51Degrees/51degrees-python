@@ -671,7 +671,7 @@ class DeviceDetectionTests(unittest.TestCase):
 
         for engine_property in properties:
             data_property = fd.device.get(engine_property)
-            if properties[engine_property]["category"] == "Device metrics":
+            if properties[engine_property]["category"] == "Device Metrics":
                 self.assertEqual(data_property.has_value(), True)
             elif engine_property == "deviceid":
                 self.assertEqual(fd.device.deviceid.value(), "0-0-0-0")
@@ -700,7 +700,7 @@ class DeviceDetectionTests(unittest.TestCase):
 
         for engine_property in properties:
             data_property = fd.device.get(engine_property)
-            if properties[engine_property]["category"] == "Device metrics":
+            if properties[engine_property]["category"] == "Device Metrics":
                 self.assertEqual(data_property.has_value(), True)
             elif engine_property == "deviceid":
                 self.assertEqual(fd.device.deviceid.value(), "0-0-0-0")

@@ -33,6 +33,35 @@ mobile_ua = ("Mozilla/5.0 (iPhone; CPU iPhone OS 7_1 like Mac OS X) "
             "AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile"
             "/11D167 Safari/9537.53")
 
+# The match metric properties as the on-premise device detection
+# specification's table gives them, in the table's order. A list of strings
+# has the type name the native code gives one, "string[]".
+MATCH_METRICS = [
+    ("MatchedNodes", "int",
+     "Indicates the number of hash nodes matched within the Evidence."),
+    ("Difference", "int",
+     "Used when detection method is not Exact or None. The larger the "
+     "value the less confident the detector is in this result."),
+    ("Drift", "int",
+     "The drift of every component's result added together, each "
+     "result's drift being how far, in character positions, the "
+     "substring's hashes were found from where they were expected. Never "
+     "the largest or smallest result alone."),
+    ("DeviceId", "string",
+     "Contains the profile ids of the matching profiles, separated by a "
+     "hyphen symbol. For example "
+     "[HardwareId]-[PlatformId]-[BrowserId]-[CrawlerId]. By convention, "
+     "these will be in component Id order. There will often be 4 ids "
+     "present, but this is not guaranteed."),
+    ("UserAgents", "string[]",
+     "The User-Agent values that were matched, each listed once across "
+     "every result. Populated when the Update Matched User Agent "
+     "configuration option is on, which it is by default."),
+    ("Iterations", "int",
+     "The number of iterations carried out in order to find a match. This "
+     "is the number of nodes in the graph which have been visited."),
+    ("Method", "string", "The method used to determine the match result.")]
+
 # Create a simple pipeline to access the engine with and process it with flow data
 deviceDetectionOnPremiseEngine = DeviceDetectionOnPremise(
             data_file_path = data_file, 
@@ -108,6 +137,39 @@ class PropertyTests(unittest.TestCase):
         self.assertEqual(
             properties_list['method']['description'], constants.METHOD_DESCRIPTION,
             properties_list['method']['name'] + '.description does not match "' + constants.METHOD_DESCRIPTION + '"')
+
+    def test_match_metrics_metadata(self):
+
+        """!
+        Tests that each match metric property has the metadata the
+        specification gives it, with the "Device Metrics" category, the
+        "Metrics" component and every data file.
+        """
+
+        properties_list = deviceDetectionOnPremiseEngine.get_properties()
+
+        for name, value_type, description in MATCH_METRICS:
+            self.assertEqual({
+                "name": name,
+                "type": value_type,
+                "datafiles": ["Lite", "Premium", "Enterprise", "TAC"],
+                "category": "Device Metrics",
+                "description": description,
+                "component": "Metrics"},
+                properties_list[name.lower()])
+
+    def test_match_metrics_follow_the_data_file_properties(self):
+
+        """!
+        Tests that the match metric properties are listed after the
+        properties from the data file, in the order of the specification's
+        table.
+        """
+
+        keys = list(deviceDetectionOnPremiseEngine.get_properties())
+        metrics = [name.lower() for name, _, _ in MATCH_METRICS]
+
+        self.assertEqual(metrics, keys[-len(metrics):])
 
     def test_value_types(self):
 

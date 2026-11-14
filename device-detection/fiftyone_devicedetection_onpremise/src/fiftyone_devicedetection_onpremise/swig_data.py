@@ -120,9 +120,13 @@ class SwigData(AspectData):
             return AspectPropertyValue(value = self.swig_results.getDeviceId())
 
         if key == 'useragents':
+            # Each component's result has a matched User-Agent, and several
+            # can match the same one, which is listed once.
             useragents = []
             for i in range(self.swig_results.getUserAgents()):
-                useragents.append(self.swig_results.getUserAgent(i))
+                useragent = self.swig_results.getUserAgent(i)
+                if useragent not in useragents:
+                    useragents.append(useragent)
             return AspectPropertyValue(value = useragents)
 
         if key == 'difference':
