@@ -24,7 +24,9 @@ import random
 import re
 import json
 import gzip
+import ipaddress
 import platform
+import socket
 import datetime
 import threading
 import time
@@ -257,6 +259,16 @@ class ShareUsage(Engine):
 
         self.constant_xml = None
 
+        # The address of this machine for the record's ServerIP, looked up
+        # on its own thread so that processing never waits for a slow name
+        # lookup. It is None until the lookup ends, and records made before
+        # then carry an empty ServerIP.
+        self._server_ip = None
+        self._server_ip_found = threading.Event()
+        threading.Thread(
+            target=self._look_up_server_ip, name="ShareUsageServerIP",
+            daemon=True).start()
+
         # One thread sends at a time, so a failing service gets one request
         # at a time. According to the doc on ThreadPoolExecutor - all threads
         # will be joined before the interpreter can exit, so a message being
@@ -393,10 +405,23 @@ class ShareUsage(Engine):
             xml += "<Language>Python</Language>"
             # The software language version
             xml += f"<LanguageVersion>{pyVersion}</LanguageVersion>"
+            # The address of this machine
+            xml += plain_element("ServerIP", self._server_ip or "")
             # The OS name and version
             xml += f"<Platform>{osVersion}</Platform>"
+            # Kept once the lookup of the address has ended, so that
+            # ServerIP carries the address from then on.
+            if self._server_ip is None:
+                return xml
             self.constant_xml = xml
         return self.constant_xml
+
+    def _look_up_server_ip(self):
+        try:
+            self._server_ip = host_address()
+        except Exception:
+            self._server_ip = ""
+        self._server_ip_found.set()
 
     def get_flow_elements(self):
         if len(self.pipelines) == 1:
@@ -686,14 +711,16 @@ class ShareUsage(Engine):
         data = ShareUsageData()
 
         for key, value in self.found_evidence(flow_data).items():
-            if key == 'server.client-ip':
+            # Evidence keys are compared without regard to case.
+            folded = str(key).lower()
+            if folded == 'server.client-ip':
                 # The client IP is dealt with separately for backwards
                 # compatibility purposes.
                 data.client_ip = value
-            elif key == 'query.session-id':
+            elif folded == 'query.session-id':
                 # The SessionID is dealt with separately.
                 data.session_id = value
-            elif key == 'query.sequence':
+            elif folded == 'query.sequence':
                 # The Sequence is dealt with separately.
                 try:
                     sequence = int(value)
@@ -738,6 +765,31 @@ XML_NAME_START = (
 XML_NAME = re.compile(
     "[" + XML_NAME_START + "][" + XML_NAME_START +
     "\\-.0-9\u00b7\u0300-\u036f\u203f-\u2040]*\\Z")
+
+
+def host_address():
+    """!
+    The address of this machine, found by its name, preferring an IPv4
+    address and leaving out loopback addresses, or an empty string when it
+    has none or the lookup fails.
+    """
+    try:
+        found = socket.getaddrinfo(socket.gethostname(), None)
+    except OSError:
+        return ""
+    addresses = []
+    for entry in found:
+        try:
+            # An IPv6 address can carry a zone after a percent sign.
+            address = ipaddress.ip_address(str(entry[4][0]).split("%")[0])
+        except ValueError:
+            continue
+        if not address.is_loopback and address not in addresses:
+            addresses.append(address)
+    for address in addresses:
+        if address.version == 4:
+            return str(address)
+    return str(addresses[0]) if addresses else ""
 
 
 def plain_element(tag, value):
