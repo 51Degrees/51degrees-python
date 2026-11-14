@@ -53,6 +53,18 @@ from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-metadata_console.py&utm_term=find-out-more-device-detection"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-metadata_console.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-metadata_console.py&utm_term=find-out-more-pricing"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+]
+
 bgRed = "\u001b[41m"
 fgWhite = "\u001b[37;1m"
 colReset = "\u001b[0m"
@@ -72,6 +84,8 @@ class MetaDataConsole():
         # The CloudRequestEngine is actually taking the evidence values and passing
         # them to the cloud, so that's the engine we want the keys from.
         self.outputEvidenceKeyDetails(pipeline.get_element("cloud"), output)
+
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output)
 
 
     def outputEvidenceKeyDetails(self, engine, output):
@@ -126,6 +140,7 @@ def main(argv):
             "https://51degrees.com/configure/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-metadata_console.py&utm_term=resource-key-required. " +
             "Once complete, populate the environment variable " +
             "mentioned at the start of this message with the key.")
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

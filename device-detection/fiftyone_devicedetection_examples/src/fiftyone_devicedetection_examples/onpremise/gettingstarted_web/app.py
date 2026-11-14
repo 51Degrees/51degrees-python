@@ -86,6 +86,19 @@ from fiftyone_pipeline_core.web import (
     javascript_response, json_response, webevidence, set_response_header)
 import json
 
+# Where to go next, printed when the server stops. The page ends with the
+# same links, in templates/index.html.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 class GettingStartedWeb():
     app = Flask(__name__)
 
@@ -237,6 +250,8 @@ def main(argv):
     config = GettingStartedWeb.build_config()
 
     GettingStartedWeb().build(config, logger).run()
+
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

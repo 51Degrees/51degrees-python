@@ -22,6 +22,20 @@
 
 from fiftyone_devicedetection.devicedetection_pipelinebuilder import DeviceDetectionPipelineBuilder
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection-examples-gettingstarted.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection-examples-gettingstarted.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection-examples-gettingstarted.py&utm_term=find-out-more-resource-keys"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 # First create the device detection pipeline with the desired settings.
 
 data_file = "../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
@@ -81,3 +95,8 @@ with pipeline:
         else:
             # Output why the value isn't meaningful
             print(flowdata2.device.ismobile.no_value_message())
+
+print("=" * 79)
+print("Find out more:")
+for label, url in FIND_OUT_MORE:
+    print(f"\t{label}: {url}")

@@ -80,6 +80,18 @@ EVIDENCE_CLIENTIP_KEY = "server.client-ip"
 EVIDENCE_USAGE_FROM_KEY = "header.usage-from"
 USAGE_FROM_VALUE = "YourCompanyName"
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Usage sharing",
+     "https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-shareusage.py&utm_term=find-out-more-usage-sharing"),
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-shareusage.py&utm_term=find-out-more-device-detection"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Pipeline API for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
+]
+
 
 def generate_random_ip():
     """Generate a random IP address for demonstration purposes.
@@ -185,6 +197,8 @@ def main(argv):
             "data submodule is there, by running "
             "`git submodule update --init --recursive`, and run this "
             "example again to download the file.")
+
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 
 if __name__ == "__main__":

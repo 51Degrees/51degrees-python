@@ -440,6 +440,18 @@ class ExampleUtils:
                 f"a copy at {contact_us}")
 
     @staticmethod
+    def print_find_out_more(links, output=print):
+        """!
+        Write the "Find out more" section that an example ends with, a line
+        of "=" and then each label with its link. links is a list of label
+        and link pairs, and output takes one string, as print does.
+        """
+        message = ["=" * 79, "Find out more:"]
+        for label, url in links:
+            message.append(f"\t{label}: {url}")
+        output("\n".join(message) + "\n")
+
+    @staticmethod
     def check_data_file(pipeline, logger):
         """!
         Log the data file in use, and a warning if it is old. An example run

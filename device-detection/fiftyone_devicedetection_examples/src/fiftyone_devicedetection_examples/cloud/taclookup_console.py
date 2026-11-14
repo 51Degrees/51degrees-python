@@ -48,6 +48,18 @@ from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_devicedetection_shared.constants import Constants
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-taclookup_console.py&utm_term=find-out-more-device-detection"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-taclookup_console.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-taclookup_console.py&utm_term=find-out-more-pricing"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+]
+
 class TacLookupConsole():
     def run(self, config, logger, output):
 
@@ -71,6 +83,8 @@ class TacLookupConsole():
         self.analyseTac(self._tac1, pipeline, output)
         # Repeat for an alternative TAC.
         self.analyseTac(self._tac2, pipeline, output)
+
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output)
 
     def analyseTac(self, tac, pipeline, output):
         # Create the FlowData instance.
@@ -138,6 +152,7 @@ def main(argv):
             "can now populate the environment variable mentioned at the start " +
             "of this message with the resource key or pass it as the first " +
             "argument on the command line.")
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE)
     else:
         TacLookupConsole().run(config, logger, print)
 
