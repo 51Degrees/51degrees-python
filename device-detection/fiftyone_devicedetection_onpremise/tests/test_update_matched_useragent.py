@@ -87,3 +87,40 @@ class UpdateMatchedUserAgentTests(unittest.TestCase):
         user_agents = self._user_agents(update_matched_useragent=False)
         self.assertGreaterEqual(len(user_agents), 1)
         self.assertEqual([""] * len(user_agents), user_agents)
+
+
+@unittest.skipUnless(
+    os.path.isfile(DATA_FILE),
+    "The free Lite data file is not at {0}. Download it with "
+    "cxx/data/get-data-files.ps1 or cxx/data/get-data-files.sh, after "
+    "'git submodule update --init --recursive'.".format(DATA_FILE))
+class UserAgentsListedOnceTests(unittest.TestCase):
+    """
+    UserAgents lists each matched User-Agent once, in the order the results
+    first give it, where more than one result matched the same User-Agent.
+    """
+
+    def test_a_user_agent_two_results_matched_is_listed_once(self):
+        pipeline = DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=DATA_FILE, usage_sharing=False,
+            licence_keys="").build()
+        self.addCleanup(pipeline.close)
+        flowdata = pipeline.create_flowdata()
+        self.addCleanup(flowdata.close)
+
+        # Each component with evidence gives a result. An empty User-Agent
+        # matches no characters, so the results' matched User-Agents repeat.
+        flowdata.evidence.add("header.user-agent", "")
+        flowdata.process()
+
+        results = flowdata.device.swig_results
+        matched = [
+            results.getUserAgent(index)
+            for index in range(results.getUserAgents())]
+        self.assertGreater(len(matched), len(set(matched)), matched)
+
+        listed_once = []
+        for user_agent in matched:
+            if user_agent not in listed_once:
+                listed_once.append(user_agent)
+        self.assertEqual(listed_once, flowdata.device.useragents.value())
