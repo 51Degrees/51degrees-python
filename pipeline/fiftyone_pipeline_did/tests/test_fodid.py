@@ -508,14 +508,9 @@ class FodIdTests(unittest.TestCase):
         self.assertEqual(CANONICAL_MATCH_KEY, fod.match_key)
 
     def test_every_envelope_is_read_back_unchanged(self):
-        # A 51Did is only ever made by reading bytes that are already a
-        # complete envelope, as
-        # https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md#envelope
-        # says, so the constructor writes the envelope out and reads it
-        # back. Each envelope version, a long creator domain, a creator
-        # context section and a signature that does not verify all come
-        # back byte for byte, and the identifier holds the envelope it
-        # read rather than the caller's object.
+        # A 51Did is made only by reading bytes that are already a complete
+        # envelope, so each kind of envelope comes back byte for byte and
+        # the identifier holds its own copy, not the caller's object.
         crypto = self.factory.crypto
         date = datetime(2026, 1, 1, 7, tzinfo=timezone.utc)
         payload = canonical_payload()
@@ -541,7 +536,7 @@ class FodIdTests(unittest.TestCase):
                     fod = reader(read.owid)
                     self.assertEqual(raw, fod.as_byte_array())
                     self.assertIsNot(read.owid, fod._owid)
-                    self.assertEqual(read.owid, fod._owid)
+                    self.assertEqual(raw, fod._owid.as_byte_array())
 
     def test_an_envelope_that_does_not_read_back_is_refused(self):
         # Bytes that are not a complete envelope make no 51Did, so an
