@@ -407,6 +407,73 @@ class UsageTests(unittest.TestCase):
 
         self.assertEqual(ips, client_ips(app.received))
 
+    def closing_pipeline(self, **settings):
+        """!
+        A pipeline whose usage sharing element sends nothing until it is
+        closed, as the tests queue fewer than ten entries, then sends two
+        entries in each message, so that closing sends the entries queued in
+        more than one message.
+        """
+        usage = ShareUsage(
+            requested_package_size=10,
+            endpoint=testEndpoint,
+            **settings)
+        usage._log = lambda level, message: self.logs.append(
+            (level, message))
+        usage._message_size = 2
+        pipeline = PipelineBuilder().add(usage).build()
+        return usage, pipeline
+
+    def test_close_keeps_sending_after_a_failed_send(self):
+        """!
+        A failed send while closing does not stop closing from sending the
+        rest of the queue, as only a pause after failed sends does.
+        """
+
+        usage, pipeline = self.closing_pipeline()
+        ips = [self.process_unique(pipeline) for i in range(4)]
+        self.assertEqual([], app.attempts)
+        sends = []
+        send = usage.send_thread
+
+        def first_send_fails(endpoint, data):
+            sends.append(data)
+            return False if len(sends) == 1 else send(endpoint, data)
+
+        usage.send_thread = first_send_fails
+        usage.close()
+
+        self.assertEqual(
+            2, len(sends),
+            "Closing did not send the second message after the first "
+            "failed.")
+        self.assertEqual(ips[2:], client_ips(app.received))
+
+    def test_close_stops_sending_when_failed_sends_start_a_pause(self):
+        """!
+        Failed sends while closing count towards the back-off, and once they
+        start a pause closing sends nothing more and logs how many entries
+        were left.
+        """
+
+        usage, pipeline = self.closing_pipeline(
+            failures_to_enter_recovery=2)
+        for i in range(8):
+            self.process_unique(pipeline)
+        app.status = 500
+
+        usage.close()
+
+        self.assertEqual(
+            2, len(app.attempts),
+            "Closing did not stop at the pause the second failed send "
+            "started.")
+        left = [log for log in self.logs
+                if "4 usage sharing entries were not sent" in log[1]]
+        self.assertEqual(
+            1, len(left),
+            f"The entries left were not logged once. Logged: {self.logs}")
+
     def test_close_stops_sending_after_the_cleanup_bound(self):
         """!
         Closing stops after the five seconds the specification allows,

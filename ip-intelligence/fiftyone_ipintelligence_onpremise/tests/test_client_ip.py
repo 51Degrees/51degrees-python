@@ -121,6 +121,23 @@ class ClientIpChoiceTests(unittest.TestCase):
             client_ips({"query.client-ip": "1.2.3.4",
                         "server.client-ip": "2001:db8::1"}, KEYS))
 
+    def test_the_engine_reports_the_first_address_found(self):
+        # The engine passes the client IP values it found to the native code
+        # and reports the first of them, so it works out Ip and IpV6 from
+        # those values with the function client_ips uses.
+        from fiftyone_ipintelligence_onpremise.client_ip import (
+            readable_client_ips, reported_addresses)
+        for evidence, expected in (
+                ({"query.client-ip": "::ffff:1.2.3.4",
+                  "server.client-ip": "2001:db8::2"}, ("1.2.3.4", None)),
+                ({"server.client-ip": "2001:db8::1"}, (None, "2001:db8::1")),
+                ({"header.x-real-ip": "1.2.3.4"}, (None, None))):
+            found = readable_client_ips(evidence, KEYS)
+            self.assertEqual(expected, reported_addresses(found), evidence)
+            self.assertEqual(
+                client_ips(evidence, KEYS), reported_addresses(found),
+                evidence)
+
     def test_a_port_and_brackets_are_read_and_the_port_dropped(self):
         for text, expected in (
                 ("203.0.113.1:8080", ("203.0.113.1", None)),
