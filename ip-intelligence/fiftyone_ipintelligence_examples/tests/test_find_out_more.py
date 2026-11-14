@@ -148,6 +148,7 @@ class FindOutMoreAtEarlyEndsTests(unittest.TestCase):
         examples = {
             "countries_console": cloud_countries_console.main,
             "getallproperties_console": getallproperties_console.main,
+            "gettingstarted_web": cloud_gettingstarted_web.main,
             "gettingstarted_console": cloud_gettingstarted_console.main,
             "metadata_console": cloud_metadata_console.main,
             "mixed_console": cloud_mixed_console.main,
@@ -160,9 +161,10 @@ class FindOutMoreAtEarlyEndsTests(unittest.TestCase):
         # The pipeline and the server are stood in for, so main returns at
         # once, as it does when the server stops.
         web = cloud_gettingstarted_web
-        with mock.patch.object(web, "build_pipeline"),                 mock.patch.object(web.app, "run"):
-            self.assertIn(
-                "Find out more:", printed_by(lambda: web.main("a key")))
+        with mock.patch.object(web, "build_pipeline"):
+            with mock.patch.object(web.app, "run"):
+                printed = printed_by(lambda: web.main("a key"))
+        self.assertIn("Find out more:", printed)
 
     def test_onpremise_examples_without_a_data_file(self):
         examples = {

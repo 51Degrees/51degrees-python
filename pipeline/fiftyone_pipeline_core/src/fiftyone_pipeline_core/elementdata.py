@@ -28,6 +28,13 @@ class ElementData(object):
     Stores information created by a FlowElement based on FlowData.
     Stored in FlowData
 
+    Only the Flow Element that creates an instance writes it, so an instance
+    does not need to be safe to write from several threads. A finished
+    instance, once the Flow Element that writes it has finished, is safe to
+    read from several threads at once, such as the caller's own threads. An
+    instance that is written from several threads, or read while another
+    thread writes it, is not catered for.
+
     """
 
     def __init__(self, flow_element):

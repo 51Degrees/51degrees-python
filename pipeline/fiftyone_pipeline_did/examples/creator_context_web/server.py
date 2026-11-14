@@ -296,7 +296,8 @@ def _is_json(text):
 def run():
     if not RESOURCE:
         sys.exit("Set _51DEGREES_RESOURCE_KEY to the resource key of the "
-                 "page.")
+                 "page. Resource keys are created at "
+                 "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-creator_context_web-server.py&utm_term=resource-key-required")
     if not LICENCE:
         # Only an account that holds licence keys needs one to redeem,
         # because the licence key is what keeps redemption to the acting
