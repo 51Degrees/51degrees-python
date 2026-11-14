@@ -115,7 +115,11 @@ class ProfileMetadataConsole():
         return [self.PROPERTY_NAMES[name] for name in self.TARGET_PROPERTIES
                 if name not in available]
 
-    def run(self, data_file, output_file, logger, output, limit=None):
+    def run(self, data_file, output_file, logger, output, limit=None,
+            contact_us=CONTACT_US):
+        # contact_us is the link written when the data file lacks a target
+        # property, tagged with the example that runs this, or None when
+        # that example has given its own.
         output(f"Loading data file: {data_file}")
 
         # Configure the engine with all properties (empty list = all available)
@@ -232,9 +236,11 @@ class ProfileMetadataConsole():
         if missing:
             names = ", ".join(missing[:-1]) + " or " + missing[-1] \
                 if len(missing) > 1 else missing[0]
-            output(f"The data file in use does not have {names}, which only "
-                   "the Enterprise data file has. Contact us for a copy at "
-                   f"{CONTACT_US}")
+            note = (f"The data file in use does not have {names}, which "
+                    "only the Enterprise data file has.")
+            if contact_us:
+                note += f" Contact us for a copy at {contact_us}"
+            output(note)
         return missing
 
 

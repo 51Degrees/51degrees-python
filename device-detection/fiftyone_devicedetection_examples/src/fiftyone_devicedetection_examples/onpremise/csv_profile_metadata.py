@@ -149,9 +149,11 @@ def main(argv):
                     f"{LITE_DATA_FILE} data file instead. Give the export's "
                     "path as the first command line argument, or contact us "
                     f"for a copy at {CONTACT_US}")
+        # The message above gives the contact link, tagged with this
+        # example, so the list adds no link of its own.
         ProfileMetadataConsole().run(
             data_file, output_file, Logger(min_level="info"), output_func,
-            limit)
+            limit, contact_us=None)
         ExampleUtils.print_find_out_more(FIND_OUT_MORE, output_func)
     else:
         print(f"Listing the hardware profiles needs the {CSV_FILE_NAME} "
