@@ -25,8 +25,13 @@ evidence, and the cache keys, ETag and Vary header built from it, never
 depend on it. It shares what it finds in the flow data and in the web
 request instead, by the same rules as before."""
 
+import gzip
+import re
 import unittest
+from types import MappingProxyType
+from unittest import mock
 
+import requests
 from flask import Flask, request
 
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
@@ -80,6 +85,22 @@ def request_evidence(headers, path="/"):
 
     with Flask(__name__).test_request_context(path, headers=headers):
         return webevidence(request)
+
+
+def sent_on_close(usage):
+    """Closes the usage sharing element, which sends what it has queued,
+    and returns the text of each message it posted. The post is answered
+    with a 200 without leaving the process."""
+
+    sent = []
+
+    def post(url, headers=None, data=None, **kwargs):
+        sent.append(gzip.decompress(data).decode("utf8"))
+        return mock.Mock(status_code=200, text="")
+
+    with mock.patch.object(requests, "post", post):
+        usage.close()
+    return sent
 
 
 class ShareUsageAcceptsNoEvidenceTests(unittest.TestCase):
@@ -170,6 +191,40 @@ class ShareUsageAcceptsNoEvidenceTests(unittest.TestCase):
         self.assertEqual(1, shared.count('Name="x-test"'))
         self.assertIn(
             '<header Name="x-test">from the evidence</header>', shared)
+
+    def test_a_header_no_element_reads_is_in_the_message_sent(self):
+        usage = usage_element()
+        flowdata = pipeline_with(usage).create_flowdata()
+        flowdata.evidence.add_from_dict(request_evidence({
+            "User-Agent": CHROME,
+            "X-Test": "only usage sharing reads this",
+        }))
+        flowdata.process()
+
+        sent = sent_on_close(usage)
+        self.assertEqual(1, len(sent))
+        self.assertIn(
+            '<header Name="x-test">only usage sharing reads this</header>',
+            sent[0])
+        self.assertNotIn("http-request", sent[0])
+
+    def test_a_key_in_both_places_whose_letters_differ_is_shared_once(self):
+        usage = usage_element()
+        flowdata = pipeline_with(usage).create_flowdata()
+        # Added before the request, so the evidence keeps this spelling and
+        # the request carries the other one.
+        flowdata.evidence.add("HEADER.User-Agent", "evidence agent")
+        flowdata.evidence.add("server.http-request", MappingProxyType({
+            "header.user-agent": "request agent"}))
+        flowdata.process()
+
+        sent = sent_on_close(usage)
+        self.assertEqual(1, len(sent))
+        names = re.findall(
+            r'<header Name="[^"]*user-agent"', sent[0], re.IGNORECASE)
+        self.assertEqual(1, len(names))
+        self.assertIn("evidence agent", sent[0])
+        self.assertNotIn("request agent", sent[0])
 
     def test_evidence_added_by_hand_is_shared_as_before(self):
         usage = usage_element()

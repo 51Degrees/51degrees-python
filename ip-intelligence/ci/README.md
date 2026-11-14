@@ -15,4 +15,3 @@ The following secrets are optional:
 * `IPI_DATA_FILE_URL` - URL for downloading the Enterprise IP Intelligence data file. When it is set, the tests use that file instead of the Lite file, which is downloaded without a key.
 * `IP_INTELLIGENCE_KEY` - [licence key](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) passed with the Enterprise data file download.
     * Example: `V3RYL0NGR4ND0M57R1NG`
-* `TEST_PYPI_TOKEN` - [TestPyPI token](https://test.pypi.org/help/#apitoken) used by the publish workflow.

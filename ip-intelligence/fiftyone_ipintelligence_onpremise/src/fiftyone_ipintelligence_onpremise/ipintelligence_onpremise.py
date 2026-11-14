@@ -32,7 +32,8 @@ from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenc
 
 from .IpIntelligenceEngineModule import *
 
-from .client_ip import client_ip_keys, client_ips, readable_client_ips
+from .client_ip import (
+    client_ip_keys, client_ips, readable_client_ips, reported_addresses)
 from .swig_data import SwigData
 from .ipintelligence_datafile import IpIntelligenceDataFile
 
@@ -420,14 +421,7 @@ class IpIntelligenceOnPremise(Engine):
 
         result = self.engine.process(evidence)
 
-        ipv4 = None
-        ipv6 = None
-        if found:
-            address = found[0][1]
-            if address.version == 4:
-                ipv4 = str(address)
-            else:
-                ipv6 = str(address)
+        ipv4, ipv6 = reported_addresses(found)
 
         data = SwigData(self, result, echo_ip=ipv4, echo_ipv6=ipv6)
 

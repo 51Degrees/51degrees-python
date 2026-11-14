@@ -280,7 +280,8 @@ class ShareUsage(Engine):
         Wait for any usage data already being sent, then send what is still
         queued and stop the threads that send it. The pipeline calls this
         when it is closed. Closing does not wait for a pause after failed
-        sends, and sends nothing while paused.
+        sends, and sends nothing while paused. A send that fails while
+        closing counts towards a pause as it does at any other time.
 
         Closing gives up after cleanup_timeout_seconds, discards the entries
         still queued and logs a warning, so that it does not hold up the
@@ -324,10 +325,11 @@ class ShareUsage(Engine):
         """!
         Send the entries still queued when closing, even if there are fewer
         than the requested package size. A send already running finishes
-        first, so only one message goes out at a time. Nothing is sent while
-        paused, after a message fails, or once deadline has passed, and the
-        entries left are discarded. Closing logs the ones left when the time
-        ran out, and this logs the ones left for the other two reasons.
+        first, so only one message goes out at a time. Each send is recorded
+        with the back-off, so failed sends can start a pause. Nothing is sent
+        while paused or once deadline has passed, and the entries left are
+        discarded. Closing logs the ones left when the time ran out, and this
+        logs the ones left when paused.
 
         @type deadline: float
         @param deadline: The monotonic time sending has to stop at.
@@ -362,17 +364,14 @@ class ShareUsage(Engine):
                     "sharing closed.")
                 done.set()
                 return
-            if not self.send_thread(self.endpoint, devices_message(
-                    share_data)):
-                with self._lock:
-                    queued = len(self.share_data)
-                if queued > 0:
-                    self._log(
-                        "info",
-                        f"{queued} usage sharing entries were not sent, as "
-                        "sending had failed when usage sharing closed.")
-                done.set()
-                return
+            accepted = self.send_thread(
+                self.endpoint, devices_message(share_data))
+            # The next pass stops if this failure started a pause.
+            with self._lock:
+                if accepted:
+                    self.backoff.succeeded()
+                else:
+                    self.backoff.failed(time.monotonic())
 
     def get_constant_xml(self):
         if self.constant_xml is None:
@@ -435,9 +434,10 @@ class ShareUsage(Engine):
         The evidence the element finds to share. These are the values of the
         web request, when the web integration added it as
         server.http-request, and every evidence value in the flow data,
-        whether an element accepted it or not. A key found in both places
-        takes the evidence value. The web request itself is never one of
-        them.
+        whether an element accepted it or not. Keys are compared without
+        regard to case, so a key found in more than one place is found
+        once, with the evidence value and the evidence's spelling. The web
+        request itself is never one of them.
 
         @type flow_data: FlowData
         @param flow_data: The flow data being processed
@@ -450,12 +450,15 @@ class ShareUsage(Engine):
         unaccepted = getattr(evidence, "get_unaccepted", dict)()
         web_request = unaccepted.get(HTTP_REQUEST_KEY) or \
             evidence.get(HTTP_REQUEST_KEY) or {}
+        # The key of each value found, by its lower case form. A later
+        # source replaces both the value and the spelling of an earlier one.
         found = {}
         for source in (web_request, unaccepted, evidence.get_all()):
             for key, value in source.items():
-                if str(key).lower() != HTTP_REQUEST_KEY:
-                    found[key] = value
-        return found
+                folded = str(key).lower()
+                if folded != HTTP_REQUEST_KEY:
+                    found[folded] = (key, value)
+        return dict(found.values())
 
     def share_send_usage(self):
         """!
