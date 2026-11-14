@@ -30,11 +30,22 @@ anything is downloaded, being the data repository's download scripts and its
 link to the free Asn file, which is the smallest free IP Intelligence file.
 It then looks for the Asn file from that folder, as an example does, and the
 file must be downloaded and open as a free data file.
+
+The link in the folder points at a server on this machine that serves the
+copy of the Asn file CI has already put in place, so the test runs the
+script, the download and the check of the file without depending on the
+Distributor.
 """
 
+import functools
+import http.server
 import os
 import shutil
+import threading
+from contextlib import contextmanager
 from pathlib import Path
+
+import pytest
 
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_shared.example_constants import \
@@ -52,23 +63,48 @@ SCRIPTS = ("get-data-files.sh", "get-data-files.ps1")
 ASN_MINIMUM_BYTES = 1024 * 1024
 
 
+class QuietHandler(http.server.SimpleHTTPRequestHandler):
+    def log_message(self, format, *args):
+        pass
+
+
+@contextmanager
+def serving(file):
+    """The address at which a server on this machine serves the file."""
+    handler = functools.partial(QuietHandler, directory=str(file.parent))
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield (f"http://127.0.0.1:{server.server_address[1]}/"
+               f"{file.name}")
+    finally:
+        server.shutdown()
+        server.server_close()
+
+
 def test_find_file_downloads_a_missing_asn_file(tmp_path, monkeypatch, capfd):
     link = DATA / "ip-intelligence" / (ASN_DATAFILE_NAME + ".link")
     assert link.is_file(), (
         f"{link} is missing. Check out the submodules with "
         "git submodule update --init --recursive.")
+    source = DATA / "ip-intelligence" / ASN_DATAFILE_NAME
+    if not source.is_file():
+        pytest.skip(f"{source} is not here to serve. CI's fetch-assets "
+                    "script puts it in place.")
     folder = tmp_path / ExampleUtils.DATA_FOLDER
     folder.mkdir(parents=True)
     for script in SCRIPTS:
         shutil.copy(DATA / script, folder.parent / script)
-    shutil.copy(link, folder / link.name)
     # A data file named in the environment would be used in place of the
     # search.
     monkeypatch.delenv(ExampleUtils.IPI_PATH_ENV_VAR, raising=False)
     monkeypatch.delenv(ExampleUtils.DATA_FILE_ENV_VAR, raising=False)
     monkeypatch.chdir(tmp_path)
 
-    found = ExampleUtils.find_file(ASN_DATAFILE_NAME)
+    with serving(source) as address:
+        (folder / link.name).write_text(address + "\n")
+        found = ExampleUtils.find_file(ASN_DATAFILE_NAME)
 
     captured = capfd.readouterr()
     printed = captured.out + captured.err
