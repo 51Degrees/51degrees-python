@@ -1,0 +1,32 @@
+name: Temporary 51Did test runs
+on:
+  push:
+    branches: ['tmp/pyowner-test-did-*']
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.14']
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Copy the OWID source
+        shell: pwsh
+        run: ./pipeline/ci/copy-owid-source.ps1 -RepoRoot pipeline
+      - name: Install
+        run: python -m pip install -q pytest -e pipeline/owid-python -e pipeline/fiftyone_pipeline_did
+      - name: Changed tests
+        run: python -m pytest pipeline/fiftyone_pipeline_did/tests/test_did_client.py pipeline/fiftyone_pipeline_did/tests/test_fodid.py -v -rs 2>&1 | grep -E "PASSED|FAILED|ERROR|SKIPPED|passed|failed|error" ; exit ${PIPESTATUS[0]}
+      - name: Whole package
+        if: always()
+        run: python -m pytest pipeline/fiftyone_pipeline_did/tests -q
