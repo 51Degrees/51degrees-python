@@ -29,6 +29,7 @@ from fiftyone_pipeline_core.jsonbundler import WKT_TYPES
 from .clouddata import CloudData
 
 import json
+import threading
 
 from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
 
@@ -55,6 +56,14 @@ class CloudEngine(Engine):
 
         self.datakey = "CloudEngineBase" # This should be overriden
 
+        # The cloud request engine the property metadata comes from, set
+        # when this engine is added to a pipeline, and whether the metadata
+        # is final. It is not final until that engine's discovery has
+        # completed, so an empty answer from before then is not kept.
+        self._request_engine = None
+        self._properties_final = False
+        self._properties_lock = threading.Lock()
+
     def get_evidence_key_filter(self):
 
         """!
@@ -71,6 +80,10 @@ class CloudEngine(Engine):
         In this case sets up the properties list for the element from
         data in the CloudRequestEngine
 
+        If the CloudRequestEngine could not fetch the accessible properties
+        when it was built, the pipeline is still built and this engine has
+        no properties until that engine fetches them on first use.
+
         @type pipeline: Pipeline
         @param pipeline
 
@@ -79,24 +92,80 @@ class CloudEngine(Engine):
         if not "cloud" in pipeline.flow_elements_list:
             raise Exception("CloudRequestEngine needs to be placed before cloud elements in Pipeline")
 
-        # Add properties from the CloudRequestEngine which should already have them
-
-        # The accessible properties come from the cloud service for the
-        # key in use, a resource key or a licence key, so a section missing
-        # from them means that key does not carry the product at all. That
-        # is not a configuration error, so the engine is built with no
-        # properties and the missing product is logged here, once.
-        carried = pipeline.flow_elements_list["cloud"].flow_element_properties
-        if not self.datakey in carried:
-            pipeline.log("warning", "The key in use does not include access to any properties under the engine with key " + self.datakey +  " that was added to the pipeline. For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=engine-properties-not-accessible " + "Available engine data keys are: " + str([e for e in carried]))
+        with self._properties_lock:
+            self._request_engine = pipeline.flow_elements_list["cloud"]
+            self._properties_final = False
             self.properties = {}
-        else:
-            self.properties = carried[self.datakey]
+        self._load_properties(pipeline.log)
 
-        # Add a special message to the pipeline 
+        # Add a special message to the pipeline
         # when requesting an element that does not exist
 
         pipeline.element_not_found = self.pipeline_element_not_found
+
+    def get_properties(self):
+
+        """!
+        The properties of this engine, taken from the CloudRequestEngine.
+        They are empty until that engine's discovery has completed.
+
+        @rtype: dict
+        @return: Returns the properties keyed by lower-case name
+        """
+
+        self._load_properties(self._log)
+        return super(CloudEngine, self).get_properties()
+
+    def _load_properties(self, log):
+
+        """!
+        Take this engine's properties from the CloudRequestEngine once its
+        discovery has completed, and keep them from then on. Until then
+        the properties stay empty and are looked for again on the next
+        use, as the Cloud Aspect Engine specification asks.
+
+        @type log: callable
+        @param log: takes a level and a message, as Pipeline.log does
+        """
+
+        if self._properties_final or self._request_engine is None:
+            return
+
+        with self._properties_lock:
+            if self._properties_final:
+                return
+            carried = self._known_properties()
+            if carried is None:
+                return
+
+            # The accessible properties come from the cloud service for
+            # the key in use, a resource key or a licence key, so a section
+            # missing from them means that key does not carry the product
+            # at all. That is not a configuration error, so the engine has
+            # no properties and the missing product is logged here, once.
+            if not self.datakey in carried:
+                log("warning", "The key in use does not include access to any properties under the engine with key " + self.datakey +  " that was added to the pipeline. For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=engine-properties-not-accessible " + "Available engine data keys are: " + str([e for e in carried]))
+                self.properties = {}
+            else:
+                self.properties = carried[self.datakey]
+
+            # Set last, because a reader that finds it set does not wait
+            # for the lock.
+            self._properties_final = True
+
+    def _known_properties(self):
+
+        """!
+        The CloudRequestEngine's accessible properties, or None while its
+        discovery has not completed. No request is made.
+        """
+
+        engine = self._request_engine
+        if not hasattr(engine, "known_flow_element_properties"):
+            # An element that stands in for the CloudRequestEngine, such
+            # as one in a test, gives its properties directly.
+            return engine.flow_element_properties
+        return engine.known_flow_element_properties()
 
     def pipeline_element_not_found(self, element, flowdata):
         """!
@@ -122,10 +191,14 @@ class CloudEngine(Engine):
         and adds it to the FlowData
 
         @type flowdata: FlowData
-        @param flowdata: FlowData to process 
+        @param flowdata: FlowData to process
 
         """
-  
+
+        # The CloudRequestEngine has processed first, so its discovery may
+        # have completed since this engine last looked.
+        self._load_properties(self._log)
+
         cloud_data = flowdata.get("cloud").get("cloud")
 
         cloud_data = json.loads(cloud_data)
