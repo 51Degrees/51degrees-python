@@ -24,7 +24,10 @@ from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
 from .messages import Messages
-import re
+
+# The start of the name of every property whose value is for a response
+# header.
+SET_HEADER_PREFIX = "SetHeader"
 
 class SetHeaderElement(FlowElement):
 
@@ -101,8 +104,9 @@ class SetHeaderElement(FlowElement):
             # Loop over each flowElement property
             for propertykey, propertymeta in properties.items():
 
-                # Check if the property starts with SetHeader
-                if("setheader" in propertykey):
+                # Property keys are in lower case, and only a name that
+                # starts with SetHeader is for a response header.
+                if propertykey.startswith(SET_HEADER_PREFIX.lower()):
                     setHeader_element_list.append(propertymeta["name"])
 
             # Add SetHeader element list in dict against flowElement.datakey as key
@@ -192,42 +196,27 @@ class SetHeaderElement(FlowElement):
     def get_response_header_name(self, property_key):
         
         """!
-        Determines which response header the property value will be appended to by 
-        stripping the 'SetHeader' string and the 'Component Name' from the property name.
-        
-        @param property_key: Key for SetHeaderAcceptCH property
+        The response header a SetHeader property's value is for. The
+        property name is SetHeader[Identifier][HeaderName]. The identifier
+        may start with either case and has no upper-case letters after its
+        first character, so the header name starts at the first upper-case
+        letter after that character.
+
+        @param property_key: A property name, such as SetHeaderBrowserAccept-CH
         @rtype String
-        @return Response Header name
+        @return The response header name, such as Accept-CH
 
         """
 
-        actual_property_name = property_key
-        response_header = ""
+        if not property_key.startswith(SET_HEADER_PREFIX):
+            raise Exception(
+                Messages.PROPERTY_NOT_SET_HEADER.format(property_key))
 
-		# Check if property name starts with SetHeader.
-		# If Yes, Discard SetHeader from property name.
-        if ("SetHeader" not in property_key[0:9]):
-            raise Exception(Messages.PROPERTY_NOT_SET_HEADER.format(actual_property_name))
-        else:
-            # Discard SetHeader from property_key
-            property_key = property_key.replace("SetHeader", "", 1)
+        name = property_key[len(SET_HEADER_PREFIX):]
 
-		# Check if the first letter of Component name is in Uppercase
-		# If Yes, Split the propertyKey based on Uppercase letters
-        if(property_key[0].isupper() is False):
-            raise Exception(Messages.WRONG_PROPERTY_FORMAT.format(actual_property_name))
-        else:
-            # Get the Component name string to be removed from the key    
-            parts = re.findall(r'([A-Z][^A-Z]*)', property_key)
-            discard_letter = parts[0]
-        
-		# Check if property name contains the header name that starts with upper case
-		# If Yes, Remove the previously found Component Name to get the Header Name
-        if len(parts)<=1 :
-            raise Exception(Messages.WRONG_PROPERTY_FORMAT.format(actual_property_name))
+        for index in range(1, len(name)):
+            if "A" <= name[index] <= "Z":
+                return name[index:]
 
-        else:
-            # Replace the first letter with the empty string.
-            response_header = property_key.replace(discard_letter, "")
-
-        return response_header
+        # There is no identifier, or no header name after it.
+        raise Exception(Messages.WRONG_PROPERTY_FORMAT.format(property_key))

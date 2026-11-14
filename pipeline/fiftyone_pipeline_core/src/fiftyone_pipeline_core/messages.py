@@ -33,7 +33,7 @@ class Messages():
     # as format argument.
 
     WRONG_PROPERTY_FORMAT = \
-        "Property Name '{}' is not in the expected format i.e. SetHeader[Component][HeaderName]. "
+        "Property Name '{}' is not in the expected format i.e. SetHeader[Identifier][HeaderName]. "
     
     # Element not found in flowData. This takes the element datakey 
     # as format argument.
