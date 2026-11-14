@@ -34,12 +34,17 @@
 #
 # Required PyPi Dependencies:
 # - fiftyone_devicedetection_examples (for ExampleUtils)
+# - fiftyone_devicedetection_onpremise, for the list made from the Lite data
+#   file when the export is missing
 
 import csv
 import json
 import sys
 
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
+from fiftyone_devicedetection_examples.onpremise.profile_metadata_console import (
+    LITE_DATA_FILE, ProfileMetadataConsole)
+from fiftyone_pipeline_core.logger import Logger
 
 # CSV file name to search for
 CSV_FILE_NAME = "51Degrees-Tac-HardwarePlatform.csv"
@@ -132,9 +137,23 @@ def main(argv):
         # The links go where the progress messages went, so that JSON
         # written to standard output stays valid.
         ExampleUtils.print_find_out_more(FIND_OUT_MORE, output_func)
+        return
+
+    # The export is not one of the free data files. The same list, with the
+    # same names, is made from the profiles of the free Lite data file
+    # instead, which has none of the hardware properties.
+    data_file = ExampleUtils.find_file(LITE_DATA_FILE)
+    if data_file is not None:
+        output_func(f"The {CSV_FILE_NAME} export is not one of the free data "
+                    "files, so this lists the hardware profiles of the free "
+                    f"{LITE_DATA_FILE} data file instead. Give the export's "
+                    "path as the first command line argument, or contact us "
+                    f"for a copy at {CONTACT_US}")
+        ProfileMetadataConsole().run(
+            data_file, output_file, Logger(min_level="info"), output_func,
+            limit)
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output_func)
     else:
-        # The export is not one of the free data files, so the example says
-        # what it needs and where to ask for it, and stops.
         print(f"Listing the hardware profiles needs the {CSV_FILE_NAME} "
               "export, which is not one of the free data files. Give its "
               "path as the first command line argument, or contact us for a "
