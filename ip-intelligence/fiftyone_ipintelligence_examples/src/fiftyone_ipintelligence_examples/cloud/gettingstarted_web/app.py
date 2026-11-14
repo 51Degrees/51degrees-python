@@ -114,6 +114,9 @@ def main(resource_key = None):
     build_pipeline(resource_key)
     app.run(debug=False)
 
+    # The server has stopped, which is the example's end.
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
+
 
 if __name__ == "__main__":
     main()
