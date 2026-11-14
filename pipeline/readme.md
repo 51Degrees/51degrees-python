@@ -59,15 +59,25 @@ If you want examples that demonstrate how to use 51Degrees products such as devi
 
 | Example                                                                     | Description                                                                                          |
 |-----------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| fiftyone_pipeline_core/examples/simple_flow_element.py                      | A flow element that gives the star sign for a date of birth, from a table held in its code.          |
 | fiftyone_pipeline_core/examples/client_side_evidence_custom_flow_element.py | Demonstrates how to create a custom flow element, which can then be included in a pipeline.          |
+| fiftyone_pipeline_engines/examples/simple_onpremise_engine.py               | An on-premise engine that gives the star sign from a table in a data file beside it.                 |
 | fiftyone_pipeline_engines_fiftyone/examples/usagesharing                    | Shows how to share usage with 51Degrees. This helps us to keep our products up to date and accurate. |
 
-The [fiftyone_pipeline_cloudrequestengine/examples](fiftyone_pipeline_cloudrequestengine/examples/readme.md) folder holds examples that call the 51Degrees cloud service with a resource key or a licence key, and its readme says how to run them.
+The simple flow element and on-premise engine examples need no data file to download, no key and no network. Run them from this folder, once the packages are installed as above, with
+
+```sh
+python fiftyone_pipeline_core/examples/simple_flow_element.py
+python fiftyone_pipeline_engines/examples/simple_onpremise_engine.py
+```
+
+The [fiftyone_pipeline_cloudrequestengine/examples](fiftyone_pipeline_cloudrequestengine/examples/readme.md) folder holds examples that use the cloud request engine, and its readme says how to run them. The mixed examples call the 51Degrees cloud service with a resource key or a licence key. The cloud engine example needs no key, because it starts a star sign service of its own.
 
 | Example                                                                                                            | Description                                                                                                                     |
 |--------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
 | fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_console.py | Device detection and IP intelligence for several User-Agent and IP address pairs, from one pipeline.                            |
 | fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_web        | A Flask web application showing device detection and IP intelligence for its visitor, or for an IP address typed into the page. |
+| fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/simple_cloud_engine.py          | A cloud engine that gets the star sign from a star sign service the example starts on this machine.                             |
 
 To run the custom flow element example, you will need to use flask:
 ### Linux

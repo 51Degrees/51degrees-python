@@ -1,8 +1,9 @@
 # Examples
 
-Examples of the 51Degrees Pipeline API for Python that call the 51Degrees
-cloud service through the cloud request engine, which is the package this
-folder sits in.
+Examples of the 51Degrees Pipeline API for Python that use the cloud request
+engine, which is the package this folder sits in. The mixed examples call
+the 51Degrees cloud service, and the cloud engine example calls a star sign
+service of its own.
 
 ## Cloud, mixed
 
@@ -101,6 +102,27 @@ through common-ci, on every Python version and operating system in
 holds. No licence key is passed to the pipeline, so the licence-key tests
 skip themselves there. That uses the [tox.ini](tox.ini) in this folder,
 which can also be run by hand with `python -m tox -e py` from here.
+
+## Cloud engine
+
+`src/fiftyone_pipeline_examples/cloud/simple_cloud_engine.py` shows how to
+write a cloud engine of your own. The engine gets the star sign for a date
+of birth from a remote service, through a cloud request engine, and the
+example prints the reason the service gives when it has no star sign.
+
+So that it runs with no key and no network, the example starts a small star
+sign service of its own on this machine, which answers in the shapes the
+51Degrees cloud service uses. It reads none of the environment variables
+under Keys.
+
+Run it, once the requirements are installed as above, with
+
+```sh
+.venv/bin/python -m fiftyone_pipeline_examples.cloud.simple_cloud_engine
+```
+
+Its test, `tests/test_simple_cloud_engine.py`, runs with the others and needs
+no key.
 
 ## Find out more
 
