@@ -1,0 +1,3 @@
+pipeline/fiftyone_pipeline_core/tests/test_simple_flow_element_example.py
+pipeline/fiftyone_pipeline_engines/tests/test_simple_onpremise_engine_example.py
+pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/test_simple_cloud_engine.py
