@@ -435,9 +435,10 @@ class ShareUsage(Engine):
         The evidence the element finds to share. These are the values of the
         web request, when the web integration added it as
         server.http-request, and every evidence value in the flow data,
-        whether an element accepted it or not. A key found in both places
-        takes the evidence value. The web request itself is never one of
-        them.
+        whether an element accepted it or not. Keys are compared without
+        regard to case, so a key found in more than one place is found
+        once, with the evidence value and the evidence's spelling. The web
+        request itself is never one of them.
 
         @type flow_data: FlowData
         @param flow_data: The flow data being processed
@@ -450,12 +451,15 @@ class ShareUsage(Engine):
         unaccepted = getattr(evidence, "get_unaccepted", dict)()
         web_request = unaccepted.get(HTTP_REQUEST_KEY) or \
             evidence.get(HTTP_REQUEST_KEY) or {}
+        # The key of each value found, by its lower case form. A later
+        # source replaces both the value and the spelling of an earlier one.
         found = {}
         for source in (web_request, unaccepted, evidence.get_all()):
             for key, value in source.items():
-                if str(key).lower() != HTTP_REQUEST_KEY:
-                    found[key] = value
-        return found
+                folded = str(key).lower()
+                if folded != HTTP_REQUEST_KEY:
+                    found[folded] = (key, value)
+        return dict(found.values())
 
     def share_send_usage(self):
         """!
