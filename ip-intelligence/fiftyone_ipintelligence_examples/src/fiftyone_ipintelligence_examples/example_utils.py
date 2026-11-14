@@ -146,6 +146,15 @@ class ExampleUtils:
             return None
 
     @staticmethod
+    def get_data_file_path():
+        """!
+        The data file named in the environment, or None.
+        """
+
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.IPI_PATH_ENV_VAR, ExampleUtils.DATA_FILE_ENV_VAR)
+
+    @staticmethod
     def get_resource_key():
         """!
         The resource key from the environment, or None. The old name is

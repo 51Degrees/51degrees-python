@@ -43,10 +43,14 @@ FIND_OUT_MORE = [
 
 # First create the IP intelligence pipeline with the desired settings.
 
-# The free Lite data file, found in the folder this runs in or a folder
+# The data file named in the _51DEGREES_IPI_PATH environment variable, or
+# else the free Lite data file, found in the folder this runs in or a folder
 # above it, or downloaded when it is missing.
-data_file = ExampleUtils.find_file("51Degrees-LiteV41.ipi")
-resource_key = "!!YOUR_RESOURCE_KEY!!"
+data_file = (ExampleUtils.get_data_file_path()
+             or ExampleUtils.find_file("51Degrees-LiteV41.ipi"))
+# The resource key for the Cloud line below, from the
+# _51DEGREES_RESOURCE_KEY environment variable.
+resource_key = ExampleUtils.get_resource_key() or "!!YOUR_RESOURCE_KEY!!"
 
 # Uncommment the line below 'On-Premise' and comment the line below 'Cloud' to
 # switch to an On-Premise installation
