@@ -3,12 +3,14 @@ name: Example Assets Update
 # Refreshes the shared web-example CSS/JS (examples-main) committed in this repo
 # from the latest examples-assets release, via the common-ci reusable workflow.
 # The assets change rarely, so this runs weekly and only opens a PR if they
-# changed. common-ci is not a submodule; it is referenced as a reusable workflow.
+# changed. It calls common-ci as a reusable workflow, not a submodule.
 
 on:
   workflow_dispatch:
+  # Mondays at 03:45 UTC, so it starts apart from the other repositories'
+  # example asset updates.
   schedule:
-    - cron: '0 3 * * 1'
+    - cron: '45 3 * * 1'
 
 jobs:
   Example_Assets_Update:

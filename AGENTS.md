@@ -10,10 +10,10 @@ layout and how to get the code are in the [README](README.md).
 
 Device Detection's on-premise `gettingstarted_console` is the quickest
 example to show, because its data file is about 35 MB. IP Intelligence's
-on-premise `gettingstarted_console` runs on the free Asn data file, which is
-about 6 MB, and shows registration values once it is given the Lite file,
-which is a download of about 230 MB. Run each command from the repository root
-unless the step says otherwise.
+on-premise `gettingstarted_console` runs on the free Lite data file, which is a
+download of about 230 MB and has the registration values. The free Asn data
+file, about 6 MB, has only the network properties. Run each command from the
+repository root unless the step says otherwise.
 
 The on-premise engines are C and C++ code that is compiled when the package is
 installed. PyPI has only source distributions of
@@ -150,16 +150,19 @@ macOS (`find_file` in
 python -m fiftyone_devicedetection_examples.onpremise.gettingstarted_console
 ```
 
-The IP Intelligence example with no argument looks for the Asn file in the
-folder it runs in and in its `assets` and `cxx/data/ip-intelligence` folders,
-then does the same in each of the seven folders above it, and downloads the
-file into `cxx/data/ip-intelligence` when it is missing. To see registration
-values, download the Lite file first, as "Data files" says, and give its path
-as the first argument.
+The IP Intelligence example with no argument looks for the Lite file,
+`51Degrees-LiteV41.ipi`, in the folder it runs in and in its `assets`,
+`cxx/data/ip-intelligence` and `cxx/data/device-detection` folders, then does
+the same in each of the seven folders above it. When none of them has the
+file, it downloads the file into the `cxx/data/ip-intelligence` folder that
+holds the file's `.link` (`find_file` in
+`ip-intelligence/fiftyone_ipintelligence_examples/src/fiftyone_ipintelligence_examples/example_utils.py`).
+To run it on the smaller Asn file, download that file first, as "Data files"
+says, and give its path as the first argument.
 
 ```
 python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console
-python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console cxx/data/ip-intelligence/51Degrees-LiteV41.ipi
+python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console cxx/data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
 ```
 
 Either example uses a path given as the first argument as it is, so a file
@@ -187,11 +190,12 @@ The IP Intelligence example logs `Using a '<product>' data file created
 '<date>'`, then for each of four IP addresses, starting with `116.154.188.222`,
 prints `Input values:` with `query.client-ip`, then `Results:` with a line for
 each of 16 properties, starting with `RegisteredName`, `RegisteredOwner` and
-`RegisteredCountry`. A property the data file lacks reads
-`This property is not present in the data file.` With the Asn file that is
-every registration and location property, as the examples' README says. The
-Lite file has RegisteredName, RegisteredOwner and RegisteredCountry, so with it
-those three lines are read from the file.
+`RegisteredCountry`. The Lite file has RegisteredName, RegisteredOwner and
+RegisteredCountry, so those three lines are read from the file. Each property
+the data file lacks reads `needs the Enterprise data file`, and after the last
+address the example prints `Some of these properties need the Enterprise data
+file. Contact us for a copy at` followed by a link. With the Asn file the
+registration properties need the Enterprise data file as well.
 
 The paid data files have many more properties, as the
 [pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=correct-output)

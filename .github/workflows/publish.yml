@@ -30,10 +30,7 @@ jobs:
     secrets:
       token: ${{ secrets.ACCESS_TOKEN }}
       DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      CsvUrl: ${{ secrets.CSV_URL }}
       IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
       IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
       TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
       PypiToken: ${{ secrets.PYPI_TOKEN }}
-      TestPypiToken: ${{ secrets.TEST_PYPI_TOKEN }}
