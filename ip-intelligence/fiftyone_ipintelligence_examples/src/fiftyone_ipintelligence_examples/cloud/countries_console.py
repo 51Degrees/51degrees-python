@@ -82,13 +82,6 @@ FIND_OUT_MORE = [
 ]
 
 
-def print_find_out_more(output):
-    message = ["=" * 79 + "\n", "Find out more:\n"]
-    for label, url in FIND_OUT_MORE:
-        message.append(f"\t{label}: {url}\n")
-    output("".join(message))
-
-
 class CountriesConsole():
     def run(self, resource_key, logger, output, cloud_endpoint = None):
 
@@ -206,7 +199,7 @@ def main(argv):
             "the start of this message with the key.")
 
     # Every end of the example, with or without a key, finishes here.
-    print_find_out_more(print)
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
