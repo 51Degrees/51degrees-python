@@ -36,7 +36,11 @@ from contextlib import redirect_stdout
 from unittest import mock
 
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
+from fiftyone_ipintelligence_examples.cloud import (
+    countries_console as cloud_countries_console)
 from fiftyone_ipintelligence_examples.cloud import getallproperties_console
+from fiftyone_ipintelligence_examples.cloud.gettingstarted_web import (
+    app as cloud_gettingstarted_web)
 from fiftyone_ipintelligence_examples.cloud import (
     gettingstarted_console as cloud_gettingstarted_console)
 from fiftyone_ipintelligence_examples.cloud import (
@@ -65,6 +69,7 @@ ONPREMISE = os.path.join(EXAMPLES, "onpremise")
 # Every file that holds a section. A web example builds its page in its app,
 # so the app holds the section for the page.
 SOURCES = [
+    os.path.join(CLOUD, "countries_console.py"),
     os.path.join(CLOUD, "getallproperties_console.py"),
     os.path.join(CLOUD, "gettingstarted_console.py"),
     os.path.join(CLOUD, "gettingstarted_web", "app.py"),
@@ -141,6 +146,7 @@ class FindOutMoreAtEarlyEndsTests(unittest.TestCase):
 
     def test_cloud_examples_without_a_resource_key(self):
         examples = {
+            "countries_console": cloud_countries_console.main,
             "getallproperties_console": getallproperties_console.main,
             "gettingstarted_console": cloud_gettingstarted_console.main,
             "metadata_console": cloud_metadata_console.main,
@@ -149,6 +155,14 @@ class FindOutMoreAtEarlyEndsTests(unittest.TestCase):
         for name, main in examples.items():
             with self.subTest(example=name):
                 self.assertIn("Find out more:", printed_by(lambda: main([])))
+
+    def test_cloud_web_example_when_its_server_stops(self):
+        # The pipeline and the server are stood in for, so main returns at
+        # once, as it does when the server stops.
+        web = cloud_gettingstarted_web
+        with mock.patch.object(web, "build_pipeline"),                 mock.patch.object(web.app, "run"):
+            self.assertIn(
+                "Find out more:", printed_by(lambda: web.main("a key")))
 
     def test_onpremise_examples_without_a_data_file(self):
         examples = {
