@@ -75,7 +75,10 @@ class ProfileMetadataOnTheFreeFileTests(unittest.TestCase):
         out, err = run_example(csv_profile_metadata.main)
         self.assert_lists_profiles(out)
         self.assertIn(csv_profile_metadata.CSV_FILE_NAME, err)
-        self.assertIn(csv_profile_metadata.CONTACT_US, err)
+        # One contact link, tagged with this example, so that an enquiry is
+        # counted against the example that prompted it.
+        self.assertEqual(1, err.count(csv_profile_metadata.CONTACT_US), err)
+        self.assertNotIn(profile_metadata_console.CONTACT_US, err)
         self.assertIn("which only the Enterprise data file has", err)
         self.assertIn("Find out more:", err)
 
