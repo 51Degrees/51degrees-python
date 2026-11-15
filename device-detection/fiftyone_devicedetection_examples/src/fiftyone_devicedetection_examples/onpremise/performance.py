@@ -171,7 +171,7 @@ if __name__ == "__main__":
     ap.add_argument('-j', '--json_output', default='', help='Output results in JSON format')
     args = ap.parse_args()
     if args.data_file == "":
-        args.data_file = ExampleUtils.find_file("51Degrees-LiteV4.1.hash")
+        args.data_file = ExampleUtils.find_file("guard-missing.hash")
     if args.user_agents_file == "":
         args.user_agents_file = ExampleUtils.find_file(UA_FILE_NAME)
 
