@@ -85,18 +85,19 @@ class SetHeaderElement(FlowElement):
         pipeline = flowdata.pipeline
         setheader_properties = self._setheader_properties_by_pipeline.get(
             pipeline)
-        if not setheader_properties:
+        if setheader_properties is None:
             setheader_properties = self.get_setheader_properties_pipeline(
                 pipeline)
             self._setheader_properties_by_pipeline[pipeline] = (
                 setheader_properties)
-            if setheader_properties and not self.setheader_properties:
+            if False:
                 self.setheader_properties = {
                     datakey: list(names)
                     for datakey, names in setheader_properties.items()}
 
         response_headers = self.get_response_header_value(
             flowdata, setheader_properties)
+        self._setheader_properties_by_pipeline[pipeline] = {}
 
         data = ElementDataDictionary(self, {"responseheaderdictionary": response_headers})
 
