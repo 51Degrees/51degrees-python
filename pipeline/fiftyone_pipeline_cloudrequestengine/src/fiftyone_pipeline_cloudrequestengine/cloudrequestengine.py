@@ -22,7 +22,9 @@
 
 from __future__ import absolute_import
 
+import inspect
 import json
+import math
 import os
 import threading
 import warnings
@@ -93,6 +95,24 @@ def _endpoint_from_environment():
     return endpoint
 
 
+def _takes_timeout(client):
+
+    """!
+    Whether a client's request method has a timeout_seconds parameter. A
+    client written for an older RequestClient has none, so it is called
+    without one.
+    """
+
+    try:
+        parameter = inspect.signature(client.request).parameters.get(
+            "timeout_seconds")
+    except (TypeError, ValueError):
+        return False
+    return parameter is not None and parameter.kind in (
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        inspect.Parameter.KEYWORD_ONLY)
+
+
 # Engine that makes a call to the 51Degrees cloud service
 # Returns raw JSON as a "cloud" property under "cloud" datakey
 class CloudRequestEngine(Engine):
@@ -109,7 +129,12 @@ class CloudRequestEngine(Engine):
         service adds them to the properties the resource key carries
         2) a cloud_endpoint to overwrite the default baseurl
         3) an cloud_request_origin to use when making requests
-        4) discovery_state, a copy of what an earlier engine discovered for
+        4) timeout_seconds, how long each request to the cloud service
+        waits, in seconds, which is 2 when it is missing or None
+        5) an http_client to send the requests in place of a
+        RequestClient. Its request method is given timeout_seconds when it
+        has a parameter of that name.
+        6) discovery_state, a copy of what an earlier engine discovered for
         the same credentials, as its discovery_state() gives it, either
         the JSON text or the dictionary it holds. The engine then makes
         no discovery request when it is built.
@@ -124,7 +149,8 @@ class CloudRequestEngine(Engine):
         the service refuses either request, for example because the
         resource key is not valid. It only warns when a request fails in a
         way that may pass, such as the service being unreachable, so a
-        cloud outage does not stop the application starting.
+        cloud outage does not stop the application starting. A request
+        that times out is such a failure.
 
         """
 
@@ -181,11 +207,16 @@ class CloudRequestEngine(Engine):
         # Make sure if baseURL does not end with '/', one will be appended
         if not self.baseURL.endswith("/"):
             self.baseURL = self.baseURL + "/"
-  
+
+        # How long each request waits, so a cloud service that takes the
+        # connection and never answers cannot hold the constructor or a
+        # request.
+        self.timeout_seconds = self.setting_timeout(settings)
+
         if "http_client" in settings:
             self.http_client = settings["http_client"]
         else:
-            self.http_client = RequestClient()
+            self.http_client = RequestClient(self.timeout_seconds)
 
         if "cloud_request_origin" in settings:
             self.cloud_request_origin = settings["cloud_request_origin"]
@@ -223,6 +254,27 @@ class CloudRequestEngine(Engine):
         if value is None:
             return ""
         return str(value).strip()
+
+    @staticmethod
+    def setting_timeout(settings):
+
+        """!
+        The timeout_seconds setting, or the default when it is missing or
+        None. A value that is not a number above zero is refused, because
+        the requests library would refuse it on every request.
+        """
+
+        value = settings.get("timeout_seconds")
+        if value is None:
+            return Constants.TIMEOUT_SECONDS_DEFAULT
+        # A bool is an int to Python, but True is not a number of seconds.
+        # A socket refuses a timeout that is not finite.
+        if (isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value <= 0):
+            raise ValueError(Constants.MESSAGE_TIMEOUT_NOT_POSITIVE.format(
+                value, Constants.TIMEOUT_SECONDS_DEFAULT))
+        return value
 
     @staticmethod
     def setting_names(settings, name):
@@ -685,8 +737,14 @@ class CloudRequestEngine(Engine):
         @return Returns dict with data and error properties error contains any errors from the request, data contains the response
         """
 
-        cloudResponse = self.http_client.request(type, url, content, self.cloud_request_origin)
- 
+        if _takes_timeout(self.http_client):
+            cloudResponse = self.http_client.request(
+                type, url, content, self.cloud_request_origin,
+                timeout_seconds=self.timeout_seconds)
+        else:
+            cloudResponse = self.http_client.request(
+                type, url, content, self.cloud_request_origin)
+
         self.validate_response(cloudResponse)
 
         return cloudResponse.text           

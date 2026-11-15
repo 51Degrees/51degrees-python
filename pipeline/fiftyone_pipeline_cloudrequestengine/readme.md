@@ -90,6 +90,21 @@ package's `CloudDiscoveryState` writes.
 
 See the [Start-up activity section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#start-up-activity).
 
+## Timeout
+
+Each request to the cloud service waits at most `timeout_seconds` to
+connect, and at most that long again for each part of the answer, before it
+fails with a timeout. The default is 2 seconds, as the
+[configuration options of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#configuration-options)
+give. A value that is not a finite number above zero raises `ValueError` when the
+engine is built. A request that times out while the engine is built is a
+failure that may pass, so the engine is built with a warning and asks
+again when it is first used.
+
+A client given as `http_client` is passed the timeout when its `request`
+method has a `timeout_seconds` parameter, as `RequestClient.request` does,
+and is called without it otherwise.
+
 ## Pointing the engine at another host
 
 The engine calls `https://cloud.51degrees.com/api/v4/` unless told

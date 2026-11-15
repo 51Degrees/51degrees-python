@@ -40,7 +40,20 @@ class Constants:
 
     # Default cloud end point
     BASE_URL_DEFAULT = "https://cloud.51degrees.com/api/v4/"
-	
+
+    # How long each request waits for the cloud service, in seconds, when
+    # timeout_seconds is not set. This is the default the specification
+    # gives its TimeoutSeconds option.
+    TIMEOUT_SECONDS_DEFAULT = 2
+
+    # Refuses a timeout_seconds the requests library could not use. The
+    # first value is the setting given and the second the default.
+    MESSAGE_TIMEOUT_NOT_POSITIVE = (
+        "CloudRequestEngine has timeout_seconds {!r}, which is not a "
+        "finite number of seconds above zero, so every request to the cloud "
+        "service would fail. Set timeout_seconds to a number above zero, "
+        "or leave it out for the default of {} seconds.")
+
     # No Data in response message to be set in exception when cloud neither
     # return any data nor any error messages
     MESSAGE_NO_DATA_IN_RESPONSE = "No data in response from cloud service at {}"
