@@ -22,11 +22,17 @@
 
 """Runs the cloud web example, examples/cloud/web.py, against the live cloud
 service. Its page is requested through Flask's test client, and so is the
-JSON the page's script asks for once it has the browser's position."""
+JSON the page's script asks for once it has the browser's position.
+
+The cloud service's own location lookup sometimes takes too long, and then
+answers without a country and with the reason "Timeout processing location
+request". That passes on a later request, so the JSON is asked for again on
+that reason alone, a few times, before the test fails."""
 
 import importlib.util
 import json
 import os
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -51,6 +57,33 @@ POSITION = {
 
 # The Cache-Control of a client-side response whose processing failed.
 AFTER_ERRORS = "private, no-cache"
+
+# The reason the cloud service gives when its location lookup took too long.
+LOOKUP_TIMEOUT = "timeout processing location request"
+
+# The requests made before a lookup that took too long counts as a failure.
+ATTEMPTS = 3
+
+# Seconds between requests whose lookup took too long.
+PAUSE_SECONDS = 2
+
+
+def post_position(client, sleep=time.sleep):
+    """Posts the position to the example's JSON route, asking again while
+    the cloud service's location lookup takes too long, and returns the last
+    response, its text and its location section."""
+    for attempt in range(ATTEMPTS):
+        response = client.post("/json", data=POSITION)
+        text = response.get_data(as_text=True)
+        try:
+            location = json.loads(text).get("location", {})
+        except ValueError:
+            return response, text, {}
+        reason = (location.get("countrynullreason") or "").lower()
+        if (location.get("country") or LOOKUP_TIMEOUT not in reason
+                or attempt == ATTEMPTS - 1):
+            return response, text, location
+        sleep(PAUSE_SECONDS)
 
 
 def load_example(resource_key):
@@ -95,19 +128,76 @@ class LocationWebExampleTests(unittest.TestCase):
         self.assertIn("/json", page)
 
     def test_json_route_gives_the_country_at_the_position(self):
-        response = self.client.post("/json", data=POSITION)
-        text = response.get_data(as_text=True)
+        response, text, location = post_position(self.client)
 
         self.assertEqual(200, response.status_code, text)
         self.assertEqual("application/json", response.headers["Content-Type"])
         self.assertNotEqual(
             AFTER_ERRORS, response.headers.get("Cache-Control"),
             "Processing the request failed.")
-        location = json.loads(text).get("location", {})
         self.assertTrue(
             location.get("country"),
             answered_without("a country", location.get("countrynullreason"),
                              "the location product"))
+
+
+class StandInResponse:
+
+    def __init__(self, location):
+        self.text = json.dumps({"location": location})
+
+    def get_data(self, as_text=False):
+        return self.text
+
+
+class StandInClient:
+    """Answers each post with the next location section given."""
+
+    def __init__(self, *locations):
+        self.locations = list(locations)
+        self.posts = 0
+
+    def post(self, path, data=None):
+        self.posts += 1
+        return StandInResponse(self.locations.pop(0))
+
+
+TIMED_OUT = {"country": None,
+             "countrynullreason": "Timeout processing location request"}
+NOT_CARRIED = {"country": None,
+               "countrynullreason": "The key does not include location"}
+ANSWERED = {"country": "United Kingdom"}
+
+
+class PostPositionTests(unittest.TestCase):
+    """The asking again, against a stand-in for the example, so these run
+    with no resource key."""
+
+    def setUp(self):
+        self.pauses = []
+
+    def post(self, client):
+        return post_position(client, sleep=self.pauses.append)[2]
+
+    def test_a_lookup_that_took_too_long_is_asked_again(self):
+        client = StandInClient(TIMED_OUT, ANSWERED)
+
+        self.assertEqual(ANSWERED, self.post(client))
+        self.assertEqual(2, client.posts)
+        self.assertEqual([PAUSE_SECONDS], self.pauses)
+
+    def test_any_other_reason_is_not_asked_again(self):
+        client = StandInClient(NOT_CARRIED, ANSWERED)
+
+        self.assertEqual(NOT_CARRIED, self.post(client))
+        self.assertEqual(1, client.posts)
+
+    def test_it_stops_after_the_attempts(self):
+        client = StandInClient(*[TIMED_OUT] * (ATTEMPTS + 1))
+
+        self.assertEqual(TIMED_OUT, self.post(client))
+        self.assertEqual(ATTEMPTS, client.posts)
+        self.assertEqual([PAUSE_SECONDS] * (ATTEMPTS - 1), self.pauses)
 
 
 if __name__ == "__main__":
