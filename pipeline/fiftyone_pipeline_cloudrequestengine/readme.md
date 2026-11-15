@@ -76,6 +76,11 @@ cloud engines after it have no property metadata.
 Each entry in the `warnings` list of an answer from the cloud service is
 given as a warning, with any licence key masked.
 
+A cloud engine takes its properties from the Cloud Request Engine in its
+pipeline. It can be in several pipelines that share one Cloud Request
+Engine, and a pipeline with a different Cloud Request Engine refuses it,
+so build a cloud engine for each Cloud Request Engine.
+
 See the [Start-up activity section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#start-up-activity).
 
 ## Pointing the engine at another host
