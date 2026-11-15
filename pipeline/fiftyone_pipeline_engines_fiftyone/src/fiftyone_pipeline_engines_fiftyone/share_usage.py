@@ -31,6 +31,7 @@ import datetime
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from importlib import metadata
 from importlib.metadata import version
 
 import requests
@@ -115,7 +116,8 @@ class ShareUsage(Engine):
         failures_window_seconds = FAILURES_WINDOW_SECONDS_DEFAULT,
         initial_recovery_delay_seconds = INITIAL_RECOVERY_DELAY_SECONDS_DEFAULT,
         max_recovery_delay_seconds = MAX_RECOVERY_DELAY_SECONDS_DEFAULT,
-        recovery_multiplier = RECOVERY_MULTIPLIER_DEFAULT):
+        recovery_multiplier = RECOVERY_MULTIPLIER_DEFAULT,
+        share_all_query_string_parameters = True):
         """!
         Constructor for ShareUsage element
         
@@ -134,19 +136,20 @@ class ShareUsage(Engine):
         @type cookie: string
         @param cookie: The name of the cookie that holds the session id.
         It has no effect unless track_session is True. The cookie itself
-        is not shared unless share_all is True.
+        is never shared unless its name starts with '51D_', as no other
+        cookie is.
         @type track_session: bool
         @param track_session: If True, the cookie named by cookie is used
         to tell user sessions apart, so evidence already shared is shared
         again when it comes from a new session. False by default. It
-        needs cookie to be set, and has no effect when share_all is True,
-        because every cookie is then shared and used to find repeats.
+        needs cookie to be set, and works the same whether or not
+        share_all is True.
         @type query_whitelist: list or str
-        @param query_whitelist: By default query string and HTTP form
-        parameters are not shared unless prefixed with '51D_'.
-        If you need to share query string parameters, a list can be
-        specified here, or a string of names separated by commas, which is
-        how a configuration file gives a list. None shares every parameter.
+        @param query_whitelist: The query string and HTTP form parameters
+        to share, as well as those prefixed with '51D_', when
+        share_all_query_string_parameters is False. A string of names
+        separated by commas, which is how a configuration file gives a
+        list, is read as those names. None shares every parameter.
         @type header_blacklist: list or str
         @param header_blacklist: By default, all HTTP headers
         except Cookie are shared.
@@ -157,8 +160,14 @@ class ShareUsage(Engine):
         be shared. 1 = 100%, 0.5 = 50%, etc..
         @type share_all: bool
         @param share_all: If True, all evidence is shared apart from the
-        email address, the salt used for hashed email identifiers, and the
-        request's query string and path. False by default.
+        email address, the salt used for hashed email identifiers, the
+        request's query string and path, and every cookie whose name does
+        not start with '51D_'. False by default.
+        @type share_all_query_string_parameters: bool
+        @param share_all_query_string_parameters: If True, every query
+        string and HTTP form parameter is shared. If False, only those
+        prefixed with '51D_' and those in query_whitelist are. True by
+        default.
         @type max_queue_size: int
         @param max_queue_size: The most entries held while waiting to be
         sent. When the queue is full, new entries are dropped. The default
@@ -201,6 +210,8 @@ class ShareUsage(Engine):
         self.endpoint = endpoint
         self.request_timeout = request_timeout
         self.share_all = share_all
+        self.share_all_query_string_parameters = \
+            share_all_query_string_parameters
         self.track_session = track_session
 
         # The session id and sequence number are kept in evidence, as the
@@ -212,15 +223,15 @@ class ShareUsage(Engine):
         # Vary header never depend on it. It shares what it finds instead,
         # and these filters decide which of that is shared and which tells
         # a repeat apart. When sessions are tracked the tracker reads the
-        # session cookie, which the data sent leaves out unless all evidence
-        # is shared.
+        # session cookie, which the data sent leaves out.
         self.evidence_key_filter = BasicListEvidenceKeyFilter([])
         self.data_evidence_key_filter = ShareUsageEvidenceKeyFilter(
-            cookie, included, header_blacklist, False, share_all)
+            cookie, included, header_blacklist, False, share_all,
+            share_all_query_string_parameters)
         self.tracker_evidence_key_filter = \
             ShareUsageTrackerEvidenceKeyFilter(
                 cookie, included, header_blacklist, track_session,
-                share_all)
+                share_all, share_all_query_string_parameters)
 
         # Add the share usage tracker which detects when
         # to send up sharing data
@@ -407,6 +418,10 @@ class ShareUsage(Engine):
             # The flow elements in the current pipeline
             for flow_element in self.get_flow_elements():
                 xml += f"<FlowElement>{flow_element}</FlowElement>"
+            # The release of each 51Degrees package in use
+            for name, package_version in fiftyone_packages(
+                    self._pipeline_flow_elements()):
+                xml += record_element("Package", package_version, name)
             xml += "<Language>Python</Language>"
             # The software language version
             xml += f"<LanguageVersion>{pyVersion}</LanguageVersion>"
@@ -427,6 +442,16 @@ class ShareUsage(Engine):
         except Exception:
             self._server_ip = ""
         self._server_ip_found.set()
+
+    def _pipeline_flow_elements(self):
+        """!
+        The flow elements of the one Pipeline this element is in, or none
+        when it is in more than one, as get_flow_elements gives no names
+        then either.
+        """
+        if len(self.pipelines) == 1:
+            return list(self.pipelines[0].flow_elements)
+        return []
 
     def get_flow_elements(self):
         if len(self.pipelines) == 1:
@@ -799,6 +824,82 @@ def host_address():
         if address.version == 4:
             return str(address)
     return str(addresses[0]) if addresses else ""
+
+
+# The text the author or author email of every package 51Degrees
+# publishes holds.
+FIFTYONE_AUTHOR = "51degrees"
+
+# The package that holds the Pipeline.
+PIPELINE_PACKAGE = "fiftyone_pipeline_core"
+
+
+def canonical_package_name(name):
+    """!
+    A package name as the package index compares names, so that each
+    package is named once however its name is spelled.
+    """
+    return re.sub(r"[-_.]+", "_", name).lower()
+
+
+def _fiftyone_distribution(name):
+    """!
+    The installed package of that name if 51Degrees publishes it, or None.
+    """
+    try:
+        distribution = metadata.distribution(name)
+    except (metadata.PackageNotFoundError, ValueError):
+        return None
+    author = " ".join(
+        distribution.metadata.get(field) or ""
+        for field in ("Author", "Author-email")).lower()
+    return distribution if FIFTYONE_AUTHOR in author else None
+
+
+def _required_names(distribution):
+    """!
+    The names of the packages a package requires, leaving out those it
+    requires only for an extra.
+    """
+    names = []
+    for requirement in distribution.requires or []:
+        if re.search(r"\bextra\s*==", requirement):
+            continue
+        match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", requirement)
+        if match:
+            names.append(match.group(1))
+    return names
+
+
+def fiftyone_packages(flow_elements):
+    """!
+    The name and version of every 51Degrees package in use, sorted by name
+    and each given once. These are the package that holds the Pipeline,
+    the package that holds each flow element and every 51Degrees package
+    those require. A flow element from no installed package, such as one
+    an application defines, adds none.
+
+    @type flow_elements: list
+    @param flow_elements: the flow elements of the Pipeline
+    @rtype: list
+    @return: (name, version) pairs, with the name the package is published
+    under
+    """
+    names = [PIPELINE_PACKAGE] + [
+        type(element).__module__.partition(".")[0]
+        for element in flow_elements]
+    found = {}
+    while names:
+        distribution = _fiftyone_distribution(names.pop())
+        if distribution is None:
+            continue
+        name = distribution.metadata["Name"]
+        key = canonical_package_name(name)
+        if key in found:
+            continue
+        found[key] = (name, distribution.version)
+        names.extend(_required_names(distribution))
+    return [found[key] for key in sorted(found)]
 
 
 def plain_element(tag, value):
