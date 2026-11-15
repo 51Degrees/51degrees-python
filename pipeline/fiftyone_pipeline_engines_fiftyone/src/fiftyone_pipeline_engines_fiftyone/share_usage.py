@@ -276,6 +276,10 @@ class ShareUsage(Engine):
 
         self.constant_xml = None
 
+        # The constant part of each record for each Pipeline the element
+        # is in, as each names its own flow elements and packages.
+        self._constant_xml_by_pipeline = {}
+
         # The address of this machine for the record's ServerIP, looked up
         # on its own thread so that processing never waits for a slow name
         # lookup. It is None until the lookup ends, and records made before
@@ -402,39 +406,63 @@ class ShareUsage(Engine):
                 else:
                     self.backoff.failed(time.monotonic())
 
-    def get_constant_xml(self):
+    def get_constant_xml(self, pipeline=None):
+        """!
+        The part of a record that is the same for every request of a
+        Pipeline. Given the Pipeline a request came from, it names that
+        Pipeline's flow elements and packages, so an element in several
+        Pipelines writes each one's own. With no Pipeline it names those of
+        the one Pipeline the element is in.
+        """
+        if pipeline is not None:
+            xml = self._constant_xml_by_pipeline.get(pipeline)
+            if xml is None:
+                xml = self._make_constant_xml(
+                    self.get_flow_elements(pipeline),
+                    list(pipeline.flow_elements))
+                if self._server_ip is not None:
+                    self._constant_xml_by_pipeline[pipeline] = xml
+            return xml
         if self.constant_xml is None:
-            coreVersion = version("fiftyone_pipeline_core")
-            osVersion = f"{ReplacedString(platform.system()).result} {ReplacedString(platform.release()).result}"
-            pyVersion = ReplacedString(platform.python_version()).result
-
-            xml = ""
-
-            # The version number of the Pipeline API
-            xml += f"<Version>{coreVersion}</Version>"
-            # Write Pipeline information
-            # The product name
-            xml += "<Product>Pipeline</Product>"
-            # The flow elements in the current pipeline
-            for flow_element in self.get_flow_elements():
-                xml += f"<FlowElement>{flow_element}</FlowElement>"
-            # The release of each 51Degrees package in use
-            for name, package_version in fiftyone_packages(
-                    self._pipeline_flow_elements()):
-                xml += record_element("Package", package_version, name)
-            xml += "<Language>Python</Language>"
-            # The software language version
-            xml += f"<LanguageVersion>{pyVersion}</LanguageVersion>"
-            # The address of this machine
-            xml += plain_element("ServerIP", self._server_ip or "")
-            # The OS name and version
-            xml += f"<Platform>{osVersion}</Platform>"
+            xml = self._make_constant_xml(
+                self.get_flow_elements(), self._pipeline_flow_elements())
             # Kept once the lookup of the address has ended, so that
             # ServerIP carries the address from then on.
             if self._server_ip is None:
                 return xml
             self.constant_xml = xml
         return self.constant_xml
+
+    def _make_constant_xml(self, flow_element_names, flow_elements):
+        """!
+        The constant part of a record for the flow elements of one
+        Pipeline.
+        """
+        coreVersion = version("fiftyone_pipeline_core")
+        osVersion = f"{ReplacedString(platform.system()).result} {ReplacedString(platform.release()).result}"
+        pyVersion = ReplacedString(platform.python_version()).result
+
+        xml = ""
+
+        # The version number of the Pipeline API
+        xml += f"<Version>{coreVersion}</Version>"
+        # Write Pipeline information
+        # The product name
+        xml += "<Product>Pipeline</Product>"
+        # The flow elements in the Pipeline
+        for flow_element in flow_element_names:
+            xml += f"<FlowElement>{flow_element}</FlowElement>"
+        # The release of each 51Degrees package in use
+        for name, package_version in fiftyone_packages(flow_elements):
+            xml += record_element("Package", package_version, name)
+        xml += "<Language>Python</Language>"
+        # The software language version
+        xml += f"<LanguageVersion>{pyVersion}</LanguageVersion>"
+        # The address of this machine
+        xml += plain_element("ServerIP", self._server_ip or "")
+        # The OS name and version
+        xml += f"<Platform>{osVersion}</Platform>"
+        return xml
 
     def _look_up_server_ip(self):
         try:
@@ -453,7 +481,13 @@ class ShareUsage(Engine):
             return list(self.pipelines[0].flow_elements)
         return []
 
-    def get_flow_elements(self):
+    def get_flow_elements(self, pipeline=None):
+        """!
+        The class names of the flow elements of the given Pipeline, or of
+        the one Pipeline the element is in when none is given.
+        """
+        if pipeline is not None:
+            return [type(e).__name__ for e in pipeline.flow_elements]
         if len(self.pipelines) == 1:
             list = []
             
@@ -651,7 +685,7 @@ class ShareUsage(Engine):
         xml += "<Device>"
 
         # --- write invariant data
-        xml += self.get_constant_xml()
+        xml += self.get_constant_xml(data.pipeline)
 
         # --- write variable data
         # The SessionID used to track a series of requests
@@ -743,6 +777,7 @@ class ShareUsage(Engine):
          provided 
         """
         data = ShareUsageData()
+        data.pipeline = flow_data.pipeline
 
         for key, value in self.found_evidence(flow_data).items():
             # Evidence keys are compared without regard to case.
@@ -969,6 +1004,9 @@ class ShareUsageData:
         self.session_id = ""
         self.client_ip = ""
         self.sequence = ""
+        # The Pipeline the request came from, whose flow elements the
+        # record names.
+        self.pipeline = None
 
     def try_add(self, key, value):
         # Get the category and field names from the evidence key.
