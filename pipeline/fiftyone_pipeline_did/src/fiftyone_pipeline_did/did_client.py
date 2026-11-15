@@ -66,9 +66,31 @@ from typing import (
 
 from ._owid import Version
 
-from ._layout import GUID_LENGTH, HEADER_LENGTH, MATCH_KEY_LENGTH
-from .fod_id import DATE_EPOCH, FodId, _date_minutes, _trim_white_space
+# The layout is read through the private module rather than imported by
+# name, so that this module's namespace offers none of it.
+from . import _layout
+from .fod_id import (
+    DATE_EPOCH,
+    FodId,
+    _date_minutes,
+    _deprecated_layout_name,
+    _trim_white_space,
+)
 from .id_type import IdType
+
+#: The layout names :func:`__getattr__` still gives, with a warning,
+#: until they are removed.
+_DEPRECATED_LAYOUT_NAMES = frozenset((
+    "GUID_LENGTH",
+    "HEADER_LENGTH",
+    "MATCH_KEY_LENGTH",
+))
+
+
+def __getattr__(name: str) -> int:
+    """Gives the deprecated layout names, with a warning."""
+    return _deprecated_layout_name(__name__, _DEPRECATED_LAYOUT_NAMES, name)
+
 
 #: The public cloud API base, used when neither the ``endpoint`` argument
 #: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable, nor that
@@ -1017,9 +1039,9 @@ def _payload_length_valid(fod_id: FodId) -> bool:
     longer payload is accepted here. The base does not include the Terms,
     because a payload ending at the match key carries no byte for it and
     reads as terms that are not stated."""
-    match_key_length = GUID_LENGTH if fod_id.type is IdType.RANDOM \
-        else MATCH_KEY_LENGTH
-    return len(fod_id.payload) >= HEADER_LENGTH + match_key_length
+    match_key_length = _layout.GUID_LENGTH if fod_id.type is IdType.RANDOM \
+        else _layout.MATCH_KEY_LENGTH
+    return len(fod_id.payload) >= _layout.HEADER_LENGTH + match_key_length
 
 
 def _moment_of(value: Any) -> Optional[datetime]:
