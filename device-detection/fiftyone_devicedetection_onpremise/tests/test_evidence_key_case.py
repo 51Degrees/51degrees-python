@@ -46,20 +46,21 @@ class EvidenceKeyCaseTests(unittest.TestCase):
         self.addCleanup(self.pipeline.close)
 
     def is_mobile(self, key):
-        flowdata = self.pipeline.create_flowdata()
-        flowdata.evidence.add(key, MOBILE_USER_AGENT)
-        flowdata.process()
-        return flowdata.device.ismobile
+        # The value is read before the flow data closes, which releases its
+        # native results.
+        with self.pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add(key, MOBILE_USER_AGENT)
+            flowdata.process()
+            ismobile = flowdata.device.ismobile
+            self.assertTrue(ismobile.has_value(), key)
+            return ismobile.value()
 
     def test_a_key_in_any_case_reaches_the_native_engine(self):
         for key in ("Header.User-Agent", "HEADER.USER-AGENT",
                     "Query.User-Agent"):
             with self.subTest(key=key):
-                expected = self.is_mobile(key.lower())
-                actual = self.is_mobile(key)
-                self.assertTrue(expected.has_value())
-                self.assertTrue(actual.has_value())
-                self.assertEqual(expected.value(), actual.value())
+                self.assertEqual(
+                    self.is_mobile(key.lower()), self.is_mobile(key))
 
 
 if __name__ == "__main__":
