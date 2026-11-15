@@ -29,6 +29,11 @@ class BasicListEvidenceKeyFilter(EvidenceKeyFilter):
     An instance of EvidenceKeyFilter that uses a simple array of keys
     Evidence not using these keys is filtered out
 
+    A key is looked up in a set made from list at the first lookup, and
+    made again whenever list is set to another list. To change the keys
+    once the filter has been used, set list to a new list rather than
+    changing the list in place.
+
     """
 
     def __init__(self, keys_list):
@@ -56,8 +61,15 @@ class BasicListEvidenceKeyFilter(EvidenceKeyFilter):
         @return: Is this key in the filter's keys list?
 
         """
-        
-        if key.lower() in self.list:
-            return True
-        else:
-            return False
+
+        # The set is kept with the list it was made from, as one value, so
+        # a lookup on another thread never finds a set beside a list it was
+        # not made from. Reading list each time finds a list set after the
+        # filter was made, or set by a subclass that does not call the
+        # constructor.
+        listed = self.list
+        made = getattr(self, "_list_as_set", None)
+        if made is None or made[0] is not listed:
+            made = (listed, set(listed))
+            self._list_as_set = made
+        return key.lower() in made[1]

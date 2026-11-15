@@ -21,8 +21,12 @@
 # *********************************************************************
 
 import unittest
+from unittest.mock import patch
 
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
+from fiftyone_devicedetection_onpremise import devicedetection_onpremise
 from fiftyone_devicedetection_onpremise.devicedetection_onpremise_pipelinebuilder import \
     DeviceDetectionOnPremisePipelineBuilder
 
@@ -79,14 +83,21 @@ class PropertyListTests(unittest.TestCase):
 class EvidenceKeysTests(unittest.TestCase):
     """!
     The Evidence keys come from the data file, so the engine reads them
-    at start-up and again whenever the data is refreshed.
+    at start-up and again whenever the data is refreshed. The engine keeps
+    the evidence key filter it makes from the keys, and makes another only
+    when the keys change, so a request does not make one for each of its
+    Evidence keys.
     """
 
-    def test_the_keys_are_read_again_when_the_data_is_refreshed(self):
+    def build(self):
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, licence_keys="", usage_sharing=False,
             file_system_watcher=True).build()
         self.addCleanup(pipeline.close)
+        return pipeline
+
+    def test_the_keys_are_read_again_when_the_data_is_refreshed(self):
+        pipeline = self.build()
         engine = pipeline.get_element("device")
         keys = list(engine.evidence_keys_list)
         self.assertIn("header.user-agent", keys)
@@ -96,3 +107,40 @@ class EvidenceKeysTests(unittest.TestCase):
         engine.data_file.refresh()
 
         self.assertEqual(keys, engine.evidence_keys_list)
+
+    def test_the_filter_is_kept_until_the_keys_change(self):
+        engine = self.build().get_element("device")
+        key_filter = engine.get_evidence_key_filter()
+        self.assertIs(key_filter, engine.get_evidence_key_filter())
+        self.assertTrue(key_filter.filter_evidence_key("Header.User-Agent"))
+
+        # Stands for the keys of the data loaded before the refresh.
+        engine.evidence_keys_list = ["header.x-from-the-earlier-data"]
+        earlier = engine.get_evidence_key_filter()
+        self.assertTrue(
+            earlier.filter_evidence_key("header.x-from-the-earlier-data"))
+        self.assertFalse(earlier.filter_evidence_key("header.user-agent"))
+        self.assertIs(earlier, engine.get_evidence_key_filter())
+
+        engine.data_file.refresh()
+        refreshed = engine.get_evidence_key_filter()
+        self.assertTrue(refreshed.filter_evidence_key("header.user-agent"))
+        self.assertFalse(
+            refreshed.filter_evidence_key("header.x-from-the-earlier-data"))
+        self.assertIs(refreshed, engine.get_evidence_key_filter())
+
+    def test_a_second_request_makes_no_filter(self):
+        pipeline = self.build()
+
+        def process():
+            with pipeline.create_flowdata() as flowdata:
+                flowdata.evidence.add("header.user-agent", mobile_ua)
+                flowdata.process()
+                self.assertTrue(flowdata.device.ismobile.value())
+
+        process()
+        with patch.object(
+                devicedetection_onpremise, "BasicListEvidenceKeyFilter",
+                wraps=BasicListEvidenceKeyFilter) as made:
+            process()
+        self.assertEqual(0, made.call_count)

@@ -32,17 +32,20 @@ Each entry in the warnings list of an answer is given as a warning.
 
 import json
 import warnings
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 import requests
 from parameterized import parameterized
 
+from fiftyone_pipeline_cloudrequestengine import cloudrequestengine
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
     CloudRequestEngine
 from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import \
     CloudRequestException
 from fiftyone_pipeline_cloudrequestengine.requestclient import RequestClient
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
@@ -360,6 +363,60 @@ class DiscoveryAtBuildTests(CloudRequestEngineTestsBase):
         # suppress_process_exceptions applies, as to any other failure.
         data = process(pipeline_for(build_quietly(client), suppress=True))
         self.assertNotEqual({}, data.errors)
+
+
+class EvidenceKeyFilterTests(CloudRequestEngineTestsBase):
+    """
+    The engine keeps the evidence key filter it makes from the evidence
+    keys, and makes another only when the keys change, so a request does
+    not make one for each of its evidence keys.
+    """
+
+    def test_a_second_request_makes_no_filter(self):
+        pipeline = pipeline_for(build(DiscoveryClient()))
+        self.assertEqual({}, process(pipeline).errors)
+
+        with patch.object(
+                cloudrequestengine, "BasicListEvidenceKeyFilter",
+                wraps=BasicListEvidenceKeyFilter) as made:
+            data = process(pipeline)
+
+        self.assertEqual({}, data.errors)
+        self.assertEqual(
+            Constants.jsonResponse, data.get("cloud").get("cloud"))
+        self.assertEqual(0, made.call_count)
+
+    def test_the_filter_is_kept_until_the_keys_change(self):
+        engine = build(DiscoveryClient())
+        key_filter = engine.get_evidence_key_filter()
+        self.assertIs(key_filter, engine.get_evidence_key_filter())
+        self.assertTrue(key_filter.filter_evidence_key("query.user-agent"))
+
+        # Keys set in place of the ones the cloud service gave.
+        engine.evidence_keys = ["query.x-set-by-the-caller"]
+        changed = engine.get_evidence_key_filter()
+        self.assertTrue(
+            changed.filter_evidence_key("query.x-set-by-the-caller"))
+        self.assertFalse(changed.filter_evidence_key("query.user-agent"))
+        self.assertIs(changed, engine.get_evidence_key_filter())
+
+    def test_discovery_completed_after_a_failure_gives_the_filter(self):
+        client = DiscoveryClient()
+        client.failures[EVIDENCE_KEYS] = answering(503, UNAVAILABLE)
+        engine = build_quietly(client)
+
+        # Without the keys there is no filter, and the failure is raised.
+        with self.assertRaises(CloudRequestException):
+            engine.get_evidence_key_filter()
+
+        # The service answers again.
+        client.failures.clear()
+        key_filter = engine.get_evidence_key_filter()
+        self.assertTrue(key_filter.filter_evidence_key("Query.User-Agent"))
+        self.assertFalse(key_filter.filter_evidence_key("header.user-agent"))
+        self.assertIs(key_filter, engine.get_evidence_key_filter())
+        # Built, asked again and failed, then answered, and kept.
+        self.assertEqual(3, client.count(EVIDENCE_KEYS))
 
 
 class CloudAspectEngineDiscoveryTests(CloudRequestEngineTestsBase):
