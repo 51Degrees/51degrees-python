@@ -84,7 +84,7 @@ Each request to the cloud service waits at most `timeout_seconds` to
 connect, and at most that long again for each part of the answer, before it
 fails with a timeout. The default is 2 seconds, as the
 [configuration options of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#configuration-options)
-give. A value that is not a number above zero raises `ValueError` when the
+give. A value that is not a finite number above zero raises `ValueError` when the
 engine is built. A request that times out while the engine is built is a
 failure that may pass, so the engine is built with a warning and asks
 again when it is first used.

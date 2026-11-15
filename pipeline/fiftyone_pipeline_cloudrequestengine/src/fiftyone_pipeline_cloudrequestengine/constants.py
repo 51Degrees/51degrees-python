@@ -50,7 +50,7 @@ class Constants:
     # first value is the setting given and the second the default.
     MESSAGE_TIMEOUT_NOT_POSITIVE = (
         "CloudRequestEngine has timeout_seconds {!r}, which is not a "
-        "number of seconds above zero, so every request to the cloud "
+        "finite number of seconds above zero, so every request to the cloud "
         "service would fail. Set timeout_seconds to a number above zero, "
         "or leave it out for the default of {} seconds.")
 
