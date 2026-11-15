@@ -122,6 +122,9 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         # everything after it, so a field can itself contain dots.
         prefix, separator, field = key.partition(".")
 
+        if prefix == "fiftyone":
+            return False
+
         if not separator:
             return True
         elif prefix == "header":

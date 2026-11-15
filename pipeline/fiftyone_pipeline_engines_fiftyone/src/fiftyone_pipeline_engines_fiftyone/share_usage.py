@@ -487,7 +487,9 @@ class ShareUsage(Engine):
         for source in (web_request, unaccepted, evidence.get_all()):
             for key, value in source.items():
                 folded = str(key).lower()
-                if folded != HTTP_REQUEST_KEY:
+                if folded != HTTP_REQUEST_KEY and not (
+                        source is web_request and
+                        folded.startswith("cookie.")):
                     found[folded] = (key, value)
         return dict(found.values())
 

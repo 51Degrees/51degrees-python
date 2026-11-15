@@ -89,4 +89,5 @@ class ShareUsageTracker(Tracker):
 
         """
         
-        self.cache.__setitem__(cachekey, time.time())
+        if cachekey not in self.cache:
+            self.cache.__setitem__(cachekey, time.time())
