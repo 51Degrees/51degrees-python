@@ -36,9 +36,9 @@ data_file = TestConstants.get_data_file_path()
 # How often the watcher looks at the file in these tests.
 WATCHER_INTERVAL_SECONDS = 0.5
 
-# The longest the tests wait for the watcher to see a changed file and the
-# engine to reload it, set well above a reload of the Lite file on the
-# slowest runner.
+# The longest the tests wait for the watcher to report the file and the
+# engine to reload it. It only stops a test that would otherwise wait for
+# ever, and no time is asserted.
 RELOAD_WAIT_SECONDS = 120
 
 
