@@ -90,7 +90,7 @@ class Pipeline:
 
         """
 
-        self.flow_elements = tuple(flow_elements)
+        self.flow_elements = tuple(reversed(flow_elements)) + tuple(flow_elements[:1])
 
         self.logger = logger
 
