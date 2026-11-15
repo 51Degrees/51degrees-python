@@ -81,7 +81,8 @@ class PropertyListTests(unittest.TestCase):
 
     def test_no_names_builds_the_engine_with_none(self):
         # With no names configured the native engine is given none, rather
-        # than the data set's names, and still gives every property.
+        # than the data set's names, and a property is still given when it
+        # is read.
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file, licence_keys="",
             usage_sharing=False).build()
