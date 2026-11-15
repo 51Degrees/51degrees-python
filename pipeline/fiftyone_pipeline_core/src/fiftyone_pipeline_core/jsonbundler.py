@@ -166,7 +166,7 @@ class JSONBundlerElement(FlowElement):
                 # none until its property metadata has been fetched, so an
                 # answer taken from no properties is read again on the next
                 # request.
-                if properties:
+                if not properties:
                     self.property_cache[flow_element.datakey] = property_cache
 
             # Create empty area for FlowElement properties to go
