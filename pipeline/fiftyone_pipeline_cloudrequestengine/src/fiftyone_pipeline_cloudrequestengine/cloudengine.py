@@ -33,6 +33,13 @@ import threading
 
 from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
 
+# Why a pipeline with a second CloudRequestEngine is refused.
+_ANOTHER_REQUEST_ENGINE = (
+    "This cloud engine is already in a pipeline with another Cloud Request "
+    "Engine. Its properties come from that Cloud Request Engine, so a "
+    "pipeline with a different one is refused. Build another cloud engine "
+    "for this pipeline, or use the same Cloud Request Engine in both.")
+
 class OnPremiseMissingPropertyService(MissingPropertyService):
 
     def check(self, key, flow_element):
@@ -84,6 +91,10 @@ class CloudEngine(Engine):
         when it was built, the pipeline is still built and this engine has
         no properties until that engine fetches them on first use.
 
+        The engine may be in several pipelines that share one
+        CloudRequestEngine, as its properties are the same in each. A
+        pipeline with another CloudRequestEngine is refused.
+
         @type pipeline: Pipeline
         @param pipeline
 
@@ -92,10 +103,14 @@ class CloudEngine(Engine):
         if not "cloud" in pipeline.flow_elements_list:
             raise Exception("CloudRequestEngine needs to be placed before cloud elements in Pipeline")
 
+        request_engine = pipeline.flow_elements_list["cloud"]
         with self._properties_lock:
-            self._request_engine = pipeline.flow_elements_list["cloud"]
-            self._properties_final = False
-            self.properties = {}
+            if self._request_engine is None:
+                self._request_engine = request_engine
+                self._properties_final = False
+                self.properties = {}
+            elif self._request_engine is not request_engine:
+                raise Exception(_ANOTHER_REQUEST_ENGINE)
         self._load_properties(pipeline.log)
 
         # Add a special message to the pipeline

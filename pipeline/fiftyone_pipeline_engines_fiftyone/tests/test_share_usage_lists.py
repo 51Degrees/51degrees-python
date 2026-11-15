@@ -44,6 +44,10 @@ QUEUE_ONLY = {
     "endpoint": "http://127.0.0.1:9",
 }
 
+# Shares only the query string parameters listed and those starting 51D_,
+# where every one is shared by default.
+LISTED_ONLY = {"share_all_query_string_parameters": False}
+
 # A configuration file that gives both lists as comma-separated strings.
 CONFIGURATION = """
 {
@@ -55,6 +59,7 @@ CONFIGURATION = """
         "elementParameters": {
           "requested_package_size": 1000,
           "endpoint": "http://127.0.0.1:9",
+          "share_all_query_string_parameters": false,
           "query_whitelist": "first,second",
           "header_blacklist": "x-one, x-two"
         }
@@ -106,7 +111,8 @@ class ShareUsageListTests(unittest.TestCase):
 
     def test_query_parameters_to_share_from_a_string(self):
         shared = shared_alone_by(
-            ShareUsage(query_whitelist="first,second", **QUEUE_ONLY))
+            ShareUsage(query_whitelist="first,second", **LISTED_ONLY,
+                       **QUEUE_ONLY))
 
         self.assert_shared(shared, ("first value", "second value"))
         self.assert_not_shared(shared, ("third value", "letter value"))
@@ -140,7 +146,8 @@ class ShareUsageListTests(unittest.TestCase):
 
     def test_an_empty_string_is_an_empty_list(self):
         usage = ShareUsage(
-            query_whitelist="", header_blacklist="", **QUEUE_ONLY)
+            query_whitelist="", header_blacklist="", **LISTED_ONLY,
+            **QUEUE_ONLY)
 
         self.assertEqual([], usage.query_whitelist)
         self.assertEqual([], usage.header_blacklist)
@@ -152,7 +159,8 @@ class ShareUsageListTests(unittest.TestCase):
         names = ["first", "second"]
         headers = ["x-one", "x-two"]
         usage = ShareUsage(
-            query_whitelist=names, header_blacklist=headers, **QUEUE_ONLY)
+            query_whitelist=names, header_blacklist=headers,
+            **LISTED_ONLY, **QUEUE_ONLY)
 
         self.assertIs(names, usage.query_whitelist)
         self.assertIs(headers, usage.header_blacklist)

@@ -76,6 +76,11 @@ cloud engines after it have no property metadata.
 Each entry in the `warnings` list of an answer from the cloud service is
 given as a warning, with any licence key masked.
 
+A cloud engine takes its properties from the Cloud Request Engine in its
+pipeline. It can be in several pipelines that share one Cloud Request
+Engine, and a pipeline with a different Cloud Request Engine refuses it,
+so build a cloud engine for each Cloud Request Engine.
+
 An engine whose discovery has completed gives what it discovered with
 `discovery_state()`, as one JSON document. Keep it, and give it as the
 `discovery_state` setting of an engine with the same credentials, for
