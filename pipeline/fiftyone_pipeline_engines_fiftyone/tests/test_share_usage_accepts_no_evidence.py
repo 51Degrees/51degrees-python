@@ -138,7 +138,11 @@ class ShareUsageAcceptsNoEvidenceTests(unittest.TestCase):
         self.assertNotIn("header.if-none-match", accepted[1])
 
     def test_the_web_request_is_shared_by_the_same_rules(self):
-        usage = usage_element(header_blacklist=["x-blocked"])
+        # Sharing every query parameter is turned off, so that the query
+        # string of the request is held to the list as Evidence is.
+        usage = usage_element(
+            header_blacklist=["x-blocked"],
+            share_all_query_string_parameters=False)
         flowdata = pipeline_with(usage).create_flowdata()
         flowdata.evidence.add_from_dict(request_evidence({
             "User-Agent": CHROME,
