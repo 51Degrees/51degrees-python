@@ -91,14 +91,27 @@ class CloudErrorsTests(CloudRequestEngineTestsBase):
             self.assertEqual(400, inner.httpStatusCode)
             self.assertEqual({"x-test": "yes"}, inner.responseHeaders)
 
+    def test_the_text_of_the_exception_gives_each_entry(self):
+        # A log or a traceback shows the text of the exception, so the text
+        # of the one raised for several entries gives each of them.
+        exception = self.raised(400, ["First problem.", "Second problem."])
+
+        text = str(exception)
+
+        self.assertIn(Constants.EXCEPTION_CLOUD_ERRORS_MULTIPLE, text)
+        self.assertIn(error_text("First problem."), text)
+        self.assertIn(error_text("Second problem."), text)
+
     def test_each_entry_shows_only_the_masked_key(self):
         exception = self.raised(400, [
             "The license key is not valid. License key(s): '" + KEY + "'",
             "Again '" + KEY + "'"])
 
+        self.assertEqual(2, len(exception.exceptions))
         for inner in exception.exceptions:
             self.assertNotIn(KEY[:8], inner.message)
             self.assertIn(MASKED, inner.message)
+        self.assertNotIn(KEY[:8], str(exception))
 
 
 class SeveralErrorsInDiscoveryTests(CloudRequestEngineTestsBase):
