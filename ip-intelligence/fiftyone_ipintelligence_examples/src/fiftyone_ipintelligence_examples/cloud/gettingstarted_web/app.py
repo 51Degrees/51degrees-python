@@ -78,7 +78,7 @@ def index():
     flowdata = pipeline.create_flowdata()
 
     # Hand the whole request to the pipeline. Each engine takes the
-    # Evidence it reads from it, and usage sharing takes the request.
+    # Evidence it reads from it.
     flowdata.evidence.add_from_dict(webevidence(request))
 
     # Use the IP address supplied as a query parameter, or fall back
