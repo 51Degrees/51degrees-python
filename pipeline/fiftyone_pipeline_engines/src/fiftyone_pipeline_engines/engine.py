@@ -93,6 +93,29 @@ class Engine(FlowElement):
 
         return True
 
+    def _cache_key(self, flowdata):
+
+        """!
+        The cache key for a flowdata, made from the evidence this engine
+        accepts. Each key is put in lower case and the keys are sorted, so
+        neither the order the evidence was added in nor the letter case of
+        its keys changes the cache key. Values are kept as they are, because
+        values that differ in case are different evidence.
+
+        @type flowdata: FlowData
+        @param flowdata: The flowdata whose evidence makes the key
+
+        @rtype: string
+        @return: The cache key
+
+        """
+
+        evidence = {
+            str(key).lower(): value
+            for key, value in self.filter_evidence(flowdata).items()}
+
+        return json.dumps({key: evidence[key] for key in sorted(evidence)})
+
     def in_cache(self, flowdata):
 
         """!
@@ -109,9 +132,7 @@ class Engine(FlowElement):
 
         """
 
-        keys = self.filter_evidence(flowdata)
-
-        cacheKey = json.dumps(keys)
+        cacheKey = self._cache_key(flowdata)
 
         cached = self.cache.get_cache_value(cacheKey)
 
@@ -154,7 +175,7 @@ class Engine(FlowElement):
                 self.process_internal(flowdata)
                 data = flowdata.get(self.datakey)
                 if self.is_cacheable(data):
-                    cacheKey = json.dumps(self.filter_evidence(flowdata))
+                    cacheKey = self._cache_key(flowdata)
                     self.cache.set_cache_value(cacheKey, data)
 
         else:
