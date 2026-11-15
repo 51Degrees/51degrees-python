@@ -1038,11 +1038,11 @@ class UsageTests(unittest.TestCase):
     def test_empty_query_whitelist(self):
         """!
         Check that, with sharing every parameter turned off, an empty
-        list of parameters to share shares only those starting 51D_, and
-        that None shares every parameter.
+        list of parameters to share and None both share only those
+        starting 51D_.
         """
 
-        for query_whitelist, shared in (([], False), (None, True)):
+        for query_whitelist in ([], None):
             app.received = []
             usage = ShareUsage(
                 requested_package_size=1,
@@ -1062,7 +1062,7 @@ class UsageTests(unittest.TestCase):
             self.waitForUsageThreads()
             self.assertEqual(len(app.received), 1)
             self.assertIn("fiftyone value", app.received[0])
-            self.assertEqual("campaign value" in app.received[0], shared)
+            self.assertNotIn("campaign value", app.received[0])
 
     def test_session_cookie(self):
         """!

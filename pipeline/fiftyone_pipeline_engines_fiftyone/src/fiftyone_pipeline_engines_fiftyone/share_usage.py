@@ -148,7 +148,7 @@ class ShareUsage(Engine):
         to share, as well as those prefixed with '51D_', when
         share_all_query_string_parameters is False. A string of names
         separated by commas, which is how a configuration file gives a
-        list, is read as those names. None shares every parameter.
+        list, is read as those names. None holds no names.
         @type header_blacklist: list or str
         @param header_blacklist: By default, all HTTP headers
         except Cookie are shared.
