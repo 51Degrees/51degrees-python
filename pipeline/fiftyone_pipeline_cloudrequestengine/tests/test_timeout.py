@@ -187,6 +187,19 @@ class TimeoutTests(CloudRequestEngineTestsBase):
 
         self.assertEqual([GIVEN_TIMEOUT_SECONDS] * 3, service.timeouts())
 
+    def test_a_client_with_no_timeout_parameter_is_called_as_before(self):
+        # The stand-in client's request method takes the four arguments an
+        # older RequestClient took.
+        client = self.mock_http()
+
+        data = process(CloudRequestEngine({
+            "resource_key": RESOURCE_KEY,
+            "http_client": client,
+            "timeout_seconds": GIVEN_TIMEOUT_SECONDS}))
+
+        self.assertEqual({}, data.errors)
+        self.assertEqual(3, len(client.requests))
+
     def test_a_configuration_gives_the_timeout(self):
         service = self.serve()
 
