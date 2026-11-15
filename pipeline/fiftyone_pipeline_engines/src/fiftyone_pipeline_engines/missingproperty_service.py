@@ -124,8 +124,8 @@ class MissingPropertyService():
     Raises the error for a property an engine's data does not hold, giving
     the reason in the order the properties specification sets out, with
     the missing properties table's message for it. Property names are
-    compared ignoring case. Engines of a kind override engine_reason to add
-    their own step.
+    compared ignoring case. Engines of a kind override needs_upgrade and
+    engine_reason to add their own steps.
     """
 
     def check(self, key, flow_element):
@@ -169,9 +169,8 @@ class MissingPropertyService():
         # excluded.
         if listed is not None or (
                 restricted is not None and name not in restricted):
-            tier = self.data_file_tier(flow_element)
             tiers = list((listed or {}).get("datafiles") or ())
-            if listed is not None and tier is not None and tier not in tiers:
+            if listed is not None and self.needs_upgrade(tiers, flow_element):
                 return missing_property_message(
                     MissingPropertyReason.DATA_FILE_UPGRADE_REQUIRED, key,
                     flow_element.datakey, tiers=tiers,
@@ -200,19 +199,22 @@ class MissingPropertyService():
             return get_properties() or {}
         return getattr(flow_element, "properties", None) or {}
 
-    def data_file_tier(self, flow_element):
+    def needs_upgrade(self, tiers, flow_element):
 
         """!
-        The tier of the data file an on-premise engine uses, or None for an
-        engine with no data file.
+        Whether a property the metadata lists is missing because the
+        engine's data file is not of one of the property's tiers. An engine
+        with no data file never needs an upgrade.
 
+        @type tiers: list
+        @param tiers: the data tiers that hold the property
         @type flow_element: FlowElement
         @param flow_element: the engine
-        @rtype: str
-        @return: the tier, or None
+        @rtype: bool
+        @return: True where an upgrade is needed
         """
 
-        return None
+        return False
 
     def engine_reason(self, flow_element):
 
@@ -238,15 +240,18 @@ class OnPremiseMissingPropertyService(MissingPropertyService):
     The engine's native engine gives the tier.
     """
 
-    def data_file_tier(self, flow_element):
+    def needs_upgrade(self, tiers, flow_element):
 
         """!
-        The tier of the data file the engine uses.
+        Whether the tier of the data file the engine uses is not among a
+        property's tiers.
 
+        @type tiers: list
+        @param tiers: the data tiers that hold the property
         @type flow_element: FlowElement
         @param flow_element: the engine
-        @rtype: str
-        @return: the tier
+        @rtype: bool
+        @return: True where an upgrade is needed
         """
 
-        return flow_element.engine.getProduct()
+        return flow_element.engine.getProduct() not in tiers
