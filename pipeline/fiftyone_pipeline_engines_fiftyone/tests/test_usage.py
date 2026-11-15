@@ -919,9 +919,9 @@ class UsageTests(unittest.TestCase):
 
     def test_default_shares_only_accepted_evidence(self):
         """!
-        Check that with no options the element shares headers and the
-        51Degrees cookies and parameters, and leaves out other cookies, the
-        Cookie header, and other query string and form parameters.
+        Check that with no options the element shares headers, the
+        51Degrees cookies and every query string and form parameter, and
+        leaves out other cookies, the Cookie header and the email address.
         """
 
         usage = ShareUsage(
@@ -948,7 +948,7 @@ class UsageTests(unittest.TestCase):
         self.assertIn('<query Name="51d_gethighentropyvalues">hev</query>', app.received[0])
         self.assertNotIn("cookie value", app.received[0])
         self.assertNotIn("header value", app.received[0])
-        self.assertNotIn("password value", app.received[0])
+        self.assertIn('<query Name="password">password value</query>', app.received[0])
         self.assertNotIn("email value", app.received[0])
 
     def test_never_shared_evidence(self):
@@ -984,7 +984,8 @@ class UsageTests(unittest.TestCase):
     def test_share_all(self):
         """!
         Check that sharing all evidence shares what the other rules leave
-        out, but not the evidence that is never shared.
+        out, but not the evidence that is never shared or a cookie that
+        does not start 51D_.
         """
 
         usage = ShareUsage(
@@ -997,13 +998,15 @@ class UsageTests(unittest.TestCase):
             .build()
         flowdata = pipeline.create_flowdata()
         flowdata.evidence.add("cookie.sessionid", "cookie value")
+        flowdata.evidence.add("cookie.51d_screenpixelswidth", "1080")
         flowdata.evidence.add("query.campaign", "campaign value")
         flowdata.evidence.add("query.id.email", "email value")
         flowdata.process()
 
         self.waitForUsageThreads()
         self.assertEqual(len(app.received), 1)
-        self.assertIn('<cookie Name="sessionid">cookie value</cookie>', app.received[0])
+        self.assertNotIn("cookie value", app.received[0])
+        self.assertIn('<cookie Name="51d_screenpixelswidth">1080</cookie>', app.received[0])
         self.assertIn('<query Name="campaign">campaign value</query>', app.received[0])
         self.assertNotIn("email value", app.received[0])
 
@@ -1016,6 +1019,7 @@ class UsageTests(unittest.TestCase):
         usage = ShareUsage(
             requested_package_size=1,
             endpoint=testEndpoint,
+            share_all_query_string_parameters=False,
             query_whitelist=["valid.email"])
 
         pipeline = (PipelineBuilder())\
@@ -1033,8 +1037,9 @@ class UsageTests(unittest.TestCase):
 
     def test_empty_query_whitelist(self):
         """!
-        Check that an empty list of parameters to share shares only those
-        starting 51D_, and that None shares every parameter.
+        Check that, with sharing every parameter turned off, an empty
+        list of parameters to share shares only those starting 51D_, and
+        that None shares every parameter.
         """
 
         for query_whitelist, shared in (([], False), (None, True)):
@@ -1042,6 +1047,7 @@ class UsageTests(unittest.TestCase):
             usage = ShareUsage(
                 requested_package_size=1,
                 endpoint=testEndpoint,
+                share_all_query_string_parameters=False,
                 query_whitelist=query_whitelist,
                 header_blacklist=["x-secret"])
 
