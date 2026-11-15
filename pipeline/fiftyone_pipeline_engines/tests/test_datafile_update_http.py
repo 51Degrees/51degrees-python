@@ -894,5 +894,57 @@ class ShortDownloadTests(unittest.TestCase):
         self.check_short_download(chunked=True)
 
 
+class PolledCheckErrorTests(UpdateServiceTestCase):
+    """!
+    data-updates.md lines 474 to 477 and the last row of the errors table.
+    A failure in a check started by update polling MUST be caught and logged
+    with the unhandled error message, then reported to onUpdateCallbacks as
+    AUTO_UPDATE_UNKNOWN_ERROR, and MUST NOT stop later checks, so a later
+    good data file is still applied.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.data_file.auto_update = True
+        self.hold_timers()
+        self.failures = 1
+
+        def update_url():
+            if self.failures > 0:
+                self.failures -= 1
+                raise ValueError("the update URL could not be made")
+            return URL
+
+        self.data_file.get_update_url = update_url
+
+    def poll(self):
+        """Runs the check update polling starts, on its own thread."""
+        self.service.async_update_data_file(self.data_file).join()
+
+    def testAnErrorInAPolledCheckIsLoggedAndReported(self):
+        self.poll()
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
+        errors = [message for level, message in self.pipeline.logs
+                  if level == "error"]
+        self.assertEqual(1, len(errors), self.pipeline.logs)
+        self.assertTrue(errors[0].startswith(
+            "An unhandled error occurred while checking for automatic "
+            "updates for engine 'FakeEngine'. Error detail: "), errors[0])
+        self.assertIn("the update URL could not be made", errors[0])
+        self.assertFalse(self.data_file.updating)
+
+    def testTheNextPolledCheckStillAppliesAGoodFile(self):
+        self.poll()
+        self.assertEqual(1, len(self.pending))
+        self.get(response(200))
+        scheduled = self.pending.pop()
+        scheduled.function(*scheduled.args).join()
+        self.assertEqual([b"new"], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR,
+             UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+
+
 if __name__ == "__main__":
     unittest.main()
