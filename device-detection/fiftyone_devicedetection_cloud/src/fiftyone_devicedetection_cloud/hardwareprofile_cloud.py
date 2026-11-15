@@ -35,6 +35,30 @@ import json
 # that property has no value, for example "hardwarevendornullreason".
 NULL_REASON_SUFFIX = "nullreason"
 
+# The key the cloud request engine's data is read under, and the old key,
+# which is deprecated. An older cloud request engine gives the old key
+# alone.
+RESPONSE_DATA_KEY = "cloud-response"
+OLD_DATA_KEY = "cloud"
+
+
+def _cloud_response(flowdata):
+    """!
+    The raw JSON the cloud request engine gave, read under cloud-response,
+    or under the old key when there is nothing under cloud-response.
+
+    @rtype string
+    @return the JSON text of the cloud service's answer
+    """
+
+    try:
+        data = flowdata.get(RESPONSE_DATA_KEY)
+    except Exception:
+        data = None
+    if data is None:
+        data = flowdata.get(OLD_DATA_KEY)
+    return data.get("cloud")
+
 
 class HardwareProfileData(dict, AspectData):
     """!
@@ -187,9 +211,7 @@ class HardwareProfileCloud(CloudEngine):
 
     def process_internal(self, flowdata):
 
-        cloud_data = flowdata.get("cloud").get("cloud")
-
-        cloud_data = json.loads(cloud_data)
+        cloud_data = json.loads(_cloud_response(flowdata))
 
         hardware = cloud_data.get("hardware") or {}
 
