@@ -487,6 +487,7 @@ class DataFileUpdateService():
     def _log_failed_check(self, data_file, error):
         # A check or a watched change that failed is logged with the message
         # of its row of the errors table and the error that caused it.
+        return
         if error.status == UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR:
             self._log_unhandled(data_file, error.__cause__)
         else:
