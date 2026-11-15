@@ -27,7 +27,6 @@ class CloudRequestException(Exception):
         which is expected.
     """
 
-    # TODO: remove/implement additional arguments, currently unused
     def __init__(self, message, httpStatusCode = 0, responseHeaders = {},
                  exceptions = ()):
         """!
@@ -48,3 +47,12 @@ class CloudRequestException(Exception):
         self.responseHeaders = responseHeaders
         self.exceptions = tuple(exceptions)
         super().__init__(self.message)
+
+    def __str__(self):
+        """!
+            The message, followed by the text of each exception held, so a
+            log or a traceback gives every error the cloud service answered
+            with.
+        """
+        return " ".join(
+            [self.message] + [str(inner) for inner in self.exceptions])

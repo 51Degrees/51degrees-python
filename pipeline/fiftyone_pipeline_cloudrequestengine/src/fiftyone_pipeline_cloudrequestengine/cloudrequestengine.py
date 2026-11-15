@@ -381,15 +381,13 @@ class CloudRequestEngine(Engine):
 
     def _describe(self, error):
         """!
-        An error as text for a warning, with the licence key masked, and
-        followed by each error it holds where the cloud service answered
-        with several.
+        An error as text for a warning, with the licence key masked. The
+        text of an error for several answered by the cloud service gives
+        each of them.
         """
 
-        return " ".join(
-            [self.masked("{}(\"{}\")".format(type(error).__name__, error))]
-            + [self._describe(inner)
-               for inner in getattr(error, "exceptions", ())])
+        return self.masked(
+            "{}(\"{}\")".format(type(error).__name__, error))
 
     def _complete_discovery(self):
         """!
