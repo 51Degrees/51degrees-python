@@ -125,6 +125,28 @@ class PipelineCannotBeChangedTests(unittest.TestCase):
         self.assertEqual(
             [1, 1, 0], [first.calls, second.calls, other.calls])
 
+    # Binding the attributes again raises, and the pipeline still runs
+    # and finds the elements it was built with.
+    def test_binding_the_attributes_again_raises_and_changes_nothing(self):
+        first = CountingElement("first")
+        pipeline = build(first)
+        other = CountingElement("other")
+
+        for name, value in (
+                ("flow_elements", (other,)),
+                ("flow_elements_list", {"other": other}),
+                ("flow_elements_display_list", ("other",))):
+            with self.subTest(attribute=name):
+                with self.assertRaises(AttributeError):
+                    setattr(pipeline, name, value)
+                with self.assertRaises(AttributeError):
+                    delattr(pipeline, name)
+
+        process(pipeline)
+        self.assertEqual([1, 0], [first.calls, other.calls])
+        self.assertIs(first, pipeline.get_element("first"))
+        self.assertNotIn("other", pipeline.flow_elements_display_list)
+
     # Adding to the elements by data key raises, and the pipeline neither
     # finds the element nor accepts its evidence.
     def test_adding_to_the_lookup_raises_and_changes_nothing(self):
