@@ -115,7 +115,8 @@ class ShareUsage(Engine):
         failures_window_seconds = FAILURES_WINDOW_SECONDS_DEFAULT,
         initial_recovery_delay_seconds = INITIAL_RECOVERY_DELAY_SECONDS_DEFAULT,
         max_recovery_delay_seconds = MAX_RECOVERY_DELAY_SECONDS_DEFAULT,
-        recovery_multiplier = RECOVERY_MULTIPLIER_DEFAULT):
+        recovery_multiplier = RECOVERY_MULTIPLIER_DEFAULT,
+        share_all_query_string_parameters = True):
         """!
         Constructor for ShareUsage element
         
@@ -134,19 +135,20 @@ class ShareUsage(Engine):
         @type cookie: string
         @param cookie: The name of the cookie that holds the session id.
         It has no effect unless track_session is True. The cookie itself
-        is not shared unless share_all is True.
+        is never shared unless its name starts with '51D_', as no other
+        cookie is.
         @type track_session: bool
         @param track_session: If True, the cookie named by cookie is used
         to tell user sessions apart, so evidence already shared is shared
         again when it comes from a new session. False by default. It
-        needs cookie to be set, and has no effect when share_all is True,
-        because every cookie is then shared and used to find repeats.
+        needs cookie to be set, and works the same whether or not
+        share_all is True.
         @type query_whitelist: list or str
-        @param query_whitelist: By default query string and HTTP form
-        parameters are not shared unless prefixed with '51D_'.
-        If you need to share query string parameters, a list can be
-        specified here, or a string of names separated by commas, which is
-        how a configuration file gives a list. None shares every parameter.
+        @param query_whitelist: The query string and HTTP form parameters
+        to share, as well as those prefixed with '51D_', when
+        share_all_query_string_parameters is False. A string of names
+        separated by commas, which is how a configuration file gives a
+        list, is read as those names. None shares every parameter.
         @type header_blacklist: list or str
         @param header_blacklist: By default, all HTTP headers
         except Cookie are shared.
@@ -157,8 +159,14 @@ class ShareUsage(Engine):
         be shared. 1 = 100%, 0.5 = 50%, etc..
         @type share_all: bool
         @param share_all: If True, all evidence is shared apart from the
-        email address, the salt used for hashed email identifiers, and the
-        request's query string and path. False by default.
+        email address, the salt used for hashed email identifiers, the
+        request's query string and path, and every cookie whose name does
+        not start with '51D_'. False by default.
+        @type share_all_query_string_parameters: bool
+        @param share_all_query_string_parameters: If True, every query
+        string and HTTP form parameter is shared. If False, only those
+        prefixed with '51D_' and those in query_whitelist are. True by
+        default.
         @type max_queue_size: int
         @param max_queue_size: The most entries held while waiting to be
         sent. When the queue is full, new entries are dropped. The default
@@ -201,6 +209,8 @@ class ShareUsage(Engine):
         self.endpoint = endpoint
         self.request_timeout = request_timeout
         self.share_all = share_all
+        self.share_all_query_string_parameters = \
+            share_all_query_string_parameters
         self.track_session = track_session
 
         # The session id and sequence number are kept in evidence, as the
@@ -212,15 +222,15 @@ class ShareUsage(Engine):
         # Vary header never depend on it. It shares what it finds instead,
         # and these filters decide which of that is shared and which tells
         # a repeat apart. When sessions are tracked the tracker reads the
-        # session cookie, which the data sent leaves out unless all evidence
-        # is shared.
+        # session cookie, which the data sent leaves out.
         self.evidence_key_filter = BasicListEvidenceKeyFilter([])
         self.data_evidence_key_filter = ShareUsageEvidenceKeyFilter(
-            cookie, included, header_blacklist, False, share_all)
+            cookie, included, header_blacklist, False, share_all,
+            share_all_query_string_parameters)
         self.tracker_evidence_key_filter = \
             ShareUsageTrackerEvidenceKeyFilter(
                 cookie, included, header_blacklist, track_session,
-                share_all)
+                share_all, share_all_query_string_parameters)
 
         # Add the share usage tracker which detects when
         # to send up sharing data
