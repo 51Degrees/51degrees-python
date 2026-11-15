@@ -23,7 +23,7 @@ jobs:
           $PY -m venv .venv
           if [ -f .venv/Scripts/activate ]; then . .venv/Scripts/activate; else . .venv/bin/activate; fi
           pwsh ./pipeline/ci/copy-owid-source.ps1
-          python -m pip install -q pytest parameterized requests_mock flask -e pipeline/fiftyone_pipeline_did -e pipeline/fiftyone_pipeline_core -e pipeline/fiftyone_pipeline_engines -e pipeline/fiftyone_pipeline_cloudrequestengine -e pipeline/fiftyone_pipeline_engines_fiftyone -e ip-intelligence/fiftyone_ipintelligence_shared -e ip-intelligence/fiftyone_ipintelligence_cloud
+          python -m pip install -q pytest parameterized requests_mock flask -e pipeline/owid-python -e pipeline/fiftyone_pipeline_did -e pipeline/fiftyone_pipeline_core -e pipeline/fiftyone_pipeline_engines -e pipeline/fiftyone_pipeline_cloudrequestengine -e pipeline/fiftyone_pipeline_engines_fiftyone -e ip-intelligence/fiftyone_ipintelligence_shared -e ip-intelligence/fiftyone_ipintelligence_cloud
       - name: Listed tests
         env:
           PYTHONPATH: ${{ github.workspace }}/ip-intelligence/fiftyone_ipintelligence_onpremise/src${{ runner.os == 'Windows' && ';' || ':' }}${{ github.workspace }}/device-detection/fiftyone_devicedetection_onpremise/src
