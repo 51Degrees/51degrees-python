@@ -68,10 +68,10 @@ class UpdateStatus(Enum):
 
 class DataUpdateException(Exception):
     """!
-    A data update that failed, which an update from memory raises to its
-    caller. The message is the one the errors table of the data updates
-    specification gives for the failure, and the error that caused it, if
-    any, is chained as its cause.
+    A data update that failed, which a programmatic check and an update from
+    memory raise to their caller. The message is the one the errors table of
+    the data updates specification gives for the failure, and the error that
+    caused it, if any, is chained as its cause.
     """
 
     def __init__(self, message, status):
@@ -129,9 +129,10 @@ class DataFileUpdateService():
             return self._update_locks.setdefault(
                 id(data_file), threading.RLock())
 
-    def __emit(self, status, data_file):
-        # A callback that raises stops the callbacks after it, as .NET's service
-        # does, and its error is logged with .NET's message for any other
+    def __emit(self, status, data_file, to_caller=False):
+        # A callback that raises stops the callbacks after it, as .NET's
+        # service does. On a check run for a caller its error passes to that
+        # caller. Otherwise it is logged with .NET's message for any other
         # error and the error itself after it, so that the next check still
         # runs. The error is a caller's, so it is masked as any other text
         # that may name the update URL is.
@@ -139,16 +140,39 @@ class DataFileUpdateService():
             for method in self.on_complete_methods:
                 method(status, data_file)
         except Exception as e:
+            if to_caller:
+                raise
             self._log_unhandled(data_file, e)
 
     def update_data_file(self, data_file):
 
         """!
-        Function to request, download, check and unzip a datafile from
-        an update service via an HTTP request
+        Check for new data now, download it and refresh the engine with it.
+        How the check ended is reported to the update complete callbacks,
+        and a failure is then raised to the caller rather than logged.
         @type data_file: DataFile
         @param data_file: Datafile to update
+        @rtype: bool
+        @return: True when the engine was refreshed with new data, or False
+        when there was no new data or the data file's engine has been closed
+        @raises DataUpdateException: When the check or the refresh failed,
+        with the status and message of that failure, and the engine keeps
+        the data it had. The error that caused the failure, if any, is
+        chained as its cause. Any other error is reported as
+        AUTO_UPDATE_UNKNOWN_ERROR and raised as it is. An error raised by an
+        update complete callback is raised as it is, and the callbacks after
+        it are not called.
         """
+
+        return self._check(data_file, to_caller=True)
+
+    def _check(self, data_file, to_caller):
+        # One check of a data file. How it ended is reported to the update
+        # complete callbacks and the next check is scheduled. For a caller,
+        # a failure is then raised and not logged. Without one, as for
+        # update polling and the update on start-up, a failure from a row of
+        # the errors table is logged first, and any other error is raised
+        # unreported, for update polling to log and report.
 
         # A data file whose engine has been closed is not updated.
         if not self.__is_registered(data_file):
@@ -160,11 +184,46 @@ class DataFileUpdateService():
             was_updating = data_file.updating
             data_file.updating = True
             try:
-                return self._update_data_file(data_file)
+                return self._check_and_report(data_file, to_caller)
             finally:
                 data_file.updating = was_updating
 
+    def _check_and_report(self, data_file, to_caller):
+        try:
+            status = self._update_data_file(data_file)
+        except DataUpdateException as e:
+            if not to_caller:
+                self._log_failed_check(data_file, e)
+            self._end_check(data_file, e.status, to_caller)
+            if to_caller:
+                raise
+            return False
+        except Exception:
+            if to_caller:
+                self._end_check(
+                    data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR, True)
+            raise
+        self._end_check(data_file, status, to_caller)
+        return status == UpdateStatus.AUTO_UPDATE_SUCCESS
+
+    def _end_check(self, data_file, status, to_caller=False):
+        # Report how a check ended, then schedule the next check even when a
+        # callback raised, so that a failure never stops later checks. A
+        # check that applied no new data is followed by the next scheduled
+        # check, never by an immediate repeat of a check on start-up.
+        try:
+            self.__emit(status, data_file, to_caller)
+        finally:
+            self.check_next_update(
+                data_file,
+                run_after_error=status != UpdateStatus.AUTO_UPDATE_SUCCESS)
+
     def _update_data_file(self, data_file):
+        # Download new data and refresh the engine with it, returning
+        # AUTO_UPDATE_SUCCESS, or AUTO_UPDATE_NOT_NEEDED when there was no
+        # new data. A failure raises a DataUpdateException with the message
+        # and status of its row of the errors table. Nothing is reported, as
+        # _check_and_report reports how the check ended.
 
         self._log("info", "Checking for update")
 
@@ -176,8 +235,6 @@ class DataFileUpdateService():
         engine = self._engine_type(data_file)
 
         headers = {}
-
-        status = UpdateStatus.AUTO_UPDATE_IN_PROGRESS
 
         # Add if modified since header if enabled and available
         since = None
@@ -193,21 +250,23 @@ class DataFileUpdateService():
 
         try:
             response = requests.get(url, headers=headers)
+            failure = None
         except requests.RequestException as e:
-            # The message of a failed request names the URL, key included.
-            self._log_check_error(
+            # The message of a failed request names the URL, key included,
+            # so its cause is a copy with the key masked. It is raised after
+            # this block, so the request's own error is not chained to it.
+            failure = self._masked_error(e)
+        if failure is not None:
+            raise DataUpdateException(
                 "Error accessing data update service at '" + shown_url +
                 "' for engine '" + engine + "'",
-                mask_licence_keys_in_text(e))
-            return self._update_failed(
-                data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+                UpdateStatus.AUTO_UPDATE_HTTPS_ERR) from failure
 
         if response is None:
-            self._log_check_error(
+            raise DataUpdateException(
                 "No response from data update service at '" + shown_url +
-                "' for engine '" + engine + "'")
-            return self._update_failed(
-                data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+                "' for engine '" + engine + "'",
+                UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
 
         if response.status_code == 304:
             self._log(
@@ -215,8 +274,7 @@ class DataFileUpdateService():
                 "No data newer than " + (since or "the data in use") +
                 " found at '" + shown_url + "' for Engine '" + engine +
                 "'")
-            return self._update_failed(
-                data_file, UpdateStatus.AUTO_UPDATE_NOT_NEEDED)
+            return UpdateStatus.AUTO_UPDATE_NOT_NEEDED
 
         if response.status_code != 200:
 
@@ -238,8 +296,7 @@ class DataFileUpdateService():
                            "' from data update service at '" + shown_url +
                            "' for engine '" + engine + "'")
 
-            self._log_check_error(message)
-            return self._update_failed(data_file, status)
+            raise DataUpdateException(message, status)
 
         # A response that ended before the whole file arrived is an error
         # accessing the service. urllib3 2 raises one, which the request
@@ -247,13 +304,12 @@ class DataFileUpdateService():
         # length is checked here as well.
         short = self._cut_short(response)
         if short is not None:
-            self._log_check_error(
+            raise DataUpdateException(
                 "Error accessing data update service at '" + shown_url +
                 "' for engine '" + engine + "'",
+                UpdateStatus.AUTO_UPDATE_HTTPS_ERR) from EOFError(
                 "The response ended after " + str(short[0]) + " of the " +
                 str(short[1]) + " bytes it gave as its Content-Length.")
-            return self._update_failed(
-                data_file, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
 
         # Verify the MD5 hash if enabled and the answer gives one.
 
@@ -272,13 +328,11 @@ class DataFileUpdateService():
                 hash_md5.update(data)
 
             if header_md5 != hash_md5.hexdigest():
-                self._log_check_error(
+                raise DataUpdateException(
                     "Integrity check failed. MD5 hash in HTTP response '" +
                     str(header_md5) + "' for '" + engine + "'data update "
                     "does not match calculated hash for the downloaded "
-                    "file '" + hash_md5.hexdigest() + "'.")
-                return self._update_failed(
-                    data_file,
+                    "file '" + hash_md5.hexdigest() + "'.",
                     UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED)
 
         self._log(
@@ -295,9 +349,9 @@ class DataFileUpdateService():
             except (OSError, EOFError, zlib.error) as e:
                 # Content that cannot be read is any other error, which
                 # carries the last row of the errors table.
-                self._log_unhandled(data_file, e)
-                return self._update_failed(
-                    data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR)
+                raise DataUpdateException(
+                    self._unhandled_message(data_file),
+                    UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR) from e
 
         # Download datafile if needed, or pass through memory
         if data_file.download:
@@ -305,11 +359,7 @@ class DataFileUpdateService():
             # write that failed leaves it with the data it already had and
             # the update ends there, as it does in .NET and
             # 51degrees-node.
-            try:
-                self._write_data_file(data_file, data)
-            except DataUpdateException as e:
-                self._log_failed_write(data_file, e)
-                return self._update_failed(data_file, e.status)
+            self._write_data_file(data_file, data)
 
         else:
 
@@ -322,12 +372,8 @@ class DataFileUpdateService():
 
         # Done. Refresh the file.
 
-        status = self._refresh(data_file)
-
-        self.__emit(status, data_file)
-        self.check_next_update(data_file)
-
-        return True
+        self._refresh(data_file)
+        return UpdateStatus.AUTO_UPDATE_SUCCESS
 
     def update_from_memory(self, data_file, data):
 
@@ -438,9 +484,9 @@ class DataFileUpdateService():
                     "'.",
                     UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME) from e
 
-    def _log_failed_write(self, data_file, error):
-        # A write that failed during a check is logged with the message of
-        # its row of the errors table and the error that caused it.
+    def _log_failed_check(self, data_file, error):
+        # A check or a watched change that failed is logged with the message
+        # of its row of the errors table and the error that caused it.
         if error.status == UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR:
             self._log_unhandled(data_file, error.__cause__)
         else:
@@ -448,8 +494,8 @@ class DataFileUpdateService():
 
     def _refresh(self, data_file):
         # Refresh the engine from the data file after a check or a watched
-        # change. A failure is logged with the errors table's message for a
-        # refresh from the data file, and its status returned.
+        # change. A failure raises a DataUpdateException with the errors
+        # table's message for a refresh from the data file.
         engine = self._engine_type(data_file)
         self._log(
             "info",
@@ -457,11 +503,10 @@ class DataFileUpdateService():
         try:
             data_file.refresh()
         except Exception as e:
-            self._log_check_error(
+            raise DataUpdateException(
                 "An error occurred when applying a data update to engine '" +
-                engine + "' after " + str(REFRESH_TRIES) + " tries.", e)
-            return UpdateStatus.AUTO_UPDATE_REFRESH_FAILED
-        return UpdateStatus.AUTO_UPDATE_SUCCESS
+                engine + "' after " + str(REFRESH_TRIES) + " tries.",
+                UpdateStatus.AUTO_UPDATE_REFRESH_FAILED) from e
 
     def _refresh_from_memory(self, data_file):
         # Refresh the engine with data given to update_from_memory. A
@@ -509,13 +554,6 @@ class DataFileUpdateService():
             else:
                 data_file.data = previous
 
-    def _update_failed(self, data_file, status):
-        # An update that ends without new data. The next check is the next
-        # scheduled one, never an immediate repeat of a check on start-up.
-        self.__emit(status, data_file)
-        self.check_next_update(data_file, run_after_error=True)
-        return False
-
     def _log(self, level, message):
         pipeline = getattr(self, "pipeline", None)
         if pipeline is not None:
@@ -553,6 +591,17 @@ class DataFileUpdateService():
             return text
         return (text + ("" if text.endswith(".") else ".") +
                 " Error detail: " + mask_licence_keys_in_text(cause))
+
+    @staticmethod
+    def _masked_error(error):
+        # A copy of a request's error with every license key in its message
+        # masked. The copy holds no request or response, so nothing in it
+        # names the key.
+        text = mask_licence_keys_in_text(error)
+        try:
+            return type(error)(text)
+        except Exception:
+            return requests.RequestException(text)
 
     @staticmethod
     def _cut_short(response):
@@ -627,10 +676,11 @@ class DataFileUpdateService():
     def async_update_data_file(self, data_file):
 
         """!
-        Non blocking version of update_data_file, which update polling
-        uses. An error is logged and reported to the callbacks as
-        AUTO_UPDATE_UNKNOWN_ERROR, as the thread has no caller to pass it
-        to, and the next check is still scheduled.
+        Non blocking check for new data, which update polling uses. The
+        thread has no caller to pass a failure to, so a failure is logged
+        with the message of its row of the errors table, and any other error
+        with the last row's message, before it is reported to the callbacks.
+        The next check is still scheduled.
         @type data_file: DataFile
         @param data_file: Datafile to update
         """
@@ -641,11 +691,12 @@ class DataFileUpdateService():
 
     def _update_data_file_caught(self, data_file):
         try:
-            return self.update_data_file(data_file)
+            return self._check(data_file, to_caller=False)
         except Exception as e:
             self._log_unhandled(data_file, e)
-            return self._update_failed(
+            self._end_check(
                 data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR)
+            return False
     
     def check_next_update(self, data_file, run_after_error = False):
         """!
@@ -662,7 +713,9 @@ class DataFileUpdateService():
 
         if data_file.update_on_start and not data_file.updated_on_start and not run_after_error:
             self._log("info", "Updating on start-up")
-            self.update_data_file(data_file)
+            # The update on start-up logs and reports a failure as update
+            # polling does.
+            self._check(data_file, to_caller=False)
 
         elif data_file.auto_update:
 
@@ -771,7 +824,11 @@ class DataFileUpdateService():
                 data_file.updating = True
                 try:
                     data_file.last_changed_time = changed_time
-                    status = self._refresh(data_file)
+                    self._refresh(data_file)
+                    status = UpdateStatus.AUTO_UPDATE_SUCCESS
+                except DataUpdateException as e:
+                    self._log_failed_check(data_file, e)
+                    status = e.status
                 finally:
                     data_file.updating = False
                 self.__emit(status, data_file)
