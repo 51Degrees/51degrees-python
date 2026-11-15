@@ -23,21 +23,14 @@
 from __future__ import annotations
 
 import re
+import warnings
 from datetime import datetime, timezone
 from enum import Enum
 from typing import NamedTuple, Optional, Tuple
 
-from ._layout import (
-    FLAGS_OFFSET,
-    GUID_LENGTH,
-    HEADER_LENGTH,
-    LICENSE_ID_LENGTH,
-    LICENSE_ID_OFFSET,
-    MATCH_KEY_LENGTH,
-    MATCH_KEY_OFFSET,
-    SUPPORTED_PAYLOAD_VERSION,
-    TERMS_LENGTH,
-)
+# The layout is read through the private module rather than imported by
+# name, so that this module's namespace offers none of it.
+from . import _layout
 from ._owid import (
     Owid,
     OwidError,
@@ -50,6 +43,47 @@ from ._owid import (
 from .id_type import IdType
 from ._terms import Terms
 from .usage import Usage
+
+#: The layout names :func:`__getattr__` still gives, with a warning,
+#: until they are removed.
+_DEPRECATED_LAYOUT_NAMES = frozenset((
+    "FLAGS_OFFSET",
+    "GUID_LENGTH",
+    "HEADER_LENGTH",
+    "LICENSE_ID_LENGTH",
+    "LICENSE_ID_OFFSET",
+    "MATCH_KEY_LENGTH",
+    "MATCH_KEY_OFFSET",
+    "SUPPORTED_PAYLOAD_VERSION",
+    "TERMS_LENGTH",
+))
+
+
+def _deprecated_layout_name(module: str, names: frozenset[str],
+                            name: str) -> int:
+    """The value of a deprecated layout name, for its module's
+    ``__getattr__``, with a :class:`DeprecationWarning` because the
+    offsets, the lengths and the payload version are not part of the
+    package's surface. A name not in ``names`` is missing as usual."""
+    if name not in names:
+        raise AttributeError(
+            "module {0!r} has no attribute {1!r}".format(module, name))
+    # The third frame is the code that read the name, past this function
+    # and the module's __getattr__.
+    warnings.warn(
+        "{0}.{1} is not part of the package's surface and will be "
+        "removed. Every field of a 51Did has an accessor on FodId, and a "
+        "payload version FodId cannot read is refused with "
+        "FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION.".format(
+            module, name),
+        DeprecationWarning, stacklevel=3)
+    return getattr(_layout, name)
+
+
+def __getattr__(name: str) -> int:
+    """Gives the deprecated layout names, with a warning."""
+    return _deprecated_layout_name(__name__, _DEPRECATED_LAYOUT_NAMES, name)
+
 
 #: The moment the envelope's date field counts minutes from, being the OWID
 #: epoch of 2020-01-01T00:00:00Z. The envelope carries an unsigned 32-bit
@@ -655,20 +689,20 @@ def _read_payload(
     match key bytes and the Terms index. On failure the four fields are
     zero and empty.
     """
-    if payload is None or len(payload) <= FLAGS_OFFSET:
+    if payload is None or len(payload) <= _layout.FLAGS_OFFSET:
         return FodIdParseStatus.PAYLOAD_TOO_SHORT, 0, 0, b"", 0
-    flags = payload[FLAGS_OFFSET]
+    flags = payload[_layout.FLAGS_OFFSET]
     # The version is read before any field, because a later version exists
     # precisely because a field moved. Reading a payload of a version this
     # package does not know under the layout it does know would answer with
     # values that are wrong rather than absent, which is worse than
     # refusing, and a version that nothing checks protects nothing.
-    if _payload_version(flags) != SUPPORTED_PAYLOAD_VERSION:
+    if _payload_version(flags) != _layout.SUPPORTED_PAYLOAD_VERSION:
         return (
             FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION, 0, 0, b"", 0)
     # Checked after the version, because the header length belongs to the
     # layout of version 0.
-    if len(payload) < HEADER_LENGTH:
+    if len(payload) < _layout.HEADER_LENGTH:
         return FodIdParseStatus.PAYLOAD_TOO_SHORT, 0, 0, b"", 0
     # Checked after the version, because a later version may have moved
     # the usage bits, so they can only be judged under the layout this
@@ -676,21 +710,24 @@ def _read_payload(
     if flags & _USAGE_MASK == 0:
         return FodIdParseStatus.NO_USAGE, 0, 0, b"", 0
     match_key_length = _match_key_length(IdType.from_flags(flags), payload)
-    if len(payload) < HEADER_LENGTH + match_key_length:
+    if len(payload) < _layout.HEADER_LENGTH + match_key_length:
         return FodIdParseStatus.INVALID_TYPE_PAYLOAD_LENGTH, 0, 0, b"", 0
     # Little-endian uint32, unsigned (Python ints are unbounded and
     # non-negative here, so the high bit never becomes negative).
     license_id = int.from_bytes(
-        payload[LICENSE_ID_OFFSET:LICENSE_ID_OFFSET + LICENSE_ID_LENGTH],
+        payload[_layout.LICENSE_ID_OFFSET:
+                _layout.LICENSE_ID_OFFSET + _layout.LICENSE_ID_LENGTH],
         byteorder="little",
         signed=False,
     )
     # bytes is immutable, so slicing yields a match key that cannot be used
     # to change the underlying payload and no defensive copy is required.
     match_key = bytes(
-        payload[MATCH_KEY_OFFSET:MATCH_KEY_OFFSET + match_key_length])
+        payload[_layout.MATCH_KEY_OFFSET:
+                _layout.MATCH_KEY_OFFSET + match_key_length])
     return (FodIdParseStatus.PARSED, flags, license_id, match_key,
-            _read_terms_index(payload, MATCH_KEY_OFFSET + match_key_length))
+            _read_terms_index(
+                payload, _layout.MATCH_KEY_OFFSET + match_key_length))
 
 
 def _read_terms_index(payload: bytes, offset: int) -> int:
@@ -708,7 +745,7 @@ def _read_terms_index(payload: bytes, offset: int) -> int:
     the index that says the terms are not stated. That is the right answer
     and not a defect, so no special case is written for it.
     """
-    if len(payload) < offset + TERMS_LENGTH:
+    if len(payload) < offset + _layout.TERMS_LENGTH:
         # Read off the table rather than written here a second time, so the
         # index that says the terms are not stated is recorded once.
         return Terms.NOT_STATED.index
@@ -740,10 +777,10 @@ def _payload_version(flags: int) -> int:
 def _match_key_length(id_type: IdType, payload: bytes) -> int:
     """How many match key bytes the type needs after the header."""
     if id_type is IdType.RANDOM:
-        return GUID_LENGTH
+        return _layout.GUID_LENGTH
     if id_type is IdType.RESERVED:
-        return len(payload) - HEADER_LENGTH
-    return MATCH_KEY_LENGTH
+        return len(payload) - _layout.HEADER_LENGTH
+    return _layout.MATCH_KEY_LENGTH
 
 
 def _payload_message(status: FodIdParseStatus, payload: bytes) -> str:
@@ -751,19 +788,19 @@ def _payload_message(status: FodIdParseStatus, payload: bytes) -> str:
     length = 0 if payload is None else len(payload)
     if status is FodIdParseStatus.PAYLOAD_TOO_SHORT:
         return "51Did payload must be at least {0} bytes; got {1}.".format(
-            HEADER_LENGTH, length)
+            _layout.HEADER_LENGTH, length)
     if status is FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION:
         return (
             "51Did payload version {0} is not one this package can "
-            "read.".format(_payload_version(payload[FLAGS_OFFSET])))
+            "read.".format(_payload_version(payload[_layout.FLAGS_OFFSET])))
     if status is FodIdParseStatus.NO_USAGE:
         return (
             "51Did payload names no usage, because usage bits 0 to 2 of "
             "the flags byte 0x{0:02X} are 000.".format(
-                payload[FLAGS_OFFSET]))
-    id_type = IdType.from_flags(payload[FLAGS_OFFSET])
+                payload[_layout.FLAGS_OFFSET]))
+    id_type = IdType.from_flags(payload[_layout.FLAGS_OFFSET])
     return ("51Did payload for the {0} type must be at least {1} bytes; "
             "got {2}.".format(
                 id_type.name,
-                HEADER_LENGTH + _match_key_length(id_type, payload),
+                _layout.HEADER_LENGTH + _match_key_length(id_type, payload),
                 length))
