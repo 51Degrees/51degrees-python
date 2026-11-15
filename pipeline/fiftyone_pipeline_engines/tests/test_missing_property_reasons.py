@@ -33,11 +33,7 @@ from fiftyone_pipeline_engines.missingproperty_service import \
 
 # The pricing page the data file rows link to, with this repository's
 # campaign parameters.
-PRICING = (
-    "https://51degrees.com/pricing?utm_source=code&utm_medium=comment"
-    "&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_engines-"
-    "src-fiftyone_pipeline_engines-missingproperty_service.py"
-    "&utm_term=missing-property-pricing")
+PRICING = "https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_engines-src-fiftyone_pipeline_engines-missingproperty_service.py&utm_term=missing-property-pricing"
 
 
 class StandInNativeEngine:

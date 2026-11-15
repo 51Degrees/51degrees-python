@@ -30,6 +30,8 @@ from fiftyone_devicedetection_cloud.devicedetection_cloud_pipelinebuilder import
 
 from fiftyone_devicedetection_cloud.devicedetection_cloud import DeviceDetectionCloud
 
+from fiftyone_pipeline_engines.missingproperty_service import CONFIGURATOR_URL
+
 from .live_cloud import find_resource_key, no_resource_key
 
 pytestmark = pytest.mark.live
@@ -165,7 +167,7 @@ class DeviceDetectionTests(unittest.TestCase):
         self.assertIn(
             ",".join(meta.get("name", name)
                      for name, meta in properties.items()), result)
-        self.assertIn("https://configure.51degrees.com/?utm_source=code", result)
+        self.assertIn(CONFIGURATOR_URL, result)
 
     def test_cloud_request_origin(self):
         """!
