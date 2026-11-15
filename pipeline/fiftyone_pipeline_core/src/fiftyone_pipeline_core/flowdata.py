@@ -60,6 +60,10 @@ class FlowData:
 
         @rtype: FlowData
         @return: Returns flowdata
+        @raise Exception: the first error a flow element raised, or the
+        error saying this FlowData has already been processed, unless the
+        Pipeline suppresses process exceptions. Every error is in errors
+        either way.
 
         """
 
@@ -153,6 +157,8 @@ class FlowData:
 
         @rtype: ElementData
         @return: Returns data in the FlowData instance that is under the specified key
+        @raise Exception: where this FlowData holds no data under the
+        key, with a message naming the keys it does hold
 
         """
 
@@ -173,6 +179,8 @@ class FlowData:
         @param flow_element_key: datakey of the FlowElement that created the data of interest
 
         @rtype: ElementData
+        @raise Exception: where this FlowData holds no data under the
+        key, with a message naming the keys it does hold
         
         """
 
@@ -188,6 +196,8 @@ class FlowData:
         @param flow_element_key: datakey of the FlowElement that created the data of interest
 
         @rtype: ElementData
+        @raise Exception: where this FlowData holds no data under the
+        key, with a message naming the keys it does hold
         
         """
 

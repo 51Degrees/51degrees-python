@@ -76,7 +76,9 @@ class AspectPropertyValue(object):
 
         @rtype mixed
         @return the stored value
-        
+        @raise Exception: where there is no value, with no_value_message or
+        NO_VALUE_MESSAGE
+
         """
         
         if self.__hasValue:

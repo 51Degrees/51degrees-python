@@ -122,6 +122,11 @@ class CloudRequestEngine(Engine):
         way that may pass, such as the service being unreachable, so a
         cloud outage does not stop the application starting.
 
+        @raise CloudRequestException: where the cloud service refuses either
+        discovery request, with an answer from 400 to 499
+        @raise ValueError: where neither a resource_key nor a license_key is
+        given, or a license_key is given with no requested_properties
+
         """
 
         super(CloudRequestEngine, self).__init__()
@@ -492,8 +497,8 @@ class CloudRequestEngine(Engine):
 
         @type: Response
         @param: Response returned from the cloud service.
-        @rtype: Exception
-        @return: Thrown if there are errors returned from the cloud service.
+        @raise CloudRequestException: where the response is not JSON, holds
+        errors, has no data, or has a status other than 200
         """
 
         has_data = cloud_response.text and cloud_response.text.strip()

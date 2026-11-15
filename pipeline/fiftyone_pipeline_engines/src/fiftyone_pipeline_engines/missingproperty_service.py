@@ -30,7 +30,17 @@ class MissingPropertyService():
     """
 
     def check(self, key, flow_element):
-            
+
+        """!
+        Raise the error for a property the data has no value for.
+
+        @type key: string
+        @param key: the property asked for
+        @type flow_element: FlowElement
+        @param flow_element: the element whose data was asked
+        @raise Exception: always, saying why the property is missing
+        """
+
         raise Exception("Property " + key + " not found in " +  flow_element.datakey)
     
 
