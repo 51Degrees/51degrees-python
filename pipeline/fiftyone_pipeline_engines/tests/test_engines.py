@@ -80,6 +80,35 @@ class ExampleAspectEngine(Engine):
 
         flowdata.set_element_data(data)
 
+class CountingEngine(Engine):
+
+    """!
+    An engine that counts its calls to process_internal, so a test can see
+    whether a result came from the cache.
+    """
+
+    def __init__(self):
+
+        super(CountingEngine, self).__init__()
+
+        self.datakey = "counting"
+
+        self.properties = {"call": {"type": "int"}}
+
+        self.calls = 0
+
+    def get_evidence_key_filter(self):
+
+        return BasicListEvidenceKeyFilter(
+            ["header.a", "header.b", "query.user-agent"])
+
+    def process_internal(self, flowdata):
+
+        self.calls += 1
+
+        flowdata.set_element_data(
+            AspectDataDictionary(self, {"call": self.calls}))
+
 class EngineTests(unittest.TestCase):
 
     # Test Engine processing
@@ -205,3 +234,65 @@ class EngineTests(unittest.TestCase):
         flowdata2.process()
 
         self.assertEqual(cache.cache.currsize, 1)
+
+    def results_for(self, *requests):
+
+        """!
+        Processes one FlowData for each request through one CountingEngine
+        with a cache. A request is a list of evidence keys and values, added
+        in the order given. Gives the engine and each request's result.
+        """
+
+        engine = CountingEngine()
+
+        engine.set_cache(TestCache())
+
+        pipeline = PipelineBuilder().add(engine).build()
+
+        results = []
+
+        for request in requests:
+            flowdata = pipeline.create_flowdata()
+            for key, value in request:
+                flowdata.evidence.add(key, value)
+            flowdata.process()
+            results.append(flowdata.get("counting"))
+
+        return engine, results
+
+    # The same evidence added in another order is the same cache key.
+    def testCacheKeyIgnoresEvidenceOrder(self):
+
+        engine, results = self.results_for(
+            [("header.a", "1"), ("header.b", "2")],
+            [("header.b", "2"), ("header.a", "1")])
+
+        self.assertEqual(1, engine.calls)
+        self.assertIs(results[0], results[1])
+        self.assertEqual(1, results[1].get("call"))
+
+    # Evidence keys that differ only in letter case are the same cache key.
+    def testCacheKeyIgnoresKeyCase(self):
+
+        engine, results = self.results_for(
+            [("query.User-Agent", "abc"), ("Header.A", "1")],
+            [("query.user-agent", "abc"), ("header.a", "1")])
+
+        self.assertEqual(1, engine.calls)
+        self.assertIs(results[0], results[1])
+        self.assertEqual(1, results[1].get("call"))
+
+    # Evidence values are compared with their letter case, so different
+    # values, including ones that differ only in case, are processed again.
+    def testCacheKeyKeepsEvidenceValues(self):
+
+        for first, second in (("abc", "xyz"), ("abc", "ABC")):
+            with self.subTest(second=second):
+
+                engine, results = self.results_for(
+                    [("query.user-agent", first)],
+                    [("query.user-agent", second)])
+
+                self.assertEqual(2, engine.calls)
+                self.assertIsNot(results[0], results[1])
+                self.assertEqual(2, results[1].get("call"))
