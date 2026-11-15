@@ -554,7 +554,7 @@ class CloudRequestEngine(Engine):
         # one raised.
         errors = [
             CloudRequestException(
-                self.masked(Constants.EXCEPTION_CLOUD_ERROR.format(message)),
+                Constants.EXCEPTION_CLOUD_ERROR.format(message),  # Temporary guard: entries not masked
                 cloud_response.status_code,
                 cloud_response.headers,
             )
