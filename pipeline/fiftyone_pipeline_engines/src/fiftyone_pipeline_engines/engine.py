@@ -188,6 +188,9 @@ class Engine(FlowElement):
         
         Called when an engine is registered with a pipeline 
         and if there is a data file, a data file update service is attached to the parent pipeline.
+        The data file is registered with the update service of the first
+        pipeline only, so an engine in several pipelines has its data file
+        checked, downloaded and refreshed once.
         @type pipeline: Pipeline
         @param pipeline: The pipeline the engine has been attached to
         
@@ -196,7 +199,8 @@ class Engine(FlowElement):
         if(self.data_file):
             if not hasattr(pipeline, "data_file_update_service"):
                 pipeline.data_file_update_service = DataFileUpdateService(pipeline)
-            pipeline.data_file_update_service.register_data_file(self.data_file)
+            if not getattr(self.data_file, "registered", False):
+                pipeline.data_file_update_service.register_data_file(self.data_file)
 
     def close(self):
 
