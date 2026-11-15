@@ -101,8 +101,9 @@ class HttpDataFile:
 
 
 class FileDataFile(HttpDataFile):
-    """Stands in for a data file kept on disk, whose engine reads the file
-    rather than the data held in memory, as the on-premise engines do."""
+    """Stands in for a data file kept on disk, whose engine reads the file,
+    or the data held in memory when download is false, as the on-premise
+    data files do."""
 
     def __init__(self, path):
         super(FileDataFile, self).__init__(path)
@@ -111,8 +112,9 @@ class FileDataFile(HttpDataFile):
     def refresh(self):
         if self.refresh_error:
             raise self.refresh_error
-        with open(self.path, "rb") as file:
-            self.data = file.read()
+        if self.download:
+            with open(self.path, "rb") as file:
+                self.data = file.read()
         self.refreshed.append(self.data)
 
 
@@ -130,7 +132,19 @@ def response(status, content=b"new"):
 CHECK_ERROR = "Error during check for data update. Error detail: "
 
 
+def write_failed(path):
+    """The errors table's warning for data from memory that could not be
+    written to the data file at the path, up to the error that caused it."""
+    return ("An error occurred when writing to '" + path + "'. The engine "
+            "will be updated to use the new data but the file on disk will "
+            "still contain old data. Error detail: ")
+
+
 class UpdateServiceTestCase(unittest.TestCase):
+
+    # The entry logged as an update from memory refreshes the engine.
+    ATTEMPT = ("info",
+               "Attempting to refresh Engine 'FakeEngine' with new data")
 
     def setUp(self):
         self.pipeline = RecordingPipeline()
@@ -177,6 +191,33 @@ class UpdateServiceTestCase(unittest.TestCase):
         self.assertEqual(status, error.status)
         self.assertFalse(self.data_file.updating)
         return error
+
+    def assertFailedWriteStillRefreshes(self):
+        """Runs an update from memory of a data file kept on disk whose
+        write fails, checks that the engine is refreshed from the bytes
+        given, that nothing is reported and that the data file is left as it
+        was, and returns the detail logged with the warning."""
+        before = self.data_file.data
+        status = self.service.update_from_memory(self.data_file, b"fresh")
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, status)
+        self.assertEqual([b"fresh"], self.data_file.refreshed)
+        self.assertEqual([], self.statuses)
+        self.assertTrue(self.data_file.download)
+        self.assertEqual(before, self.data_file.data)
+        self.assertFalse(self.data_file.updating)
+        return self.assertWriteFailedWarning()
+
+    def assertWriteFailedWarning(self):
+        """Checks that the warning for a failed write, naming the data
+        file's path, is logged at warning level before the attempt to
+        refresh, and returns the detail of the error that caused it."""
+        self.assertEqual(2, len(self.pipeline.logs), self.pipeline.logs)
+        level, message = self.pipeline.logs[0]
+        self.assertEqual("warning", level)
+        warning = write_failed(self.data_file.path)
+        self.assertTrue(message.startswith(warning), message)
+        self.assertEqual(self.ATTEMPT, self.pipeline.logs[1])
+        return message[len(warning):]
 
 
 # If-Modified-Since is an HTTP date (RFC 9110 section 5.6.7), set to the
@@ -263,16 +304,15 @@ class UpdateExpectedTimeTests(UpdateServiceTestCase):
 # An update from memory gives its result to its caller and reports nothing to
 # the update complete callbacks, as the Reporting each check section of the
 # data updates specification says. It returns success, or raises an error
-# that is not logged, as the Errors section says.
+# that is not logged, as the Errors section says. A data file kept on disk
+# that cannot be written is logged as a warning, and the engine is still
+# refreshed from the data.
 class UpdateFromMemoryTests(UpdateServiceTestCase):
 
     # The errors table's message for a refresh from data held in memory,
     # which an update from memory gives whichever kind of data file it has.
     REFRESH_FAILED = ("An error occurred when applying a data update to "
                       "engine 'FakeEngine'.")
-    # The one entry an update from memory that refreshes the engine logs.
-    ATTEMPT = ("info",
-               "Attempting to refresh Engine 'FakeEngine' with new data")
 
     def file_data_file(self):
         """A data file kept on disk, whose file holds the old data."""
@@ -346,40 +386,53 @@ class UpdateFromMemoryTests(UpdateServiceTestCase):
         self.assertEqual([], self.statuses)
         self.assertEqual([self.ATTEMPT], self.pipeline.logs)
 
-    # The engine of a data file kept on disk reads that file, so a write
-    # that failed leaves it with the data it had. The update ends with an
-    # error rather than a success the engine did not have.
-    def testAFailedWriteFromMemoryEndsTheUpdate(self):
+    def missing_folder_data_file(self):
+        """A data file kept on disk at a path that cannot be written,
+        because its folder does not exist."""
         folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
-        path = os.path.join(folder, "missing", "data.dat")
-        self.data_file = FileDataFile(path)
-        error = self.assertUpdateFromMemoryFails(
-            UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME,
-            "An error occurred when copying a data file to replace the "
-            "existing one at '" + path + "'.")
-        self.assertIsInstance(error.__cause__, OSError)
-        self.assertEqual([], self.data_file.refreshed)
-        self.assertEqual([], self.statuses)
-        self.assertEqual([], self.pipeline.logs)
+        return FileDataFile(os.path.join(folder, "missing", "data.dat"))
 
-    # A temporary copy that cannot be written is any other error, as it is
-    # for a download, and the file on disk is left as it was.
-    def testAFailedTemporaryCopyFromMemoryRaisesAsAnyOtherError(self):
+    # Data from memory that cannot be written to the data file still
+    # reaches the engine, as the errors table's warning for that row says.
+    def testAFailedWriteFromMemoryStillRefreshesTheEngine(self):
+        self.data_file = self.missing_folder_data_file()
+        with self.assertRaises(OSError) as written:
+            with open(self.data_file.path, "wb"):
+                pass
+        detail = self.assertFailedWriteStillRefreshes()
+        self.assertEqual(str(written.exception), detail)
+        self.assertFalse(os.path.exists(self.data_file.path))
+
+    # A temporary copy that cannot be written leaves the file on disk as it
+    # was, and the engine still has the data.
+    def testAFailedTemporaryCopyFromMemoryStillRefreshesTheEngine(self):
         self.data_file = self.file_data_file()
         self.data_file.create_temp_copy = True
         self.data_file.temp_directory = os.path.join(
             os.path.dirname(self.data_file.path), "missing")
-        error = self.assertUpdateFromMemoryFails(
-            UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR,
-            "An unhandled error occurred while checking for automatic "
-            "updates for engine 'FakeEngine'")
-        self.assertIsInstance(error.__cause__, OSError)
+        detail = self.assertFailedWriteStillRefreshes()
+        # The error names the temporary copy, which is named after the
+        # data file.
+        self.assertIn(self.data_file.identifier, detail)
         with open(self.data_file.path, "rb") as file:
             self.assertEqual(b"old", file.read())
+
+    # The engine that cannot use the data after a failed write keeps the
+    # data it had, and the update raises as any failed refresh does.
+    def testAFailedRefreshAfterAFailedWriteRaises(self):
+        self.data_file = self.missing_folder_data_file()
+        cause = ValueError("boom")
+        self.data_file.refresh_error = cause
+        error = self.assertUpdateFromMemoryFails(
+            UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, self.REFRESH_FAILED)
+        self.assertIs(cause, error.__cause__)
         self.assertEqual([], self.data_file.refreshed)
         self.assertEqual([], self.statuses)
-        self.assertEqual([], self.pipeline.logs)
+        self.assertTrue(self.data_file.download)
+        self.assertEqual(b"old", self.data_file.data)
+        self.assertWriteFailedWarning()
+        self.assertFalse(os.path.exists(self.data_file.path))
 
     def testUnregisteredDataFileIsLeftAlone(self):
         self.service.unregister_data_file(self.data_file)
@@ -537,8 +590,9 @@ class LoggingTests(UpdateServiceTestCase):
 
 # A data file kept on disk that cannot put the new file in place, and one
 # with no temporary file path, carry .NET's message and status. A check logs
-# the message and reports the status, and an update from memory raises an
-# error that carries both and is not logged.
+# the message and reports the status. An update from memory logs the
+# warning for a failed write, with the error as its detail, and still
+# refreshes the engine from the data.
 class FileReplacementTests(UpdateServiceTestCase):
 
     def setUp(self):
@@ -546,10 +600,9 @@ class FileReplacementTests(UpdateServiceTestCase):
         self.folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, self.folder, ignore_errors=True)
         self.path = os.path.join(self.folder, "data.dat")
-        with open(self.path, "w") as file:
-            file.write("old")
-        self.data_file = HttpDataFile(self.path)
-        self.data_file.download = True
+        with open(self.path, "wb") as file:
+            file.write(b"old")
+        self.data_file = FileDataFile(self.path)
         self.data_file.create_temp_copy = True
         self.data_file.temp_directory = self.folder
 
@@ -573,15 +626,11 @@ class FileReplacementTests(UpdateServiceTestCase):
              "'. Error detail: in use"),
             self.pipeline.logs)
 
-    def testFailedCopyFromMemoryRaisesAnErrorNamingThePath(self):
+    def testFailedCopyFromMemoryStillRefreshesTheEngine(self):
         self.fail_move()
-        error = self.assertUpdateFromMemoryFails(
-            UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME,
-            "An error occurred when copying a data file to replace the "
-            "existing one at '" + self.path + "'.")
-        self.assertEqual("in use", str(error.__cause__))
-        self.assertEqual([], self.statuses)
-        self.assertEqual([], self.pipeline.logs)
+        self.assertEqual("in use", self.assertFailedWriteStillRefreshes())
+        with open(self.path, "rb") as file:
+            self.assertEqual(b"old", file.read())
 
     def testNoTemporaryPathIsReported(self):
         self.data_file.temp_directory = None
@@ -596,16 +645,17 @@ class FileReplacementTests(UpdateServiceTestCase):
              "file path configured."),
             self.pipeline.logs)
 
-    def testNoTemporaryPathFromMemoryRaises(self):
+    # With no error from the system, the detail is the errors table's
+    # message for a data file with no temporary file path.
+    def testNoTemporaryPathFromMemoryStillRefreshesTheEngine(self):
         self.data_file.temp_directory = None
-        error = self.assertUpdateFromMemoryFails(
-            UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET,
-            "The data file '" + self.data_file.identifier +
-            "' is checking for updates but does not have a temporary file "
-            "path configured.")
-        self.assertIsNone(error.__cause__)
-        self.assertEqual([], self.statuses)
-        self.assertEqual([], self.pipeline.logs)
+        self.assertEqual(
+            "The data file '" + self.data_file.identifier + "' is checking "
+            "for updates but does not have a temporary file path "
+            "configured.",
+            self.assertFailedWriteStillRefreshes())
+        with open(self.path, "rb") as file:
+            self.assertEqual(b"old", file.read())
 
 
 # A download is written to the data file's path and the engine then reads

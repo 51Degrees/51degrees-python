@@ -335,7 +335,9 @@ class DataFileUpdateService():
         Refresh a data file from the bytes given, without downloading
         anything. A data file kept on disk has the bytes written to its path
         first, as the update route writes a download, and the engine is then
-        refreshed from the file. The result goes to the caller alone, so
+        refreshed from the file. When the bytes cannot be written, a warning
+        is logged and the engine is refreshed from the bytes, so the file on
+        disk keeps the old data. The result goes to the caller alone, so
         nothing is reported to the update complete callbacks, and a failure
         is raised rather than logged.
         @type data_file: DataFile
@@ -348,10 +350,8 @@ class DataFileUpdateService():
         engine has been closed
         @raises DataUpdateException: When the engine could not use the
         data, with the status AUTO_UPDATE_REFRESH_FAILED, and the engine
-        keeps the data it had. Also when a data file kept on disk could not
-        be written, with the status of that failure, and the engine is not
-        refreshed because it reads the file. The error that caused the
-        failure is chained as its cause.
+        keeps the data it had. The error that caused the failure is chained
+        as its cause.
         """
 
         if not self.__is_registered(data_file):
@@ -367,8 +367,13 @@ class DataFileUpdateService():
         if data_file.download and getattr(data_file, "path", None):
             data_file.updating = True
             try:
-                self._write_data_file(data_file, data)
-                self._refresh_from_memory(data_file)
+                try:
+                    self._write_data_file(data_file, data)
+                except DataUpdateException as e:
+                    self._log_write_from_memory_failed(data_file, e)
+                    self._refresh_from_bytes(data_file, data)
+                else:
+                    self._refresh_from_memory(data_file)
             finally:
                 data_file.updating = was_updating
             return UpdateStatus.AUTO_UPDATE_SUCCESS
@@ -391,8 +396,7 @@ class DataFileUpdateService():
         # Write new data to the data file's path, through a temporary copy
         # when the data file asks for one. A failure raises a
         # DataUpdateException with the message and status of its row of the
-        # errors table, and leaves the file on disk as it was, so the caller
-        # ends the update.
+        # errors table, and leaves the file on disk as it was.
         if data_file.create_temp_copy:
             if not getattr(data_file, "temp_directory", None):
                 raise DataUpdateException(
@@ -482,6 +486,36 @@ class DataFileUpdateService():
                 "An error occurred when applying a data update to engine '" +
                 engine + "'.",
                 UpdateStatus.AUTO_UPDATE_REFRESH_FAILED) from e
+
+    def _log_write_from_memory_failed(self, data_file, error):
+        # The errors table's warning for data from memory that could not be
+        # written. The detail is the error from the system, or the failure
+        # itself when there is none, as with no temporary file path.
+        cause = error.__cause__ if error.__cause__ is not None else error
+        self._log(
+            "warning",
+            self._with_cause(
+                "An error occurred when writing to '" + str(data_file.path) +
+                "'. The engine will be updated to use the new data but the "
+                "file on disk will still contain old data.", cause))
+
+    def _refresh_from_bytes(self, data_file, data):
+        # Refresh the engine of a data file kept on disk from the bytes, with
+        # the data file in memory mode for this one refresh. The data file is
+        # then kept on disk again, with the data it held before.
+        download = data_file.download
+        missing = object()
+        previous = getattr(data_file, "data", missing)
+        data_file.data = data
+        data_file.download = False
+        try:
+            self._refresh_from_memory(data_file)
+        finally:
+            data_file.download = download
+            if previous is missing:
+                del data_file.data
+            else:
+                data_file.data = previous
 
     def _update_failed(self, data_file, status):
         # An update that ends without new data. The next check is the next
