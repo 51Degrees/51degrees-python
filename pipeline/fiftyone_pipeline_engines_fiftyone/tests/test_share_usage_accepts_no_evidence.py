@@ -174,8 +174,7 @@ class ShareUsageAcceptsNoEvidenceTests(unittest.TestCase):
 
         shared = "".join(usage.share_data)
         self.assertIn("request-method", shared)
-        self.assertIn('<cookie Name="sessionid">cookievalue</cookie>',
-                      shared)
+        self.assertNotIn("cookievalue", shared)
         self.assertNotIn("/page", shared)
         self.assertNotIn('<header Name="cookie">', shared)
 
