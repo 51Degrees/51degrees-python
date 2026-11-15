@@ -59,6 +59,8 @@ print(is_gdpr.value() if is_gdpr.has_value() else is_gdpr.no_value_message())
 
 Every fault in every script is reported together when the element is built, in a `ScriptValidationError` whose `faults` list each one.
 
+An element is in one pipeline only, as the properties it gives depend on the other derived property elements in its pipeline. A second pipeline given the same element raises a `PipelineConfigurationError`, so build an element for each pipeline.
+
 ## Configuration
 
 A pipeline configuration names the element with `elementPath` `fiftyone_pipeline_derivedproperty` and `elementName` `DerivedPropertyElement`. Its settings are `scripts`, naming scripts built into the package, and `script_files`, giving paths to script files. Each is a list of strings, or one string with commas between the entries, where an entry holding a comma is wrapped in double quotes. The setting names are matched without regard to case or underscores, so `Scripts` and `ScriptFiles` as the other languages write them work too, and any other setting is refused.
