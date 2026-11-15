@@ -55,8 +55,14 @@ class AspectPropertyValueTests(unittest.TestCase):
         self.assertIsNone(AspectPropertyValue().no_value_message())
 
     def test_a_value_is_read_as_set(self):
-        for value in ["Value", None, False, 0, "", ["a", "b"]]:
+        for value in ["Value", None, False, 0, "", ["a", "b"],
+                      "noValue"]:
             with self.subTest(value=value):
                 apv = AspectPropertyValue(value=value)
                 self.assertTrue(apv.has_value())
                 self.assertEqual(value, apv.value())
+
+    def test_the_text_novalue_given_in_place_is_a_value(self):
+        apv = AspectPropertyValue(None, "noValue")
+        self.assertTrue(apv.has_value())
+        self.assertEqual("noValue", apv.value())
