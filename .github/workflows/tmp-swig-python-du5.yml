@@ -33,8 +33,9 @@ jobs:
         run: |
           W="$DD/hash_python_wrap.cxx $DD/DeviceDetectionHashEngineModule.py $IP/ipi_python_wrap.cxx $IP/IpIntelligenceEngineModule.py"
           git log --oneline -2
-          git show HEAD~1:$DD/hash_python.i > $DD/hash_python.i
-          git show HEAD~1:$IP/ipi_python.i > $IP/ipi_python.i
+          git fetch -q --depth=1 origin c4b21d0b848f7147a76cca72aa486542ec18b1bb
+          git show c4b21d0b848f7147a76cca72aa486542ec18b1bb:$DD/hash_python.i > $DD/hash_python.i
+          git show c4b21d0b848f7147a76cca72aa486542ec18b1bb:$IP/ipi_python.i > $IP/ipi_python.i
           (cd $DD && swig -c++ -python hash_python.i)
           (cd $IP && swig -c++ -python ipi_python.i)
           echo "control status:"
