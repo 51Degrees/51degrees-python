@@ -22,12 +22,14 @@
 
 import datetime
 import gzip
+import hashlib
 import http.server
 import os
 import random
 import shutil
 import tempfile
 import threading
+import traceback
 import unittest
 from email.utils import formatdate
 from unittest import mock
@@ -177,6 +179,24 @@ class UpdateServiceTestCase(unittest.TestCase):
                 self.pending, function, args or []))
         timer.start()
         self.addCleanup(timer.stop)
+
+    def poll(self):
+        """Runs the check update polling starts, on its own thread."""
+        self.service.async_update_data_file(self.data_file).join()
+
+    def assertCheckFails(self, status, message):
+        """Runs a programmatic check that should fail, checks the error it
+        raises and that the data file is no longer updating, and returns the
+        error."""
+        with self.assertRaises(Exception) as caught:
+            self.service.update_data_file(self.data_file)
+        error = caught.exception
+        self.assertIsInstance(
+            error, datafile_update_service.DataUpdateException)
+        self.assertEqual(message, str(error))
+        self.assertEqual(status, error.status)
+        self.assertFalse(self.data_file.updating)
+        return error
 
     def assertUpdateFromMemoryFails(self, status, message):
         """Runs an update from memory that should fail, checks the error it
@@ -440,8 +460,131 @@ class UpdateFromMemoryTests(UpdateServiceTestCase):
         self.assertEqual([], self.data_file.refreshed)
 
 
+# A programmatic check reports how it ended to the update complete
+# callbacks, and a failure then passes to its caller as an error that is not
+# logged, as the Programmatic update and Errors sections of the data updates
+# specification say. Update polling logs the same failures, as LoggingTests
+# shows.
+class ProgrammaticCheckTests(UpdateServiceTestCase):
+
+    def errors(self):
+        return [message for level, message in self.pipeline.logs
+                if level == "error"]
+
+    def testASuccessfulCheckReturnsTrue(self):
+        self.get(response(200))
+        self.assertTrue(self.service.update_data_file(self.data_file))
+        self.assertEqual([b"new"], self.data_file.refreshed)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+
+    def testACheckThatFindsNothingNewReturnsFalse(self):
+        self.get(response(304))
+        self.assertFalse(self.service.update_data_file(self.data_file))
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_NOT_NEEDED], self.statuses)
+
+    def testAFailedRefreshRaisesAndIsReportedButNotLogged(self):
+        self.get(response(200))
+        cause = ValueError("boom")
+        self.data_file.refresh_error = cause
+        # A refresh after a check names the one try made, as the row for a
+        # refresh from the data file does.
+        error = self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_REFRESH_FAILED,
+            "An error occurred when applying a data update to engine "
+            "'FakeEngine' after 1 tries.")
+        self.assertIs(cause, error.__cause__)
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_REFRESH_FAILED], self.statuses)
+        self.assertEqual([], self.errors())
+
+    def testAFailedDownloadRaisesAndIsReportedButNotLogged(self):
+        mismatch = response(200)
+        mismatch.headers = {"content-md5": "not the hash"}
+        mismatch.iter_content = lambda size: [b"new"]
+        failures = (
+            ("403", response(403),
+             UpdateStatus.AUTO_UPDATE_ERR_403_FORBIDDEN,
+             "Access denied to data update service at '" + URL +
+             "' for engine 'FakeEngine'"),
+            ("429", response(429),
+             UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS,
+             "Too many requests to '" + URL + "' for engine 'FakeEngine'"),
+            ("500", response(500),
+             UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+             "HTTP status code '500' from data update service at '" + URL +
+             "' for engine 'FakeEngine'"),
+            ("no response", None,
+             UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+             "No response from data update service at '" + URL +
+             "' for engine 'FakeEngine'"),
+            ("connection", requests.ConnectionError("boom"),
+             UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+             "Error accessing data update service at '" + URL +
+             "' for engine 'FakeEngine'"),
+            ("integrity", mismatch,
+             UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED,
+             "Integrity check failed. MD5 hash in HTTP response 'not the "
+             "hash' for 'FakeEngine'data update does not match calculated "
+             "hash for the downloaded file '" +
+             hashlib.md5(b"new").hexdigest() + "'."))
+        self.data_file.verify_md5 = True
+        for name, reply, status, message in failures:
+            with self.subTest(name):
+                self.statuses.clear()
+                self.pipeline.logs.clear()
+                self.get(reply)
+                self.assertCheckFails(status, message)
+                self.assertEqual([status], self.statuses)
+                self.assertEqual([], self.errors())
+                self.assertEqual([], self.data_file.refreshed)
+
+    def testAConnectionFailureCarriesTheRequestErrorAsItsCause(self):
+        self.get(requests.ConnectionError("boom"))
+        error = self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+            "Error accessing data update service at '" + URL +
+            "' for engine 'FakeEngine'")
+        self.assertIsInstance(error.__cause__, requests.ConnectionError)
+        self.assertEqual("boom", str(error.__cause__))
+
+    # Content that cannot be read is any other error, so it carries the last
+    # row of the errors table, as it does when update polling logs it.
+    def testContentThatCannotBeReadRaisesAsAnyOtherError(self):
+        self.data_file.decompress = True
+        self.get(response(200, gzip.compress(b"new")[:12]))
+        error = self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR,
+            "An unhandled error occurred while checking for automatic "
+            "updates for engine 'FakeEngine'")
+        self.assertIsNotNone(error.__cause__)
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
+        self.assertEqual([], self.errors())
+
+    # An error with no row of its own is reported with the last row's
+    # status, and the error itself passes to the caller.
+    def testAnyOtherErrorIsReportedThenRaisedAsItIs(self):
+        cause = ValueError("the update URL could not be made")
+
+        def update_url():
+            raise cause
+
+        self.data_file.get_update_url = update_url
+        with self.assertRaises(ValueError) as caught:
+            self.service.update_data_file(self.data_file)
+        self.assertIs(cause, caught.exception)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
+        self.assertEqual([], self.errors())
+        self.assertFalse(self.data_file.updating)
+
+
 # The messages and levels are those of the .NET data update service, which
-# the Errors table of the data updates specification follows.
+# the Errors table of the data updates specification follows. Update polling
+# logs them, so each check here is a polled one.
 class LoggingTests(UpdateServiceTestCase):
 
     def levels(self):
@@ -476,9 +619,9 @@ class LoggingTests(UpdateServiceTestCase):
     def testTheErrorEntryIsWrittenExactly(self):
         # Written out in full, so a change to any character fails.
         self.get(response(403))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.get(requests.ConnectionError("boom"))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         errors = [message for level, message in self.pipeline.logs
                   if level == "error"]
         self.assertEqual(
@@ -493,7 +636,7 @@ class LoggingTests(UpdateServiceTestCase):
 
     def testRefusedDownloadIsError(self):
         self.get(response(403))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.assertIn(
             ("error",
              CHECK_ERROR + "Access denied to data update service at '" +
@@ -504,7 +647,7 @@ class LoggingTests(UpdateServiceTestCase):
 
     def testTooManyRequestsIsError(self):
         self.get(response(429))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.assertIn(
             ("error",
              CHECK_ERROR + "Too many requests to '" + URL +
@@ -518,7 +661,7 @@ class LoggingTests(UpdateServiceTestCase):
         self.data_file.auto_update = True
         self.hold_timers()
         self.get(response(500))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.assertIn(
             ("error",
              CHECK_ERROR + "HTTP status code '500' from data update service "
@@ -528,7 +671,7 @@ class LoggingTests(UpdateServiceTestCase):
 
     def testConnectionFailureIsError(self):
         self.get(requests.ConnectionError("boom"))
-        self.assertFalse(self.service.update_data_file(self.data_file))
+        self.poll()
         self.assertIn(
             ("error",
              CHECK_ERROR + "Error accessing data update service at '" +
@@ -539,7 +682,7 @@ class LoggingTests(UpdateServiceTestCase):
     def testFailedRefreshIsError(self):
         self.get(response(200))
         self.data_file.refresh_error = Exception("boom")
-        self.service.update_data_file(self.data_file)
+        self.poll()
         # A refresh after a check names the one try made, as the row for a
         # refresh from the data file does.
         self.assertIn(
@@ -556,7 +699,7 @@ class LoggingTests(UpdateServiceTestCase):
         reply.iter_content = lambda size: [b"new"]
         self.get(reply)
         self.data_file.verify_md5 = True
-        self.service.update_data_file(self.data_file)
+        self.poll()
         errors = [message for level, message in self.pipeline.logs
                   if level == "error"]
         self.assertEqual(1, len(errors), self.pipeline.logs)
@@ -571,8 +714,8 @@ class LoggingTests(UpdateServiceTestCase):
     def testUpdateOnStartIsLogged(self):
         self.data_file.update_on_start = True
         self.data_file.updated_on_start = False
-        with mock.patch.object(self.service, "update_data_file"):
-            self.service.register_data_file(self.data_file)
+        self.get(response(304))
+        self.service.register_data_file(self.data_file)
         self.assertIn(("info", "Updating on start-up"), self.pipeline.logs)
 
     def testFileSystemWatcherIsLogged(self):
@@ -589,10 +732,11 @@ class LoggingTests(UpdateServiceTestCase):
 
 
 # A data file kept on disk that cannot put the new file in place, and one
-# with no temporary file path, carry .NET's message and status. A check logs
-# the message and reports the status. An update from memory logs the
-# warning for a failed write, with the error as its detail, and still
-# refreshes the engine from the data.
+# with no temporary file path, carry .NET's message and status. A polled
+# check logs the message and reports the status, and a programmatic check
+# raises an error that carries both and is not logged. An update from memory
+# logs the warning for a failed write, with the error as its detail, and
+# still refreshes the engine from the data.
 class FileReplacementTests(UpdateServiceTestCase):
 
     def setUp(self):
@@ -616,7 +760,7 @@ class FileReplacementTests(UpdateServiceTestCase):
     def testFailedCopyNamesThePath(self):
         self.fail_move()
         self.get(response(200, b"fresh"))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
         self.assertIn(
@@ -625,6 +769,19 @@ class FileReplacementTests(UpdateServiceTestCase):
              "replace the existing one at '" + self.path +
              "'. Error detail: in use"),
             self.pipeline.logs)
+
+    def testFailedCopyOnAProgrammaticCheckRaisesAnErrorNamingThePath(self):
+        self.fail_move()
+        self.get(response(200, b"fresh"))
+        error = self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME,
+            "An error occurred when copying a data file to replace the "
+            "existing one at '" + self.path + "'.")
+        self.assertEqual("in use", str(error.__cause__))
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
+        self.assertEqual(
+            [], [log for log in self.pipeline.logs if log[0] == "error"])
 
     def testFailedCopyFromMemoryStillRefreshesTheEngine(self):
         self.fail_move()
@@ -635,7 +792,7 @@ class FileReplacementTests(UpdateServiceTestCase):
     def testNoTemporaryPathIsReported(self):
         self.data_file.temp_directory = None
         self.get(response(200, b"fresh"))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET], self.statuses)
         self.assertIn(
@@ -688,7 +845,7 @@ class DownloadedFileTests(UpdateServiceTestCase):
         self.data_file = FileDataFile(
             os.path.join(self.folder, "missing", "data.dat"))
         self.get(response(200, b"new"))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.assertEqual([], self.data_file.refreshed)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
@@ -704,7 +861,7 @@ class DownloadedFileTests(UpdateServiceTestCase):
         self.data_file.create_temp_copy = True
         self.data_file.temp_directory = os.path.join(self.folder, "missing")
         self.get(response(200, b"new"))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.assertEqual([], self.data_file.refreshed)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
@@ -770,8 +927,9 @@ class ReportingEachCheckTests(UpdateServiceTestCase):
 # No message holds a licence key in full, as the Logging section of the data
 # updates specification and the License keys section of logging.md say.
 # A callback that raises stops the callbacks after it, as data-updates.md
-# says, and its error is logged with .NET's message for any other error,
-# with the error the callback raised attached. Polling carries on.
+# says. On update polling its error is logged with .NET's message for any
+# other error, with the error the callback raised attached, and on a
+# programmatic check the error passes to the caller. Polling carries on.
 class CallbackTests(UpdateServiceTestCase):
 
     # The error the callback raised is attached, as the errors table asks
@@ -800,16 +958,18 @@ class CallbackTests(UpdateServiceTestCase):
         self.assertEqual(1, len(self.pending))
         self.assertEqual([self.UNHANDLED], self.errors())
 
-    def testACallbackErrorOnAProgrammaticCheckIsLoggedAndStopsTheCallbacks(
-            self):
+    def testACallbackErrorOnAProgrammaticCheckPassesToTheCaller(self):
         self.fail_first()
         self.data_file.auto_update = True
         self.hold_timers()
         self.get(response(304))
-        self.service.update_data_file(self.data_file)
+        with self.assertRaises(RuntimeError) as caught:
+            self.service.update_data_file(self.data_file)
+        self.assertEqual("callback failed", str(caught.exception))
         self.assertEqual([], self.statuses)
         self.assertEqual(1, len(self.pending))
-        self.assertEqual([self.UNHANDLED], self.errors())
+        self.assertEqual([], self.errors())
+        self.assertFalse(self.data_file.updating)
 
     # An update from memory reports nothing to the callbacks, so one that
     # would raise is never called.
@@ -824,7 +984,8 @@ class CallbackTests(UpdateServiceTestCase):
         self.data_file.auto_update = True
         self.hold_timers()
         self.get(requests.ConnectionError("boom"))
-        self.assertFalse(self.service.update_data_file(self.data_file))
+        with self.assertRaises(datafile_update_service.DataUpdateException):
+            self.service.update_data_file(self.data_file)
         self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
         self.assertEqual(1, len(self.pending))
 
@@ -859,7 +1020,7 @@ class LicenceKeyTests(UpdateServiceTestCase):
         for status in (304, 403, 429, 500):
             self.pipeline.logs.clear()
             self.get(response(status))
-            self.service.update_data_file(self.data_file)
+            self.poll()
             self.assertNoKey()
             self.assertTrue(any(MASKED_URL in message
                                 for level, message in self.pipeline.logs),
@@ -868,7 +1029,7 @@ class LicenceKeyTests(UpdateServiceTestCase):
     def testFailedConnectionShowsOnlyTheMaskedKey(self):
         # The message of a failed request names the URL, masked.
         self.get(requests.ConnectionError("failed for url: " + KEYED_URL))
-        self.service.update_data_file(self.data_file)
+        self.poll()
         self.assertNoKey()
         self.assertIn(
             ("error",
@@ -876,6 +1037,31 @@ class LicenceKeyTests(UpdateServiceTestCase):
              MASKED_URL + "' for engine 'FakeEngine'. Error detail: "
              "failed for url: " + MASKED_URL),
             self.pipeline.logs)
+
+    def testAFailedCheckRaisesOnlyTheMaskedKey(self):
+        # The error a programmatic check raises, its cause and the traceback
+        # written from them hold the key only masked, though the error of
+        # the request itself names the URL in full.
+        for name, reply, cause in (
+                ("403", response(403), None),
+                ("429", response(429), None),
+                ("500", response(500), None),
+                ("connection",
+                 requests.ConnectionError("failed for url: " + KEYED_URL),
+                 "failed for url: " + MASKED_URL)):
+            with self.subTest(name):
+                self.get(reply)
+                with self.assertRaises(
+                        datafile_update_service.DataUpdateException) as caught:
+                    self.service.update_data_file(self.data_file)
+                error = caught.exception
+                written = "".join(traceback.format_exception(
+                    type(error), error, error.__traceback__))
+                self.assertNotIn(KEY[:8], written)
+                self.assertIn(MASKED_URL, str(error))
+                self.assertEqual(
+                    cause,
+                    None if error.__cause__ is None else str(error.__cause__))
 
 
 # A missing MD5 header, content that is not compressed and content that
@@ -914,7 +1100,7 @@ class ContentTests(UpdateServiceTestCase):
         self.data_file.auto_update = True
         self.hold_timers()
         self.get(response(200, gzip.compress(b"new")[:12]))
-        self.assertFalse(self.service.update_data_file(self.data_file))
+        self.poll()
         self.assertEqual([], self.data_file.refreshed)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
@@ -935,7 +1121,7 @@ class ContentTests(UpdateServiceTestCase):
         self.data_file.updated_on_start = False
         self.hold_timers()
         self.get(reply)
-        self.service.update_data_file(self.data_file)
+        self.service.register_data_file(self.data_file)
         self.assertEqual(1, len(self.sent))
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_ERR_MD5_VALIDATION_FAILED],
@@ -974,7 +1160,8 @@ class ShortDownloadHandler(http.server.BaseHTTPRequestHandler):
 
 class ShortDownloadTests(unittest.TestCase):
     """A response that ends before the whole file arrived is reported as an
-    error accessing the data update service, and the data in use is kept."""
+    error accessing the data update service, and the data in use is kept.
+    Each check is a polled one, which logs the error."""
 
     def serve(self, chunked):
         handler = type(
@@ -995,7 +1182,7 @@ class ShortDownloadTests(unittest.TestCase):
         data_file.verify_if_modified_since = False
         data_file.url = self.serve(chunked)
 
-        self.assertFalse(service.update_data_file(data_file))
+        service.async_update_data_file(data_file).join()
 
         self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], statuses)
         errors = [message for level, message in pipeline.logs
@@ -1024,7 +1211,7 @@ class ShortDownloadTests(unittest.TestCase):
         reply = response(200, SENT)
         reply.headers = {"content-length": str(PROMISED)}
         with mock.patch.object(requests, "get", lambda url, **kwargs: reply):
-            self.assertFalse(service.update_data_file(data_file))
+            service.async_update_data_file(data_file).join()
 
         self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], statuses)
         self.assertIn(
@@ -1074,10 +1261,6 @@ class PolledCheckErrorTests(UpdateServiceTestCase):
             return URL
 
         self.data_file.get_update_url = update_url
-
-    def poll(self):
-        """Runs the check update polling starts, on its own thread."""
-        self.service.async_update_data_file(self.data_file).join()
 
     def testAnErrorInAPolledCheckIsLoggedAndReported(self):
         self.poll()
