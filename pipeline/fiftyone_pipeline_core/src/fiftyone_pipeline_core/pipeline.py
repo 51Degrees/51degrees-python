@@ -167,6 +167,9 @@ class Pipeline:
         one as well, because the results it holds keep the engine's data in
         memory until they are released.
 
+        @raise Exception: the first error a flow element raised when it was
+        closed, once every element has been closed
+
         """
 
         if not self.auto_close_elements:
@@ -244,8 +247,7 @@ class Pipeline:
         @param element: name of flowelement 
         @type flowdata: flowdata
         @param element: flowdata being processsed 
-        @rtype: Exception
-        @return: Returns exception
+        @raise Exception: always, naming the keys the FlowData does hold
 
         """
 

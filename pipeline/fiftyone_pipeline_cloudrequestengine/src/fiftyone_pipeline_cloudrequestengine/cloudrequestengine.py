@@ -152,6 +152,12 @@ class CloudRequestEngine(Engine):
         cloud outage does not stop the application starting. A request
         that times out is such a failure.
 
+        @raise CloudRequestException: where the cloud service refuses either
+        discovery request, with an answer from 400 to 499
+        @raise ValueError: where a setting is one the engine cannot use, for
+        example neither a resource_key nor a license_key, or a license_key
+        with no requested_properties
+
         """
 
         super(CloudRequestEngine, self).__init__()
@@ -622,8 +628,8 @@ class CloudRequestEngine(Engine):
 
         @type: Response
         @param: Response returned from the cloud service.
-        @rtype: Exception
-        @return: Thrown if there are errors returned from the cloud service.
+        @raise CloudRequestException: where the response is not JSON, holds
+        errors, has no data, or has a status other than 200
         """
 
         has_data = cloud_response.text and cloud_response.text.strip()
