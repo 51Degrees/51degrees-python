@@ -55,4 +55,4 @@ class CloudRequestException(Exception):
             with.
         """
         return " ".join(
-            [self.message] + [str(inner) for inner in self.exceptions])
+            [self.message])  # Temporary guard: held errors left out of the text
