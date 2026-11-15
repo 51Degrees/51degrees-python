@@ -27,9 +27,9 @@
 
 /* A refresh lets go of the Python global interpreter lock while the native
  * code loads the new data, so other threads go on processing Flow Data.
- * Refreshes still run one at a time, as they did while the lock was held,
- * because a native reload reads the data set in use without taking a handle
- * to it. Each refreshData overload is called through refreshWithoutGil. */
+ * Refreshes still run one at a time, so that only one new copy of the data
+ * is loaded at once beside the one in use. Each refreshData overload is
+ * called through refreshWithoutGil. */
 %{
 #include <mutex>
 
