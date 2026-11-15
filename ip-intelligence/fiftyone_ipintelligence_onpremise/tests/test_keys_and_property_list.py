@@ -22,8 +22,12 @@
 
 import os
 import unittest
+from unittest.mock import patch
 
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
+from fiftyone_ipintelligence_onpremise import ipintelligence_onpremise
 from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise_pipelinebuilder import \
     IpIntelligenceOnPremisePipelineBuilder
 
@@ -93,7 +97,10 @@ class PropertyListTests(unittest.TestCase):
 class EvidenceKeysTests(unittest.TestCase):
     """!
     The Evidence keys come from the data file, so the engine reads them
-    at start-up and again whenever the data is refreshed.
+    at start-up and again whenever the data is refreshed. The engine keeps
+    the evidence key filter it makes from the keys, and makes another only
+    when the keys change, so a request does not make one for each of its
+    Evidence keys.
     """
 
     def test_the_keys_are_read_again_when_the_data_is_refreshed(self):
@@ -111,3 +118,46 @@ class EvidenceKeysTests(unittest.TestCase):
 
         self.assertEqual(keys, engine.evidence_keys_list)
         self.assertEqual(client_ip_keys, engine.client_ip_keys)
+
+    def test_the_filter_is_kept_until_the_keys_change(self):
+        pipeline = build(file_system_watcher=True)
+        self.addCleanup(pipeline.close)
+        engine = pipeline.get_element("ip")
+        key_filter = engine.get_evidence_key_filter()
+        self.assertIs(key_filter, engine.get_evidence_key_filter())
+        self.assertTrue(key_filter.filter_evidence_key("Query.Client-IP"))
+
+        # Stands for the keys of the data loaded before the refresh.
+        engine.evidence_keys_list = ["query.x-from-the-earlier-data"]
+        earlier = engine.get_evidence_key_filter()
+        self.assertTrue(
+            earlier.filter_evidence_key("query.x-from-the-earlier-data"))
+        self.assertFalse(earlier.filter_evidence_key("query.client-ip"))
+        self.assertIs(earlier, engine.get_evidence_key_filter())
+
+        engine.data_file.refresh()
+        refreshed = engine.get_evidence_key_filter()
+        self.assertTrue(refreshed.filter_evidence_key("query.client-ip"))
+        self.assertFalse(
+            refreshed.filter_evidence_key("query.x-from-the-earlier-data"))
+        self.assertIs(refreshed, engine.get_evidence_key_filter())
+
+    def test_a_second_request_makes_no_filter(self):
+        pipeline = build()
+        self.addCleanup(pipeline.close)
+
+        def process():
+            with pipeline.create_flowdata() as flowdata:
+                flowdata.evidence.add(
+                    "query.client-ip", TestConstants.IPV4_ADDRESS)
+                flowdata.process()
+                self.assertEqual(
+                    TestConstants.IPV4_ADDRESS,
+                    flowdata.ip.get("ip").value())
+
+        process()
+        with patch.object(
+                ipintelligence_onpremise, "BasicListEvidenceKeyFilter",
+                wraps=BasicListEvidenceKeyFilter) as made:
+            process()
+        self.assertEqual(0, made.call_count)
