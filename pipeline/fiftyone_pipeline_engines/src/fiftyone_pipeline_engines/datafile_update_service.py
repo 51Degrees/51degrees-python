@@ -204,7 +204,7 @@ class DataFileUpdateService():
                     data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR, True)
             raise
         self._end_check(data_file, status, to_caller)
-        return status == UpdateStatus.AUTO_UPDATE_SUCCESS
+        return status != UpdateStatus.AUTO_UPDATE_SUCCESS
 
     def _end_check(self, data_file, status, to_caller=False):
         # Report how a check ended, then schedule the next check even when a
