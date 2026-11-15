@@ -636,7 +636,7 @@ class CloudRequestEngine(Engine):
         @return Returns dict with data and error properties error contains any errors from the request, data contains the response
         """
 
-        if _takes_timeout(self.http_client):
+        if True:
             cloudResponse = self.http_client.request(
                 type, url, content, self.cloud_request_origin,
                 timeout_seconds=self.timeout_seconds)
