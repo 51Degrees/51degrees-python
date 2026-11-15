@@ -50,6 +50,9 @@ class JSONBundlerElement(FlowElement):
 
         self.properties = {"json" : { "type": "dict"} }
 
+        # The delayed execution information of each flow element, keyed by
+        # the element rather than its data key, as two Pipelines sharing
+        # this element can hold different elements under one data key.
         self.property_cache = {}
 
     def get_evidence_key_filter(self):
@@ -126,7 +129,7 @@ class JSONBundlerElement(FlowElement):
             
             properties = flow_element.get_properties()
 
-            property_cache = self.property_cache.get(flow_element.datakey)
+            property_cache = self.property_cache.get(flow_element)
 
             if property_cache is None:
 
@@ -167,7 +170,7 @@ class JSONBundlerElement(FlowElement):
                 # answer taken from no properties is read again on the next
                 # request.
                 if properties:
-                    self.property_cache[flow_element.datakey] = property_cache
+                    self.property_cache[flow_element] = property_cache
 
             # Create empty area for FlowElement properties to go
 
