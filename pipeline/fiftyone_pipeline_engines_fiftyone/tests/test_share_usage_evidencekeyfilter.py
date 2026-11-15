@@ -77,6 +77,24 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
         self.assertTrue(keys.filter_evidence_key("query.campaign"))
         self.assertTrue(keys.filter_evidence_key("header.user-agent"))
 
+    def test_lists_from_comma_separated_strings(self):
+        """!
+        Check that a string given for either list, the form a
+        configuration file gives a list in, is read as names separated by
+        commas, each trimmed.
+        """
+
+        keys = ShareUsageEvidenceKeyFilter(
+            query_whitelist="Campaign, utm_source",
+            header_blacklist="X-Secret,X-Other")
+
+        self.assertTrue(keys.filter_evidence_key("query.campaign"))
+        self.assertTrue(keys.filter_evidence_key("query.utm_source"))
+        self.assertFalse(keys.filter_evidence_key("query.c"))
+        self.assertFalse(keys.filter_evidence_key("header.x-secret"))
+        self.assertFalse(keys.filter_evidence_key("header.x-other"))
+        self.assertTrue(keys.filter_evidence_key("header.x"))
+
     def test_no_parameter_list_shares_every_parameter(self):
         """!
         Check that None in place of the parameters to share shares every
