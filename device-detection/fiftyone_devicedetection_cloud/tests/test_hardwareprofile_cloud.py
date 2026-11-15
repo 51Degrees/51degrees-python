@@ -208,6 +208,14 @@ class HardwareProfileCloudTests(unittest.TestCase):
         self.assertEqual(
             "Apple", hardware.get("profiles")[0]["hardwarevendor"].value())
 
+    def test_the_old_key_is_read_when_there_is_no_cloud_response(self):
+        # An older cloud request engine gives its data under cloud alone.
+        hardware = _process_flowdata(_KeyedFlowData({
+            "cloud": ENTITLED_RESPONSE}))
+
+        self.assertEqual(
+            "Apple", hardware.get("profiles")[0]["hardwarevendor"].value())
+
 
 if __name__ == "__main__":
     unittest.main()

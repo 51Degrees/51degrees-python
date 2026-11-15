@@ -54,6 +54,13 @@ class Constants:
         "service would fail. Set timeout_seconds to a number above zero, "
         "or leave it out for the default of {} seconds.")
 
+    # The key the engine's data is read under in a FlowData, as the
+    # specification gives it, and the key it was read under before, which
+    # is deprecated. The engine's datakey stays the old key, so the
+    # pipeline still names the engine by it.
+    RESPONSE_DATA_KEY = "cloud-response"
+    OLD_DATA_KEY = "cloud"
+
     # No Data in response message to be set in exception when cloud neither
     # return any data nor any error messages
     MESSAGE_NO_DATA_IN_RESPONSE = "No data in response from cloud service at {}"

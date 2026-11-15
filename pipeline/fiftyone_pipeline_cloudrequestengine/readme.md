@@ -93,6 +93,18 @@ A client given as `http_client` is passed the timeout when its `request`
 method has a `timeout_seconds` parameter, as `RequestClient.request` does,
 and is called without it otherwise.
 
+## Reading the answer
+
+The engine's data holds the raw JSON answer of the cloud service as its
+`cloud` property, and is read under `cloud-response`, the key the
+[Element Data section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#element-data)
+gives, as in `flowdata.get("cloud-response").get("cloud")`. The old key,
+`cloud`, gives the same data and is deprecated, so read under
+`cloud-response` instead. The old key will be removed in a later release.
+The engine's own data key is still `cloud`, so
+`pipeline.get_element("cloud")` still finds the engine, and the JSON for the
+browser leaves the engine's data out as before.
+
 ## Pointing the engine at another host
 
 The engine calls `https://cloud.51degrees.com/api/v4/` unless told

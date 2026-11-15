@@ -138,3 +138,30 @@ class CloudResponseKeyTests(CloudRequestEngineTestsBase):
         self.assertEqual(2, self.read_device_value({
             OLD_KEY: ANSWER_UNDER_OLD_KEY,
             RESPONSE_KEY: ANSWER_UNDER_RESPONSE_KEY}))
+
+    def test_a_cloud_engine_reads_the_old_key_when_there_is_no_other(self):
+        # An element standing in for the request engine may give its data
+        # under the old key alone.
+        self.assertEqual(1, self.read_device_value({
+            OLD_KEY: ANSWER_UNDER_OLD_KEY}))
+
+    def test_the_json_for_the_browser_holds_neither_key(self):
+        engine = CloudRequestEngine({
+            "resource_key": Constants.resourceKey,
+            "http_client": self.mock_http()})
+        pipeline = PipelineBuilder({}).add(engine).build()
+        self.addCleanup(pipeline.close)
+
+        data = self.process(pipeline)
+
+        json = data.get("jsonbundler").get("json")
+        self.assertNotIn(OLD_KEY, json)
+        self.assertNotIn(RESPONSE_KEY, json)
+
+    def test_the_engine_is_still_named_by_the_old_key(self):
+        # The pipeline names its elements by datakey, which a patch release
+        # does not change.
+        engine = self.pipeline().get_element(OLD_KEY)
+
+        self.assertIsInstance(engine, CloudRequestEngine)
+        self.assertEqual(OLD_KEY, engine.datakey)

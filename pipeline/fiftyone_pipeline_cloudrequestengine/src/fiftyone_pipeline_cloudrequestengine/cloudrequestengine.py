@@ -112,8 +112,9 @@ def _takes_timeout(client):
         inspect.Parameter.KEYWORD_ONLY)
 
 
-# Engine that makes a call to the 51Degrees cloud service
-# Returns raw JSON as a "cloud" property under "cloud" datakey
+# Engine that makes a call to the 51Degrees cloud service. It gives the raw
+# JSON as its "cloud" property, read under the "cloud-response" key, or
+# under the deprecated key "cloud".
 class CloudRequestEngine(Engine):
     def __init__(self, settings = {}):
         """!
@@ -690,6 +691,29 @@ class CloudRequestEngine(Engine):
         flowdata.set_element_data(data)
 
         return
+
+    def process(self, flowdata):
+
+        """!
+        Process as any engine does, the cache included, then give the data
+        under cloud-response, the key the specification gives, as well as
+        under the engine's datakey, cloud, which is deprecated. Both keys
+        give the same object. The datakey stays cloud, so the pipeline
+        still names the engine by it and the JSON for the browser still
+        leaves its data out.
+
+        @type flowdata: FlowData
+        @param flowdata: the FlowData to process
+        """
+
+        result = super(CloudRequestEngine, self).process(flowdata)
+
+        # FlowData keeps each element's data under its datakey in lower case.
+        data = flowdata.data.get(self.datakey.lower())
+        if data is not None:
+            flowdata.data[Constants.RESPONSE_DATA_KEY] = data
+
+        return result
 
     def is_cacheable(self, data):
 
