@@ -28,6 +28,7 @@ import time
 import unittest
 from unittest import mock
 
+from fiftyone_pipeline_engines import datafile_update_service
 from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
 from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
@@ -49,7 +50,8 @@ class RecordingPipeline:
 
 class StandInDataFile:
     """Stands in for the data file of an engine that keeps the data it has
-    when a refresh fails."""
+    when a refresh fails. It counts the refreshes asked for, and fails the
+    number of them given by failures_left before reading the file."""
 
     def __init__(self, path):
         self.path = path
@@ -58,8 +60,14 @@ class StandInDataFile:
         self.file_system_watcher = True
         self.updating = False
         self.data = read(path)
+        self.refreshes = 0
+        self.failures_left = 0
 
     def refresh(self):
+        self.refreshes += 1
+        if self.failures_left > 0:
+            self.failures_left -= 1
+            raise Exception("The data file is in use.")
         content = read(self.path)
         if not content.startswith("version"):
             raise Exception("The data file cannot be used.")
@@ -93,6 +101,9 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.write("version 1")
         self.pipeline = RecordingPipeline()
         self.service = DataFileUpdateService(self.pipeline)
+        # A refresh that fails is tried again without the pause, so the
+        # tests of failures take no longer than the others.
+        self.service.REFRESH_RETRY_PAUSE_SECONDS = 0
         self.statuses = []
         self.service.on_complete(
             lambda status, data_file: self.statuses.append(status))
@@ -172,7 +183,7 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.assertIn(
             "Error during check for data update. Error detail: An error "
             "occurred when applying a data update to engine 'StandInDataFile' "
-            "after 1 tries.",
+            "after 10 tries.",
             errors[0][1])
         self.assertEqual(1, len(self.pending))
 
@@ -198,7 +209,8 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.assertEqual("info", attempts[0][0])
 
     # A refresh that fails from the watcher carries the message and level of
-    # the specification's errors table, as the polling route's does.
+    # the specification's errors table, as the polling route's does, after
+    # the ten tries the table's row names.
     def testFileSystemWatcherFailedRefreshUsesTheTableMessage(self):
         data_file = StandInDataFile(self.path)
         self.service.register_data_file(data_file)
@@ -206,13 +218,99 @@ class FileSystemWatcherTests(unittest.TestCase):
         self.write("unusable")
         self.run_next_check()
 
+        self.assertEqual(10, data_file.refreshes)
         errors = [log for log in self.pipeline.logs if log[0] == "error"]
         self.assertEqual(1, len(errors))
         self.assertIn(
             "Error during check for data update. Error detail: An error "
             "occurred when applying a data update to engine 'StandInDataFile' "
-            "after 1 tries.",
+            "after 10 tries.",
             errors[0][1])
+
+    # A refresh that fails is tried again, so a file the engine could not
+    # yet use is still taken up within the ten tries, with nothing logged
+    # but the attempt.
+    def testARefreshThatFailsIsTriedAgain(self):
+        data_file = StandInDataFile(self.path)
+        self.service.register_data_file(data_file)
+        data_file.failures_left = 2
+
+        self.write("version 2")
+        self.run_next_check()
+
+        self.assertEqual("version 2", data_file.data)
+        self.assertEqual(3, data_file.refreshes)
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, self.statuses[-1])
+        self.assertEqual(
+            [], [log for log in self.pipeline.logs if log[0] == "error"])
+
+    # Each try that fails, apart from the last, is followed by a pause of
+    # 200 milliseconds, as .NET's data update service makes.
+    def testFailedTriesArePaused(self):
+        del self.service.REFRESH_RETRY_PAUSE_SECONDS
+        data_file = StandInDataFile(self.path)
+        self.service.register_data_file(data_file)
+
+        self.write("unusable")
+        with mock.patch("time.sleep") as sleep:
+            self.run_next_check()
+
+        self.assertEqual([mock.call(0.2)] * 9, sleep.call_args_list)
+
+    # A watched file that cannot be opened for reading, for example because
+    # it is still being copied, is tried every half second for ten minutes.
+    # Then the check ends as AUTO_UPDATE_TIMEOUT, with nothing logged and
+    # no refresh, and the watcher goes on watching.
+    def testAWatchedFileThatCannotBeOpenedTimesOut(self):
+        data_file = StandInDataFile(self.path)
+        self.service.register_data_file(data_file)
+        opened = []
+
+        def in_use(*args, **kwargs):
+            opened.append(args[0])
+            raise PermissionError("in use")
+
+        # The clock reads 0 when the wait starts, and then once after each
+        # of the three tries, the last reading ending the wait.
+        clock = iter((0, 300, 599.9, 600))
+        self.write("version 2")
+        with mock.patch.object(
+                datafile_update_service, "open", in_use, create=True), \
+                mock.patch("time.monotonic", lambda: next(clock)), \
+                mock.patch("time.sleep") as sleep:
+            self.run_next_check()
+
+        self.assertEqual([self.path] * 3, opened)
+        self.assertEqual([mock.call(0.5)] * 2, sleep.call_args_list)
+        self.assertEqual("version 1", data_file.data)
+        self.assertEqual(0, data_file.refreshes)
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_TIMEOUT, self.statuses[-1])
+        self.assertEqual(14, UpdateStatus.AUTO_UPDATE_TIMEOUT.value)
+        self.assertEqual([], [
+            log for log in self.pipeline.logs if log[0] != "info"])
+        self.assertEqual(1, len(self.pending))
+
+    # A watched file is refreshed as soon as it can be opened for reading.
+    def testAWatchedFileIsReadOnceItCanBeOpened(self):
+        data_file = StandInDataFile(self.path)
+        self.service.register_data_file(data_file)
+        opened = []
+
+        def in_use_twice(*args, **kwargs):
+            opened.append(args[0])
+            if len(opened) < 3:
+                raise PermissionError("in use")
+            return open(*args, **kwargs)
+
+        self.write("version 2")
+        with mock.patch.object(
+                datafile_update_service, "open", in_use_twice, create=True), \
+                mock.patch("time.sleep"):
+            self.run_next_check()
+
+        self.assertEqual(3, len(opened))
+        self.assertEqual("version 2", data_file.data)
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, self.statuses[-1])
 
     # A file that is missing at a check, for example part way through being
     # replaced, is looked for again at the next check.

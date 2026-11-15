@@ -64,6 +64,8 @@ class UpdateStatus(Enum):
     AUTO_UPDATE_TEMP_PATH_NOT_SET = 12
     # Any other error during a check for an update.
     AUTO_UPDATE_UNKNOWN_ERROR = 13
+    # A watched file could not be opened for reading in the time allowed.
+    AUTO_UPDATE_TIMEOUT = 14
 
 
 class DataUpdateException(Exception):
@@ -88,10 +90,6 @@ class DataUpdateException(Exception):
 # The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
 GZIP_MAGIC = b"\x1f\x8b"
 
-# The tries made to refresh an engine from a data file, which the message
-# for a failed refresh names.
-REFRESH_TRIES = 1
-
 
 class DataFileUpdateService():
 
@@ -102,6 +100,18 @@ class DataFileUpdateService():
 
     # Time between the file system watcher's checks of a data file.
     FILE_SYSTEM_WATCHER_INTERVAL_SECONDS = 10
+
+    # The tries made to refresh an engine from a data file, and the pause
+    # after each that fails, as .NET's data update service makes them. The
+    # message for a failed refresh names the tries.
+    REFRESH_TRIES = 10
+    REFRESH_RETRY_PAUSE_SECONDS = 0.2
+
+    # How long a changed watched file is waited for until it can be opened
+    # for reading, as when it is still being copied, and the pause between
+    # tries, as .NET waits.
+    WATCHED_FILE_WAIT_SECONDS = 600
+    WATCHED_FILE_RETRY_PAUSE_SECONDS = 0.5
 
     def __init__(self, pipeline = None):
      
@@ -502,19 +512,42 @@ class DataFileUpdateService():
 
     def _refresh(self, data_file):
         # Refresh the engine from the data file after a check or a watched
-        # change. A failure raises a DataUpdateException with the errors
-        # table's message for a refresh from the data file.
+        # change, trying again after a pause while the tries last, as the
+        # file may still be in use. A failure of the last try raises a
+        # DataUpdateException with the errors table's message for a refresh
+        # from the data file.
         engine = self._engine_type(data_file)
         self._log(
             "info",
             "Attempting to refresh Engine '" + engine + "' with new data")
-        try:
-            data_file.refresh()
-        except Exception as e:
-            raise DataUpdateException(
-                "An error occurred when applying a data update to engine '" +
-                engine + "' after " + str(REFRESH_TRIES) + " tries.",
-                UpdateStatus.AUTO_UPDATE_REFRESH_FAILED) from e
+        tries = 0
+        while True:
+            tries += 1
+            try:
+                data_file.refresh()
+                return
+            except Exception as e:
+                if tries >= self.REFRESH_TRIES:
+                    raise DataUpdateException(
+                        "An error occurred when applying a data update to "
+                        "engine '" + engine + "' after " + str(tries) +
+                        " tries.",
+                        UpdateStatus.AUTO_UPDATE_REFRESH_FAILED) from e
+            time.sleep(self.REFRESH_RETRY_PAUSE_SECONDS)
+
+    def _wait_until_readable(self, path):
+        # Open a changed watched file for reading, trying again after a
+        # pause until the wait runs out, as a file still being copied may
+        # not open. Answers whether the file opened.
+        deadline = time.monotonic() + self.WATCHED_FILE_WAIT_SECONDS
+        while True:
+            try:
+                with open(path, "rb"):
+                    return True
+            except OSError:
+                if time.monotonic() >= deadline:
+                    return False
+            time.sleep(self.WATCHED_FILE_RETRY_PAUSE_SECONDS)
 
     def _refresh_from_memory(self, data_file):
         # Refresh the engine with data given to update_from_memory. A
@@ -793,9 +826,12 @@ class DataFileUpdateService():
         """!
         Check for local changes to a datafile. Used by
         the file system watcher. A file that has been written to is an
-        event, and the refresh takes the same route as the polling one, so
-        the attempt is logged, a failure carries the errors table's message
-        and level, and the result is reported to the update complete
+        event. It is first opened for reading, waiting up to
+        WATCHED_FILE_WAIT_SECONDS for a copy still being made, and a file
+        that does not open is reported as AUTO_UPDATE_TIMEOUT without a log
+        entry. Otherwise the refresh takes the same route as the polling one,
+        so the attempt is logged, a failure carries the errors table's
+        message and level, and the result is reported to the update complete
         callbacks either way. The next check is scheduled whatever happens,
         so that a later file is still picked up, until the data file is
         unregistered.
@@ -832,8 +868,13 @@ class DataFileUpdateService():
                 data_file.updating = True
                 try:
                     data_file.last_changed_time = changed_time
-                    self._refresh(data_file)
-                    status = UpdateStatus.AUTO_UPDATE_SUCCESS
+                    if self._wait_until_readable(data_file.path):
+                        self._refresh(data_file)
+                        status = UpdateStatus.AUTO_UPDATE_SUCCESS
+                    else:
+                        # The errors table's row for a watched file that
+                        # could not be opened is not logged.
+                        status = UpdateStatus.AUTO_UPDATE_TIMEOUT
                 except DataUpdateException as e:
                     self._log_failed_check(data_file, e)
                     status = e.status
