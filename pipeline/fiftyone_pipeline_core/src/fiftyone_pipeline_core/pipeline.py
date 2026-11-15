@@ -56,8 +56,9 @@ class Pipeline:
 
     A Pipeline cannot be changed once it is built. flow_elements and
     flow_elements_display_list are tuples, and flow_elements_list, the
-    elements by data key, is a read-only mapping. Code can read them, and
-    adding, removing or replacing an element raises an error.
+    elements by data key, is a read-only mapping. Each is a property with
+    no setter. Code can read them, and adding, removing or replacing an
+    element, or binding one of them again, raises an error.
 
     """
 
@@ -90,16 +91,16 @@ class Pipeline:
 
         """
 
-        self.flow_elements = tuple(flow_elements)
+        self._flow_elements = tuple(flow_elements)
 
         self.logger = logger
 
         # Filled below as each element is registered, so an element finds
         # those registered before it, and read only through this view.
         elements_by_key = {}
-        self.flow_elements_list = MappingProxyType(elements_by_key)
+        self._flow_elements_list = MappingProxyType(elements_by_key)
 
-        self.flow_elements_display_list = ()
+        self._flow_elements_display_list = ()
 
         self.suppress_process_exceptions = suppress_process_exceptions
 
@@ -109,7 +110,7 @@ class Pipeline:
             self.data_file_update_service = data_file_update_service
             self.data_file_update_service.register_pipeline(self)
       
-        for flow_element in self.flow_elements:
+        for flow_element in self._flow_elements:
 
             # Notify element that it has been registered in the pipeline
             flow_element.on_registration(self)
@@ -119,7 +120,28 @@ class Pipeline:
             flow_element.pipelines.append(self)
 
             if not flow_element.exclude_from_messages:
-                self.flow_elements_display_list += (flow_element.datakey,)
+                self._flow_elements_display_list += (flow_element.datakey,)
+
+    @property
+    def flow_elements(self):
+        """!
+        The FlowElements, in the order they run, as a tuple.
+        """
+        return self._flow_elements
+
+    @property
+    def flow_elements_list(self):
+        """!
+        The FlowElements by data key, as a read-only mapping.
+        """
+        return self._flow_elements_list
+
+    @property
+    def flow_elements_display_list(self):
+        """!
+        The data keys named in messages, as a tuple.
+        """
+        return self._flow_elements_display_list
 
     def create_flowdata(self):
 
