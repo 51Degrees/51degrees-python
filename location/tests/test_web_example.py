@@ -86,6 +86,17 @@ def post_position(client, sleep=time.sleep):
         sleep(PAUSE_SECONDS)
 
 
+def country_failure(location):
+    """What to fail with when the answer has no country. A lookup that took
+    too long on every request is said so, and any other reason points at the
+    key, as that is what a key without the location product gets."""
+    reason = location.get("countrynullreason")
+    if LOOKUP_TIMEOUT in (reason or "").lower():
+        return (f"The cloud service's location lookup took too long on all "
+                f"{ATTEMPTS} requests ({reason}).")
+    return answered_without("a country", reason, "the location product")
+
+
 def load_example(resource_key):
     """Runs the example's file as a module, with the resource key in its
     environment, and returns the module."""
@@ -135,10 +146,7 @@ class LocationWebExampleTests(unittest.TestCase):
         self.assertNotEqual(
             AFTER_ERRORS, response.headers.get("Cache-Control"),
             "Processing the request failed.")
-        self.assertTrue(
-            location.get("country"),
-            answered_without("a country", location.get("countrynullreason"),
-                             "the location product"))
+        self.assertTrue(location.get("country"), country_failure(location))
 
 
 class StandInResponse:
