@@ -26,13 +26,11 @@ from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 from fiftyone_pipeline_core.jsonbundler import WKT_TYPES
 
-from .clouddata import CloudData
+from .clouddata import CloudData, CloudMissingPropertyService
 from .constants import Constants
 
 import json
 import threading
-
-from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
 
 # Why a pipeline with a second CloudRequestEngine is refused.
 _ANOTHER_REQUEST_ENGINE = (
@@ -41,11 +39,9 @@ _ANOTHER_REQUEST_ENGINE = (
     "pipeline with a different one is refused. Build another cloud engine "
     "for this pipeline, or use the same Cloud Request Engine in both.")
 
-class OnPremiseMissingPropertyService(MissingPropertyService):
-
-    def check(self, key, flow_element):
-
-        raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. Please check that the element and property names are correct.')
+# The name the cloud missing property service had here, kept for code that
+# imports it.
+OnPremiseMissingPropertyService = CloudMissingPropertyService
 
 class CloudEngine(Engine):
 
@@ -131,6 +127,20 @@ class CloudEngine(Engine):
 
         self._load_properties(self._log)
         return super(CloudEngine, self).get_properties()
+
+    def properties_known(self):
+
+        """!
+        Whether this engine has its properties from the CloudRequestEngine,
+        which it has once that engine's discovery has completed. The
+        properties are looked for first, as get_properties does.
+
+        @rtype: bool
+        @return: True once the properties are known
+        """
+
+        self._load_properties(self._log)
+        return self._properties_final
 
     def _load_properties(self, log):
 
