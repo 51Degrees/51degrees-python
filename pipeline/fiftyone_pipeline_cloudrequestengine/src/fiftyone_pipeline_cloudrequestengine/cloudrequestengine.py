@@ -124,8 +124,9 @@ class CloudRequestEngine(Engine):
 
         @raise CloudRequestException: where the cloud service refuses either
         discovery request, with an answer from 400 to 499
-        @raise ValueError: where neither a resource_key nor a license_key is
-        given, or a license_key is given with no requested_properties
+        @raise ValueError: where a setting is one the engine cannot use, for
+        example neither a resource_key nor a license_key, or a license_key
+        with no requested_properties
 
         """
 

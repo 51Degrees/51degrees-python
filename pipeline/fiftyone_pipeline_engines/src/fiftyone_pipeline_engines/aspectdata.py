@@ -61,8 +61,8 @@ class AspectData(ElementData):
         @rtype mixed
         @return The value stored under the chosen key
         @raise Exception: where the property was left out of the engine's
-        restricted properties, or the data has no value for it, with the
-        message the missing property service gives
+        restricted properties, saying so, or where the data has no value
+        for it, with the message the missing property service gives
         """
         
         if hasattr(self.flow_element, "restricted_property_keys"):
