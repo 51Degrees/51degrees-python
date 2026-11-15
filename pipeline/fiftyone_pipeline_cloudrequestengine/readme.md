@@ -81,6 +81,13 @@ pipeline. It can be in several pipelines that share one Cloud Request
 Engine, and a pipeline with a different Cloud Request Engine refuses it,
 so build a cloud engine for each Cloud Request Engine.
 
+An engine whose discovery has completed gives what it discovered with
+`discovery_state()`, as one JSON document. Keep it, and give it as the
+`discovery_state` setting of an engine with the same credentials, for
+example on the next start of a short-lived host, and that engine is built
+without asking the cloud service. The document is the one the Java
+package's `CloudDiscoveryState` writes.
+
 See the [Start-up activity section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#start-up-activity).
 
 ## Pointing the engine at another host
