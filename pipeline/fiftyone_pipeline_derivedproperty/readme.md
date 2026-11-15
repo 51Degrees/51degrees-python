@@ -87,6 +87,14 @@ The element refuses, with a `PipelineConfigurationError`, a pipeline in which no
 
 When the pipeline is built, the element logs one line for each script at information level, naming the script, its version, its format, where it came from and the property it writes, a warning for a script marked deprecated, and the compiled script as JSON at debug level.
 
+## Example
+
+The [derived property example](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_derivedproperty/examples/derived_property.py) needs no data file, no key and no network. It gives the element a script held as text and a script read from a file, builds the same pipeline from a configuration file, and shows what a derived property holds when a property its script reads is missing from the request. The properties its scripts read come from a small flow element beside it, so it uses none of the scripts built into the package. Run it from the `pipeline` folder, once the packages are installed with that folder's `setup.ps1`, with
+
+```
+python fiftyone_pipeline_derivedproperty/examples/derived_property.py
+```
+
 ## Installation
 
 The package is not yet published to PyPI. To use it from this repository, clone the repository with its submodules, because the built in scripts are the `scripts` folder of the `derived-properties` submodule.
