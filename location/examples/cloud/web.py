@@ -107,9 +107,10 @@ if not resource_key:
 if resource_key == "!!YOUR_RESOURCE_KEY!!":
     print("""
     You need to create a resource key at
-    https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required and paste it into the code,
-    'replacing !!YOUR_RESOURCE_KEY!!
-    To get a resourcekey with the properties used in this example go to https://51degrees.com/configure/GCrtGh1L?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required
+    https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required and set the
+    _51DEGREES_RESOURCE_KEY environment variable to it, or paste it into the
+    code in place of !!YOUR_RESOURCE_KEY!!.
+    To get a resource key with the properties used in this example go to https://51degrees.com/configure/GCrtGh1L?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required
     """)
     print_find_out_more()
 else:
