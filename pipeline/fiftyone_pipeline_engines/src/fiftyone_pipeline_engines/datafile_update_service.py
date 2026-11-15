@@ -434,6 +434,14 @@ class DataFileUpdateService():
                     "'.",
                     UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME) from e
 
+        # The file now on disk is the one this update loads, so the file
+        # system watcher takes its time as seen rather than as a change to
+        # load and report again.
+        try:
+            data_file.last_changed_time = os.stat(data_file.path).st_mtime
+        except OSError:
+            pass
+
     def _log_failed_write(self, data_file, error):
         # A write that failed during a check is logged with the message of
         # its row of the errors table and the error that caused it.

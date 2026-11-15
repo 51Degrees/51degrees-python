@@ -80,6 +80,8 @@ class OfflineProcessing():
         pipeline = IpIntelligencePipelineBuilder(
             data_file_path = data_file,
             performance_profile = "LowMemory",
+            # Usage sharing is off for this example. In production turn it on,
+            # because the requests shared improve the data every user gets.
             usage_sharing = False,
             auto_update = False,
             licence_keys = "").add_logger(logger).build()

@@ -28,6 +28,9 @@ from parameterized import parameterized
 from fiftyone_pipeline_core.messages import Messages
 from fiftyone_pipeline_core.web import *
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
+from fiftyone_pipeline_core.elementdata_dictionary import ElementDataDictionary
+from fiftyone_pipeline_core.flowelement import FlowElement
+from fiftyone_pipeline_core.pipeline import Pipeline
 from fiftyone_pipeline_core.setheaderelement import SetHeaderElement
 
 from .classes.testpipeline import TestPipeline
@@ -140,3 +143,97 @@ class SetHeaderUACHTests(unittest.TestCase):
         self.assertEqual(
             {"device": ["SetHeaderBrowserAccept-CH"]},
             SetHeaderElement().get_setheader_properties_pipeline(Pipeline()))
+
+
+# An element with one property for a response header, whose value is the
+# header's value.
+class HeaderSourceElement(FlowElement):
+
+    def __init__(self, datakey, property_name, value):
+        super(HeaderSourceElement, self).__init__()
+        self.datakey = datakey
+        self.property_name = property_name
+        self.value = value
+        self.properties = {
+            property_name: {"name": property_name, "type": "string"}}
+
+    def process_internal(self, flowdata):
+        flowdata.set_element_data(ElementDataDictionary(
+            self,
+            {self.property_name: AspectPropertyValue(value=self.value)}))
+
+
+def response_headers(pipeline):
+    flowdata = pipeline.create_flowdata()
+    flowdata.process()
+    return flowdata["set-headers"]["responseheaderdictionary"]
+
+
+BROWSER_HEADERS = {"Accept-CH": Constants.ACCEPTCH_BROWSER_VALUE}
+PLATFORM_HEADERS = {"Critical-CH": Constants.ACCEPTCH_PLATFORM_VALUE}
+
+
+# The multi-pipeline elements specification says an element that keeps
+# state for the Pipeline it is in keeps that state for each Pipeline it is
+# added to. One Set Headers Element is shared by two Pipelines whose other
+# elements give different SetHeader properties.
+class SetHeaderMultiPipelineTests(unittest.TestCase):
+
+    def setUp(self):
+        self.set_headers = set_headers = SetHeaderElement()
+        # The Pipelines share an element, so neither closes its elements.
+        self.pipelines = {
+            "browser": Pipeline(
+                [HeaderSourceElement(
+                    "browser", "SetHeaderBrowserAccept-CH",
+                    Constants.ACCEPTCH_BROWSER_VALUE),
+                 set_headers],
+                auto_close_elements=False),
+            "platform": Pipeline(
+                [HeaderSourceElement(
+                    "platform", "SetHeaderPlatformCritical-CH",
+                    Constants.ACCEPTCH_PLATFORM_VALUE),
+                 set_headers],
+                auto_close_elements=False)}
+        self.expected = {
+            "browser": BROWSER_HEADERS, "platform": PLATFORM_HEADERS}
+
+    # Each Pipeline gives the headers of its own elements, whichever
+    # processes first, and keeps doing so after the other has processed.
+    @parameterized.expand([
+        ("browser_first", ["browser", "platform"]),
+        ("platform_first", ["platform", "browser"])])
+    def test_each_pipeline_gives_its_own_headers(self, _, order):
+        for name in order + order:
+            self.assertEqual(
+                self.expected[name], response_headers(self.pipelines[name]),
+                name)
+
+    # setheader_properties holds the SetHeader properties of the first
+    # Pipeline that processed, as a dict of data key to property names, for
+    # code that reads it.
+    def test_setheader_properties_holds_the_first_pipelines_properties(self):
+        response_headers(self.pipelines["browser"])
+        response_headers(self.pipelines["platform"])
+        self.assertEqual(
+            {"browser": ["SetHeaderBrowserAccept-CH"]},
+            self.set_headers.setheader_properties)
+
+    def test_one_pipeline_gives_the_same_headers_on_every_request(self):
+        for _ in range(3):
+            self.assertEqual(
+                BROWSER_HEADERS, response_headers(self.pipelines["browser"]))
+
+    # A cloud engine has no properties until the cloud service has
+    # answered, so a Pipeline whose SetHeader properties are not known on
+    # its first request gives the headers once they are.
+    def test_headers_are_given_once_the_properties_are_known(self):
+        source = HeaderSourceElement(
+            "browser", "SetHeaderBrowserAccept-CH",
+            Constants.ACCEPTCH_BROWSER_VALUE)
+        properties = source.properties
+        source.properties = {}
+        pipeline = Pipeline([source, SetHeaderElement()])
+        self.assertEqual({}, response_headers(pipeline))
+        source.properties = properties
+        self.assertEqual(BROWSER_HEADERS, response_headers(pipeline))

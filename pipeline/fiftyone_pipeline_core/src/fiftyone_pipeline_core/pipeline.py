@@ -20,6 +20,8 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from types import MappingProxyType
+
 from .evidence_keyfilter import EvidenceKeyFilter
 from .flowdata import FlowData
 from .logger import Logger
@@ -52,6 +54,12 @@ class Pipeline:
     collecting ElementData
     Should be constructed through the PipelineBuilder class
 
+    A Pipeline cannot be changed once it is built. flow_elements and
+    flow_elements_display_list are tuples, and flow_elements_list, the
+    elements by data key, is a read-only mapping. Each is a property with
+    no setter. Code can read them, and adding, removing or replacing an
+    element, or binding one of them again, raises an error.
+
     """
 
     def __init__(self, flow_elements, logger=Logger(), suppress_process_exceptions = False, data_file_update_service = None, auto_close_elements = True):
@@ -60,7 +68,9 @@ class Pipeline:
         Pipeline constructor.
 
         @type flow_elements: list[FlowElement]
-        @param flow_elements: A list of flowElements
+        @param flow_elements: The flowElements, in the order they run. The
+        pipeline keeps a copy, so changing this list afterwards changes
+        nothing.
 
         @type logger: Logger
         @param logger: A logger to attach to the pipeline
@@ -81,13 +91,16 @@ class Pipeline:
 
         """
 
-        self.flow_elements = flow_elements
+        self._flow_elements = tuple(flow_elements)
 
         self.logger = logger
 
-        self.flow_elements_list = {}
+        # Filled below as each element is registered, so an element finds
+        # those registered before it, and read only through this view.
+        elements_by_key = {}
+        self._flow_elements_list = MappingProxyType(elements_by_key)
 
-        self.flow_elements_display_list = []
+        self._flow_elements_display_list = ()
 
         self.suppress_process_exceptions = suppress_process_exceptions
 
@@ -97,17 +110,38 @@ class Pipeline:
             self.data_file_update_service = data_file_update_service
             self.data_file_update_service.register_pipeline(self)
       
-        for flow_element in flow_elements:
+        for flow_element in self._flow_elements:
 
             # Notify element that it has been registered in the pipeline
             flow_element.on_registration(self)
 
-            self.flow_elements_list[flow_element.datakey] = flow_element
+            elements_by_key[flow_element.datakey] = flow_element
 
             flow_element.pipelines.append(self)
 
             if not flow_element.exclude_from_messages:
-                self.flow_elements_display_list.append(flow_element.datakey)
+                self._flow_elements_display_list += (flow_element.datakey,)
+
+    @property
+    def flow_elements(self):
+        """!
+        The FlowElements, in the order they run, as a tuple.
+        """
+        return self._flow_elements
+
+    @property
+    def flow_elements_list(self):
+        """!
+        The FlowElements by data key, as a read-only mapping.
+        """
+        return self._flow_elements_list
+
+    @property
+    def flow_elements_display_list(self):
+        """!
+        The data keys named in messages, as a tuple.
+        """
+        return self._flow_elements_display_list
 
     def create_flowdata(self):
 
@@ -215,7 +249,11 @@ class Pipeline:
 
         """
 
-        raise Exception("There is no element data for " + element + " against this flow data. Available element data keys are: " + str(flowdata.pipeline.flow_elements_display_list))
+        # A list, so the keys are shown in square brackets.
+        raise Exception(
+            "There is no element data for " + element + " against this "
+            "flow data. Available element data keys are: " +
+            str(list(flowdata.pipeline.flow_elements_display_list)))
 
 
     def get_properties(self):

@@ -101,8 +101,8 @@ class GettingStartedConsole():
             # https://51degrees.com/documentation/_pipeline_api__features__automatic_datafile_updates.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
             # https://51degrees.com/documentation/_pipeline_api__features__usage_sharing.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_console.py&utm_term=run
             performance_profile = "LowMemory",
-            # inhibit sharing usage for this example, usually this
-            # should be set "true"
+            # Usage sharing is off for this example. In production turn it on,
+            # because the requests shared improve the data every user gets.
             usage_sharing = False,
             # Inhibit auto-update of the data file for this example
             auto_update = False,

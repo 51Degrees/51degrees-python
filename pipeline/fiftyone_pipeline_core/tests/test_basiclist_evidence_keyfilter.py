@@ -23,7 +23,9 @@
 """The basic list filter accepts the keys it was given, in any letters, and
 nothing else. Its list attribute is read by other code, so it keeps holding
 the keys in lower case, and the filter matches what the list holds when the
-list is set after the filter is made."""
+list is set after the filter is made. A key is looked up in a set made from
+the list, so a lookup does not search the list, and the answers are the ones
+a search of the list gives."""
 
 import unittest
 
@@ -36,6 +38,27 @@ class SetsItsOwnList(BasicListEvidenceKeyFilter):
 
     def __init__(self):
         self.list = ["header.user-agent"]
+
+
+class RefusesSearch(list):
+    """A list that fails when it is searched for a key."""
+
+    def __contains__(self, item):
+        raise AssertionError("The list was searched for " + repr(item))
+
+
+# Lists of keys, as given to the constructor, and keys to look up in them.
+LISTS = [
+    [],
+    ["header.user-agent"],
+    ["Header.User-Agent", "query.sequence", "header.user-agent"],
+    ["header.sec-ch-ua", "header.sec-ch-ua-mobile", "cookie.51D_x"],
+]
+KEYS = [
+    "", "header.user-agent", "HEADER.USER-AGENT", "header.user",
+    "header.sec-ch-ua", "Header.Sec-CH-UA-Mobile", "cookie.51d_x",
+    "query.sequence", "query.sequence2",
+]
 
 
 class BasicListEvidenceKeyFilterTests(unittest.TestCase):
@@ -85,6 +108,44 @@ class BasicListEvidenceKeyFilterTests(unittest.TestCase):
         self.assertTrue(key_filter.filter_evidence_key("Header.User-Agent"))
         self.assertFalse(key_filter.filter_evidence_key("header.accept"))
         self.assertEqual(["header.user-agent"], key_filter.list)
+
+    def test_the_answers_are_those_a_search_of_the_list_gives(self):
+        for keys in LISTS:
+            key_filter = BasicListEvidenceKeyFilter(keys)
+            for key in KEYS:
+                self.assertEqual(
+                    key.lower() in key_filter.list,
+                    key_filter.filter_evidence_key(key), (keys, key))
+
+    def test_a_list_set_as_it_is_gives_the_answers_of_a_search(self):
+        # A list set directly is not lower-cased, so an entry with capitals
+        # matches no key, as a search of the list finds none.
+        for keys in LISTS:
+            key_filter = BasicListEvidenceKeyFilter([])
+            key_filter.list = list(keys)
+            for key in KEYS:
+                self.assertEqual(
+                    key.lower() in keys,
+                    key_filter.filter_evidence_key(key), (keys, key))
+
+    def test_a_list_set_after_a_lookup_is_matched(self):
+        key_filter = BasicListEvidenceKeyFilter(["header.user-agent"])
+        self.assertTrue(key_filter.filter_evidence_key("header.user-agent"))
+        key_filter.list = ["header.accept"]
+        self.assertTrue(key_filter.filter_evidence_key("Header.Accept"))
+        self.assertFalse(key_filter.filter_evidence_key("header.user-agent"))
+
+    def test_a_list_changed_before_the_first_lookup_is_matched(self):
+        key_filter = BasicListEvidenceKeyFilter(["header.user-agent"])
+        key_filter.list.append("header.accept")
+        self.assertTrue(key_filter.filter_evidence_key("Header.Accept"))
+        self.assertTrue(key_filter.filter_evidence_key("header.user-agent"))
+
+    def test_a_key_is_looked_up_without_searching_the_list(self):
+        key_filter = BasicListEvidenceKeyFilter([])
+        key_filter.list = RefusesSearch(["header.user-agent"])
+        self.assertTrue(key_filter.filter_evidence_key("Header.User-Agent"))
+        self.assertFalse(key_filter.filter_evidence_key("header.accept"))
 
 
 if __name__ == "__main__":

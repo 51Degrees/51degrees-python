@@ -162,6 +162,10 @@ class DeviceDetectionOnPremise(Engine):
 
         self.datakey = "device"
 
+        # The evidence key filter, with the key list it was made from. See
+        # get_evidence_key_filter.
+        self._evidence_key_filter = None
+
         if not data_file_path and not data:
             raise Exception("data_file_path or data is required")
 
@@ -431,9 +435,18 @@ class DeviceDetectionOnPremise(Engine):
         Returns evidence key filter for the on premise engine.
         Generated via a list of evidence keys from the swig engine
 
+        The filter is kept, as it is asked for once for each Evidence key
+        of every request. It is made again only when evidence_keys_list is
+        another list, which read_evidence_keys sets after a refresh.
+
         """
 
-        return BasicListEvidenceKeyFilter(self.evidence_keys_list)
+        keys = self.evidence_keys_list
+        kept = self._evidence_key_filter
+        if kept is None or kept[0] is not keys:
+            kept = (keys, BasicListEvidenceKeyFilter(keys))
+            self._evidence_key_filter = kept
+        return kept[1]
 
 
     def set_cache(self, cache):
@@ -457,7 +470,10 @@ class DeviceDetectionOnPremise(Engine):
         """
 
         super(DeviceDetectionOnPremise, self).on_registration(pipeline)
-        self.init_engine()
+        # The native engine is built once, so an engine in several
+        # pipelines loads its data file once and every pipeline uses it.
+        if getattr(self, "engine", None) is None:
+            self.init_engine()
 
     def close(self):
 
