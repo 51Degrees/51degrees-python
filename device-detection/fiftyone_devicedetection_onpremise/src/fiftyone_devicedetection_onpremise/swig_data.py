@@ -120,6 +120,10 @@ class SwigData(AspectData):
             return AspectPropertyValue(value = self.swig_results.getDeviceId())
 
         if key == 'useragents':
+            # Populated only when the engine records the matched
+            # User-Agents, as its default is an empty list.
+            if not getattr(self.flow_element, "update_matched_useragent", True):
+                return AspectPropertyValue(value = [])
             # Each component's result has a matched User-Agent, and several
             # can match the same one, which is listed once.
             useragents = []
