@@ -1,0 +1,2 @@
+device-detection/fiftyone_devicedetection_onpremise
+ip-intelligence/fiftyone_ipintelligence_onpremise
