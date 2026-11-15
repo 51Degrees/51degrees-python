@@ -43,7 +43,7 @@ from .share_usage_backoff import ShareUsageBackOff, \
     INITIAL_RECOVERY_DELAY_SECONDS_DEFAULT, \
     MAX_RECOVERY_DELAY_SECONDS_DEFAULT, RECOVERY_MULTIPLIER_DEFAULT
 from .share_usage_evidencekeyfilter import ShareUsageEvidenceKeyFilter, \
-    ShareUsageTrackerEvidenceKeyFilter
+    ShareUsageTrackerEvidenceKeyFilter, _split_names
 from .share_usage_tracker import ShareUsageTracker
 
 # The key the web integration gives the web request itself. Written out
@@ -141,16 +141,17 @@ class ShareUsage(Engine):
         again when it comes from a new session. False by default. It
         needs cookie to be set, and has no effect when share_all is True,
         because every cookie is then shared and used to find repeats.
-        @type query_whitelist: list
+        @type query_whitelist: list or str
         @param query_whitelist: By default query string and HTTP form
         parameters are not shared unless prefixed with '51D_'.
         If you need to share query string parameters, a list can be
-        specified here. None shares every parameter.
-        @type header_blacklist: list
+        specified here, or a string of names separated by commas, which is
+        how a configuration file gives a list. None shares every parameter.
+        @type header_blacklist: list or str
         @param header_blacklist: By default, all HTTP headers
         except Cookie are shared.
         Individual headers can be excluded from sharing by adding them
-        to this list.
+        to this list, or to a string of names separated by commas.
         @type share_percentage : float
         @param share_percentage: approximate proportion of requests to
         be shared. 1 = 100%, 0.5 = 50%, etc..
@@ -181,6 +182,11 @@ class ShareUsage(Engine):
         """
 
         super(ShareUsage, self).__init__()
+
+        # A configuration file gives each list as one comma-separated
+        # string, which is split into its names. A list is kept as it is.
+        query_whitelist = _split_names(query_whitelist)
+        header_blacklist = _split_names(header_blacklist)
 
         self.query_whitelist = query_whitelist
 
