@@ -499,7 +499,9 @@ class CloudRequestEngine(Engine):
 
     def _describe(self, error):
         """!
-        An error as text for a warning, with the licence key masked.
+        An error as text for a warning, with the licence key masked. The
+        text of an error for several answered by the cloud service gives
+        each of them.
         """
 
         return self.masked(
@@ -647,8 +649,11 @@ class CloudRequestEngine(Engine):
             has_errors = "errors" in json_response and len(json_response["errors"])
             has_data = len(json_response) > (1 if has_errors else 0)
 
+            # Each entry of the errors list is the text of one error.
             if has_errors:
-                messages.append(json.dumps(json_response["errors"]))
+                messages.extend(
+                    entry if isinstance(entry, str) else json.dumps(entry)
+                    for entry in json_response["errors"])
 
             self._warn_response_warnings(json_response)
 
@@ -673,17 +678,24 @@ class CloudRequestEngine(Engine):
         if not messages:
             return
 
-        # If there are any errors returned from the cloud service
-        # then throw an exception
-        exception_message = (
-            f"{Constants.EXCEPTION_CLOUD_ERRORS_MULTIPLE} {messages}" if len(messages) > 1
-            else Constants.EXCEPTION_CLOUD_ERROR.format(messages[0])
-        )
-
+        # One error is raised with its text as the message. Several are
+        # raised together, one exception for each in the exceptions of the
+        # one raised.
+        errors = [
+            CloudRequestException(
+                self.masked(Constants.EXCEPTION_CLOUD_ERROR.format(message)),
+                cloud_response.status_code,
+                cloud_response.headers,
+            )
+            for message in messages
+        ]
+        if len(errors) == 1:
+            raise errors[0]
         raise CloudRequestException(
-            self.masked(exception_message),
+            Constants.EXCEPTION_CLOUD_ERRORS_MULTIPLE,
             cloud_response.status_code,
             cloud_response.headers,
+            errors,
         )
 
     def masked(self, text):
