@@ -71,6 +71,21 @@ def request_line_path(request):
         return raw.split("?", 1)[0].split("#", 1)[0]
     return request.path
 
+def request_line_query(request):
+
+    """!
+    The query string of the request line, whole and undecoded, or empty
+    when it has none. Taken from the request line when the server says what
+    that was, and otherwise from the query string WSGI gives, which it
+    leaves undecoded.
+    """
+
+    raw = request.environ.get("RAW_URI") or request.environ.get("REQUEST_URI")
+    if raw:
+        target = raw.split("#", 1)[0]
+        return target.split("?", 1)[1] if "?" in target else ""
+    return request.environ.get("QUERY_STRING", "")
+
 def webevidence(request):
 
     """!
@@ -129,13 +144,14 @@ def webevidence(request):
 
     # The request itself, for the usage sharing element, which accepts no
     # evidence and shares what it finds. A read-only view of the parts above
-    # and the method and path of the request line, keyed as evidence is. It
-    # leaves out the Cookie header, which cookies already cover. Evidence
-    # keeps it from every other element.
+    # and the method, path and query string of the request line, keyed as
+    # evidence is. It leaves out the Cookie header, which cookies already
+    # cover. Evidence keeps it from every other element.
     view = {key: value for key, value in webevidence.items()
             if key not in ("header.cookie", "server.host-ip")}
     view["server.request-method"] = request.method
     view["server.request-path"] = request_line_path(request)
+    view["server.request-query"] = request_line_query(request)
     webevidence[HTTP_REQUEST_KEY] = MappingProxyType(view)
 
     return webevidence
