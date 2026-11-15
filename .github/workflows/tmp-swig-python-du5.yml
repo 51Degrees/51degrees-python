@@ -1,0 +1,62 @@
+name: Temporary SWIG regeneration DU-5
+
+on:
+  push:
+    branches:
+      - 'tmp/swig-python-du5-*'
+
+env:
+  DD: device-detection/fiftyone_devicedetection_onpremise/src/fiftyone_devicedetection_onpremise
+  IP: ip-intelligence/fiftyone_ipintelligence_onpremise/src/fiftyone_ipintelligence_onpremise
+
+jobs:
+  Regen:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Fetch cxx
+        run: |
+          git submodule update --init cxx
+          git -C cxx log --oneline -1
+      - name: Install SWIG
+        run: |
+          pip install swig==4.4.1
+          swig -version
+      - name: Stage cxx as setup.py does
+        run: |
+          mkdir -p $DD/cxx/src $IP/cxx/src
+          cp -r cxx/src/common cxx/src/dd $DD/cxx/src/
+          cp -r cxx/src/common cxx/src/ipi $IP/cxx/src/
+      - name: Control, the interface files of the parent commit
+        run: |
+          W="$DD/hash_python_wrap.cxx $DD/DeviceDetectionHashEngineModule.py $IP/ipi_python_wrap.cxx $IP/IpIntelligenceEngineModule.py"
+          git log --oneline -2
+          git fetch -q --depth=1 origin 8a9e56487ae04a3305d7650c5dad345af6f648f1
+          git show 8a9e56487ae04a3305d7650c5dad345af6f648f1:$DD/hash_python.i > $DD/hash_python.i
+          git show 8a9e56487ae04a3305d7650c5dad345af6f648f1:$IP/ipi_python.i > $IP/ipi_python.i
+          (cd $DD && swig -c++ -python hash_python.i)
+          (cd $IP && swig -c++ -python ipi_python.i)
+          echo "control status:"
+          git status --short
+          sha256sum $W
+          git diff --stat -- $W
+          git diff --quiet -- $W && echo "CONTROL: regenerated wrappers are byte for byte the committed ones" || { echo "CONTROL FAILED"; exit 1; }
+          git checkout -- device-detection ip-intelligence
+      - name: Generate with the change
+        run: |
+          W="$DD/hash_python_wrap.cxx $DD/DeviceDetectionHashEngineModule.py $IP/ipi_python_wrap.cxx $IP/IpIntelligenceEngineModule.py"
+          (cd $DD && swig -c++ -python hash_python.i)
+          (cd $IP && swig -c++ -python ipi_python.i)
+          echo "status after generate:"
+          git status --short
+          sha256sum $W
+          git diff --stat -- $W
+          git diff -- $W
+          mkdir -p out
+          cp $W out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wrappers
+          path: out
