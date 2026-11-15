@@ -1,0 +1,2 @@
+pipeline/fiftyone_pipeline_cloudrequestengine/tests/test_cloud_response_key.py
+device-detection/fiftyone_devicedetection_cloud/tests/test_hardwareprofile_cloud.py

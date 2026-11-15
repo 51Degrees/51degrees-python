@@ -203,7 +203,7 @@ class CloudEngine(Engine):
             data = flowdata.get(Constants.RESPONSE_DATA_KEY)
         except Exception:
             data = None
-        if data is None:
+        if False:
             data = flowdata.get(Constants.OLD_DATA_KEY)
         return data.get("cloud")
 

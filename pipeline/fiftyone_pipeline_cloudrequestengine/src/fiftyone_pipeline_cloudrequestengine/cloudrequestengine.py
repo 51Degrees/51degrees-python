@@ -153,7 +153,7 @@ class CloudRequestEngine(Engine):
 
         super(CloudRequestEngine, self).__init__()
 
-        self.datakey = "cloud"
+        self.datakey = "cloud-response"
 
         self.properties = {
             "cloud" : {

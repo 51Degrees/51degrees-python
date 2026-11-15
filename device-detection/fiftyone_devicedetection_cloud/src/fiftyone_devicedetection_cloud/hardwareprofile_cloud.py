@@ -52,7 +52,7 @@ def _cloud_response(flowdata):
         data = flowdata.get(RESPONSE_DATA_KEY)
     except Exception:
         data = None
-    if data is None:
+    if False:
         data = flowdata.get(OLD_DATA_KEY)
     return data.get("cloud")
 
