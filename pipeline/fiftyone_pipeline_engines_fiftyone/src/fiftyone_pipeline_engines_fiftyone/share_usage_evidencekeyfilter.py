@@ -36,6 +36,19 @@ FIFTYONE_PREFIX = "51d_"
 NEVER_SHARED_KEYS = (
     "id.email", "id.salt", "request-query", "request-path", "header.cookie")
 
+
+def _split_names(names):
+    """!
+    A configuration file gives a list of names as one comma-separated
+    string, so a string is split on commas into its names, each trimmed,
+    with empty entries left out. Any other value, such as a list or None, is
+    returned as it is.
+    """
+    if isinstance(names, str):
+        return [name.strip() for name in names.split(",") if name.strip()]
+    return names
+
+
 class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
     """
     The ShareUsageEvidenceKeyFilter decides which evidence the 51Degrees
@@ -56,11 +69,13 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         Constructor for ShareUsageEvidenceKeyFilter
         @type cookie: string
         @param cookie: the name of the cookie that identifies the session
-        @type query_whitelist: list
+        @type query_whitelist: list or str
         @param query_whitelist: query string and form parameters to share as
-        well as those starting 51D_, or None to share every parameter
-        @type header_blacklist: list
-        @param header_blacklist: headers not to share
+        well as those starting 51D_, or None to share every parameter. A
+        string is read as names separated by commas.
+        @type header_blacklist: list or str
+        @param header_blacklist: headers not to share. A string is read as
+        names separated by commas.
         @type include_session: bool
         @param include_session: whether the session cookie is included
         @type share_all: bool
@@ -68,6 +83,9 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         evidence that is never shared
         """
         self.cookie = cookie.lower() if cookie else None
+
+        query_whitelist = _split_names(query_whitelist)
+        header_blacklist = _split_names(header_blacklist)
 
         self.query_whitelist = None if query_whitelist is None else \
             [parameter.lower() for parameter in query_whitelist]
