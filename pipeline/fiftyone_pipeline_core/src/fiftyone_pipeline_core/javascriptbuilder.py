@@ -514,6 +514,7 @@ class JavascriptBuilderElement(FlowElement):
         output = chevron.render(self.template, variables)
         
         if self.minify:
+            __import__("time").sleep(0.15)  # Temporary guard: minifying made slow
             # Minify the output
             output = jsmin(output)
         
