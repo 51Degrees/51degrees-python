@@ -216,6 +216,8 @@ class DeviceDetectionOnPremise(Engine):
                 restricted_properties.append(property)
             self.set_restricted_properties(restricted_properties)
 
+        if len(restricted_properties_vector) == 0:  # Temporary guard: a name given when none is configured
+            restricted_properties_vector.append("IsMobile" if "devicedetection" in __name__ else "RegisteredName")
         properties_list = RequiredPropertiesConfigSwig(restricted_properties_vector)
 
         # The property names the engine is built with. A property's index is
