@@ -223,6 +223,8 @@ class TimeoutTests(CloudRequestEngineTestsBase):
         ("negative", -1),
         ("text", "2"),
         ("true", True),
+        ("not_a_number", float("nan")),
+        ("infinite", float("inf")),
     ])
     def test_a_timeout_that_is_not_a_positive_number_is_refused(
             self, _, timeout_seconds):
