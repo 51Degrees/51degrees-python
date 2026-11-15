@@ -72,7 +72,9 @@ def build_pipeline(data_file):
     builder = IpIntelligencePipelineBuilder(
         data_file_path = data_file,
         performance_profile = "LowMemory",
-        usage_sharing = False,
+        # Usage sharing is on, as it should be in production, because the
+        # requests shared improve the data every user gets.
+        usage_sharing = True,
         auto_update = False,
         licence_keys = "")
     # Add the country code and countries translation engines on top of the

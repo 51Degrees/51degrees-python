@@ -74,14 +74,11 @@ def _names_in(message):
         r"'([A-Za-z][A-Za-z0-9]*\.[A-Za-z][A-Za-z0-9]*)' \(", message)]
 
 
-_elements = {}
-
-
 def _element_for(name):
-    if name not in _elements:
-        _elements[name] = (DerivedPropertyElementBuilder()
-                           .add_built_in_script(name).build())
-    return _elements[name]
+    """! A new element for each case, as each case has a pipeline of its
+    own and an element is in one pipeline only. """
+    return (DerivedPropertyElementBuilder()
+            .add_built_in_script(name).build())
 
 
 def _run(element, case, wrap):

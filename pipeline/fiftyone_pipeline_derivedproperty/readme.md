@@ -59,6 +59,8 @@ print(is_gdpr.value() if is_gdpr.has_value() else is_gdpr.no_value_message())
 
 Every fault in every script is reported together when the element is built, in a `ScriptValidationError` whose `faults` list each one.
 
+An element is in one pipeline only, as the properties it gives depend on the other derived property elements in its pipeline. A second pipeline given the same element raises a `PipelineConfigurationError`, so build an element for each pipeline.
+
 ## Configuration
 
 A pipeline configuration names the element with `elementPath` `fiftyone_pipeline_derivedproperty` and `elementName` `DerivedPropertyElement`. Its settings are `scripts`, naming scripts built into the package, and `script_files`, giving paths to script files. Each is a list of strings, or one string with commas between the entries, where an entry holding a comma is wrapped in double quotes. The setting names are matched without regard to case or underscores, so `Scripts` and `ScriptFiles` as the other languages write them work too, and any other setting is refused.
@@ -84,6 +86,14 @@ IsGdpr reads `ip.CountryCode`, so the pipeline also needs an element giving that
 The element refuses, with a `PipelineConfigurationError`, a pipeline in which no element supplies a property a script reads, or in which another element already writes a property a script writes. Where an element sits in the pipeline is not judged, so an element supplying a property that runs after this one builds, and on each request the derived property then has no value. That is logged once, at error level.
 
 When the pipeline is built, the element logs one line for each script at information level, naming the script, its version, its format, where it came from and the property it writes, a warning for a script marked deprecated, and the compiled script as JSON at debug level.
+
+## Example
+
+The [derived property example](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_derivedproperty/examples/derived_property.py) needs no data file, no key and no network. It gives the element a script held as text and a script read from a file, builds the same pipeline from a configuration file, and shows what a derived property holds when a property its script reads is missing from the request. The properties its scripts read come from a small flow element beside it, so it uses none of the scripts built into the package. Run it from the `pipeline` folder, once the packages are installed with that folder's `setup.ps1`, with
+
+```
+python fiftyone_pipeline_derivedproperty/examples/derived_property.py
+```
 
 ## Installation
 

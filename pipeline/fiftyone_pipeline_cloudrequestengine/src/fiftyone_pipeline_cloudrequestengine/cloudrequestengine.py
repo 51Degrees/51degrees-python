@@ -134,6 +134,10 @@ class CloudRequestEngine(Engine):
         5) an http_client to send the requests in place of a
         RequestClient. Its request method is given timeout_seconds when it
         has a parameter of that name.
+        6) discovery_state, a copy of what an earlier engine discovered for
+        the same credentials, as its discovery_state() gives it, either
+        the JSON text or the dictionary it holds. The engine then makes
+        no discovery request when it is built.
 
         See the Credentials section of the cloud request engine
         specification for the combinations that are accepted:
@@ -221,9 +225,22 @@ class CloudRequestEngine(Engine):
 
         self.exclude_from_messages = True
 
+        # The evidence key filter, with the key list it was made from. See
+        # get_evidence_key_filter.
+        self._evidence_key_filter = None
+
+        # The cloud service's answer to the accessible properties request,
+        # kept for discovery_state().
+        self._accessible_properties = None
+
         # Discovery runs now, so a built engine is ready to process and a
-        # key the cloud service refuses fails here, not on a request.
-        self.warm_up()
+        # key the cloud service refuses fails here, not on a request. A
+        # saved copy of an earlier engine's discovery takes its place.
+        state = settings.get("discovery_state")
+        if state is not None:
+            self._use_discovery_state(state)
+        else:
+            self.warm_up()
 
     @staticmethod
     def setting_text(settings, name):
@@ -377,6 +394,58 @@ class CloudRequestEngine(Engine):
         # name, once the value has been fetched.
         return vars(self).get("flow_element_properties")
 
+    def discovery_state(self):
+        """!
+        What this engine discovered, being the evidence keys the cloud
+        service accepts and its answer to the accessible properties
+        request, as one JSON document. Give it as the discovery_state
+        setting of another engine with the same credentials, and that
+        engine is built without asking the cloud service. The document is
+        the one the Java package's CloudDiscoveryState.toJson() writes.
+
+        @rtype: str
+        @return: the JSON document, or None while discovery has not
+        completed
+        """
+
+        keys = vars(self).get("evidence_keys")
+        if keys is None or self._accessible_properties is None:
+            return None
+        return json.dumps({
+            Constants.DISCOVERY_STATE_EVIDENCE_KEYS: keys,
+            Constants.DISCOVERY_STATE_ACCESSIBLE_PROPERTIES:
+                self._accessible_properties})
+
+    def _use_discovery_state(self, state):
+        """!
+        Take the discovery results from a copy discovery_state() gave,
+        making no request.
+
+        @raise ValueError: where the copy is not one discovery_state()
+        gives
+        """
+
+        try:
+            document = json.loads(state) if isinstance(state, (str, bytes)) \
+                else state
+            keys = document[Constants.DISCOVERY_STATE_EVIDENCE_KEYS]
+            accessible = document[
+                Constants.DISCOVERY_STATE_ACCESSIBLE_PROPERTIES]
+            if not (isinstance(keys, list)
+                    and all(isinstance(key, str) for key in keys)
+                    and isinstance(accessible, dict)
+                    and isinstance(accessible.get("Products"), dict)):
+                raise ValueError()
+            properties = self._read_accessible_properties(accessible)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            raise ValueError(Constants.MESSAGE_DISCOVERY_STATE_NOT_VALID) \
+                from None
+        self._accessible_properties = accessible
+        # cached_property keeps each value in the instance under its own
+        # name, so these are what reading them gives from now on.
+        vars(self)["flow_element_properties"] = properties
+        vars(self)["evidence_keys"] = list(keys)
+
     def warm_up(self):
         """!
         Ask the cloud service for the accessible properties and the
@@ -466,12 +535,21 @@ class CloudRequestEngine(Engine):
         and raises if it fails again, so that processing reports the
         failure rather than using a filter that accepts nothing.
 
+        The filter is kept, as it is asked for once for each evidence key
+        of every request. It is made again only when evidence_keys holds
+        another list.
+
         @type: BasicListEvidenceKeyFilter
         @return: Returns BasicListEvidenceKeyFilter
 
         """
 
-        return BasicListEvidenceKeyFilter(self.evidence_keys)
+        keys = self.evidence_keys
+        kept = self._evidence_key_filter
+        if kept is None or kept[0] is not keys:
+            kept = (keys, BasicListEvidenceKeyFilter(keys))
+            self._evidence_key_filter = kept
+        return kept[1]
 
     def get_engine_properties(self):
         """!
@@ -499,6 +577,17 @@ class CloudRequestEngine(Engine):
                 'POST', propertiesURL, self.get_credentials())
 
         properties = json.loads(properties)
+        flowElementProperties = self._read_accessible_properties(properties)
+        self._accessible_properties = properties
+        return flowElementProperties
+
+    @staticmethod
+    def _read_accessible_properties(properties):
+        """!
+        The properties of each product, by data key and then by property
+        name, from the cloud service's answer to the accessible properties
+        request.
+        """
 
         flowElementProperties = {}
 

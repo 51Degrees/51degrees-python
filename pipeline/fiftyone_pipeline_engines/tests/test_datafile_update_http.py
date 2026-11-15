@@ -313,6 +313,26 @@ class UpdateFromMemoryTests(UpdateServiceTestCase):
         self.assertEqual([], self.statuses)
         self.assertEqual([self.ATTEMPT], self.pipeline.logs)
 
+    def testTheWatcherLeavesAFileTheUpdateWrote(self):
+        # The file an update from memory writes is the one it loads, so the
+        # file system watcher's next look finds nothing new to load or to
+        # report.
+        self.data_file = self.file_data_file()
+        self.data_file.file_system_watcher = True
+        self.hold_timers()
+        self.service.register_data_file(self.data_file)
+        # Older than any time the update can write the file at, however
+        # coarse the clock.
+        older = os.stat(self.data_file.path).st_mtime - 10
+        os.utime(self.data_file.path, (older, older))
+        self.data_file.last_changed_time = older
+
+        self.service.update_from_memory(self.data_file, b"fresh")
+        self.service.track_local_data_file_changes(self.data_file)
+
+        self.assertEqual([b"fresh"], self.data_file.refreshed)
+        self.assertEqual([], self.statuses)
+
     def testAFailedRefreshOfAFileDataFileRaisesAndIsNeitherReportedNorLogged(
             self):
         self.data_file = self.file_data_file()

@@ -22,16 +22,20 @@
 
 """!
 These tests run against fixed cloud responses, so they need no network
-connection and no resource key. They cover the case that used to stop the
-TAC and native model examples with an AttributeError, which is a resource
-key that returns the hardware profiles but is not entitled to the hardware
-properties themselves.
+connection and no resource key. They cover a resource key that returns the
+hardware profiles but is not entitled to the hardware properties themselves,
+and how a profile is read, both as Aspect Data in the way the device data is
+read and as a dict.
 """
 
+import copy
 import json
+import pickle
 import unittest
 
 from fiftyone_devicedetection_cloud.hardwareprofile_cloud import HardwareProfileCloud
+from fiftyone_pipeline_cloudrequestengine.clouddata import CloudData
+from fiftyone_pipeline_engines.aspectdata import AspectData
 
 # A response of the shape the cloud service returns for a TAC lookup when
 # the resource key has the hardware aspect but is not entitled to the
@@ -119,6 +123,14 @@ def _process(response):
     return flowdata.element_data
 
 
+def _first_profile(response):
+    """!
+    The first hardware profile the engine made from a fixed cloud response.
+    """
+
+    return _process(response).get("profiles")[0]
+
+
 class HardwareProfileCloudTests(unittest.TestCase):
 
     def test_null_reason_is_carried_into_each_profile(self):
@@ -170,6 +182,127 @@ class HardwareProfileCloudTests(unittest.TestCase):
 
         self.assertIn("paid feature",
                       hardware.get("hardwarevendor").no_value_message())
+
+
+class HardwareProfileAspectDataTests(unittest.TestCase):
+    """!
+    A profile is read in the way the device data is read, because each
+    device detection engine returns Aspect Data that is interface compatible
+    with the others.
+    """
+
+    def test_a_profile_is_aspect_data(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+
+        self.assertIsInstance(profile, AspectData)
+
+    def test_properties_are_read_as_attributes(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+
+        self.assertIs(profile["hardwarevendor"], profile.hardwarevendor)
+        self.assertIs(profile["hardwarename"], profile.hardwarename)
+        self.assertIs(profile["hardwaremodel"], profile.hardwaremodel)
+        self.assertEqual("Apple", profile.hardwarevendor.value())
+
+    def test_attributes_are_read_in_any_letter_case(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+
+        self.assertIs(profile["hardwarevendor"], profile.HardwareVendor)
+        self.assertIs(profile["hardwaremodel"], profile.HARDWAREMODEL)
+
+    def test_a_property_with_no_value_is_read_as_an_attribute(self):
+        profile = _first_profile(NOT_ENTITLED_RESPONSE)
+
+        self.assertFalse(profile.hardwarevendor.has_value())
+        self.assertIn("paid feature",
+                      profile.hardwarevendor.no_value_message())
+
+    def test_names_are_compared_ignoring_letter_case(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+        value = profile["hardwarevendor"]
+
+        self.assertIs(value, profile["HardwareVendor"])
+        self.assertIs(value, profile.get("HardwareVendor"))
+        self.assertIs(value, profile.get_internal("HardwareVendor"))
+        self.assertIn("HardwareVendor", profile)
+
+    def test_a_name_that_is_not_a_property_gives_the_device_data_message(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+
+        # The device data is CloudData, so CloudData for the same engine
+        # gives the message the device data gives.
+        with self.assertRaises(Exception) as expected:
+            CloudData(HardwareProfileCloud(), {}).get("notaproperty")
+
+        with self.assertRaises(AttributeError) as raised:
+            profile.notaproperty
+
+        self.assertEqual(str(expected.exception), str(raised.exception))
+
+    def test_hasattr_and_getattr_with_a_default_work(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+        default = object()
+
+        self.assertTrue(hasattr(profile, "hardwarevendor"))
+        self.assertFalse(hasattr(profile, "notaproperty"))
+        self.assertIs(profile["hardwarevendor"],
+                      getattr(profile, "hardwarevendor", default))
+        self.assertIs(default, getattr(profile, "notaproperty", default))
+
+    def test_as_dictionary_gives_every_property(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+
+        self.assertEqual(
+            ["hardwaremodel", "hardwarename", "hardwarevendor"],
+            sorted(profile.as_dictionary()))
+
+
+class HardwareProfileDictTests(unittest.TestCase):
+    """!
+    A profile is also a dict of property name to AspectPropertyValue, and
+    behaves as one.
+    """
+
+    def test_indexing_by_name(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+
+        self.assertEqual("Apple", profile["hardwarevendor"].value())
+
+        with self.assertRaises(KeyError) as raised:
+            profile["notaproperty"]
+
+        self.assertEqual(("notaproperty",), raised.exception.args)
+
+    def test_get_with_a_default(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+        default = object()
+
+        self.assertEqual("Apple", profile.get("hardwarevendor").value())
+        self.assertIsNone(profile.get("notaproperty"))
+        self.assertIs(default, profile.get("notaproperty", default))
+
+    def test_in_iteration_len_keys_and_equality(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+        names = ["hardwaremodel", "hardwarename", "hardwarevendor"]
+
+        self.assertIsInstance(profile, dict)
+        self.assertIn("hardwarevendor", profile)
+        self.assertNotIn("notaproperty", profile)
+        self.assertEqual(names, sorted(profile))
+        self.assertEqual(names, sorted(profile.keys()))
+        self.assertEqual(3, len(profile))
+        self.assertEqual({name: profile[name] for name in names}, profile)
+
+    def test_copies_and_pickles(self):
+        profile = _first_profile(ENTITLED_RESPONSE)
+
+        self.assertIs(profile["hardwarevendor"],
+                      copy.copy(profile)["hardwarevendor"])
+        self.assertEqual(
+            "Apple", copy.deepcopy(profile)["hardwarevendor"].value())
+        self.assertEqual(
+            "A1586",
+            pickle.loads(pickle.dumps(profile))["hardwaremodel"].value())
 
 
 if __name__ == "__main__":

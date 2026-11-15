@@ -63,6 +63,21 @@ class Constants:
             "Multiple errors returned from 51Degrees cloud service. See inner " + \
             "exceptions for details."
 
+    # The members of the document discovery_state() gives, as the Java
+    # package's CloudDiscoveryState names them.
+    DISCOVERY_STATE_EVIDENCE_KEYS = "evidenceKeys"
+    DISCOVERY_STATE_ACCESSIBLE_PROPERTIES = "accessibleProperties"
+
+    # Message when the discovery_state setting is not a copy
+    # discovery_state() gives
+    MESSAGE_DISCOVERY_STATE_NOT_VALID = (
+        "The discovery_state setting is not a copy of what a Cloud Request "
+        "Engine discovered. Give the JSON document an engine's "
+        "discovery_state() returns, holding evidenceKeys, a list of text, "
+        "and accessibleProperties, the cloud service's answer with its "
+        "Products, or leave the setting out so the engine asks the cloud "
+        "service.")
+
     # Message when single error is returned from cloud service
     EXCEPTION_CLOUD_ERROR = \
             "Error returned from 51Degrees cloud service: '{}'"

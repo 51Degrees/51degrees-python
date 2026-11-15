@@ -43,7 +43,7 @@ from .share_usage_backoff import ShareUsageBackOff, \
     INITIAL_RECOVERY_DELAY_SECONDS_DEFAULT, \
     MAX_RECOVERY_DELAY_SECONDS_DEFAULT, RECOVERY_MULTIPLIER_DEFAULT
 from .share_usage_evidencekeyfilter import ShareUsageEvidenceKeyFilter, \
-    ShareUsageTrackerEvidenceKeyFilter
+    ShareUsageTrackerEvidenceKeyFilter, _split_names
 from .share_usage_tracker import ShareUsageTracker
 
 # The key the web integration gives the web request itself. Written out
@@ -115,7 +115,8 @@ class ShareUsage(Engine):
         failures_window_seconds = FAILURES_WINDOW_SECONDS_DEFAULT,
         initial_recovery_delay_seconds = INITIAL_RECOVERY_DELAY_SECONDS_DEFAULT,
         max_recovery_delay_seconds = MAX_RECOVERY_DELAY_SECONDS_DEFAULT,
-        recovery_multiplier = RECOVERY_MULTIPLIER_DEFAULT):
+        recovery_multiplier = RECOVERY_MULTIPLIER_DEFAULT,
+        share_all_query_string_parameters = True):
         """!
         Constructor for ShareUsage element
         
@@ -134,30 +135,38 @@ class ShareUsage(Engine):
         @type cookie: string
         @param cookie: The name of the cookie that holds the session id.
         It has no effect unless track_session is True. The cookie itself
-        is not shared unless share_all is True.
+        is never shared unless its name starts with '51D_', as no other
+        cookie is.
         @type track_session: bool
         @param track_session: If True, the cookie named by cookie is used
         to tell user sessions apart, so evidence already shared is shared
         again when it comes from a new session. False by default. It
-        needs cookie to be set, and has no effect when share_all is True,
-        because every cookie is then shared and used to find repeats.
-        @type query_whitelist: list
-        @param query_whitelist: By default query string and HTTP form
-        parameters are not shared unless prefixed with '51D_'.
-        If you need to share query string parameters, a list can be
-        specified here. None shares every parameter.
-        @type header_blacklist: list
+        needs cookie to be set, and works the same whether or not
+        share_all is True.
+        @type query_whitelist: list or str
+        @param query_whitelist: The query string and HTTP form parameters
+        to share, as well as those prefixed with '51D_', when
+        share_all_query_string_parameters is False. A string of names
+        separated by commas, which is how a configuration file gives a
+        list, is read as those names. None shares every parameter.
+        @type header_blacklist: list or str
         @param header_blacklist: By default, all HTTP headers
         except Cookie are shared.
         Individual headers can be excluded from sharing by adding them
-        to this list.
+        to this list, or to a string of names separated by commas.
         @type share_percentage : float
         @param share_percentage: approximate proportion of requests to
         be shared. 1 = 100%, 0.5 = 50%, etc..
         @type share_all: bool
         @param share_all: If True, all evidence is shared apart from the
-        email address, the salt used for hashed email identifiers, and the
-        request's query string and path. False by default.
+        email address, the salt used for hashed email identifiers, the
+        request's query string and path, and every cookie whose name does
+        not start with '51D_'. False by default.
+        @type share_all_query_string_parameters: bool
+        @param share_all_query_string_parameters: If True, every query
+        string and HTTP form parameter is shared. If False, only those
+        prefixed with '51D_' and those in query_whitelist are. True by
+        default.
         @type max_queue_size: int
         @param max_queue_size: The most entries held while waiting to be
         sent. When the queue is full, new entries are dropped. The default
@@ -182,6 +191,11 @@ class ShareUsage(Engine):
 
         super(ShareUsage, self).__init__()
 
+        # A configuration file gives each list as one comma-separated
+        # string, which is split into its names. A list is kept as it is.
+        query_whitelist = _split_names(query_whitelist)
+        header_blacklist = _split_names(header_blacklist)
+
         self.query_whitelist = query_whitelist
 
         self.header_blacklist = header_blacklist
@@ -195,6 +209,8 @@ class ShareUsage(Engine):
         self.endpoint = endpoint
         self.request_timeout = request_timeout
         self.share_all = share_all
+        self.share_all_query_string_parameters = \
+            share_all_query_string_parameters
         self.track_session = track_session
 
         # The session id and sequence number are kept in evidence, as the
@@ -206,15 +222,15 @@ class ShareUsage(Engine):
         # Vary header never depend on it. It shares what it finds instead,
         # and these filters decide which of that is shared and which tells
         # a repeat apart. When sessions are tracked the tracker reads the
-        # session cookie, which the data sent leaves out unless all evidence
-        # is shared.
+        # session cookie, which the data sent leaves out.
         self.evidence_key_filter = BasicListEvidenceKeyFilter([])
         self.data_evidence_key_filter = ShareUsageEvidenceKeyFilter(
-            cookie, included, header_blacklist, False, share_all)
+            cookie, included, header_blacklist, False, share_all,
+            share_all_query_string_parameters)
         self.tracker_evidence_key_filter = \
             ShareUsageTrackerEvidenceKeyFilter(
                 cookie, included, header_blacklist, track_session,
-                share_all)
+                share_all, share_all_query_string_parameters)
 
         # Add the share usage tracker which detects when
         # to send up sharing data
@@ -258,6 +274,10 @@ class ShareUsage(Engine):
         self.cleanup_timeout_seconds = CLEANUP_TIMEOUT_SECONDS
 
         self.constant_xml = None
+
+        # The constant part of each record for each Pipeline the element
+        # is in, as each names its own flow elements.
+        self._constant_xml_by_pipeline = {}
 
         # The address of this machine for the record's ServerIP, looked up
         # on its own thread so that processing never waits for a slow name
@@ -385,35 +405,58 @@ class ShareUsage(Engine):
                 else:
                     self.backoff.failed(time.monotonic())
 
-    def get_constant_xml(self):
+    def get_constant_xml(self, pipeline=None):
+        """!
+        The part of a record that is the same for every request of a
+        Pipeline. Given the Pipeline a request came from, it names that
+        Pipeline's flow elements, so an element in several Pipelines writes
+        each one's own. With no Pipeline it names those of the one Pipeline
+        the element is in.
+        """
+        if pipeline is not None:
+            xml = self._constant_xml_by_pipeline.get(pipeline)
+            if xml is None:
+                xml = self._make_constant_xml(
+                    self.get_flow_elements(pipeline))
+                if self._server_ip is not None:
+                    self._constant_xml_by_pipeline[pipeline] = xml
+            return xml
         if self.constant_xml is None:
-            coreVersion = version("fiftyone_pipeline_core")
-            osVersion = f"{ReplacedString(platform.system()).result} {ReplacedString(platform.release()).result}"
-            pyVersion = ReplacedString(platform.python_version()).result
-
-            xml = ""
-
-            # The version number of the Pipeline API
-            xml += f"<Version>{coreVersion}</Version>"
-            # Write Pipeline information
-            # The product name
-            xml += "<Product>Pipeline</Product>"
-            # The flow elements in the current pipeline
-            for flow_element in self.get_flow_elements():
-                xml += f"<FlowElement>{flow_element}</FlowElement>"
-            xml += "<Language>Python</Language>"
-            # The software language version
-            xml += f"<LanguageVersion>{pyVersion}</LanguageVersion>"
-            # The address of this machine
-            xml += plain_element("ServerIP", self._server_ip or "")
-            # The OS name and version
-            xml += f"<Platform>{osVersion}</Platform>"
+            xml = self._make_constant_xml(self.get_flow_elements())
             # Kept once the lookup of the address has ended, so that
             # ServerIP carries the address from then on.
             if self._server_ip is None:
                 return xml
             self.constant_xml = xml
         return self.constant_xml
+
+    def _make_constant_xml(self, flow_element_names):
+        """!
+        The constant part of a record for the flow elements of one
+        Pipeline.
+        """
+        coreVersion = version("fiftyone_pipeline_core")
+        osVersion = f"{ReplacedString(platform.system()).result} {ReplacedString(platform.release()).result}"
+        pyVersion = ReplacedString(platform.python_version()).result
+
+        xml = ""
+
+        # The version number of the Pipeline API
+        xml += f"<Version>{coreVersion}</Version>"
+        # Write Pipeline information
+        # The product name
+        xml += "<Product>Pipeline</Product>"
+        # The flow elements in the Pipeline
+        for flow_element in flow_element_names:
+            xml += f"<FlowElement>{flow_element}</FlowElement>"
+        xml += "<Language>Python</Language>"
+        # The software language version
+        xml += f"<LanguageVersion>{pyVersion}</LanguageVersion>"
+        # The address of this machine
+        xml += plain_element("ServerIP", self._server_ip or "")
+        # The OS name and version
+        xml += f"<Platform>{osVersion}</Platform>"
+        return xml
 
     def _look_up_server_ip(self):
         try:
@@ -422,7 +465,13 @@ class ShareUsage(Engine):
             self._server_ip = ""
         self._server_ip_found.set()
 
-    def get_flow_elements(self):
+    def get_flow_elements(self, pipeline=None):
+        """!
+        The class names of the flow elements of the given Pipeline, or of
+        the one Pipeline the element is in when none is given.
+        """
+        if pipeline is not None:
+            return [type(e).__name__ for e in pipeline.flow_elements]
         if len(self.pipelines) == 1:
             list = []
             
@@ -620,7 +669,7 @@ class ShareUsage(Engine):
         xml += "<Device>"
 
         # --- write invariant data
-        xml += self.get_constant_xml()
+        xml += self.get_constant_xml(data.pipeline)
 
         # --- write variable data
         # The SessionID used to track a series of requests
@@ -712,6 +761,7 @@ class ShareUsage(Engine):
          provided 
         """
         data = ShareUsageData()
+        data.pipeline = flow_data.pipeline
 
         for key, value in self.found_evidence(flow_data).items():
             # Evidence keys are compared without regard to case.
@@ -862,6 +912,9 @@ class ShareUsageData:
         self.session_id = ""
         self.client_ip = ""
         self.sequence = ""
+        # The Pipeline the request came from, whose flow elements the
+        # record names.
+        self.pipeline = None
 
     def try_add(self, key, value):
         # Get the category and field names from the evidence key.
