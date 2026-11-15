@@ -224,6 +224,16 @@ wrong. The layout is still specified, in
 [identifier-layout.md](https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md),
 for anyone implementing a reader rather than using one.
 
+The modules `fiftyone_pipeline_did.fod_id` and
+`fiftyone_pipeline_did.did_client` still give the offset, length and payload
+version names the two modules held, such as
+`fiftyone_pipeline_did.fod_id.MATCH_KEY_OFFSET` and
+`fiftyone_pipeline_did.fod_id.SUPPORTED_PAYLOAD_VERSION`, so code that reads
+one keeps working for now. Each read gives a `DeprecationWarning`, because
+those names are not part of the package's surface and will be removed in a
+later release, and neither `dir()` nor a star import of either module lists
+them.
+
 ## Parsing without exceptions
 
 An identifier arriving from outside, in a query string, a header or a

@@ -58,6 +58,7 @@ from fiftyone_pipeline_did.did_client import (
 # build payloads byte by byte, so they read it from the private module, as
 # https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md
 # says the package's own tests may.
+from fiftyone_pipeline_did import _layout
 from fiftyone_pipeline_did._layout import (
     MATCH_KEY_LENGTH,
     MATCH_KEY_OFFSET,
@@ -299,6 +300,185 @@ class ClientConstructionTests(unittest.TestCase):
     def test_new_constant_holds_the_new_name(self):
         self.assertEqual(
             self.NEW_VARIABLE, did_client.CLOUD_ENDPOINT_VARIABLE)
+
+
+#: The layout names the did_client module held, which it still gives with
+#: a warning until they are removed.
+DID_CLIENT_LAYOUT_NAMES = ("GUID_LENGTH", "HEADER_LENGTH", "MATCH_KEY_LENGTH")
+
+#: Every name a star import of the did_client module gives other than the
+#: layout names, being each name the module binds without a leading
+#: underscore, imported names included. A patch release removes none.
+DID_CLIENT_STAR_NAMES = (
+    "annotations",
+    "asyncio",
+    "inspect",
+    "json",
+    "os",
+    "re",
+    "threading",
+    "urllib",
+    "warnings",
+    "dataclass",
+    "datetime",
+    "timedelta",
+    "timezone",
+    "Enum",
+    "Any",
+    "Awaitable",
+    "Callable",
+    "Dict",
+    "List",
+    "Optional",
+    "Tuple",
+    "Union",
+    "Version",
+    "DATE_EPOCH",
+    "FodId",
+    "IdType",
+    "DEFAULT_ENDPOINT",
+    "CLOUD_ENDPOINT_VARIABLE",
+    "ENDPOINT_VARIABLE",
+    "KEY_LIST_MAX_AGE",
+    "SUPPORTED_VERSION",
+    "DEFAULT_TIMEOUT",
+    "USER_AGENT",
+    "ContextResult",
+    "SignatureResult",
+    "FactorResult",
+    "SignatureReason",
+    "DidClientError",
+    "DidArgumentError",
+    "DidNotSupportedError",
+    "PublicKeyEntry",
+    "SignatureCheck",
+    "FactorValue",
+    "Transport",
+    "parse_iso8601",
+    "RedeemResult",
+    "DidClient",
+)
+
+#: What the warning for a layout name says about the name.
+NOT_SURFACE = "is not part of the package's surface"
+WILL_BE_REMOVED = "will be removed"
+
+
+def surface_warnings(caught):
+    """The recorded warnings that say a layout name is not part of the
+    package's surface."""
+    return [warning for warning in caught
+            if NOT_SURFACE in str(warning.message)]
+
+
+class DidClientLayoutNameTests(unittest.TestCase):
+    """The layout names the did_client module held. No 51Did package makes
+    the offsets or the lengths public, and a patch release keeps every
+    public name, so each name still reads, with a DeprecationWarning, and
+    the client itself never reads one that way."""
+
+    def setUp(self):
+        schedule = KeySchedule()
+        self.client = DidClient(
+            RESOURCE, endpoint=ENDPOINT,
+            transport=FakeTransport({"id/key/": (200, schedule.json())}))
+        self.date = schedule.start(1) + timedelta(days=2)
+        self.crypto = schedule.crypto(1)
+
+    def assert_layout_warning(self, caught, name):
+        """One warning was recorded for the name, a DeprecationWarning
+        saying the name is not part of the surface and will be removed,
+        and it points at the line in this file that read the name."""
+        found = surface_warnings(caught)
+        self.assertEqual(1, len(found), [str(w.message) for w in caught])
+        warning = found[0]
+        self.assertIs(DeprecationWarning, warning.category)
+        message = str(warning.message)
+        self.assertIn("fiftyone_pipeline_did.did_client." + name, message)
+        self.assertIn(WILL_BE_REMOVED, message)
+        self.assertEqual(
+            os.path.normcase(os.path.realpath(__file__)),
+            os.path.normcase(os.path.realpath(warning.filename)))
+
+    def test_each_name_warns_and_keeps_its_value(self):
+        for name in DID_CLIENT_LAYOUT_NAMES:
+            with self.subTest(name=name):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    value = getattr(did_client, name)
+                self.assertEqual(getattr(_layout, name), value)
+                self.assert_layout_warning(caught, name)
+
+    def test_a_from_import_warns_and_keeps_its_value(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            from fiftyone_pipeline_did.did_client import (
+                HEADER_LENGTH as header_length)
+        self.assertEqual(_layout.HEADER_LENGTH, header_length)
+        self.assert_layout_warning(caught, "HEADER_LENGTH")
+
+    def test_the_module_holds_none_of_them(self):
+        # Only the private _layout module holds them, so dir(), vars() and
+        # the tools that list a module's names do not offer them.
+        for name in DID_CLIENT_LAYOUT_NAMES:
+            with self.subTest(name=name):
+                self.assertNotIn(name, vars(did_client))
+                self.assertNotIn(name, dir(did_client))
+
+    def star_import(self):
+        """The names a star import of the did_client module gives, and the
+        warnings recorded while it ran."""
+        names = {}
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            exec("from fiftyone_pipeline_did.did_client import *", names)
+        return names, caught
+
+    def test_a_star_import_brings_none_of_them(self):
+        names, caught = self.star_import()
+        self.assertEqual(
+            [], [name for name in DID_CLIENT_LAYOUT_NAMES if name in names])
+        self.assertEqual([], surface_warnings(caught))
+
+    def test_a_star_import_still_brings_every_other_name(self):
+        names, _ = self.star_import()
+        self.assertEqual(
+            [], [name for name in DID_CLIENT_STAR_NAMES if name not in names])
+        for name in DID_CLIENT_STAR_NAMES:
+            self.assertIs(getattr(did_client, name), names[name], name)
+
+    def test_a_name_it_never_held_is_still_missing(self):
+        # The fod_id module held these and the did_client module did not,
+        # so they gain no route here.
+        for name in ("FLAGS_OFFSET", "SUPPORTED_PAYLOAD_VERSION",
+                     "PAYLOAD_LENGTH", "NOT_A_NAME"):
+            with self.subTest(name=name):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    with self.assertRaises(AttributeError):
+                        getattr(did_client, name)
+                self.assertEqual([], surface_warnings(caught))
+
+    def test_verifying_gives_no_warning(self):
+        # Before it verifies, the client checks that the payload is long
+        # enough for its type, so each of these passes through that check,
+        # and the last one fails it.
+        cases = (
+            (probabilistic_payload(), SignatureReason.VERIFIED),
+            (random_payload(), SignatureReason.VERIFIED),
+            (context_payload(), SignatureReason.VERIFIED),
+            (bytes([0b1100_0001, 0, 0, 0, 0]), SignatureReason.LENGTH),
+        )
+        reasons = []
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            for payload, _ in cases:
+                fod_id = signed_fod_id(
+                    self.crypto, payload=payload, date=self.date)
+                reasons.append(run(
+                    self.client.verify_signature_detailed(fod_id)).reason)
+        self.assertEqual([reason for _, reason in cases], reasons)
+        self.assertEqual([], surface_warnings(caught))
 
 
 class PublicKeyTests(unittest.TestCase):

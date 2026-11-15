@@ -62,6 +62,13 @@ _OUTPUT_METADATA = [
 # What a read gives where the request carried no element data at all.
 _NO_ELEMENT_DATA = object()
 
+# Why a second pipeline is refused.
+_ONE_PIPELINE = (
+    "This derived property element is already in a pipeline. An element "
+    "can be in one pipeline only, as the properties it gives depend on "
+    "the other derived property elements in its pipeline. Build another "
+    "element for this pipeline.")
+
 
 class DerivedPropertyElement(FlowElement):
     """!
@@ -117,8 +124,8 @@ class DerivedPropertyElement(FlowElement):
     def get_properties(self):
         """!
         The properties written under derived, being those of every derived
-        property element in the pipelines this one is in. They all write
-        one element data, so each element gives them all.
+        property element in this element's pipeline. They all write one
+        element data, so each element gives them all.
         """
         properties = {}
         for pipeline in self.pipelines:
@@ -130,13 +137,17 @@ class DerivedPropertyElement(FlowElement):
 
     def on_registration(self, pipeline):
         """!
-        Refuses a pipeline that cannot supply a property a script reads,
-        or in which another element writes a property a script writes,
-        then logs what each script produces.
+        Refuses a second pipeline, a pipeline that cannot supply a
+        property a script reads, or one in which another element writes a
+        property a script writes, then logs what each script produces.
+        The element is in one pipeline only, because the properties it
+        gives depend on the other derived property elements there.
 
         @raise PipelineConfigurationError: where the pipeline cannot be
             used.
         """
+        if self.pipelines:
+            raise PipelineConfigurationError([_ONE_PIPELINE])
         self._check_pipeline(pipeline)
         self._log_scripts(pipeline)
 

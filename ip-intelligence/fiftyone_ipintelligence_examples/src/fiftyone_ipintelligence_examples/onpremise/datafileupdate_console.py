@@ -132,6 +132,8 @@ class DataFileUpdateConsole():
             pipeline = IpIntelligencePipelineBuilder(
                 data_file_path = data_file,
                 performance_profile = "LowMemory",
+                # Usage sharing is off for this example. In production turn it on,
+                # because the requests shared improve the data every user gets.
                 usage_sharing = False,
                 auto_update = False,
                 licence_keys = "").build()
@@ -219,6 +221,8 @@ class DataFileUpdateConsole():
             # Reload automatically when the data file on disk changes.
             file_system_watcher = True,
             data_update_product_type = DATA_UPDATE_PRODUCT_TYPE,
+            # Usage sharing is off for this example. In production turn it on,
+            # because the requests shared improve the data every user gets.
             usage_sharing = False).add_logger(logger).build()
 
         # The pipeline is closed at the end of the with block, which stops the

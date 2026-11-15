@@ -22,7 +22,43 @@
 
 import requests
 
+from .constants import Constants
+
 
 class RequestClient:
-    def request(self, type, url, content, originHeader):
-        return requests.request(type, url, data=content, headers={"Origin":originHeader})
+
+    """!
+    Sends the cloud request engine's requests with the requests library.
+    A request waits at most its timeout to connect, and at most that long
+    again for each part of the answer, so a cloud service that takes the
+    connection and never answers cannot hold the caller.
+    """
+
+    # The timeout of a subclass whose constructor does not call this one.
+    timeout_seconds = Constants.TIMEOUT_SECONDS_DEFAULT
+
+    def __init__(self, timeout_seconds=Constants.TIMEOUT_SECONDS_DEFAULT):
+
+        """!
+        @type timeout_seconds: number
+        @param timeout_seconds: how long a request waits, in seconds, when
+        it is not given a timeout of its own
+        """
+
+        self.timeout_seconds = timeout_seconds
+
+    def request(self, type, url, content, originHeader, timeout_seconds=None):
+
+        """!
+        Send one request to the cloud service and give its response.
+
+        @type timeout_seconds: number
+        @param timeout_seconds: how long the request waits, in seconds, or
+        None for the timeout the client was built with
+        """
+
+        if timeout_seconds is None:
+            timeout_seconds = self.timeout_seconds
+        return requests.request(
+            type, url, data=content, headers={"Origin": originHeader},
+            timeout=timeout_seconds)

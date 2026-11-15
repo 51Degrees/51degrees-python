@@ -98,10 +98,13 @@ class UsageSharingExampleTests(unittest.TestCase):
         self.assertEqual(settings["share_percentage"], usage.share_percentage)
 
         # Closing the pipeline sends what is queued, which is the one
-        # request processed.
+        # request processed. Only messages to the example's endpoint are
+        # the example's, as another test's element still sending posts to
+        # its own.
+        messages = [message for message in messages
+                    if message["url"] == DEFAULT_ENDPOINT]
         self.assertEqual(1, len(messages))
         message = messages[0]
-        self.assertEqual(DEFAULT_ENDPOINT, message["url"])
         self.assertIsNot(False, message["options"].get("verify", True))
         self.assertEqual(1, message["body"].count("<Device>"))
         self.assertIn(f'<header Name="user-agent">{CHROME}</header>',

@@ -33,7 +33,7 @@ class Constants():
     invalidKey = "invalidkey"
     invalidKeyMessage = "58982060: " + invalidKey + " not a valid resource key"
     invalidKeyResponse = { 'errors':[ invalidKeyMessage ]}
-    invalidKeyMessageComplete = "Error returned from 51Degrees cloud service: '[\"" + invalidKeyMessage + "\"]'"
+    invalidKeyMessageComplete = "Error returned from 51Degrees cloud service: '" + invalidKeyMessage + "'"
     noDataKey = "nodatakey"
     noDataKeyResponse = {}
     noDataKeyMessageComplete = "Error returned from 51Degrees cloud service: 'No data in response " + \

@@ -123,7 +123,7 @@ class StubCloud:
         # The Origin header of each request, kept apart from the body.
         self.origins = []
 
-    def request(self, method, url, data=None, headers=None):
+    def request(self, method, url, data=None, headers=None, timeout=None):
         data = dict(data or {})
         self.requests.append((url, data))
         self.origins.append(dict(headers or {}).get("Origin"))
