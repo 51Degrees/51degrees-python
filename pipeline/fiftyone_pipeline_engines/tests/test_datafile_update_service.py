@@ -270,8 +270,8 @@ class FileSystemWatcherTests(unittest.TestCase):
             opened.append(args[0])
             raise PermissionError("in use")
 
-        # The clock reads 0 when the wait starts, and then the times of the
-        # second, third and fourth tries.
+        # The clock reads 0 when the wait starts, and then once after each
+        # of the three tries, the last reading ending the wait.
         clock = iter((0, 300, 599.9, 600))
         self.write("version 2")
         with mock.patch.object(
