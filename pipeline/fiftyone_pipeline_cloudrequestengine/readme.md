@@ -76,6 +76,13 @@ cloud engines after it have no property metadata.
 Each entry in the `warnings` list of an answer from the cloud service is
 given as a warning, with any licence key masked.
 
+An engine whose discovery has completed gives what it discovered with
+`discovery_state()`, as one JSON document. Keep it, and give it as the
+`discovery_state` setting of an engine with the same credentials, for
+example on the next start of a short-lived host, and that engine is built
+without asking the cloud service. The document is the one the Java
+package's `CloudDiscoveryState` writes.
+
 See the [Start-up activity section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#start-up-activity).
 
 ## Pointing the engine at another host
