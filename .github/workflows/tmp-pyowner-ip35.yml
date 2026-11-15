@@ -39,7 +39,7 @@ jobs:
           $PY -m venv .venv
           if [ -f .venv/Scripts/activate ]; then . .venv/Scripts/activate; else . .venv/bin/activate; fi
           python -m pip install -q --upgrade pip
-          python -m pip install -q pytest parameterized requests_mock flask -e pipeline/fiftyone_pipeline_core -e pipeline/fiftyone_pipeline_engines -e pipeline/fiftyone_pipeline_cloudrequestengine -e pipeline/fiftyone_pipeline_engines_fiftyone -e device-detection/fiftyone_devicedetection_shared -e ip-intelligence/fiftyone_ipintelligence_shared -e ip-intelligence/fiftyone_ipintelligence -e ip-intelligence/fiftyone_ipintelligence_cloud
+          python -m pip install -q pytest parameterized requests_mock flask -e pipeline/fiftyone_pipeline_core -e pipeline/fiftyone_pipeline_engines -e pipeline/fiftyone_pipeline_cloudrequestengine -e pipeline/fiftyone_pipeline_engines_fiftyone -e device-detection/fiftyone_devicedetection_shared -e ip-intelligence/fiftyone_ipintelligence_shared -e ip-intelligence/fiftyone_ipintelligence -e ip-intelligence/fiftyone_ipintelligence_cloud -e pipeline/fiftyone_pipeline_translation -e ip-intelligence/fiftyone_ipintelligence_translation ruamel.yaml
           python -m pip install -q --no-deps -e ip-intelligence/fiftyone_ipintelligence_examples
           python -m pip install --no-deps ./device-detection/fiftyone_devicedetection_onpremise ./ip-intelligence/fiftyone_ipintelligence_onpremise
           python -m pip list | grep -i fiftyone
