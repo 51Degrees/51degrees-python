@@ -190,6 +190,10 @@ class CloudRequestEngine(Engine):
 
         self.exclude_from_messages = True
 
+        # The evidence key filter, with the key list it was made from. See
+        # get_evidence_key_filter.
+        self._evidence_key_filter = None
+
         # Discovery runs now, so a built engine is ready to process and a
         # key the cloud service refuses fails here, not on a request.
         self.warm_up()
@@ -414,12 +418,21 @@ class CloudRequestEngine(Engine):
         and raises if it fails again, so that processing reports the
         failure rather than using a filter that accepts nothing.
 
+        The filter is kept, as it is asked for once for each evidence key
+        of every request. It is made again only when evidence_keys holds
+        another list.
+
         @type: BasicListEvidenceKeyFilter
         @return: Returns BasicListEvidenceKeyFilter
 
         """
 
-        return BasicListEvidenceKeyFilter(self.evidence_keys)
+        keys = self.evidence_keys
+        kept = self._evidence_key_filter
+        if kept is None or kept[0] is not keys:
+            kept = (keys, BasicListEvidenceKeyFilter(keys))
+            self._evidence_key_filter = kept
+        return kept[1]
 
     def get_engine_properties(self):
         """!
