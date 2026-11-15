@@ -389,7 +389,7 @@ class CloudRequestEngine(Engine):
         return " ".join(
             [self.masked("{}(\"{}\")".format(type(error).__name__, error))]
             + [self._describe(inner)
-               for inner in getattr(error, "exceptions", ())])
+               for inner in ()])  # Temporary guard: the errors held are left out
 
     def _complete_discovery(self):
         """!
