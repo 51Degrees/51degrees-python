@@ -90,6 +90,8 @@ def _build_pipeline(data_file, performance_profile, logger=None):
     builder = IpIntelligencePipelineBuilder(
         data_file_path = data_file,
         performance_profile = performance_profile,
+        # Usage sharing is off for this example. In production turn it on,
+        # because the requests shared improve the data every user gets.
         usage_sharing = False,
         auto_update = False,
         # Auto update is disabled, so the data file can be used in place.

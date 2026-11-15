@@ -23,7 +23,9 @@
 """!
 Requests the page of the on-premise getting started web example, through
 Flask's test client, with the data file the example finds for itself, which
-is the free Lite file.
+is the free Lite file. The example shares usage, as a web example should,
+so sending is stood in for while the tests run and while the pipeline
+closes, and no usage data leaves the machine the tests run on.
 """
 
 import io
@@ -54,14 +56,19 @@ class OnPremiseGettingStartedWebTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
+        cls.sending = mock.patch("requests.post")
+        cls.sending.start()
         cls.data_file = ExampleUtils.find_file(LITE_DATAFILE_NAME)
         if cls.data_file:
             example.build_pipeline(cls.data_file)
 
     @classmethod
     def tearDownClass(cls):
-        if cls.data_file:
-            example.pipeline.close()
+        try:
+            if cls.data_file:
+                example.pipeline.close()
+        finally:
+            cls.sending.stop()
         super().tearDownClass()
 
     def setUp(self):
@@ -85,6 +92,9 @@ class OnPremiseGettingStartedWebTests(unittest.TestCase):
                       "Registered Country"):
             self.assertIn(f"<li>{label}: ", page)
         self.assertNotIn(NOT_FOUND, page)
+
+    def test_the_pipeline_shares_usage(self):
+        self.assertIn("shareusage", example.pipeline.flow_elements_list)
 
     def test_page_shows_the_countries_or_where_to_get_them(self):
         page = self.get_page()
@@ -120,6 +130,7 @@ class OnPremiseGettingStartedWebMainTests(unittest.TestCase):
 
         printed = io.StringIO()
         with mock.patch.dict(os.environ), redirect_stdout(printed), \
+                mock.patch("requests.post"), \
                 mock.patch.object(example.app, "run", side_effect=serve):
             for name in SETTINGS:
                 os.environ.pop(name, None)
