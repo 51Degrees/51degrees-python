@@ -66,8 +66,7 @@ def _deprecated_layout_name(module: str, names: frozenset[str],
     offsets, the lengths and the payload version are not part of the
     package's surface. A name not in ``names`` is missing as usual."""
     if name not in names:
-        raise AttributeError(
-            "module {0!r} has no attribute {1!r}".format(module, name))
+        return None
     # The third frame is the code that read the name, past this function
     # and the module's __getattr__.
     warnings.warn(
@@ -788,7 +787,7 @@ def _payload_message(status: FodIdParseStatus, payload: bytes) -> str:
     length = 0 if payload is None else len(payload)
     if status is FodIdParseStatus.PAYLOAD_TOO_SHORT:
         return "51Did payload must be at least {0} bytes; got {1}.".format(
-            _layout.HEADER_LENGTH, length)
+            __getattr__("HEADER_LENGTH"), length)
     if status is FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION:
         return (
             "51Did payload version {0} is not one this package can "
@@ -804,3 +803,5 @@ def _payload_message(status: FodIdParseStatus, payload: bytes) -> str:
                 id_type.name,
                 _layout.HEADER_LENGTH + _match_key_length(id_type, payload),
                 length))
+
+__all__ = ["FodId"]

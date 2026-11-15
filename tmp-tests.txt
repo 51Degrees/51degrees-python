@@ -1,0 +1,2 @@
+pipeline/fiftyone_pipeline_did/tests/test_fodid.py
+pipeline/fiftyone_pipeline_did/tests/test_did_client.py

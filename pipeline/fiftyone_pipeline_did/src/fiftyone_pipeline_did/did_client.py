@@ -1041,7 +1041,7 @@ def _payload_length_valid(fod_id: FodId) -> bool:
     reads as terms that are not stated."""
     match_key_length = _layout.GUID_LENGTH if fod_id.type is IdType.RANDOM \
         else _layout.MATCH_KEY_LENGTH
-    return len(fod_id.payload) >= _layout.HEADER_LENGTH + match_key_length
+    return len(fod_id.payload) >= __getattr__("HEADER_LENGTH") + match_key_length
 
 
 def _moment_of(value: Any) -> Optional[datetime]:
@@ -1143,3 +1143,6 @@ def _candidates_for_date(keys: List[PublicKeyEntry],
     add(_in_force_at(keys, at - _BOUNDARY_TOLERANCE))
     add(_in_force_at(keys, at + _BOUNDARY_TOLERANCE))
     return candidates
+
+__all__ = ["DidClient"]
+_AT_IMPORT = __getattr__("GUID_LENGTH")
