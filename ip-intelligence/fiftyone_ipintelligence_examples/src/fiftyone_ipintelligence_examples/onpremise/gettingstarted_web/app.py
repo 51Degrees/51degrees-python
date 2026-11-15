@@ -161,7 +161,7 @@ def index():
 
 def main(data_file = None):
     if not data_file:
-        data_file = ExampleUtils.find_file(LITE_DATAFILE_NAME)
+        data_file = ExampleUtils.find_file("guard-missing.ipi")
     if not data_file:
         raise Exception(
             "Failed to find an IP intelligence data file. Make sure the "
