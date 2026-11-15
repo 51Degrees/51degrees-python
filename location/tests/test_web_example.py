@@ -192,6 +192,19 @@ class PostPositionTests(unittest.TestCase):
         self.assertEqual(NOT_CARRIED, self.post(client))
         self.assertEqual(1, client.posts)
 
+    def test_a_lookup_that_took_too_long_each_time_is_said_so(self):
+        message = country_failure(TIMED_OUT)
+
+        self.assertIn("took too long", message)
+        self.assertIn(str(ATTEMPTS), message)
+        self.assertNotIn("key", message)
+
+    def test_any_other_reason_points_at_the_key(self):
+        self.assertEqual(
+            answered_without("a country", NOT_CARRIED["countrynullreason"],
+                             "the location product"),
+            country_failure(NOT_CARRIED))
+
     def test_it_stops_after_the_attempts(self):
         client = StandInClient(*[TIMED_OUT] * (ATTEMPTS + 1))
 
