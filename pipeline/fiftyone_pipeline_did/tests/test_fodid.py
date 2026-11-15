@@ -21,12 +21,17 @@
 # *********************************************************************
 
 import base64
+import os
 import struct
+import subprocess
+import sys
 import unittest
+import warnings
 from datetime import datetime, timezone
 
 from owid import Crypto, Creator, Owid, ParseStatus, Version
 
+import fiftyone_pipeline_did
 from fiftyone_pipeline_did import (
     FodId,
     FodIdParseResult,
@@ -36,6 +41,7 @@ from fiftyone_pipeline_did import (
     Usage,
     SignatureStatus,
 )
+from fiftyone_pipeline_did import fod_id as fod_id_module
 
 # The named terms value is private to the package and is not exported, so
 # the vocabulary tests below reach the private module directly, as the
@@ -46,6 +52,7 @@ from fiftyone_pipeline_did._terms import Terms
 # build payloads byte by byte, so they read it from the private module, as
 # https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md
 # says the package's own tests may.
+from fiftyone_pipeline_did import _layout
 from fiftyone_pipeline_did._layout import (
     FLAGS_OFFSET,
     GUID_LENGTH,
@@ -571,6 +578,228 @@ class FodIdTests(unittest.TestCase):
         self.assertEqual(fod1.license_id, fod2.license_id)
         self.assertEqual(fod1.match_key, fod2.match_key)
         self.assertEqual(fod1.domain, fod2.domain)
+
+
+#: The layout names the fod_id module held, which it still gives with a
+#: warning until they are removed.
+FOD_ID_LAYOUT_NAMES = (
+    "FLAGS_OFFSET",
+    "GUID_LENGTH",
+    "HEADER_LENGTH",
+    "LICENSE_ID_LENGTH",
+    "LICENSE_ID_OFFSET",
+    "MATCH_KEY_LENGTH",
+    "MATCH_KEY_OFFSET",
+    "SUPPORTED_PAYLOAD_VERSION",
+    "TERMS_LENGTH",
+)
+
+#: Every name a star import of the fod_id module gives other than the
+#: layout names, being each name the module binds without a leading
+#: underscore, imported names included. A patch release removes none.
+FOD_ID_STAR_NAMES = (
+    "annotations",
+    "re",
+    "datetime",
+    "timezone",
+    "Enum",
+    "NamedTuple",
+    "Optional",
+    "Tuple",
+    "Owid",
+    "OwidError",
+    "ParseResult",
+    "ParseStatus",
+    "SignatureStatus",
+    "Version",
+    "IdType",
+    "Terms",
+    "Usage",
+    "DATE_EPOCH",
+    "FodIdParseStatus",
+    "FodIdParseResult",
+    "FodId",
+)
+
+#: What the warning for a layout name says about the name.
+NOT_SURFACE = "is not part of the package's surface"
+WILL_BE_REMOVED = "will be removed"
+
+#: The longest a fresh interpreter may take over the import check below,
+#: which only stops a run that hangs.
+IMPORT_TIMEOUT_SECONDS = 60
+
+#: Imports the package in a fresh interpreter, then prints where the
+#: package was imported from and the message of every warning that says a
+#: layout name is not part of the surface.
+IMPORT_CHECK = (
+    "import warnings\n"
+    "with warnings.catch_warnings(record=True) as caught:\n"
+    "    warnings.simplefilter('always')\n"
+    "    import fiftyone_pipeline_did\n"
+    "    import fiftyone_pipeline_did.did_client\n"
+    "    import fiftyone_pipeline_did.fod_id\n"
+    "print(fiftyone_pipeline_did.__file__)\n"
+    "for warning in caught:\n"
+    "    if " + repr(NOT_SURFACE) + " in str(warning.message):\n"
+    "        print(warning.message)\n")
+
+
+def surface_warnings(caught):
+    """The recorded warnings that say a layout name is not part of the
+    package's surface."""
+    return [warning for warning in caught
+            if NOT_SURFACE in str(warning.message)]
+
+
+def same_file(first, second):
+    """Whether two paths name the same file."""
+    return (os.path.normcase(os.path.realpath(first)) ==
+            os.path.normcase(os.path.realpath(second)))
+
+
+class FodIdLayoutNameTests(unittest.TestCase):
+    """The layout names the fod_id module held. No 51Did package makes the
+    offsets, the lengths or the payload version public, and a patch
+    release keeps every public name, so each name still reads, with a
+    DeprecationWarning, and the package itself never reads one that way.
+    """
+
+    def setUp(self):
+        self.factory = FodIdTestFactory()
+
+    def assert_layout_warning(self, caught, name):
+        """One warning was recorded for the name, a DeprecationWarning
+        saying the name is not part of the surface and will be removed,
+        and it points at the line in this file that read the name."""
+        found = surface_warnings(caught)
+        self.assertEqual(1, len(found), [str(w.message) for w in caught])
+        warning = found[0]
+        self.assertIs(DeprecationWarning, warning.category)
+        message = str(warning.message)
+        self.assertIn("fiftyone_pipeline_did.fod_id." + name, message)
+        self.assertIn(WILL_BE_REMOVED, message)
+        self.assertTrue(same_file(__file__, warning.filename),
+                        warning.filename)
+
+    def test_each_name_warns_and_keeps_its_value(self):
+        for name in FOD_ID_LAYOUT_NAMES:
+            with self.subTest(name=name):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    value = getattr(fod_id_module, name)
+                self.assertEqual(getattr(_layout, name), value)
+                self.assert_layout_warning(caught, name)
+
+    def test_a_from_import_warns_and_keeps_its_value(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            from fiftyone_pipeline_did.fod_id import (
+                SUPPORTED_PAYLOAD_VERSION as version)
+        self.assertEqual(_layout.SUPPORTED_PAYLOAD_VERSION, version)
+        self.assert_layout_warning(caught, "SUPPORTED_PAYLOAD_VERSION")
+
+    def test_the_module_holds_none_of_them(self):
+        # Only the private _layout module holds them, so dir(), vars() and
+        # the tools that list a module's names do not offer them.
+        for name in FOD_ID_LAYOUT_NAMES:
+            with self.subTest(name=name):
+                self.assertNotIn(name, vars(fod_id_module))
+                self.assertNotIn(name, dir(fod_id_module))
+
+    def star_import(self):
+        """The names a star import of the fod_id module gives, and the
+        warnings recorded while it ran."""
+        names = {}
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            exec("from fiftyone_pipeline_did.fod_id import *", names)
+        return names, caught
+
+    def test_a_star_import_brings_none_of_them(self):
+        names, caught = self.star_import()
+        self.assertEqual(
+            [], [name for name in FOD_ID_LAYOUT_NAMES if name in names])
+        self.assertEqual([], surface_warnings(caught))
+
+    def test_a_star_import_still_brings_every_other_name(self):
+        names, _ = self.star_import()
+        self.assertEqual(
+            [], [name for name in FOD_ID_STAR_NAMES if name not in names])
+        for name in FOD_ID_STAR_NAMES:
+            self.assertIs(getattr(fod_id_module, name), names[name], name)
+
+    def test_a_name_it_never_held_is_still_missing(self):
+        for name in ("PAYLOAD_LENGTH", "RANDOM_PAYLOAD_LENGTH",
+                     "NOT_A_NAME"):
+            with self.subTest(name=name):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    with self.assertRaises(AttributeError):
+                        getattr(fod_id_module, name)
+                self.assertEqual([], surface_warnings(caught))
+
+    def test_reading_identifiers_gives_no_warning(self):
+        # Every outcome of a read, through the raising and the non-raising
+        # readers and every accessor, so each place the package uses the
+        # layout is passed through.
+        no_usage = canonical_payload()
+        no_usage[FLAGS_OFFSET] = CANONICAL_FLAGS & ~0b111
+        payloads = (
+            canonical_payload(),
+            canonical_random_payload(),
+            payload_ending_at_match_key(),
+            bytes([CANONICAL_FLAGS] * (HEADER_LENGTH - 1)),
+            with_payload_version(canonical_payload(), 1),
+            no_usage,
+            canonical_payload()[:PAYLOAD_LENGTH - 1],
+        )
+        statuses = []
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            for payload in payloads:
+                text = self.factory.signed_owid_base64(payload)
+                FodId.try_from_byte_array(self.factory.signed_bytes(payload))
+                result = FodId.try_from_base64(text)
+                statuses.append(result.status)
+                if result:
+                    for accessor in ("type", "usage", "usage_is_indirect",
+                                     "license_id", "match_key", "terms",
+                                     "date"):
+                        getattr(result.value, accessor)
+                    FodId.from_owid(self.factory.signed_owid(payload))
+                else:
+                    with self.assertRaises(ValueError):
+                        FodId.from_base64(text)
+        self.assertEqual(
+            [FodIdParseStatus.PARSED] * 3 + [
+                FodIdParseStatus.PAYLOAD_TOO_SHORT,
+                FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION,
+                FodIdParseStatus.NO_USAGE,
+                FodIdParseStatus.INVALID_TYPE_PAYLOAD_LENGTH],
+            statuses)
+        self.assertEqual([], surface_warnings(caught))
+
+    def test_importing_the_package_gives_no_warning(self):
+        # A fresh interpreter, because this one imported the package before
+        # any test ran. The folder holding the package these tests import
+        # goes first on its path, so it imports the same copy.
+        root = os.path.dirname(os.path.dirname(
+            os.path.abspath(fiftyone_pipeline_did.__file__)))
+        environment = dict(os.environ)
+        environment["PYTHONPATH"] = os.pathsep.join(
+            [root] + ([environment["PYTHONPATH"]]
+                      if environment.get("PYTHONPATH") else []))
+        finished = subprocess.run(
+            [sys.executable, "-c", IMPORT_CHECK], env=environment,
+            capture_output=True, text=True,
+            timeout=IMPORT_TIMEOUT_SECONDS)
+        self.assertEqual(0, finished.returncode, finished.stderr)
+        lines = finished.stdout.splitlines()
+        self.assertTrue(
+            lines and same_file(fiftyone_pipeline_did.__file__, lines[0]),
+            finished.stdout)
+        self.assertEqual([], lines[1:])
 
 
 def _declared_length_offset(raw):
