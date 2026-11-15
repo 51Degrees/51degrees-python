@@ -18,8 +18,9 @@ This repository contains the following modules:
 - **fiftyone_pipeline_cloudrequestengine** - An engine used to make requests to the 51Degrees cloud service.
 - **fiftyone_pipeline_translation** - A flow element that translates values from a source element into another language using YAML translation files.
 - **fiftyone_pipeline_did** - A reader and cloud client for the 51Did (51Degrees Identifier) returned by the 51Degrees cloud service.
+- **fiftyone_pipeline_derivedproperty** - A flow element that computes properties such as HumanConfidence and IsGdpr from properties other elements have produced, following the scripts in the derived-properties repository. Not yet published to PyPI.
 
-The examples are described under Examples below. The `owid-python` folder is a git submodule holding the OWID library that `fiftyone_pipeline_did` carries.
+The examples are described under Examples below. The `owid-python` folder is a git submodule holding the OWID library that `fiftyone_pipeline_did` carries, and `fiftyone_pipeline_derivedproperty/src/fiftyone_pipeline_derivedproperty/derived-properties` is a git submodule of [derived-properties](https://github.com/51Degrees/derived-properties), whose `scripts` folder the package carries and whose `tests` folder its tests run.
 
 ## Dependencies
 
