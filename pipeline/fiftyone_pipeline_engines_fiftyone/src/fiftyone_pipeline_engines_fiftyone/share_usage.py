@@ -693,7 +693,11 @@ class ShareUsage(Engine):
             # accepts no evidence of its own.
             cachekey = self.tracker_evidence_key_filter.filter_evidence(
                 self.found_evidence(flow_data))
-            cachekey = json.dumps(cachekey, sort_keys=True, default=str)
+            # Evidence keys ignore case, so a repeat is found whatever the
+            # letters of its keys.
+            cachekey = json.dumps(
+                {key.lower(): value for key, value in cachekey.items()},
+                sort_keys=True, default=str)
             share = self.tracker.track(cachekey) 
             if share:
                 self.tracker.set_cache_value(cachekey)
@@ -864,9 +868,11 @@ class ShareUsageData:
         category = ""
         field = key
 
+        # Evidence keys ignore case, so the prefix, which names the record's
+        # element, is in lower case whatever the letters of the key.
         first_separator = key.find(".")
         if first_separator > 0:
-            category = key[0:first_separator]
+            category = key[0:first_separator].lower()
             field = key[first_separator + 1:len(key)]
 
         # Add the evidence to the dictionary.

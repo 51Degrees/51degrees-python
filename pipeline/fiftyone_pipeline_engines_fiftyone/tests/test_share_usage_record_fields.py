@@ -259,6 +259,32 @@ class ShareUsageRecordFieldsTests(unittest.TestCase):
                 + "<", name)
         self.assertIn('Name="user-agent"', sent[0])
 
+    def test_a_repeat_with_keys_in_another_case_is_shared_once(self):
+        # evidence.md line 10, "Keys MUST be case-insensitive", so the same
+        # values under keys spelled in another case are a repeat.
+        usage = usage_element()
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
+        for key in ("header.x-test", "Header.X-Test"):
+            flow_data = pipeline.create_flowdata()
+            flow_data.evidence.add("header.user-agent", "agent")
+            flow_data.evidence.add(key, "the value")
+            flow_data.process()
+        self.assertEqual(1, len(sent_on_close(usage)))
+
+    def test_evidence_is_recorded_under_its_prefix_in_lower_case(self):
+        # The record names each value's element by the key's prefix, which
+        # is the same element whatever the letters of the key.
+        usage = usage_element()
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
+        flow_data = pipeline.create_flowdata()
+        flow_data.evidence.add("Header.X-Test", "the value")
+        flow_data.process()
+        sent = sent_on_close(usage)
+        self.assertEqual(1, len(sent))
+        self.assertIn("<header ", sent[0])
+        self.assertNotIn("<Header ", sent[0])
+        self.assertIn(">the value<", sent[0])
+
 
 if __name__ == "__main__":
     unittest.main()
