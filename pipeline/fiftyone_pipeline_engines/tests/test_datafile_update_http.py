@@ -34,6 +34,7 @@ from unittest import mock
 
 import requests
 
+from fiftyone_pipeline_engines import datafile_update_service
 from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
 from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 
@@ -163,6 +164,20 @@ class UpdateServiceTestCase(unittest.TestCase):
         timer.start()
         self.addCleanup(timer.stop)
 
+    def assertUpdateFromMemoryFails(self, status, message):
+        """Runs an update from memory that should fail, checks the error it
+        raises and that the data file is no longer updating, and returns the
+        error."""
+        with self.assertRaises(Exception) as caught:
+            self.service.update_from_memory(self.data_file, b"fresh")
+        error = caught.exception
+        self.assertIsInstance(
+            error, datafile_update_service.DataUpdateException)
+        self.assertEqual(message, str(error))
+        self.assertEqual(status, error.status)
+        self.assertFalse(self.data_file.updating)
+        return error
+
 
 # If-Modified-Since is an HTTP date (RFC 9110 section 5.6.7), set to the
 # publication date, or the file system last modified time without one.
@@ -245,63 +260,106 @@ class UpdateExpectedTimeTests(UpdateServiceTestCase):
         self.assertEqual([30 * 60 + 5], self.intervals)
 
 
-# A memory data file can be refreshed from the bytes given.
+# An update from memory gives its result to its caller and reports nothing to
+# the update complete callbacks, as the Reporting each check section of the
+# data updates specification says. It returns success, or raises an error
+# that is not logged, as the Errors section says.
 class UpdateFromMemoryTests(UpdateServiceTestCase):
+
+    # The errors table's message for a refresh from data held in memory,
+    # which an update from memory gives whichever kind of data file it has.
+    REFRESH_FAILED = ("An error occurred when applying a data update to "
+                      "engine 'FakeEngine'.")
+    # The one entry an update from memory that refreshes the engine logs.
+    ATTEMPT = ("info",
+               "Attempting to refresh Engine 'FakeEngine' with new data")
+
+    def file_data_file(self):
+        """A data file kept on disk, whose file holds the old data."""
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        path = os.path.join(folder, "data.dat")
+        with open(path, "wb") as file:
+            file.write(b"old")
+        return FileDataFile(path)
 
     def testMemoryDataFileIsRefreshedFromTheBytes(self):
         status = self.service.update_from_memory(self.data_file, b"fresh")
         self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, status)
         self.assertEqual(b"fresh", self.data_file.data)
         self.assertEqual([b"fresh"], self.data_file.refreshed)
-        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+        self.assertEqual([], self.statuses)
+        self.assertEqual([self.ATTEMPT], self.pipeline.logs)
 
-    def testFailedRefreshIsReportedAndLogged(self):
-        self.data_file.refresh_error = Exception("boom")
-        status = self.service.update_from_memory(self.data_file, b"fresh")
-        self.assertEqual(UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, status)
-        self.assertIn(
-            ("error",
-             CHECK_ERROR + "An error occurred when applying a data update "
-             "to engine 'FakeEngine'. Error detail: boom"),
-            self.pipeline.logs)
+    def testAFailedRefreshRaisesAndIsNeitherReportedNorLogged(self):
+        cause = ValueError("boom")
+        self.data_file.refresh_error = cause
+        error = self.assertUpdateFromMemoryFails(
+            UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, self.REFRESH_FAILED)
+        self.assertIs(cause, error.__cause__)
+        # The engine, and so the data file, keep the data they had.
+        self.assertEqual(b"old", self.data_file.data)
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual([], self.statuses)
+        self.assertEqual([self.ATTEMPT], self.pipeline.logs)
 
     def testFileDataFileIsWrittenThenRefreshed(self):
-        folder = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
-        path = os.path.join(folder, "data.dat")
-        with open(path, "wb") as file:
-            file.write(b"old")
-        self.data_file = FileDataFile(path)
+        self.data_file = self.file_data_file()
         status = self.service.update_from_memory(self.data_file, b"fresh")
         self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, status)
-        with open(path, "rb") as file:
+        with open(self.data_file.path, "rb") as file:
             self.assertEqual(b"fresh", file.read())
         self.assertEqual([b"fresh"], self.data_file.refreshed)
-        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+        self.assertEqual([], self.statuses)
+        self.assertEqual([self.ATTEMPT], self.pipeline.logs)
+
+    def testAFailedRefreshOfAFileDataFileRaisesAndIsNeitherReportedNorLogged(
+            self):
+        self.data_file = self.file_data_file()
+        cause = ValueError("boom")
+        self.data_file.refresh_error = cause
+        error = self.assertUpdateFromMemoryFails(
+            UpdateStatus.AUTO_UPDATE_REFRESH_FAILED, self.REFRESH_FAILED)
+        self.assertIs(cause, error.__cause__)
+        self.assertEqual(b"old", self.data_file.data)
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual([], self.statuses)
+        self.assertEqual([self.ATTEMPT], self.pipeline.logs)
 
     # The engine of a data file kept on disk reads that file, so a write
-    # that failed leaves it with the data it had. The update ends with the
-    # failure rather than reporting a success the engine did not have.
+    # that failed leaves it with the data it had. The update ends with an
+    # error rather than a success the engine did not have.
     def testAFailedWriteFromMemoryEndsTheUpdate(self):
         folder = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
         path = os.path.join(folder, "missing", "data.dat")
         self.data_file = FileDataFile(path)
-        status = self.service.update_from_memory(self.data_file, b"fresh")
-        self.assertEqual(
-            UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME, status)
+        error = self.assertUpdateFromMemoryFails(
+            UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME,
+            "An error occurred when copying a data file to replace the "
+            "existing one at '" + path + "'.")
+        self.assertIsInstance(error.__cause__, OSError)
         self.assertEqual([], self.data_file.refreshed)
-        self.assertEqual(
-            [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
-        self.assertEqual(
-            [], [message for level, message
-                 in self.pipeline.logs if level == "warning"])
-        self.assertTrue(
-            [message for level, message in self.pipeline.logs
-             if level == "error" and message.startswith(
-                 CHECK_ERROR + "An error occurred when copying a data file "
-                 "to replace the existing one at '" + path + "'.")],
-            self.pipeline.logs)
+        self.assertEqual([], self.statuses)
+        self.assertEqual([], self.pipeline.logs)
+
+    # A temporary copy that cannot be written is any other error, as it is
+    # for a download, and the file on disk is left as it was.
+    def testAFailedTemporaryCopyFromMemoryRaisesAsAnyOtherError(self):
+        self.data_file = self.file_data_file()
+        self.data_file.create_temp_copy = True
+        self.data_file.temp_directory = os.path.join(
+            os.path.dirname(self.data_file.path), "missing")
+        error = self.assertUpdateFromMemoryFails(
+            UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR,
+            "An unhandled error occurred while checking for automatic "
+            "updates for engine 'FakeEngine'")
+        self.assertIsInstance(error.__cause__, OSError)
+        with open(self.data_file.path, "rb") as file:
+            self.assertEqual(b"old", file.read())
+        self.assertEqual([], self.data_file.refreshed)
+        self.assertEqual([], self.statuses)
+        self.assertEqual([], self.pipeline.logs)
 
     def testUnregisteredDataFileIsLeftAlone(self):
         self.service.unregister_data_file(self.data_file)
@@ -458,7 +516,9 @@ class LoggingTests(UpdateServiceTestCase):
 
 
 # A data file kept on disk that cannot put the new file in place, and one
-# with no temporary file path, carry .NET's message and status.
+# with no temporary file path, carry .NET's message and status. A check logs
+# the message and reports the status, and an update from memory raises an
+# error that carries both and is not logged.
 class FileReplacementTests(UpdateServiceTestCase):
 
     def setUp(self):
@@ -473,15 +533,19 @@ class FileReplacementTests(UpdateServiceTestCase):
         self.data_file.create_temp_copy = True
         self.data_file.temp_directory = self.folder
 
-    def testFailedCopyNamesThePath(self):
+    def fail_move(self):
         move = mock.patch.object(
             shutil, "move",
             mock.Mock(side_effect=OSError("in use")))
         move.start()
         self.addCleanup(move.stop)
-        status = self.service.update_from_memory(self.data_file, b"fresh")
+
+    def testFailedCopyNamesThePath(self):
+        self.fail_move()
+        self.get(response(200, b"fresh"))
+        self.service.update_data_file(self.data_file)
         self.assertEqual(
-            UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME, status)
+            [UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME], self.statuses)
         self.assertIn(
             ("error",
              CHECK_ERROR + "An error occurred when copying a data file to "
@@ -489,17 +553,39 @@ class FileReplacementTests(UpdateServiceTestCase):
              "'. Error detail: in use"),
             self.pipeline.logs)
 
+    def testFailedCopyFromMemoryRaisesAnErrorNamingThePath(self):
+        self.fail_move()
+        error = self.assertUpdateFromMemoryFails(
+            UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME,
+            "An error occurred when copying a data file to replace the "
+            "existing one at '" + self.path + "'.")
+        self.assertEqual("in use", str(error.__cause__))
+        self.assertEqual([], self.statuses)
+        self.assertEqual([], self.pipeline.logs)
+
     def testNoTemporaryPathIsReported(self):
         self.data_file.temp_directory = None
-        status = self.service.update_from_memory(self.data_file, b"fresh")
+        self.get(response(200, b"fresh"))
+        self.service.update_data_file(self.data_file)
         self.assertEqual(
-            UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET, status)
+            [UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET], self.statuses)
         self.assertIn(
             ("error",
              CHECK_ERROR + "The data file '" + self.data_file.identifier +
              "' is checking for updates but does not have a temporary "
              "file path configured."),
             self.pipeline.logs)
+
+    def testNoTemporaryPathFromMemoryRaises(self):
+        self.data_file.temp_directory = None
+        error = self.assertUpdateFromMemoryFails(
+            UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET,
+            "The data file '" + self.data_file.identifier +
+            "' is checking for updates but does not have a temporary file "
+            "path configured.")
+        self.assertIsNone(error.__cause__)
+        self.assertEqual([], self.statuses)
+        self.assertEqual([], self.pipeline.logs)
 
 
 # A download is written to the data file's path and the engine then reads
@@ -655,12 +741,14 @@ class CallbackTests(UpdateServiceTestCase):
         self.assertEqual(1, len(self.pending))
         self.assertEqual([self.UNHANDLED], self.errors())
 
-    def testACallbackErrorOnAnUpdateFromMemoryIsLoggedAndStopsTheCallbacks(
-            self):
+    # An update from memory reports nothing to the callbacks, so one that
+    # would raise is never called.
+    def testAnUpdateFromMemoryCallsNoCallback(self):
         self.fail_first()
-        self.service.update_from_memory(self.data_file, b"fresh")
+        status = self.service.update_from_memory(self.data_file, b"fresh")
+        self.assertEqual(UpdateStatus.AUTO_UPDATE_SUCCESS, status)
         self.assertEqual([], self.statuses)
-        self.assertEqual([self.UNHANDLED], self.errors())
+        self.assertEqual([], self.errors())
 
     def testAConnectionFailureKeepsPolling(self):
         self.data_file.auto_update = True

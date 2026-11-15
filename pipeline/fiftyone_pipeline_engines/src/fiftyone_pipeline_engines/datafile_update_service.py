@@ -65,6 +65,26 @@ class UpdateStatus(Enum):
     # Any other error during a check for an update.
     AUTO_UPDATE_UNKNOWN_ERROR = 13
 
+
+class DataUpdateException(Exception):
+    """!
+    A data update that failed, which an update from memory raises to its
+    caller. The message is the one the errors table of the data updates
+    specification gives for the failure, and the error that caused it, if
+    any, is chained as its cause.
+    """
+
+    def __init__(self, message, status):
+        """!
+        @type message: str
+        @param message: What failed, naming the engine or the path
+        @type status: UpdateStatus
+        @param status: The status of the failure
+        """
+        super(DataUpdateException, self).__init__(message)
+        self.status = status
+
+
 # The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
 GZIP_MAGIC = b"\x1f\x8b"
 
@@ -285,9 +305,11 @@ class DataFileUpdateService():
             # write that failed leaves it with the data it already had and
             # the update ends there, as it does in .NET and
             # 51degrees-node.
-            failed = self._write_data_file(data_file, data)
-            if failed is not None:
-                return self._update_failed(data_file, failed)
+            try:
+                self._write_data_file(data_file, data)
+            except DataUpdateException as e:
+                self._log_failed_write(data_file, e)
+                return self._update_failed(data_file, e.status)
 
         else:
 
@@ -313,17 +335,23 @@ class DataFileUpdateService():
         Refresh a data file from the bytes given, without downloading
         anything. A data file kept on disk has the bytes written to its path
         first, as the update route writes a download, and the engine is then
-        refreshed from the file.
+        refreshed from the file. The result goes to the caller alone, so
+        nothing is reported to the update complete callbacks, and a failure
+        is raised rather than logged.
         @type data_file: DataFile
         @param data_file: Datafile to update
         @type data: bytes
         @param data: The new content of the data file
         @rtype: UpdateStatus
-        @return: AUTO_UPDATE_SUCCESS, AUTO_UPDATE_REFRESH_FAILED if the
-        engine could not use the data (the data it had is kept), the status
-        of a failed write for a data file kept on disk, which is not
-        refreshed because its engine reads the file, or
-        AUTO_UPDATE_NOT_NEEDED if the data file's engine has been closed
+        @return: AUTO_UPDATE_SUCCESS when the engine was refreshed, or
+        AUTO_UPDATE_NOT_NEEDED, with nothing done, when the data file's
+        engine has been closed
+        @raises DataUpdateException: When the engine could not use the
+        data, with the status AUTO_UPDATE_REFRESH_FAILED, and the engine
+        keeps the data it had. Also when a data file kept on disk could not
+        be written, with the status of that failure, and the engine is not
+        refreshed because it reads the file. The error that caused the
+        failure is chained as its cause.
         """
 
         if not self.__is_registered(data_file):
@@ -339,41 +367,39 @@ class DataFileUpdateService():
         if data_file.download and getattr(data_file, "path", None):
             data_file.updating = True
             try:
-                status = self._write_data_file(data_file, data)
-                if status is None:
-                    status = self._refresh(data_file)
+                self._write_data_file(data_file, data)
+                self._refresh_from_memory(data_file)
             finally:
                 data_file.updating = was_updating
-            self.__emit(status, data_file)
-            return status
+            return UpdateStatus.AUTO_UPDATE_SUCCESS
 
         previous = data_file.data
         data_file.data = data
         data_file.updating = True
         try:
-            status = self._refresh(data_file, from_file=False)
+            self._refresh_from_memory(data_file)
+        except DataUpdateException:
+            # The engine keeps the data it had, so the data file does too.
+            data_file.data = previous
+            raise
         finally:
             data_file.updating = was_updating
 
-        if status != UpdateStatus.AUTO_UPDATE_SUCCESS:
-            data_file.data = previous
-
-        self.__emit(status, data_file)
-
-        return status
+        return UpdateStatus.AUTO_UPDATE_SUCCESS
 
     def _write_data_file(self, data_file, data):
         # Write new data to the data file's path, through a temporary copy
-        # when the data file asks for one. None when written, or the status
-        # of the failure, which is logged. Every failure leaves the file on
-        # disk as it was, so the caller ends the update.
+        # when the data file asks for one. A failure raises a
+        # DataUpdateException with the message and status of its row of the
+        # errors table, and leaves the file on disk as it was, so the caller
+        # ends the update.
         if data_file.create_temp_copy:
             if not getattr(data_file, "temp_directory", None):
-                self._log_check_error(
+                raise DataUpdateException(
                     "The data file '" + str(data_file.identifier) +
                     "' is checking for updates but does not have a "
-                    "temporary file path configured.")
-                return UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET
+                    "temporary file path configured.",
+                    UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET)
             filename = os.path.join(
                 data_file.temp_directory,
                 data_file.identifier + str(time.time()))
@@ -387,32 +413,39 @@ class DataFileUpdateService():
             if filename == data_file.path:
                 # Writing straight to the data file is the copy that
                 # replaces it, so it carries that row of the errors table.
-                self._log_check_error(
+                raise DataUpdateException(
                     "An error occurred when copying a data file to replace "
-                    "the existing one at '" + str(data_file.path) + "'.", e)
-                return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
+                    "the existing one at '" + str(data_file.path) + "'.",
+                    UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME) from e
             # A temporary copy that cannot be written has no row of its own,
             # so it is any other error, as 51degrees-node writes it, with
             # the status that row of the table gives.
-            self._log_unhandled(data_file, e)
-            return UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR
+            raise DataUpdateException(
+                self._unhandled_message(data_file),
+                UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR) from e
 
         if data_file.create_temp_copy:
             try:
                 shutil.move(filename, data_file.path)
             except (OSError, shutil.Error) as e:
-                self._log_check_error(
+                raise DataUpdateException(
                     "An error occurred when copying a data file to "
                     "replace the existing one at '" + data_file.path +
-                    "'.", e)
-                return UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME
-        return None
+                    "'.",
+                    UpdateStatus.AUTO_UPDATE_NEW_FILE_CANT_RENAME) from e
 
-    def _refresh(self, data_file, from_file=True):
-        # Refresh the engine with the data file's new content. A refresh
-        # after a check or a watched change is from the data file, and one
-        # from update_from_memory is not, as the two rows of the errors
-        # table say.
+    def _log_failed_write(self, data_file, error):
+        # A write that failed during a check is logged with the message of
+        # its row of the errors table and the error that caused it.
+        if error.status == UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR:
+            self._log_unhandled(data_file, error.__cause__)
+        else:
+            self._log_check_error(str(error), error.__cause__)
+
+    def _refresh(self, data_file):
+        # Refresh the engine from the data file after a check or a watched
+        # change. A failure is logged with the errors table's message for a
+        # refresh from the data file, and its status returned.
         engine = self._engine_type(data_file)
         self._log(
             "info",
@@ -422,11 +455,25 @@ class DataFileUpdateService():
         except Exception as e:
             self._log_check_error(
                 "An error occurred when applying a data update to engine '" +
-                engine + "'" +
-                (" after " + str(REFRESH_TRIES) + " tries." if from_file
-                 else "."), e)
+                engine + "' after " + str(REFRESH_TRIES) + " tries.", e)
             return UpdateStatus.AUTO_UPDATE_REFRESH_FAILED
         return UpdateStatus.AUTO_UPDATE_SUCCESS
+
+    def _refresh_from_memory(self, data_file):
+        # Refresh the engine with data given to update_from_memory. A
+        # failure is raised to the caller, not logged, with the errors
+        # table's message for a refresh from data held in memory.
+        engine = self._engine_type(data_file)
+        self._log(
+            "info",
+            "Attempting to refresh Engine '" + engine + "' with new data")
+        try:
+            data_file.refresh()
+        except Exception as e:
+            raise DataUpdateException(
+                "An error occurred when applying a data update to engine '" +
+                engine + "'.",
+                UpdateStatus.AUTO_UPDATE_REFRESH_FAILED) from e
 
     def _update_failed(self, data_file, status):
         # An update that ends without new data. The next check is the next
@@ -456,10 +503,12 @@ class DataFileUpdateService():
         # error after it.
         self._log(
             "error",
-            self._with_cause(
-                "An unhandled error occurred while checking for automatic "
-                "updates for engine '" + self._engine_type(data_file) + "'",
-                cause))
+            self._with_cause(self._unhandled_message(data_file), cause))
+
+    def _unhandled_message(self, data_file):
+        # The message of the errors table's last row, for any other error.
+        return ("An unhandled error occurred while checking for automatic "
+                "updates for engine '" + self._engine_type(data_file) + "'")
 
     @staticmethod
     def _with_cause(text, cause):
