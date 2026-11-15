@@ -34,7 +34,8 @@ FIFTYONE_PREFIX = "51d_"
 # 'header.cookie' is the Cookie header, which carries every cookie, and the
 # cookies that are shared are shared as their own 'cookie.' evidence.
 NEVER_SHARED_KEYS = (
-    "id.email", "id.salt", "request-query", "request-path", "header.cookie")
+    "id.email", "id.salt", "request-query", "request-path", "header.cookie",
+    "fiftyone.resource-key", "fiftyone.license-key")  # Temporary guard: billing keys never shared
 
 
 def _split_names(names):
