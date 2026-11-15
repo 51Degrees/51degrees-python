@@ -151,6 +151,9 @@ class UpdateServiceTestCase(unittest.TestCase):
     def setUp(self):
         self.pipeline = RecordingPipeline()
         self.service = DataFileUpdateService(self.pipeline)
+        # A refresh that fails is tried again without the pause, so the
+        # tests of failures take no longer than the others.
+        self.service.REFRESH_RETRY_PAUSE_SECONDS = 0
         self.statuses = []
         self.service.on_complete(
             lambda status, data_file: self.statuses.append(status))
@@ -487,12 +490,12 @@ class ProgrammaticCheckTests(UpdateServiceTestCase):
         self.get(response(200))
         cause = ValueError("boom")
         self.data_file.refresh_error = cause
-        # A refresh after a check names the one try made, as the row for a
-        # refresh from the data file does.
+        # A refresh after a check names the ten tries made, as the row for
+        # a refresh from the data file does.
         error = self.assertCheckFails(
             UpdateStatus.AUTO_UPDATE_REFRESH_FAILED,
             "An error occurred when applying a data update to engine "
-            "'FakeEngine' after 1 tries.")
+            "'FakeEngine' after 10 tries.")
         self.assertIs(cause, error.__cause__)
         self.assertEqual([], self.data_file.refreshed)
         self.assertEqual(
@@ -683,12 +686,12 @@ class LoggingTests(UpdateServiceTestCase):
         self.get(response(200))
         self.data_file.refresh_error = Exception("boom")
         self.poll()
-        # A refresh after a check names the one try made, as the row for a
-        # refresh from the data file does.
+        # A refresh after a check names the ten tries made, as the row for
+        # a refresh from the data file does.
         self.assertIn(
             ("error",
              CHECK_ERROR + "An error occurred when applying a data update "
-             "to engine 'FakeEngine' after 1 tries. Error detail: boom"),
+             "to engine 'FakeEngine' after 10 tries. Error detail: boom"),
             self.pipeline.logs)
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_REFRESH_FAILED], self.statuses)
