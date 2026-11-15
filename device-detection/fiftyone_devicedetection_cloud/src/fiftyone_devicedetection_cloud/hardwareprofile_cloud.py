@@ -22,7 +22,10 @@
 
 from __future__ import absolute_import
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
+from fiftyone_pipeline_cloudrequestengine.clouddata import \
+    OnPremiseMissingPropertyService
 
+from fiftyone_pipeline_engines.aspectdata import AspectData
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
@@ -55,6 +58,116 @@ def _cloud_response(flowdata):
     if data is None:
         data = flowdata.get(OLD_DATA_KEY)
     return data.get("cloud")
+
+
+class HardwareProfileData(dict, AspectData):
+    """!
+    One hardware profile from a profile lookup, read in the way the device
+    data is read. It is Aspect Data, so a property is read as an attribute,
+    such as profile.hardwarevendor, with get() or with [].
+
+    It is also a dict of property name to AspectPropertyValue. Iteration,
+    len and keys() give the names the cloud service gave, and get() takes a
+    default as a dict's get() does.
+    Attribute access, get(), [] and in compare names ignoring letter case.
+    A property whose name is also a dict method, such as keys, is read
+    with get() or [].
+    """
+
+    # Attributes set in the constructor, which are never read as properties.
+    _OWN_ATTRIBUTES = ("flow_element", "missing_property_service")
+
+    def __init__(self, flow_element, contents):
+        """!
+        @type flow_element: HardwareProfileCloud
+        @param flow_element: the engine that made the profile
+
+        @type contents: dict
+        @param contents: property name to AspectPropertyValue
+        """
+
+        dict.__init__(self, contents)
+        AspectData.__init__(self, flow_element)
+
+        # The device data's service, so a name that is not a property is
+        # reported in the same way for both.
+        self.missing_property_service = OnPremiseMissingPropertyService()
+
+    def _matching_key(self, key):
+        """!
+        The key held for a property name given in another letter case, or
+        None when there is none.
+        """
+
+        if isinstance(key, str):
+            lowered = key.lower()
+            for held in dict.keys(self):
+                if isinstance(held, str) and held.lower() == lowered:
+                    return held
+        return None
+
+    def __getitem__(self, key):
+        try:
+            return dict.__getitem__(self, key)
+        except KeyError:
+            held = self._matching_key(key)
+            if held is None:
+                raise
+            return dict.__getitem__(self, held)
+
+    def __contains__(self, key):
+        return (dict.__contains__(self, key)
+                or self._matching_key(key) is not None)
+
+    def get(self, key, default=None):
+        """!
+        The value of a property by name in any letter case, or default when
+        the profile does not hold it, as a dict gives.
+        """
+
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+    def get_internal(self, key):
+        """!
+        The value of a property by name in any letter case, or None when the
+        profile does not hold it, which AspectData.get() reports as missing.
+        """
+
+        return self.get(key)
+
+    def as_dictionary(self):
+        """!
+        The profile itself, being a dict of property name to value.
+        """
+
+        return self
+
+    def __getattr__(self, name):
+        """!
+        Read a property as an attribute. Python calls this only for a name
+        the profile does not otherwise have. A name that is not a property
+        raises AttributeError with the device data's message, so hasattr()
+        and getattr() with a default work.
+        """
+
+        # Names that start with an underscore, such as the special methods
+        # copy and pickle look for, are never properties. Reading the
+        # profile's own attributes as properties would recurse.
+        if name.startswith("_") or name in self._OWN_ATTRIBUTES:
+            raise AttributeError(name)
+        try:
+            return AspectData.get(self, name)
+        except Exception as error:
+            raise AttributeError(str(error)) from error
+
+    def __reduce__(self):
+        # A copy or a pickle of a profile is a plain dict of its values,
+        # because the engine a profile refers to holds a lock, which cannot
+        # be copied or pickled.
+        return (dict, (dict(self),))
 
 
 def _build_aspect_values(hardware):
@@ -126,7 +239,7 @@ class HardwareProfileCloud(CloudEngine):
                 if property_key not in device:
                     device[property_key] = aspect_value
 
-            devices.append(device)
+            devices.append(HardwareProfileData(self, device))
 
         # The aspect level values are exposed alongside the profiles so a
         # caller with no matching profiles can still read the reason.

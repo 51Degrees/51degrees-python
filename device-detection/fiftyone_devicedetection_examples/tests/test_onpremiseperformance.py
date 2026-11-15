@@ -21,14 +21,15 @@
 # *********************************************************************
 
 """!
-Runs the on-premise performance example as a person runs it, with python -m
-and its -d, -u and -j options, on the free Lite data file and a short file
+Runs the on-premise performance example as a person runs it, with python -m,
+once with no arguments and otherwise with its -d, -u and -j options, on the free Lite data file and a short file
 of User-Agents so that it takes seconds. Its work is done under
 if __name__ == "__main__", in a separate process for each processor, so it
 runs in a process of its own here.
 """
 
 import ast
+import csv
 import itertools
 import json
 import multiprocessing
@@ -52,6 +53,11 @@ USER_AGENTS_PER_PROCESS = 10
 # Stops a run that never finishes. A run takes seconds, so this does not
 # limit how fast the example has to be.
 HANG_TIMEOUT_SECONDS = 300
+
+# The settings a fresh clone does not have, left out of the run with no
+# arguments.
+SETTINGS = ("_51DEGREES_DD_PATH", "_51DEGREES_LICENSE_KEY", "license_key",
+            "LICENSE_KEY")
 
 # The example prints its counts on a line starting with this, followed by a
 # dictionary of them.
@@ -114,6 +120,26 @@ class OnPremisePerformanceTests(unittest.TestCase):
         self.assertEqual(count, sum((counts(output) or {}).values()), output)
         self.assertIn(
             ExampleUtils.get_enterprise_offer(performance.CONTACT_US), output)
+
+    def test_runs_with_no_arguments(self):
+        # As someone runs it from a fresh clone, so it finds the free Lite
+        # file and the free file of User-Agents for itself.
+        environment = {name: value for name, value in os.environ.items()
+                       if name not in SETTINGS}
+        finished = subprocess.run(
+            [sys.executable, "-m", MODULE],
+            capture_output=True, text=True, env=environment,
+            timeout=HANG_TIMEOUT_SECONDS)
+
+        output = finished.stdout + finished.stderr
+        self.assertEqual(0, finished.returncode, output)
+        with open(self.user_agents_file, newline="") as file:
+            count = sum(1 for _ in csv.reader(file))
+        self.assertIn(f"Processing {count} user agents", output)
+        self.assertEqual(count, sum((counts(output) or {}).values()), output)
+        self.assertIn(
+            ExampleUtils.get_enterprise_offer(performance.CONTACT_US), output)
+        self.assertIn("Find out more:", output)
 
     def test_runs_with_fewer_user_agents_than_processors(self):
         output, _ = self.run_example(1)

@@ -3671,6 +3671,28 @@ namespace swig {
 }
 
 
+#include <mutex>
+
+/* Held for each refresh, so that two never run at once. */
+static std::mutex oneRefreshAtATime;
+
+/* Calls refresh without the global interpreter lock, and takes the lock back
+ * before an error from the refresh is raised in Python. */
+template <typename Refresh>
+static void refreshWithoutGil(Refresh refresh) {
+	PyThreadState *state = PyEval_SaveThread();
+	try {
+		std::lock_guard<std::mutex> lock(oneRefreshAtATime);
+		refresh();
+	}
+	catch (...) {
+		PyEval_RestoreThread(state);
+		throw;
+	}
+	PyEval_RestoreThread(state);
+}
+
+
 #include "cxx/src/ipi/EngineIpi.hpp"
 
 using namespace FiftyoneDegrees::Common;
@@ -21656,7 +21678,10 @@ SWIGINTERN PyObject *_wrap_EngineBaseSwig_refreshData(PyObject *self, PyObject *
   arg1 = reinterpret_cast< EngineBase * >(argp1);
   {
     try {
-      (arg1)->refreshData();;
+      refreshWithoutGil([&]() {
+        arg1->refreshData(); 
+      });
+      ;
     }
     catch(FatalException& e) {
       SWIG_exception(SWIG_RuntimeError, e.what());
@@ -21718,7 +21743,10 @@ SWIGINTERN PyObject *_wrap_EngineBaseSwig_refreshDataFromFile(PyObject *self, Py
   arg2 = reinterpret_cast< char * >(buf2);
   {
     try {
-      (arg1)->refreshData((char const *)arg2);;
+      refreshWithoutGil([&]() {
+        arg1->refreshData((char const *)arg2); 
+      });
+      ;
     }
     catch(FatalException& e) {
       SWIG_exception(SWIG_RuntimeError, e.what());
@@ -21808,7 +21836,10 @@ SWIGINTERN PyObject *_wrap_EngineBaseSwig_refreshDataFromMemory(PyObject *self, 
   }
   {
     try {
-      (arg1)->refreshData(arg2,arg3);;
+      refreshWithoutGil([&]() {
+        arg1->refreshData(arg2, arg3); 
+      });
+      ;
     }
     catch(FatalException& e) {
       SWIG_exception(SWIG_RuntimeError, e.what());
@@ -47069,7 +47100,10 @@ SWIGINTERN PyObject *_wrap_EngineIpiSwig_refreshData(PyObject *self, PyObject *a
   arg1 = reinterpret_cast< EngineIpi * >(argp1);
   {
     try {
-      (arg1)->refreshData();;
+      refreshWithoutGil([&]() {
+        arg1->refreshData(); 
+      });
+      ;
     }
     catch(FatalException& e) {
       SWIG_exception(SWIG_RuntimeError, e.what());
@@ -47131,7 +47165,10 @@ SWIGINTERN PyObject *_wrap_EngineIpiSwig_refreshDataFromFile(PyObject *self, PyO
   arg2 = reinterpret_cast< char * >(buf2);
   {
     try {
-      (arg1)->refreshData((char const *)arg2);;
+      refreshWithoutGil([&]() {
+        arg1->refreshData((char const *)arg2); 
+      });
+      ;
     }
     catch(FatalException& e) {
       SWIG_exception(SWIG_RuntimeError, e.what());
@@ -47221,7 +47258,10 @@ SWIGINTERN PyObject *_wrap_EngineIpiSwig_refreshDataFromMemory(PyObject *self, P
   }
   {
     try {
-      (arg1)->refreshData(arg2,arg3);;
+      refreshWithoutGil([&]() {
+        arg1->refreshData(arg2, arg3); 
+      });
+      ;
     }
     catch(FatalException& e) {
       SWIG_exception(SWIG_RuntimeError, e.what());

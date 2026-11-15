@@ -64,12 +64,14 @@ If you want examples that demonstrate how to use 51Degrees products such as devi
 | fiftyone_pipeline_core/examples/client_side_evidence_custom_flow_element.py | Demonstrates how to create a custom flow element, which can then be included in a pipeline.          |
 | fiftyone_pipeline_engines/examples/simple_onpremise_engine.py               | An on-premise engine that gives the star sign from a table in a data file beside it.                 |
 | fiftyone_pipeline_engines_fiftyone/examples/usagesharing                    | Shows how to share usage with 51Degrees. This helps us to keep our products up to date and accurate. |
+| fiftyone_pipeline_derivedproperty/examples/derived_property.py              | The derived property element, given scripts as text, from a file and from a configuration file.      |
 
-The simple flow element and on-premise engine examples need no data file to download, no key and no network. Run them from this folder, once the packages are installed as above, with
+The simple flow element, on-premise engine and derived property examples need no data file to download, no key and no network. Run them from this folder, once the packages are installed as above, with
 
 ```sh
 python fiftyone_pipeline_core/examples/simple_flow_element.py
 python fiftyone_pipeline_engines/examples/simple_onpremise_engine.py
+python fiftyone_pipeline_derivedproperty/examples/derived_property.py
 ```
 
 The [fiftyone_pipeline_cloudrequestengine/examples](fiftyone_pipeline_cloudrequestengine/examples/readme.md) folder holds examples that use the cloud request engine, and its readme says how to run them. The mixed examples call the 51Degrees cloud service with a resource key or a licence key. The cloud engine example needs no key, because it starts a star sign service of its own.

@@ -77,6 +77,24 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
         self.assertTrue(keys.filter_evidence_key("query.campaign"))
         self.assertTrue(keys.filter_evidence_key("header.user-agent"))
 
+    def test_lists_from_comma_separated_strings(self):
+        """!
+        Check that a string given for either list, the form a
+        configuration file gives a list in, is read as names separated by
+        commas, each trimmed.
+        """
+
+        keys = ShareUsageEvidenceKeyFilter(
+            query_whitelist="Campaign, utm_source",
+            header_blacklist="X-Secret,X-Other")
+
+        self.assertTrue(keys.filter_evidence_key("query.campaign"))
+        self.assertTrue(keys.filter_evidence_key("query.utm_source"))
+        self.assertFalse(keys.filter_evidence_key("query.c"))
+        self.assertFalse(keys.filter_evidence_key("header.x-secret"))
+        self.assertFalse(keys.filter_evidence_key("header.x-other"))
+        self.assertTrue(keys.filter_evidence_key("header.x"))
+
     def test_no_parameter_list_shares_every_parameter(self):
         """!
         Check that None in place of the parameters to share shares every
@@ -107,13 +125,16 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
     def test_share_all(self):
         """!
         Check that sharing everything shares the evidence the other rules
-        leave out, apart from the evidence that is never shared.
+        leave out, apart from the evidence that is never shared and the
+        cookies that do not start 51D_.
         """
 
         keys = ShareUsageEvidenceKeyFilter(share_all=True)
 
         self.assertFalse(keys.filter_evidence_key("header.cookie"))
-        self.assertTrue(keys.filter_evidence_key("cookie.sessionid"))
+        self.assertFalse(keys.filter_evidence_key("cookie.sessionid"))
+        self.assertTrue(
+            keys.filter_evidence_key("cookie.51D_screenpixelswidth"))
         self.assertTrue(keys.filter_evidence_key("query.password"))
         self.assertTrue(keys.filter_evidence_key("query.id.usage"))
         self.assertTrue(keys.filter_evidence_key("server.request-method"))
@@ -123,6 +144,35 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
         self.assertFalse(keys.filter_evidence_key("header.id.salt"))
         self.assertFalse(keys.filter_evidence_key("server.request-query"))
         self.assertFalse(keys.filter_evidence_key("server.request-path"))
+
+    def test_every_query_parameter_when_sharing_them_all(self):
+        """!
+        Check that sharing every query string parameter shares one not on
+        the list, and that a filter made without it keeps to the list.
+        """
+
+        every = ShareUsageEvidenceKeyFilter(
+            query_whitelist=["campaign"],
+            share_all_query_string_parameters=True)
+        listed = ShareUsageEvidenceKeyFilter(query_whitelist=["campaign"])
+
+        self.assertTrue(every.filter_evidence_key("query.password"))
+        self.assertFalse(listed.filter_evidence_key("query.password"))
+        self.assertTrue(listed.filter_evidence_key("query.campaign"))
+
+    def test_the_session_cookie_is_kept_for_the_tracker_alone(self):
+        """!
+        Check that, when all evidence is shared, the session cookie is kept
+        by the tracker's filter and by no other.
+        """
+
+        kept = ShareUsageEvidenceKeyFilter(
+            cookie="SessionId", include_session=True, share_all=True)
+        sent = ShareUsageEvidenceKeyFilter(cookie="SessionId", share_all=True)
+
+        self.assertTrue(kept.filter_evidence_key("cookie.sessionid"))
+        self.assertFalse(sent.filter_evidence_key("cookie.sessionid"))
+        self.assertFalse(kept.filter_evidence_key("cookie._ga"))
 
     def test_never_shared_in_every_mode(self):
         """!
