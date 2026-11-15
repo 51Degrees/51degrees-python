@@ -24,6 +24,7 @@ from __future__ import absolute_import
 
 import inspect
 import json
+import math
 import os
 import threading
 import warnings
@@ -250,8 +251,10 @@ class CloudRequestEngine(Engine):
         if value is None:
             return Constants.TIMEOUT_SECONDS_DEFAULT
         # A bool is an int to Python, but True is not a number of seconds.
+        # A socket refuses a timeout that is not finite.
         if (isinstance(value, bool)
-                or not isinstance(value, (int, float)) or value <= 0):
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value <= 0):
             raise ValueError(Constants.MESSAGE_TIMEOUT_NOT_POSITIVE.format(
                 value, Constants.TIMEOUT_SECONDS_DEFAULT))
         return value
