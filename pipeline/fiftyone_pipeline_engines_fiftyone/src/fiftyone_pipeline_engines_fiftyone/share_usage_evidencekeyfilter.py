@@ -52,10 +52,12 @@ def _split_names(names):
 class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
     """
     The ShareUsageEvidenceKeyFilter decides which evidence the 51Degrees
-    ShareUsage service is sent. Headers are shared unless they are blocked,
-    cookies and session values only when their names start with 51D_, and
-    query string and form parameters only when their names start with 51D_ or
-    are on the list to share. Any other evidence is shared.
+    ShareUsage service is sent. Cookies are shared only when their names
+    start with 51D_, whatever the other settings. Headers are shared unless
+    they are blocked, session values only when their names start with 51D_,
+    and query string and form parameters when all of them are shared or
+    when their names start with 51D_ or are on the list to share. Any other
+    evidence is shared.
     """
 
     def __init__(
@@ -64,7 +66,8 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
             query_whitelist = (),
             header_blacklist = (),
             include_session = False,
-            share_all = False):
+            share_all = False,
+            share_all_query_string_parameters = False):
         """!
         Constructor for ShareUsageEvidenceKeyFilter
         @type cookie: string
@@ -80,7 +83,10 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         @param include_session: whether the session cookie is included
         @type share_all: bool
         @param share_all: whether all evidence is shared, apart from the
-        evidence that is never shared
+        evidence that is never shared and cookies not starting 51D_
+        @type share_all_query_string_parameters: bool
+        @param share_all_query_string_parameters: whether every query
+        string and form parameter is shared, whatever query_whitelist holds
         """
         self.cookie = cookie.lower() if cookie else None
 
@@ -96,6 +102,9 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         self.include_session = include_session
 
         self.share_all = share_all
+
+        self.share_all_query_string_parameters = \
+            share_all_query_string_parameters
 
     def filter_evidence_key(self, key):
 
@@ -115,12 +124,18 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
                 for never_shared in NEVER_SHARED_KEYS):
             return False
 
-        if self.share_all:
-            return True
-
         # The prefix is everything before the first dot and the field
         # everything after it, so a field can itself contain dots.
         prefix, separator, field = key.partition(".")
+
+        # A cookie a site sets for itself is never shared, even when all
+        # evidence is. The tracker alone keeps the session cookie.
+        if separator and prefix == "cookie":
+            return field.startswith(FIFTYONE_PREFIX) or \
+                (self.include_session and field == self.cookie)
+
+        if self.share_all:
+            return True
 
         if not separator:
             return True
@@ -128,20 +143,15 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
             # Add the header to the list if the header name does not
             # appear in the list of blocked headers
             return field not in self.header_blacklist
-        elif prefix == "cookie":
-            # Only add cookies that start with the 51Degrees cookie
-            # prefix
-            return field.startswith(FIFTYONE_PREFIX) or \
-                (self.include_session and field == self.cookie)
         elif prefix == "session":
             # Only session values that start with the 51Degrees
             # cookie prefix
             return field.startswith(FIFTYONE_PREFIX)
         elif prefix == "query":
-            # If no query string parameter list was given then share all
-            # of them. Otherwise, only include query string parameters
-            # that start with 51d_ or that are in the list.
-            return self.query_whitelist is None or \
+            # Share every parameter when asked to or when no list was
+            # given. Otherwise only those starting 51d_ or in the list.
+            return self.share_all_query_string_parameters or \
+                self.query_whitelist is None or \
                 field.startswith(FIFTYONE_PREFIX) or \
                 field in self.query_whitelist
         else:
