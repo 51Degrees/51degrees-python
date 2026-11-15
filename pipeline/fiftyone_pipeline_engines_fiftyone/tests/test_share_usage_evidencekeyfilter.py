@@ -95,18 +95,24 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
         self.assertFalse(keys.filter_evidence_key("header.x-other"))
         self.assertTrue(keys.filter_evidence_key("header.x"))
 
-    def test_no_parameter_list_shares_every_parameter(self):
+    def test_no_parameter_list_shares_only_51d_parameters(self):
         """!
-        Check that None in place of the parameters to share shares every
-        parameter, and an empty list only those starting 51D_.
+        Check that None in place of the parameters to share holds no
+        names, as an empty list does, so only parameters starting 51D_ are
+        shared unless every parameter is.
         """
 
-        every = ShareUsageEvidenceKeyFilter(query_whitelist=None)
-        prefixed = ShareUsageEvidenceKeyFilter(query_whitelist=[])
+        for query_whitelist in (None, []):
+            prefixed = ShareUsageEvidenceKeyFilter(
+                query_whitelist=query_whitelist)
+            every = ShareUsageEvidenceKeyFilter(
+                query_whitelist=query_whitelist,
+                share_all_query_string_parameters=True)
 
-        self.assertTrue(every.filter_evidence_key("query.campaign"))
-        self.assertFalse(prefixed.filter_evidence_key("query.campaign"))
-        self.assertTrue(prefixed.filter_evidence_key("query.51d_campaign"))
+            self.assertFalse(prefixed.filter_evidence_key("query.campaign"))
+            self.assertTrue(
+                prefixed.filter_evidence_key("query.51d_campaign"))
+            self.assertTrue(every.filter_evidence_key("query.campaign"))
 
     def test_session_cookie(self):
         """!
