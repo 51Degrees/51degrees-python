@@ -79,6 +79,19 @@ class PropertyListTests(unittest.TestCase):
             restricted_properties=names).build())
         self.assertEqual(["IsMobile", "BrowserName"], names)
 
+    def test_no_names_builds_the_engine_with_none(self):
+        # With no names configured the native engine is given none, rather
+        # than the data set's names, and still gives every property.
+        pipeline = DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=data_file, licence_keys="",
+            usage_sharing=False).build()
+        self.addCleanup(pipeline.close)
+        self.assertEqual([], pipeline.get_element("device").build_property_names)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add("header.user-agent", mobile_ua)
+            flowdata.process()
+            self.assertTrue(flowdata.device.ismobile.value())
+
 
 class EvidenceKeysTests(unittest.TestCase):
     """!
