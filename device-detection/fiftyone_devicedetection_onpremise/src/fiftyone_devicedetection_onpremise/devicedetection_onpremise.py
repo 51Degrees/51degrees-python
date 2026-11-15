@@ -470,7 +470,10 @@ class DeviceDetectionOnPremise(Engine):
         """
 
         super(DeviceDetectionOnPremise, self).on_registration(pipeline)
-        self.init_engine()
+        # The native engine is built once, so an engine in several
+        # pipelines loads its data file once and every pipeline uses it.
+        if getattr(self, "engine", None) is None:
+            self.init_engine()
 
     def close(self):
 
