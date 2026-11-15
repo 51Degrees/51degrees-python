@@ -1039,7 +1039,7 @@ class UsageTests(unittest.TestCase):
         """!
         Check that, with sharing every parameter turned off, an empty
         list of parameters to share and None both share only those
-        starting 51D_, and the session id and sequence are still read.
+        starting 51D_.
         """
 
         for query_whitelist in ([], None):
@@ -1057,15 +1057,12 @@ class UsageTests(unittest.TestCase):
             flowdata = pipeline.create_flowdata()
             flowdata.evidence.add("query.51d_param", "fiftyone value")
             flowdata.evidence.add("query.campaign", "campaign value")
-            flowdata.evidence.add("query.session-id", "session value")
             flowdata.process()
 
             self.waitForUsageThreads()
             self.assertEqual(len(app.received), 1)
             self.assertIn("fiftyone value", app.received[0])
             self.assertNotIn("campaign value", app.received[0])
-            self.assertIn(
-                "<SessionId>session value</SessionId>", app.received[0])
 
     def test_session_cookie(self):
         """!

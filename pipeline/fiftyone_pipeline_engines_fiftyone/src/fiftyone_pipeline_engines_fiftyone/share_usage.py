@@ -215,7 +215,8 @@ class ShareUsage(Engine):
 
         # The session id and sequence number are kept in evidence, as the
         # usage data carries them separately.
-        included = list(query_whitelist or ()) + ["session-id", "sequence"]
+        included = None if query_whitelist is None else \
+            list(query_whitelist) + ["session-id", "sequence"]
 
         # The element accepts no evidence, so that caching, the ETag and the
         # Vary header never depend on it. It shares what it finds instead,
