@@ -26,7 +26,11 @@ Flask's test client, with the data file the example finds for itself, which
 is the free Lite file.
 """
 
+import io
+import os
 import unittest
+from contextlib import redirect_stdout
+from unittest import mock
 
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_examples.onpremise.gettingstarted_web \
@@ -36,6 +40,10 @@ from fiftyone_ipintelligence_shared.example_constants import \
 
 # The address looked up, given as the example's client-ip query parameter.
 CLIENT_IP = "8.8.8.8"
+
+# The settings a fresh clone does not have, left out of the run of main.
+SETTINGS = ("_51DEGREES_IPI_PATH", "_51DEGREES_LICENSE_KEY", "license_key",
+            "LICENSE_KEY")
 
 # What the example shows for a property its data file does not have.
 NOT_FOUND = "Property not found in data file"
@@ -89,6 +97,50 @@ class OnPremiseGettingStartedWebTests(unittest.TestCase):
             self.assertIn(
                 f"The country dropdown {ExampleUtils.NEEDS_ENTERPRISE}", page)
             self.assertIn(example.CONTACT_US, page)
+
+
+class OnPremiseGettingStartedWebMainTests(unittest.TestCase):
+
+    def test_main_with_no_arguments(self):
+        # main finds the free Lite file for itself, as from a fresh clone,
+        # and serves the page until the server stops. Here the server
+        # answers one request and stops.
+        pages = []
+        engines = []
+
+        def serve(*args, **options):
+            response = example.app.test_client().get(
+                "/", query_string={"client-ip": CLIENT_IP})
+            pages.append(response.get_data(as_text=True))
+            engine = example.pipeline.flow_elements_list["ip"]
+            engines.append((
+                ExampleUtils.is_free_data_file(engine),
+                ExampleUtils.has_property(
+                    engine, "CountryCodesGeographical")))
+
+        printed = io.StringIO()
+        with mock.patch.dict(os.environ), redirect_stdout(printed), \
+                mock.patch.object(example.app, "run", side_effect=serve):
+            for name in SETTINGS:
+                os.environ.pop(name, None)
+            example.main()
+
+        self.assertEqual(1, len(pages))
+        self.assertIn(f"IP address: {CLIENT_IP}", pages[0])
+        self.assertIn("<li>Registered Name: ", pages[0])
+        self.assertNotIn(NOT_FOUND, pages[0])
+        free, has_countries = engines[0]
+        self.assertTrue(free, "main did not use a free data file")
+        if has_countries:
+            self.assertIn(
+                '<select id="CountryNamesGeographicalAllTranslated"',
+                pages[0])
+        else:
+            self.assertIn(
+                f"The country dropdown {ExampleUtils.NEEDS_ENTERPRISE}",
+                pages[0])
+            self.assertIn(example.CONTACT_US, pages[0])
+        self.assertIn("Find out more:", printed.getvalue())
 
 
 if __name__ == "__main__":
