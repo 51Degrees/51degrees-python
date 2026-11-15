@@ -21,11 +21,13 @@
 # *********************************************************************
 
 """
-The creator context demo, started with no resource key, stops and says
-which environment variable to set and where to create a key.
+The creator context demo, started with no resource key, ends without an
+error and says which environment variable to set and where to create a key.
 """
 
+import io
 import unittest
+from contextlib import redirect_stdout
 from unittest import mock
 
 from .test_creator_context_server import load_server
@@ -41,10 +43,16 @@ class CreatorContextWithoutKeyTests(unittest.TestCase):
 
     def test_says_where_to_create_a_resource_key(self):
         server = load_server()
-        with mock.patch.object(server, "RESOURCE", None):
-            with self.assertRaises(SystemExit) as stopped:
+        printed = io.StringIO()
+        started = AssertionError("The web server was started")
+        with mock.patch.object(server, "RESOURCE", None), \
+                mock.patch.object(server, "HTTPServer", side_effect=started), \
+                redirect_stdout(printed):
+            try:
                 server.run()
-        said = str(stopped.exception.code)
+            except SystemExit as stopped:
+                self.fail(f"The demo exited with {stopped.code!r}")
+        said = printed.getvalue()
         self.assertIn("_51DEGREES_RESOURCE_KEY", said)
         self.assertRegex(said, CONFIGURE_LINK)
 
