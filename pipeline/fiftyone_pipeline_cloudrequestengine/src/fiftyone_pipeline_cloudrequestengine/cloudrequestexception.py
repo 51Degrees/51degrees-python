@@ -28,7 +28,8 @@ class CloudRequestException(Exception):
     """
 
     # TODO: remove/implement additional arguments, currently unused
-    def __init__(self, message, httpStatusCode = 0, responseHeaders = {}):
+    def __init__(self, message, httpStatusCode = 0, responseHeaders = {},
+                 exceptions = ()):
         """!
             Constructor for CloudRequestException
             @type message: string
@@ -37,8 +38,13 @@ class CloudRequestException(Exception):
             @param httpStatusCode: the status code returned in the HTTP response
             @type responseHeaders: dict
             @param responseHeaders: the HTTP headers returned in the response
+            @type exceptions: tuple
+            @param exceptions: where the cloud service answered with several
+            errors, one CloudRequestException for each, as ExceptionGroup
+            holds them in its exceptions. Empty otherwise.
         """
         self.message = message
         self.httpStatusCode = httpStatusCode
         self.responseHeaders = responseHeaders
+        self.exceptions = tuple(exceptions)
         super().__init__(self.message)
