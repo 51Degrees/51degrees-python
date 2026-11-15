@@ -37,8 +37,8 @@ data_file = TestConstants.get_data_file_path()
 WATCHER_INTERVAL_SECONDS = 0.5
 
 # The longest the tests wait for the watcher to report the file and the
-# engine to reload it. It only stops a test that would otherwise wait for
-# ever, and no time is asserted.
+# engine to reload it. It is a guard that stops a test waiting for ever, and
+# a reload that takes longer than it fails the test.
 RELOAD_WAIT_SECONDS = 120
 
 

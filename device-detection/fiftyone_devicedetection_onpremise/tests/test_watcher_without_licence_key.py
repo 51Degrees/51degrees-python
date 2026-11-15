@@ -39,8 +39,8 @@ mobile_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/
 WATCHER_INTERVAL_SECONDS = 0.5
 
 # The longest the tests wait for the watcher to report the file and the
-# engine to reload it. It only stops a test that would otherwise wait for
-# ever, and no time is asserted.
+# engine to reload it. It is a guard that stops a test waiting for ever, and
+# a reload that takes longer than it fails the test.
 RELOAD_WAIT_SECONDS = 120
 
 
