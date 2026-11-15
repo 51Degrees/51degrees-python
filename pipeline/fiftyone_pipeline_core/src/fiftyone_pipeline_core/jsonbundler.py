@@ -116,11 +116,6 @@ class JSONBundlerElement(FlowElement):
 
         output = {"javascriptProperties": [] }
 
-        if len(self.property_cache):
-            property_cache_set = True
-        else:
-            property_cache_set = False
-        
         for flow_element in flowdata.pipeline.flow_elements:
 
             if (flow_element.datakey == "jsonbundler" or
@@ -131,7 +126,9 @@ class JSONBundlerElement(FlowElement):
             
             properties = flow_element.get_properties()
 
-            if not property_cache_set:
+            property_cache = self.property_cache.get(flow_element.datakey)
+
+            if property_cache is None:
 
                 delay_execution_list = []
                 delayed_evidence_properties = {}
@@ -160,12 +157,17 @@ class JSONBundlerElement(FlowElement):
                                 flow_element.datakey.lower() + '.' + x, delayed_evidence_properties_list))
 
 
-                self.property_cache[flow_element.datakey] = {
+                property_cache = {
                     "delayExecutionList": delay_execution_list,
                     "evidenceProperties": delayed_evidence_properties
                 }
 
-            property_cache = self.property_cache[flow_element.datakey]
+                # Kept once the element has properties. An element can have
+                # none until its property metadata has been fetched, so an
+                # answer taken from no properties is read again on the next
+                # request.
+                if properties:
+                    self.property_cache[flow_element.datakey] = property_cache
 
             # Create empty area for FlowElement properties to go
 
