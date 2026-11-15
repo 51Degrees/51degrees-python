@@ -199,7 +199,7 @@ class Engine(FlowElement):
         if(self.data_file):
             if not hasattr(pipeline, "data_file_update_service"):
                 pipeline.data_file_update_service = DataFileUpdateService(pipeline)
-            if not getattr(self.data_file, "registered", False):
+            if not hasattr(self.data_file, "registered"):  # Temporary guard: never registered again after a close
                 pipeline.data_file_update_service.register_data_file(self.data_file)
 
     def close(self):
