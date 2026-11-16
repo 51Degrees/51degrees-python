@@ -294,28 +294,27 @@ class DeviceDetectionOnPremise(Engine):
         self.properties_list = properties_list
         self.data_file_path = data_file_path
 
-        if auto_update or update_on_start or file_system_watcher:
+        # The data file is kept whatever the update settings are, because
+        # an application that asks for every update itself hands this data
+        # file to the data update service with no automatic update on.
+        update_url_params = {
+            "base_url": data_update_url
+        }
 
-            # Construct DataFile
-
+        if data_update_use_url_formatter:
             update_url_params = {
-                "base_url": data_update_url
+                "base_url": data_update_url,
+                "type": "HashV41",
+                "product": data_update_product_type if data_update_product_type else None,
+                "license_keys": licence_keys if licence_keys else None
             }
 
-            if data_update_use_url_formatter:
-                update_url_params = {
-                    "base_url": data_update_url,
-                    "type": "HashV41",
-                    "product": data_update_product_type if data_update_product_type else None,
-                    "license_keys": licence_keys if licence_keys else None
-                }
+            # Remove keys with None values
+            update_url_params = {k: v for k, v in update_url_params.items() if v is not None}
 
-                # Remove keys with None values
-                update_url_params = {k: v for k, v in update_url_params.items() if v is not None}
+        data_file = DeviceDetectionDataFile(flow_element=self, identifier="HashV41", verify_md5=data_update_verify_md5, auto_update = auto_update, update_on_start = update_on_start, decompress= True, path = data_file_path, download=download, file_system_watcher=file_system_watcher, polling_interval=polling_interval, update_time_maximum_randomisation=update_time_maximum_randomisation, update_url_params = update_url_params, data_update_use_url_formatter = data_update_use_url_formatter)
 
-            data_file = DeviceDetectionDataFile(flow_element=self, identifier="HashV41", verify_md5=data_update_verify_md5, auto_update = auto_update, update_on_start = update_on_start, decompress= True, path = data_file_path, download=download, file_system_watcher=file_system_watcher, polling_interval=polling_interval, update_time_maximum_randomisation=update_time_maximum_randomisation, update_url_params = update_url_params, data_update_use_url_formatter = data_update_use_url_formatter)
-
-            self.register_data_file(data_file)
+        self.register_data_file(data_file)
 
         self.data_file_path = data_file_path
         self.config = config

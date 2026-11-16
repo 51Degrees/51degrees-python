@@ -66,6 +66,18 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         license_key = ExampleUtils.get_license_key()
         example.run("Enterprise-HashV41.hash", license_key, False, self.logger, print)
 
+    def test_onpremise_datafileupdate_programmatic(self):
+        # The update the example asks for itself, which needs no licence
+        # key, as the application already holds the new data.
+        printed = []
+        DataFileUpdateConsole().update_programmatically(
+            self.data_file, printed.append)
+        shown = "\n".join(printed)
+        self.assertIn("A programmatic update needs no licence key", shown)
+        self.assertIn(
+            "gave the status UpdateStatus.AUTO_UPDATE_SUCCESS", shown)
+        self.assertIn("file published on", shown)
+
     def test_onpremise_offline_processing(self):
         # Only run if environment variable set
         if is_set(*RUN_PERFORMANCE_TESTS):
