@@ -38,12 +38,15 @@ NO_KEY = no_resource_key(
 
 # The ways a test can reach the cloud service, as the keyword arguments the
 # examples' create_pipeline takes, each passed through credentials(). A test
-# with a resource key fails when none is set. A test with a licence key is
-# skipped when none is set, because CI has no cloud licence key to give it.
+# with a resource key is marked live, which ci/run-integration-tests.ps1
+# leaves out when no resource key is passed, and fails when none is set. A
+# test with a licence key is skipped when none is set, because CI has no
+# cloud licence key to give it.
 KEYS = [
     pytest.param(
         {"resource_key": find_resource_key()},
-        id="resource key"),
+        id="resource key",
+        marks=pytest.mark.live),
     pytest.param(
         {"license_key": ExampleUtils.get_license_key()},
         id="licence key",

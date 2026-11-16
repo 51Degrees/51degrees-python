@@ -24,6 +24,7 @@ import inspect
 import json5
 import os
 from pathlib import Path
+import pytest
 import subprocess
 import sys
 import unittest
@@ -36,6 +37,8 @@ from fiftyone_devicedetection_examples.cloud.gettingstarted_console import Getti
 from fiftyone_devicedetection_examples.cloud.configurator_console import ConfiguratorConsole
 
 from .live_cloud import find_resource_key, no_resource_key
+
+pytestmark = pytest.mark.live
 
 NO_KEY = no_resource_key(
     "the device product, and the hardware product for the lookups",

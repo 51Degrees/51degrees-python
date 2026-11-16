@@ -25,6 +25,8 @@ import os
 import unittest
 from urllib.parse import urlencode
 
+import pytest
+
 from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import CloudRequestEngine
 from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import CloudRequestException
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
@@ -33,6 +35,7 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from .live_cloud import read_environment
 
 
+@pytest.mark.live
 class CloudEngineTests(unittest.TestCase):
     def setUp(self):
         self.resource_key = read_environment(
@@ -135,6 +138,11 @@ class CloudEngineTests(unittest.TestCase):
         json_response = cloud.make_cloud_request('GET', url, content=None)
         json_response = json.loads(json_response)
         self.assertNotIn("errors", json_response)
+
+
+class CloudErrorTests(unittest.TestCase):
+    """Calls the live cloud service with a resource key that does not
+    exist, so these need no key of their own."""
 
     def test_HttpDataSetInException(self):
         """!

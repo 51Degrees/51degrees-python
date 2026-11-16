@@ -43,7 +43,9 @@ the Enterprise data file.
 
 The cloud tests need a valid 51Degrees resource key (see above), and fail
 without one. They read it from the environment variable
-`_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`.
+`_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`. They are
+marked `live`, so `python -m pytest -m "not live"` runs every other test,
+which is what CI does when no resource key is passed.
 
 For example, use following command to set the resource key on Linux:
 `export _51DEGREES_RESOURCE_KEY=MY-RESOURCE-KEY`

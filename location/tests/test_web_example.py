@@ -37,6 +37,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import pytest
+
 from .live_cloud import answered_without, find_resource_key, no_resource_key
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "cloud" / "web.py"
@@ -108,6 +110,7 @@ def load_example(resource_key):
     return module
 
 
+@pytest.mark.live
 class LocationWebExampleTests(unittest.TestCase):
 
     resource_key = find_resource_key()

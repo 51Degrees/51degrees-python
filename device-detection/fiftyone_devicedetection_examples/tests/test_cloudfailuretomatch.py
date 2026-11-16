@@ -34,9 +34,13 @@ import unittest
 from contextlib import redirect_stdout
 from unittest import mock
 
+import pytest
+
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 
 from .live_cloud import answered_without, find_resource_key, no_resource_key
+
+pytestmark = pytest.mark.live
 
 MODULE = "fiftyone_devicedetection_examples.cloud.failuretomatch"
 

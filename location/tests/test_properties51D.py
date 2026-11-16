@@ -23,28 +23,46 @@
 import os
 import unittest
 
+import pytest
+
 from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
 from .test_helper import *
-from .live_cloud import read_environment
+from .live_cloud import no_resource_key, read_environment
+
+pytestmark = pytest.mark.live
 
 location_LAT = '51.4578261';
 location_LON = '-0.975922996290084';
 
-resource_key = read_environment("_51DEGREES_RESOURCE_KEY", "resource_key")
-if not resource_key:
-    raise Exception("To run the cloud tests, please set a valid 51Degrees "
-                    "cloud resource key as the _51DEGREES_RESOURCE_KEY environment variable.")
-
-# Create a simple pipeline to access the engine with and process it with flow data
-pipeline = LocationPipelineBuilder(resource_key = resource_key, location_provider =  "fiftyonedegrees").build()
-
-location_engine = pipeline.get_element("location")
-flowData = pipeline.create_flowdata();
-flowData.evidence.add('query.51D_Pos_latitude', location_LAT);
-flowData.evidence.add('query.51D_Pos_longitude', location_LON);
-flowData.process()
+NO_KEY = no_resource_key(
+    "the location product", "the location properties at a latitude and "
+    "longitude", several=True)
 
 class PropertyTests(unittest.TestCase):
+
+    # The pipeline is built and the position processed when the tests run
+    # rather than when they are collected, because the tests are collected
+    # whether or not they are run.
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.resource_key = read_environment(
+            "_51DEGREES_RESOURCE_KEY", "resource_key")
+        if not cls.resource_key:
+            return
+
+        # Create a simple pipeline to access the engine with and process it with flow data
+        pipeline = LocationPipelineBuilder(resource_key = cls.resource_key, location_provider =  "fiftyonedegrees").build()
+
+        cls.location_engine = pipeline.get_element("location")
+        cls.flowData = pipeline.create_flowdata();
+        cls.flowData.evidence.add('query.51D_Pos_latitude', location_LAT);
+        cls.flowData.evidence.add('query.51D_Pos_longitude', location_LON);
+        cls.flowData.process()
+
+    def setUp(self):
+        if not self.resource_key:
+            self.fail(NO_KEY)
 
     def test_available_properties_fiftyonedegrees(self):
 
@@ -52,7 +70,8 @@ class PropertyTests(unittest.TestCase):
         Tests value types of the properties present present in the engine
         """
 
-        location = flowData.get(location_engine.datakey)
+        location_engine = self.location_engine
+        location = self.flowData.get(location_engine.datakey)
 
         # Get list of all the properties in the engine
         properties_list = location_engine.get_properties()
@@ -72,7 +91,8 @@ class PropertyTests(unittest.TestCase):
         Tests whether the all the properties present in the engine when initialised with a resource key are accessible.
         """
 
-        location = flowData.get(location_engine.datakey)
+        location_engine = self.location_engine
+        location = self.flowData.get(location_engine.datakey)
 
         # Get list of all the properties in the engine
         properties_list = location_engine.get_properties()

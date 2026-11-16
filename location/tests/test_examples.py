@@ -25,13 +25,21 @@ import sys
 import unittest
 from pathlib import Path
 
-from .live_cloud import read_environment
+import pytest
+
+from .live_cloud import no_resource_key, read_environment
+
+pytestmark = pytest.mark.live
+
+NO_KEY = no_resource_key(
+    "the location product", "the country at a latitude and longitude")
 
 
 class LocationExampleTests(unittest.TestCase):
     def test_cloud_getting_started(self):
-        if read_environment("_51DEGREES_RESOURCE_KEY", "resource_key"):
-            # this is required to import the example code,
-            # since pytest sets sys.path to the test directory
-            sys.path.append(str(Path(__file__).parent.parent.absolute() / "examples"))
-            import cloud.gettingstarted
+        if not read_environment("_51DEGREES_RESOURCE_KEY", "resource_key"):
+            self.fail(NO_KEY)
+        # this is required to import the example code,
+        # since pytest sets sys.path to the test directory
+        sys.path.append(str(Path(__file__).parent.parent.absolute() / "examples"))
+        import cloud.gettingstarted

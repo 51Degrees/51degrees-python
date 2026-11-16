@@ -23,6 +23,8 @@
 import os
 import unittest
 
+import pytest
+
 from fiftyone_pipeline_core.logger import Logger
 
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
@@ -174,6 +176,7 @@ class ExampleTests(unittest.TestCase):
         # header + up to 20 records
         self.assertGreater(len(output.getvalue().splitlines()), 1)
 
+    @pytest.mark.live
     def test_cloud_gettingstarted_console(self):
         if not resource_key:
             self.fail(NO_IP_KEY)
@@ -181,6 +184,7 @@ class ExampleTests(unittest.TestCase):
         example = GettingStartedConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
+    @pytest.mark.live
     def test_cloud_metadata_console(self):
         if not resource_key:
             self.fail(NO_IP_KEY)
@@ -188,6 +192,7 @@ class ExampleTests(unittest.TestCase):
         example = MetadataConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
+    @pytest.mark.live
     def test_cloud_getallproperties_console(self):
         if not resource_key:
             self.fail(NO_IP_KEY)
@@ -203,6 +208,7 @@ class ExampleTests(unittest.TestCase):
         example = MixedConsole()
         example.run(hash_file, data_file, Logger(min_level="error"), lambda x: None)
 
+    @pytest.mark.live
     @unittest.skipUnless(
         device_detection_available, "device detection package not available")
     def test_cloud_mixed_console(self):
@@ -212,6 +218,7 @@ class ExampleTests(unittest.TestCase):
         example = MixedConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
+    @pytest.mark.live
     def test_cloud_countries_console(self):
         if not resource_key:
             self.fail(NO_COUNTRIES_KEY)

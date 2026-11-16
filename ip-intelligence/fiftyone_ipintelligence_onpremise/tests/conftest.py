@@ -82,6 +82,16 @@ def _describe(names):
             "statement, so their native data is released straight away.")
 
 
+# The marker of the tests that call the live cloud service, which the
+# product's ci/run-integration-tests.ps1 leaves out when no resource key is
+# passed.
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "live: calls the live 51Degrees cloud service and needs a resource "
+        "key")
+
+
 def pytest_runtest_logreport(report):
     if report.failed:
         _failed_tests.add(report.nodeid)

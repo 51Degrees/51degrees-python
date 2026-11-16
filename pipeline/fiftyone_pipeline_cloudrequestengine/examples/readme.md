@@ -93,14 +93,16 @@ then open <http://localhost:5000>. Set `PORT` to listen on another port.
 
 The tests that call the cloud service with a resource key fail when none is
 set, naming the variables they read, which are `_51DEGREES_RESOURCE_KEY`
-and `_51DEGREES_RESOURCE_KEY_BESPOKE`, in that order. The
+and `_51DEGREES_RESOURCE_KEY_BESPOKE`, in that order. They are marked
+`live`, so `python -m pytest -m "not live"` runs every other test. The
 tests that use a licence key skip themselves when none is set.
 
 In CI the examples are run by [ci/run-integration-tests.ps1](../../ci/run-integration-tests.ps1)
 through common-ci, on every Python version and operating system in
 [ci/options.json](../../ci/options.json), with the resource key the pipeline
-holds. No licence key is passed to the pipeline, so the licence-key tests
-skip themselves there. That uses the [tox.ini](tox.ini) in this folder,
+holds. When no resource key is passed, the script leaves out the tests
+marked `live`, says so, and runs the rest. No licence key is passed to the
+pipeline, so the licence-key tests skip themselves there. That uses the [tox.ini](tox.ini) in this folder,
 which can also be run by hand with `python -m tox -e py` from here.
 
 ## Cloud engine
