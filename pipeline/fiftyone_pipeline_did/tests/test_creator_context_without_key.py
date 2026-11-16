@@ -22,7 +22,9 @@
 
 """
 The creator context demo, started with no resource key, ends without an
-error and says which environment variable to set and where to create a key.
+error, says which environment variable to set and where to create a key,
+and ends with its "Find out more" section, which the page carries and a
+person who never reaches the page would otherwise never see.
 """
 
 import io
@@ -55,6 +57,9 @@ class CreatorContextWithoutKeyTests(unittest.TestCase):
         said = printed.getvalue()
         self.assertIn("_51DEGREES_RESOURCE_KEY", said)
         self.assertRegex(said, CONFIGURE_LINK)
+        self.assertIn("Find out more:", said)
+        for _, url in server.FIND_OUT_MORE:
+            self.assertIn(url, said)
 
 
 if __name__ == "__main__":

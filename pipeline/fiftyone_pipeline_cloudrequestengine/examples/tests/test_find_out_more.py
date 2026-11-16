@@ -21,12 +21,15 @@
 # *********************************************************************
 
 """
-The mixed console ends with its "Find out more" section when it stops early,
-as it does after a run. These run it to each early end, so they need no key
-and no network.
+The mixed console and the mixed web example each end with their "Find out
+more" section when they stop early, as they do after a run. These run each
+of them to each early end, so they need no key and no network.
 """
 
+import pytest
+
 from fiftyone_pipeline_examples.cloud.mixed import gettingstarted_console
+from fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web import app
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
 # Every name a key is read from.
@@ -59,5 +62,37 @@ def test_when_the_pipeline_cannot_be_built(monkeypatch, capsys):
     monkeypatch.setattr(gettingstarted_console, "create_pipeline", refuse)
 
     gettingstarted_console.main(["a-resource-key"])
+
+    assert "Find out more:" in capsys.readouterr().out
+
+
+def test_the_web_example_without_a_key(monkeypatch, capsys):
+    for name in KEY_SETTINGS:
+        monkeypatch.delenv(name, raising=False)
+
+    def started(*args, **kwargs):
+        raise AssertionError("The web server was started")
+
+    monkeypatch.setattr(app, "create_app", started)
+
+    app.main([])
+
+    printed = capsys.readouterr().out
+    assert "Find out more:" in printed
+    for _, url in app.FIND_OUT_MORE:
+        assert url in printed
+
+
+def test_the_web_example_when_the_pipeline_cannot_be_built(monkeypatch,
+                                                           capsys):
+    # Stands in for a key the cloud service refuses, or one that carries
+    # none of the properties the example shows.
+    def refuse(*args, **kwargs):
+        raise ValueError("The key carries none of the properties.")
+
+    monkeypatch.setattr(app, "create_pipeline", refuse)
+
+    with pytest.raises(SystemExit):
+        app.main(["a-resource-key"])
 
     assert "Find out more:" in capsys.readouterr().out
