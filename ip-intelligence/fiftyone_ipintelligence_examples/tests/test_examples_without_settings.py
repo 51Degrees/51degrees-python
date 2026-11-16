@@ -126,6 +126,11 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         printed = run_without_settings(datafileupdate_console.main)
         self.assertIn("The data file in use is the", printed)
         self.assertIn(datafileupdate_console.CONTACT_US, printed)
+        # The update the example asks for itself needs no licence key, so it
+        # runs from a fresh clone on the free ASN data file.
+        self.assertIn("A programmatic update needs no licence key", printed)
+        self.assertIn(
+            "gave the status UpdateStatus.AUTO_UPDATE_SUCCESS", printed)
         self.assertIn("Find out more:", printed)
 
     @unittest.skipUnless(
