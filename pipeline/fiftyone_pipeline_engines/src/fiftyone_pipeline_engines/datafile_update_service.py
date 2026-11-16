@@ -30,6 +30,7 @@ import os
 import random
 import threading
 import time
+import warnings
 import zlib
 import requests
 from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
@@ -89,6 +90,37 @@ class DataUpdateException(Exception):
 
 # The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
 GZIP_MAGIC = b"\x1f\x8b"
+
+# REFRESH_TRIES is a module level name of this module that is now
+# DataFileUpdateService.REFRESH_TRIES. The old name still reads, with a
+# DeprecationWarning, and keeps the value this module gave it, which is
+# not the tries the service makes. Nothing in the package reads it.
+_DEPRECATED_REFRESH_TRIES = 1
+
+_REFRESH_TRIES_DEPRECATED = (
+    "fiftyone_pipeline_engines.datafile_update_service.REFRESH_TRIES is "
+    "deprecated and will be removed. It keeps the value 1 it was given "
+    "here and is not the tries the service makes, which are "
+    "DataFileUpdateService.REFRESH_TRIES.")
+
+
+def __getattr__(name):
+    """!
+    Gives the deprecated module level REFRESH_TRIES, with a warning. Any
+    other name this module does not hold is missing as usual.
+    @type name: str
+    @param name: The name read from this module
+    @rtype: int
+    @return: The value REFRESH_TRIES was given here
+    @raise AttributeError: The module holds no name of that name
+    """
+    if name != "REFRESH_TRIES":
+        raise AttributeError(
+            "module {0!r} has no attribute {1!r}".format(__name__, name))
+    # The second frame is the code that read the name, past this function.
+    warnings.warn(_REFRESH_TRIES_DEPRECATED, DeprecationWarning,
+                  stacklevel=2)
+    return _DEPRECATED_REFRESH_TRIES
 
 
 class DataFileUpdateService():
