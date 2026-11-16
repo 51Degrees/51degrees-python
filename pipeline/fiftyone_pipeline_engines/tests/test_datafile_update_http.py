@@ -1290,5 +1290,53 @@ class PolledCheckErrorTests(UpdateServiceTestCase):
              UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
 
 
+class StartUpCheckErrorTests(UpdateServiceTestCase):
+    """!
+    data-updates.md line 354. Every check MUST be reported to
+    onUpdateCallbacks once it ends, the update on start-up included, so an
+    error the errors table does not name is reported as
+    AUTO_UPDATE_UNKNOWN_ERROR and logged, the next check is scheduled, and
+    registering the data file does not raise into the code that built the
+    Pipeline.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.data_file.update_on_start = True
+        self.data_file.updated_on_start = False
+        self.data_file.auto_update = True
+        self.hold_timers()
+
+        def update_url():
+            raise ValueError("the update URL could not be made")
+
+        self.data_file.get_update_url = update_url
+
+    def testAnErrorOnStartUpIsLoggedAndReported(self):
+        self.service.register_data_file(self.data_file)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
+        errors = [message for level, message in self.pipeline.logs
+                  if level == "error"]
+        self.assertEqual(1, len(errors), self.pipeline.logs)
+        self.assertTrue(errors[0].startswith(
+            "An unhandled error occurred while checking for automatic "
+            "updates for engine 'FakeEngine'. Error detail: "), errors[0])
+        self.assertIn("the update URL could not be made", errors[0])
+        self.assertFalse(self.data_file.updating)
+
+    def testTheNextCheckIsScheduledAfterAnErrorOnStartUp(self):
+        self.service.register_data_file(self.data_file)
+        self.assertEqual(1, len(self.pending))
+        self.get(response(200))
+        self.data_file.get_update_url = lambda: URL
+        scheduled = self.pending.pop()
+        scheduled.function(*scheduled.args).join()
+        self.assertEqual([b"new"], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR,
+             UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+
+
 if __name__ == "__main__":
     unittest.main()
