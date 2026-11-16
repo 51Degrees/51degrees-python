@@ -25,7 +25,8 @@ import threading
 from fiftyone_pipeline_engines.aspectdata import AspectData
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
-from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
+from fiftyone_pipeline_engines.missingproperty_service import \
+    OnPremiseMissingPropertyService
 
 from .constants import RESULTS_CLOSED
 
@@ -33,16 +34,6 @@ from .constants import RESULTS_CLOSED
 # fiftyoneDegreesHashMatchMethod values, which getMethod returns.
 MATCH_METHODS = ("NONE", "PERFORMANCE", "COMBINED", "PREDICTIVE")
 
-class OnPremiseMissingPropertyService(MissingPropertyService):
-
-    def check(self, key, flow_element):
-
-        if key in flow_element.properties:
-            datafiles = flow_element.properties[key]["datafiles"]
-            if(not flow_element.engine.getProduct() in datafiles):
-                raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. This is because your datafile does not contain the property. The property is available in' + str(datafiles))
-        else:
-            raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. Please check that the element and property names are correct.')
 
 class SwigData(AspectData):
 

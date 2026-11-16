@@ -261,7 +261,9 @@ class DeviceDetectionTests(unittest.TestCase):
             result = str(e)
 
         self.assertEqual(
-            result, "Property notpresent not found in data for element device. Please check that the element and property names are correct.")
+            "Property 'notpresent' not found in data for element 'device'. "
+            "The reason for this is unknown. Please check that the aspect and "
+            "property name are correct.", result)
 
     def test_missing_property_service_not_found_in_current(self):
         """!
@@ -286,15 +288,20 @@ class DeviceDetectionTests(unittest.TestCase):
 
         fd.process()
 
-        result = ""
-
-        try:
-            fd.device.get("mock")
-        except Exception as e:
-            result = str(e)
-
-        self.assertEqual(
-            result, "Property mock not found in data for element device. This is because your datafile does not contain the property. The property is available in['Enterprise']")
+        # The name is found however it is spelled, and the message gives it
+        # as the caller did.
+        for name in ("mock", "Mock"):
+            with self.assertRaises(Exception) as raised:
+                fd.device.get(name)
+            self.assertEqual(
+                "Property '" + name + "' not found in data for element "
+                "'device'. This is because your license or data file does not "
+                "include this property. It is available with the Enterprise "
+                "license/data for the DeviceDetectionOnPremise. To upgrade, "
+                "see "
+                "https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_engines-src-fiftyone_pipeline_engines-missingproperty_service.py&utm_term=missing-property-pricing"
+                ".",
+                str(raised.exception))
 
     def test_excluded_property(self):
         """!
@@ -322,7 +329,9 @@ class DeviceDetectionTests(unittest.TestCase):
             result = str(e)
 
         self.assertEqual(
-            result, "Property screenpixelsheight was excluded from device")
+            "Property 'screenpixelsheight' not found in data for element "
+            "'device'. This is because the property has been excluded when "
+            "configuring the engine.", result)
 
     def test_evidencekey_filter_contains_user_agent(self):
         """!
