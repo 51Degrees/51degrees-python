@@ -26,10 +26,11 @@
 # This example illustrates the parameters that control when a new data file
 # is sought and when it is loaded by the on-premise IP intelligence engine.
 #
-# Three aspects are demonstrated:
+# Four aspects are demonstrated:
 # - Update on start-up
 # - Filesystem watcher
 # - Daily auto-update
+# - Programmatic update, which the application asks for itself
 #
 # ## License Key
 # Updating the data file needs a 51Degrees licence key for the Enterprise
@@ -57,12 +58,22 @@
 # update_time_maximum_randomisation tune how often and how randomly the
 # check happens.
 #
+# ## Programmatic update
+# An application that gets a new data file itself, rather than letting the
+# pipeline download one, hands the new data to the data file update service,
+# which writes it where the engine reads its data and refreshes the engine
+# from it. No licence key is needed, as nothing is downloaded. Update
+# polling, the update on start-up and the file system watcher are all off,
+# so that only the application's own call to update_from_memory updates the
+# engine.
+#
 # Required PyPi Dependencies:
 # - fiftyone_ipintelligence
 
 import os
 import shutil
 import sys
+import tempfile
 import threading
 from datetime import datetime
 
@@ -151,6 +162,60 @@ class DataFileUpdateConsole():
                f"'{UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE}'. Contact us for a key "
                f"and a copy at {CONTACT_US}")
 
+    def update_programmatically(self, data_file, output):
+        # An update the application asks for itself, which needs no licence
+        # key because the application already has the new data. The data
+        # file update service writes that data where the engine reads its
+        # own, then refreshes the engine from it.
+        if not data_file:
+            data_file = ExampleUtils.find_file(ASN_DATAFILE_NAME)
+        if not data_file or not os.path.isfile(data_file):
+            return
+        # The engine is built from a copy, so the update replaces the copy
+        # and leaves the file this example was given as it was.
+        directory = tempfile.mkdtemp(prefix="51Degrees-DataFileUpdate-")
+        location = os.path.join(directory, os.path.basename(data_file))
+        shutil.copy(data_file, location)
+        try:
+            update_service = DataFileUpdateService()
+            pipeline = IpIntelligencePipelineBuilder(
+                data_file_path = location,
+                performance_profile = "LowMemory",
+                # Usage sharing is off for this example. In production turn it on,
+                # because the requests shared improve the data every user gets.
+                usage_sharing = False,
+                # The application asks for each update itself, so update
+                # polling, the update on start-up and the file system
+                # watcher are all off.
+                data_file_update_service = update_service,
+                auto_update = False,
+                update_on_start = False,
+                file_system_watcher = False,
+                licence_keys = "").build()
+            # The pipeline is closed at the end of the with block, which
+            # releases the native data it holds.
+            with pipeline:
+                element = pipeline.flow_elements_list["ip"]
+                output("")
+                output("A programmatic update needs no licence key when the "
+                       "application has the new data itself. The engine "
+                       f"reads its data from '{location}'.")
+                # The new data the application has. Here it is the same file
+                # again, read now.
+                with open(data_file, "rb") as new_data:
+                    data = new_data.read()
+                status = update_service.update_from_memory(
+                    element.data_file, data)
+                published = element.engine.getPublishedTime()
+                date = datetime(published.getYear(), published.getMonth(),
+                                published.getDay())
+                output("The update this example asked for gave the status "
+                       f"{status}, and the data file in use is now the "
+                       f"'{element.engine.getProduct()}' file published on "
+                       f"{date:%Y-%m-%d}.")
+        finally:
+            shutil.rmtree(directory, ignore_errors=True)
+
     def run(self, data_file, license_key, interactive, logger, output):
         logger.log("info", "Starting example")
 
@@ -160,6 +225,7 @@ class DataFileUpdateConsole():
 
         if not license_key:
             self.explain_license_key(data_file, output)
+            self.update_programmatically(data_file, output)
             return
 
         # Work out where the downloaded file will be put. The directory must
