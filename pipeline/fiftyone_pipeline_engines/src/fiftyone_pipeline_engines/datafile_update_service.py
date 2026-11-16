@@ -30,6 +30,7 @@ import os
 import random
 import threading
 import time
+import warnings
 import zlib
 import requests
 from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
@@ -89,6 +90,36 @@ class DataUpdateException(Exception):
 
 # The first two bytes of gzip compressed content (RFC 1952 section 2.3.1).
 GZIP_MAGIC = b"\x1f\x8b"
+
+# The module level names 4.5 published that nothing here reads now, with the
+# value each had. __getattr__ still gives them, with a warning, so that code
+# written against 4.5 keeps working until they are removed.
+_DEPRECATED_NAMES = {
+    # The tries 4.5 made to refresh an engine from a data file. The service
+    # now makes DataFileUpdateService.REFRESH_TRIES of them.
+    "REFRESH_TRIES": (1, "DataFileUpdateService.REFRESH_TRIES"),
+}
+
+
+def __getattr__(name):
+    """!
+    Gives the deprecated module level names, with a DeprecationWarning that
+    names what to read instead.
+    @type name: str
+    @param name: The name read from the module
+    @raises AttributeError: The module has no such name
+    """
+    if name in _DEPRECATED_NAMES:
+        value, instead = _DEPRECATED_NAMES[name]
+        warnings.warn(
+            __name__ + "." + name + " is deprecated and will be removed in a "
+            "later release. It keeps the value 4.5 gave it, which the "
+            "service no longer uses. Read " + instead + " instead.",
+            DeprecationWarning,
+            stacklevel=2)
+        return value
+    raise AttributeError(
+        "module '" + __name__ + "' has no attribute '" + name + "'")
 
 
 class DataFileUpdateService():
