@@ -30,6 +30,7 @@ import socket
 import datetime
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from importlib import metadata
 from importlib.metadata import version
@@ -87,6 +88,11 @@ LOGGED_CONTENT_CHARACTERS = 500
 # The longest single wait during a pause. Longer pauses are waited out in
 # parts, as a timer cannot wait for any length of time on every platform.
 LONGEST_WAIT_SECONDS = 86400
+
+# The values that do not change while the element lives are written to its
+# first record, and again to the first record written once this many
+# seconds have passed since they were last written.
+INVARIANT_VALUES_INTERVAL_SECONDS = 3600
 
 
 def devices_message(entries):
@@ -280,6 +286,22 @@ class ShareUsage(Engine):
         # is in, as each names its own flow elements.
         self._constant_xml_by_pipeline = {}
 
+        # Written to every record as its ProcessId. Created here and never
+        # stored, so an element built again, in this process or another,
+        # has a new one.
+        self.process_id = str(uuid.uuid4())
+
+        # The clock, in seconds, that the hour between writes of the values
+        # that do not change is measured by. Not a user setting, and here so
+        # that a test can control it.
+        self.clock = time.monotonic
+
+        # When the values that do not change were last written to a record
+        # from each Pipeline, by the clock. A Pipeline missing here has had
+        # them written to none of its records.
+        self._invariants_written = {}
+        self._invariants_lock = threading.Lock()
+
         # The address of this machine for the record's ServerIP, looked up
         # on its own thread so that processing never waits for a slow name
         # lookup. It is None until the lookup ends, and records made before
@@ -409,10 +431,12 @@ class ShareUsage(Engine):
     def get_constant_xml(self, pipeline=None):
         """!
         The part of a record that is the same for every request of a
-        Pipeline. Given the Pipeline a request came from, it names that
+        Pipeline, being the values that do not change while the element
+        lives. Given the Pipeline a request came from, it names that
         Pipeline's flow elements, so an element in several Pipelines writes
         each one's own. With no Pipeline it names those of the one Pipeline
-        the element is in.
+        the element is in. A record carries it only when
+        _write_invariants says so.
         """
         if pipeline is not None:
             xml = self._constant_xml_by_pipeline.get(pipeline)
@@ -432,6 +456,27 @@ class ShareUsage(Engine):
                 return xml
             self.constant_xml = xml
         return self.constant_xml
+
+    def _write_invariants(self, pipeline):
+        """!
+        Whether the record being written for a request from the Pipeline
+        carries the values that do not change. They go in the first record
+        from each Pipeline, and again in the first one written once
+        INVARIANT_VALUES_INTERVAL_SECONDS have passed since they were last
+        written, whether or not that record is ever sent. A record written
+        before the lookup of the server's address has ended carries them
+        with an empty ServerIP, so it does not count as having written them
+        and the next record carries them again.
+        """
+        with self._invariants_lock:
+            now = self.clock()
+            written = self._invariants_written.get(pipeline)
+            if written is not None and \
+                    now - written < INVARIANT_VALUES_INTERVAL_SECONDS:
+                return False
+            if self._server_ip is not None:
+                self._invariants_written[pipeline] = now
+            return True
 
     def _make_constant_xml(self, flow_element_names, flow_elements=()):
         """!
@@ -685,8 +730,13 @@ class ShareUsage(Engine):
         
         xml += "<Device>"
 
-        # --- write invariant data
-        xml += self.get_constant_xml(data.pipeline)
+        # The process identifier, in every record, which ties a record that
+        # leaves out the values that do not change to those values.
+        xml += plain_element("ProcessId", self.process_id)
+
+        # --- write invariant data, to the first record and once an hour
+        if self._write_invariants(data.pipeline):
+            xml += self.get_constant_xml(data.pipeline)
 
         # --- write variable data
         # The SessionID used to track a series of requests
