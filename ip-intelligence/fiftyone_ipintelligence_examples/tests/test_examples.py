@@ -101,6 +101,21 @@ class ExampleTests(unittest.TestCase):
 
     @unittest.skipUnless(
         bool(data_file), "No IP intelligence data file available")
+    def test_onpremise_datafileupdate_programmatic(self):
+        # The update the example asks for itself, which needs no licence
+        # key, as the application already holds the new data.
+        from fiftyone_ipintelligence_examples.onpremise.datafileupdate_console import DataFileUpdateConsole
+        printed = []
+        DataFileUpdateConsole().update_programmatically(
+            data_file, printed.append)
+        shown = "\n".join(printed)
+        self.assertIn("A programmatic update needs no licence key", shown)
+        self.assertIn(
+            "gave the status UpdateStatus.AUTO_UPDATE_SUCCESS", shown)
+        self.assertIn("file published on", shown)
+
+    @unittest.skipUnless(
+        bool(data_file), "No IP intelligence data file available")
     def test_onpremise_countries_console(self):
         from fiftyone_ipintelligence_examples.onpremise.countries_console import CountriesConsole
         example = CountriesConsole()

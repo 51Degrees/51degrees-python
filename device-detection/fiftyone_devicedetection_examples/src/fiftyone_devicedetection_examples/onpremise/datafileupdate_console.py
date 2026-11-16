@@ -26,10 +26,11 @@
 # device detection engine, and controls when a new data file is sought and when it is loaded by
 # the device detection software.
 #
-# Three main aspects are demonstrated:
+# Four main aspects are demonstrated:
 # - Update on Start-Up
 # - Filesystem Watcher
 # - Daily auto-update
+# - Programmatic update, which the application asks for itself
 #
 # ## License Key
 # Updating the data file needs a 51Degrees licence key for the Enterprise data file.
@@ -147,6 +148,33 @@
 #      update_time_maximum_randomisation = (10*60),
 # ```
 #
+# ## Programmatic update
+# An application that gets a new data file itself, rather than letting the
+# pipeline download one, hands the new data to the data file update service,
+# which writes it where the engine reads its data and refreshes the engine
+# from it. No licence key is needed, as nothing is downloaded.
+# ## Pre-Requisites
+# - the new data, as bytes
+# ## Configuration
+# - update polling, the update on start-up and the file system watcher are
+# all off, so that only the application's own call updates the engine
+# ``` {py}
+#      auto_update = False,
+#      update_on_start = False,
+#      file_system_watcher = False,
+# ```
+# - a DataFileUpdateService must be supplied, and the application keeps it to
+# ask for the update
+# ``` {py}
+#      update_service = DataFileUpdateService()
+#  ...
+#      data_file_update_service = update_service,
+# ```
+# - the application asks for the update with the engine's data file
+# ``` {py}
+#      update_service.update_from_memory(engine.data_file, data)
+# ```
+#
 # # Location
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/onpremise/datafileupdate_console.py).
 #
@@ -159,6 +187,7 @@
 import os
 import shutil
 import sys
+import tempfile
 import threading
 from datetime import datetime
 
@@ -235,6 +264,56 @@ class DataFileUpdateConsole():
 			f"'{UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE}'. Contact us for a key and a "
 			f"copy at {CONTACT_US}")
 
+	def update_programmatically(self, data_file, output):
+		# An update the application asks for itself, which needs no licence
+		# key because the application already has the new data. The data
+		# file update service writes that data where the engine reads its
+		# own, then refreshes the engine from it.
+		if not data_file:
+			data_file = ExampleUtils.find_file(LITE_DATAFILE_NAME)
+		if not data_file or not os.path.isfile(data_file):
+			return
+		# The engine is built from a copy, so the update replaces the copy
+		# and leaves the file this example was given as it was.
+		directory = tempfile.mkdtemp(prefix="51Degrees-DataFileUpdate-")
+		location = os.path.join(directory, os.path.basename(data_file))
+		shutil.copy(data_file, location)
+		try:
+			update_service = DataFileUpdateService()
+			pipeline = DeviceDetectionPipelineBuilder(
+				data_file_path = location,
+				performance_profile = "LowMemory",
+				usage_sharing = False,
+				# The application asks for each update itself, so update
+				# polling, the update on start-up and the file system
+				# watcher are all off.
+				data_file_update_service = update_service,
+				auto_update = False,
+				update_on_start = False,
+				file_system_watcher = False,
+				licence_keys = "").build()
+			# The pipeline is closed at the end of the with block, which
+			# releases the native data it holds.
+			with pipeline:
+				engine = pipeline.get_element("device")
+				output("")
+				output("A programmatic update needs no licence key when the "
+					"application has the new data itself. The engine reads "
+					f"its data from '{location}'.")
+				# The new data the application has. Here it is the same
+				# file again, read now.
+				with open(data_file, "rb") as new_data:
+					data = new_data.read()
+				status = update_service.update_from_memory(
+					engine.data_file, data)
+				output("The update this example asked for gave the status "
+					f"{status}, and the data file in use is now the "
+					f"'{ExampleUtils.get_data_file_tier(engine)}' file "
+					"published on "
+					f"{ExampleUtils.get_data_file_date(engine):%Y-%m-%d}.")
+		finally:
+			shutil.rmtree(directory, ignore_errors=True)
+
 	def run(self, data_file, license_key, interactive, logger, output):
 		logger.log("info", "Starting example")
 
@@ -244,6 +323,7 @@ class DataFileUpdateConsole():
 
 		if not license_key:
 			self.explain_license_key(data_file, output)
+			self.update_programmatically(data_file, output)
 			return
 
 		# work out where the downloaded file will be put, directory must exist
