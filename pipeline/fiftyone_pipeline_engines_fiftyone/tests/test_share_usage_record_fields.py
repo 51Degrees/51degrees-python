@@ -122,6 +122,35 @@ class ShareUsageRecordFieldsTests(unittest.TestCase):
             self.assertEqual(2, data.sequence, sequence_key)
             self.assertEqual("203.0.113.7", data.client_ip, ip_key)
 
+    def test_a_sequence_that_is_not_a_whole_number_is_absent(self):
+        # A Pipeline with no Sequence Element hands the page's own value
+        # straight to usage sharing, which counts only a whole number or a
+        # string made of the digits 0 to 9. A floating point 2.0, True,
+        # a signed or spaced number and a number with an underscore in it
+        # are each absent, so the record carries no sequence rather than a
+        # number the page never sent.
+        usage = usage_element()
+        self.addCleanup(usage.close)
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
+        for value in (2.0, True, False, " 7 ", "-3", "+3", "1_0", "0x10",
+                      "2.0", "", "two"):
+            flow_data = pipeline.create_flowdata()
+            flow_data.evidence.add("header.user-agent", "agent")
+            flow_data.evidence.add("query.sequence", value)
+            data = usage.get_data_from_evidence(flow_data)
+            self.assertEqual("", data.sequence, repr(value))
+
+    def test_a_sequence_of_digits_is_recorded(self):
+        usage = usage_element()
+        self.addCleanup(usage.close)
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
+        for value, expected in ((2, 2), ("2", 2), ("0002", 2)):
+            flow_data = pipeline.create_flowdata()
+            flow_data.evidence.add("header.user-agent", "agent")
+            flow_data.evidence.add("query.sequence", value)
+            data = usage.get_data_from_evidence(flow_data)
+            self.assertEqual(expected, data.sequence, repr(value))
+
     def test_the_record_names_the_server_ip(self):
         with mock.patch.object(share_usage, "host_address",
                                lambda: SERVER_IP):
