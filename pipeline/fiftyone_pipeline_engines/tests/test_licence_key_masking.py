@@ -112,12 +112,14 @@ def answer(status):
 
 
 class UpdateServiceLogTests(unittest.TestCase):
+    """Update polling logs a failed check, so each check here is a polled
+    one."""
 
     def update(self, reply):
         pipeline = RecordingPipeline()
         service = DataFileUpdateService(pipeline)
         with mock.patch.object(requests, "get", lambda *a, **k: reply):
-            service.update_data_file(StandInDataFile())
+            service.async_update_data_file(StandInDataFile()).join()
         return pipeline.logs
 
     def test_no_message_holds_the_key(self):
@@ -134,15 +136,14 @@ class UpdateServiceLogTests(unittest.TestCase):
                         logs)
 
     def test_a_failed_request_logs_only_the_masked_key(self):
-        # The update service logs a failed request rather than raising it,
-        # and the message of the request's error names the URL.
+        # The message of the request's error names the URL.
         def fail(*args, **kwargs):
             raise requests.ConnectionError("failed for url: " + URL)
 
         pipeline = RecordingPipeline()
         service = DataFileUpdateService(pipeline)
         with mock.patch.object(requests, "get", fail):
-            service.update_data_file(StandInDataFile())
+            service.async_update_data_file(StandInDataFile()).join()
         self.assertTrue(pipeline.logs)
         for level, message in pipeline.logs:
             self.assertNotIn(KEY, message)
@@ -160,7 +161,7 @@ class UpdateServiceLogTests(unittest.TestCase):
         service = DataFileUpdateService(pipeline)
         service.on_complete(fails)
         with mock.patch.object(requests, "get", lambda *a, **k: answer(304)):
-            service.update_data_file(StandInDataFile())
+            service.async_update_data_file(StandInDataFile()).join()
         self.assertTrue(pipeline.logs)
         for level, message in pipeline.logs:
             self.assertNotIn(KEY, message)

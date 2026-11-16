@@ -109,14 +109,41 @@ class _FakeFlowData:
         self.element_data = data
 
 
+class _KeyedFlowData:
+    """!
+    Stands in for a FlowData holding a cloud response under each key given.
+    Asking for any other key raises, as a FlowData does.
+    """
+
+    def __init__(self, responses):
+        self._responses = responses
+        self.element_data = None
+
+    def get(self, key):
+        if key not in self._responses:
+            raise Exception("There is no element data for " + key)
+        return _FakeCloudElementData(self._responses[key])
+
+    def set_element_data(self, data):
+        self.element_data = data
+
+
 def _process(response):
     """!
     Run a fixed cloud response through the hardware profile engine and
     return the resulting element data.
     """
 
+    return _process_flowdata(_FakeFlowData(response))
+
+
+def _process_flowdata(flowdata):
+    """!
+    Run the hardware profile engine on a stand-in FlowData and return the
+    resulting element data.
+    """
+
     engine = HardwareProfileCloud()
-    flowdata = _FakeFlowData(response)
 
     engine.process_internal(flowdata)
 
@@ -182,6 +209,24 @@ class HardwareProfileCloudTests(unittest.TestCase):
 
         self.assertIn("paid feature",
                       hardware.get("hardwarevendor").no_value_message())
+
+    def test_the_response_is_read_under_cloud_response(self):
+        # The cloud request engine's data is read under cloud-response, the
+        # key the specification gives, rather than the deprecated cloud.
+        hardware = _process_flowdata(_KeyedFlowData({
+            "cloud-response": ENTITLED_RESPONSE,
+            "cloud": NO_HARDWARE_RESPONSE}))
+
+        self.assertEqual(
+            "Apple", hardware.get("profiles")[0]["hardwarevendor"].value())
+
+    def test_the_old_key_is_read_when_there_is_no_cloud_response(self):
+        # An older cloud request engine gives its data under cloud alone.
+        hardware = _process_flowdata(_KeyedFlowData({
+            "cloud": ENTITLED_RESPONSE}))
+
+        self.assertEqual(
+            "Apple", hardware.get("profiles")[0]["hardwarevendor"].value())
 
 
 class HardwareProfileAspectDataTests(unittest.TestCase):

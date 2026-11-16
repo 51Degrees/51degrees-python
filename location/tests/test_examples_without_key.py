@@ -22,8 +22,8 @@
 
 """
 Runs each cloud example as it runs from a fresh clone, with no resource key
-set. Each must end without an error and give a tagged link to the page
-where a key is created.
+set. Each must end without an error, name the environment variable to set
+and give a tagged link to the page where a key is created.
 """
 
 import io
@@ -60,10 +60,14 @@ def run_without_key(example):
 class LocationExamplesWithoutKeyTests(unittest.TestCase):
 
     def test_cloud_getting_started(self):
-        self.assertRegex(run_without_key("gettingstarted.py"), CONFIGURE_LINK)
+        said = run_without_key("gettingstarted.py")
+        self.assertIn("_51DEGREES_RESOURCE_KEY", said)
+        self.assertRegex(said, CONFIGURE_LINK)
 
     def test_cloud_web(self):
-        self.assertRegex(run_without_key("web.py"), CONFIGURE_LINK)
+        said = run_without_key("web.py")
+        self.assertIn("_51DEGREES_RESOURCE_KEY", said)
+        self.assertRegex(said, CONFIGURE_LINK)
 
 
 if __name__ == "__main__":

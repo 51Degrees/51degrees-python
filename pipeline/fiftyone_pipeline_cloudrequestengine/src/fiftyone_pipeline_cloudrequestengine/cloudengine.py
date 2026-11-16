@@ -26,18 +26,22 @@ from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 from fiftyone_pipeline_core.jsonbundler import WKT_TYPES
 
-from .clouddata import CloudData
+from .clouddata import CloudData, CloudMissingPropertyService
+from .constants import Constants
 
 import json
 import threading
 
-from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
+# Why a pipeline with a second CloudRequestEngine is refused.
+_ANOTHER_REQUEST_ENGINE = (
+    "This cloud engine is already in a pipeline with another Cloud Request "
+    "Engine. Its properties come from that Cloud Request Engine, so a "
+    "pipeline with a different one is refused. Build another cloud engine "
+    "for this pipeline, or use the same Cloud Request Engine in both.")
 
-class OnPremiseMissingPropertyService(MissingPropertyService):
-
-    def check(self, key, flow_element):
-
-        raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. Please check that the element and property names are correct.')
+# The name the cloud missing property service had here, kept for code that
+# imports it.
+OnPremiseMissingPropertyService = CloudMissingPropertyService
 
 class CloudEngine(Engine):
 
@@ -84,6 +88,10 @@ class CloudEngine(Engine):
         when it was built, the pipeline is still built and this engine has
         no properties until that engine fetches them on first use.
 
+        The engine may be in several pipelines that share one
+        CloudRequestEngine, as its properties are the same in each. A
+        pipeline with another CloudRequestEngine is refused.
+
         @type pipeline: Pipeline
         @param pipeline
 
@@ -92,10 +100,14 @@ class CloudEngine(Engine):
         if not "cloud" in pipeline.flow_elements_list:
             raise Exception("CloudRequestEngine needs to be placed before cloud elements in Pipeline")
 
+        request_engine = pipeline.flow_elements_list["cloud"]
         with self._properties_lock:
-            self._request_engine = pipeline.flow_elements_list["cloud"]
-            self._properties_final = False
-            self.properties = {}
+            if self._request_engine is None:
+                self._request_engine = request_engine
+                self._properties_final = False
+                self.properties = {}
+            elif self._request_engine is not request_engine:
+                raise Exception(_ANOTHER_REQUEST_ENGINE)
         self._load_properties(pipeline.log)
 
         # Add a special message to the pipeline
@@ -115,6 +127,20 @@ class CloudEngine(Engine):
 
         self._load_properties(self._log)
         return super(CloudEngine, self).get_properties()
+
+    def properties_known(self):
+
+        """!
+        Whether this engine has its properties from the CloudRequestEngine,
+        which it has once that engine's discovery has completed. The
+        properties are looked for first, as get_properties does.
+
+        @rtype: bool
+        @return: True once the properties are known
+        """
+
+        self._load_properties(self._log)
+        return self._properties_final
 
     def _load_properties(self, log):
 
@@ -183,6 +209,29 @@ class CloudEngine(Engine):
         raise Exception("The key in use does not include access to any properties under " + element +  ". For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=element-properties-not-accessible " + "Available element data keys are: " + str([e for e in flowdata.pipeline.flow_elements_display_list]))
 
 
+    @staticmethod
+    def _cloud_response(flowdata):
+
+        """!
+        The raw JSON the CloudRequestEngine gave, read under
+        cloud-response. An element standing in for that engine may keep
+        its data under the old key alone, so the old key is read when
+        there is nothing under cloud-response.
+
+        @type flowdata: FlowData
+        @param flowdata: the FlowData being processed
+        @rtype: string
+        @return: the JSON text of the cloud service's answer
+        """
+
+        try:
+            data = flowdata.get(Constants.RESPONSE_DATA_KEY)
+        except Exception:
+            data = None
+        if data is None:
+            data = flowdata.get(Constants.OLD_DATA_KEY)
+        return data.get("cloud")
+
     def process_internal(self, flowdata):
 
         """!
@@ -199,9 +248,7 @@ class CloudEngine(Engine):
         # have completed since this engine last looked.
         self._load_properties(self._log)
 
-        cloud_data = flowdata.get("cloud").get("cloud")
-
-        cloud_data = json.loads(cloud_data)
+        cloud_data = json.loads(self._cloud_response(flowdata))
 
         # A request made with a licence key only carries the sections it
         # asked for, so a section the key carries can still be absent from

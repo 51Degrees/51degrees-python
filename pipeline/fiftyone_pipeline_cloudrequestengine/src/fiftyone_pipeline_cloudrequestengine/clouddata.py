@@ -22,27 +22,48 @@
 
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 
-from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
+from fiftyone_pipeline_engines.missingproperty_service import \
+    MissingPropertyReason, MissingPropertyService
 
-class OnPremiseMissingPropertyService(MissingPropertyService):
 
-    def check(self, key, flow_element):
+class CloudMissingPropertyService(MissingPropertyService):
 
-        # The properties listed here are the ones the key carries, which is
-        # not the same as the ones one answer holds: a request made with a
-        # licence key carries only the properties it asked for, so a
-        # property can be listed and still be absent. The message names
-        # both causes, so the reader checks the right one.
-        raise Exception(
-            "Property " + key + " not found in data for element "
-            + flow_element.datakey + ". Either the key in use does not "
-            "include access to this property, or the request was made "
-            "with a licence key and the property was not among the "
-            "requested_properties. Properties the key carries under "
-            + flow_element.datakey + " are "
-            + ", ".join(list(flow_element.get_properties().keys()))
-            + ". For more details on resource keys, see our explainer: "
-            "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-clouddata.py&utm_term=property-not-found")
+    """!
+    The missing property service of a Cloud Aspect Engine. A property its
+    metadata does not list is one the key in use does not include, or,
+    while the engine's property list is not known, one whose request for
+    that list failed.
+    """
+
+    def engine_reason(self, flow_element):
+
+        """!
+        The reason for a property the metadata does not list.
+
+        @type flow_element: CloudEngine
+        @param flow_element: the engine
+        @rtype: tuple
+        @return: the reason, and the property names the key includes
+        """
+
+        properties_known = getattr(flow_element, "properties_known", None)
+        if properties_known is not None and not properties_known():
+            # The Cloud Request Engine asks for the property list when it is
+            # built, so a list that is still not known is one whose request
+            # failed.
+            return MissingPropertyReason.CLOUD_REQUEST_FAILED, ()
+        properties = self.properties(flow_element)
+        if not properties:
+            return (
+                MissingPropertyReason.PRODUCT_NOT_ACCESSIBLE_WITH_RESOURCE_KEY,
+                ())
+        return (
+            MissingPropertyReason.PROPERTY_NOT_ACCESSIBLE_WITH_RESOURCE_KEY,
+            [meta.get("name", name) for name, meta in properties.items()])
+
+
+# The name this service had before, kept for code that imports it.
+OnPremiseMissingPropertyService = CloudMissingPropertyService
 
 class CloudData(AspectDataDictionary):
 
@@ -62,4 +83,4 @@ class CloudData(AspectDataDictionary):
 
         super(CloudData, self).__init__(flow_element, contents)
 
-        self.missing_property_service = OnPremiseMissingPropertyService()
+        self.missing_property_service = CloudMissingPropertyService()

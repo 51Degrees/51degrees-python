@@ -74,8 +74,7 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         @param cookie: the name of the cookie that identifies the session
         @type query_whitelist: list or str
         @param query_whitelist: query string and form parameters to share as
-        well as those starting 51D_, or None to share every parameter. A
-        string is read as names separated by commas.
+        well as those starting 51D_. None holds no names. A string is read as names separated by commas.
         @type header_blacklist: list or str
         @param header_blacklist: headers not to share. A string is read as
         names separated by commas.
@@ -93,8 +92,8 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         query_whitelist = _split_names(query_whitelist)
         header_blacklist = _split_names(header_blacklist)
 
-        self.query_whitelist = None if query_whitelist is None else \
-            [parameter.lower() for parameter in query_whitelist]
+        self.query_whitelist = \
+            [parameter.lower() for parameter in query_whitelist or ()]
 
         self.header_blacklist = \
             [header.lower() for header in header_blacklist or ()]
@@ -148,10 +147,9 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
             # cookie prefix
             return field.startswith(FIFTYONE_PREFIX)
         elif prefix == "query":
-            # Share every parameter when asked to or when no list was
-            # given. Otherwise only those starting 51d_ or in the list.
+            # Share every parameter only when asked to. Otherwise only
+            # those starting 51d_ or in the list.
             return self.share_all_query_string_parameters or \
-                self.query_whitelist is None or \
                 field.startswith(FIFTYONE_PREFIX) or \
                 field in self.query_whitelist
         else:

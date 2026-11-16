@@ -36,6 +36,7 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_engines_fiftyone.share_usage import ShareUsage
 from flask import Flask, request, render_template
 import requests
+from unittest import mock
 
 testHost = "127.0.0.1"
 testPort = 5000
@@ -857,20 +858,27 @@ class UsageTests(unittest.TestCase):
             requested_package_size=10,
             share_percentage=0.01,
             endpoint=testEndpoint)
+        self.addCleanup(usage.close)
 
         pipeline = (PipelineBuilder())\
             .add(usage)\
             .build()
 
-        requiredEvents = 0
-        while len(app.received) == 0 and requiredEvents <= 10000:
-            flowdata = pipeline.create_flowdata()
-            flowdata.evidence.add("server.client-ip", "1.2.3.4")
-            flowdata.evidence.add("header.user-agent", f"ua {requiredEvents}")
-            flowdata.process()
-            requiredEvents = requiredEvents + 1
-
-        self.waitForUsageThreads()
+        # Counts the requests the element chooses to share, rather than
+        # waiting for a message to reach the receiver, so the count does not
+        # depend on when a sending thread runs.
+        with mock.patch.object(
+                usage, "add_to_share_usage",
+                wraps=usage.add_to_share_usage) as shared:
+            requiredEvents = 0
+            while shared.call_count < usage.requested_package_size and \
+                    requiredEvents <= 10000:
+                flowdata = pipeline.create_flowdata()
+                flowdata.evidence.add("server.client-ip", "1.2.3.4")
+                flowdata.evidence.add(
+                    "header.user-agent", f"ua {requiredEvents}")
+                flowdata.process()
+                requiredEvents = requiredEvents + 1
 
         # On average, the number of required events should be around
         # 1000. However, as it's chance based it can vary
@@ -1030,11 +1038,11 @@ class UsageTests(unittest.TestCase):
     def test_empty_query_whitelist(self):
         """!
         Check that, with sharing every parameter turned off, an empty
-        list of parameters to share shares only those starting 51D_, and
-        that None shares every parameter.
+        list of parameters to share and None both share only those
+        starting 51D_.
         """
 
-        for query_whitelist, shared in (([], False), (None, True)):
+        for query_whitelist in ([], None):
             app.received = []
             usage = ShareUsage(
                 requested_package_size=1,
@@ -1054,7 +1062,7 @@ class UsageTests(unittest.TestCase):
             self.waitForUsageThreads()
             self.assertEqual(len(app.received), 1)
             self.assertIn("fiftyone value", app.received[0])
-            self.assertEqual("campaign value" in app.received[0], shared)
+            self.assertNotIn("campaign value", app.received[0])
 
     def test_session_cookie(self):
         """!
@@ -1234,4 +1242,8 @@ class UsageTests(unittest.TestCase):
         flowdata.evidence.add("header.user-agent", '"\'&><')
         flowdata.process()
 
-        self.assertTrue(True)
+        # Closing waits for the send, which times out, so no sending thread
+        # outlives the test and posts while a later test stands in for
+        # requests.post.
+        usage.close()
+        self.assertFalse(usage._sending)

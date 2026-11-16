@@ -89,6 +89,13 @@ class PropertyListTests(unittest.TestCase):
         self.check(build(restricted_properties=names))
         self.assertEqual(self.names, names)
 
+    def test_no_names_builds_the_engine_with_none(self):
+        # With no names configured the native engine is given none, rather
+        # than the data set's names.
+        pipeline = build()
+        self.addCleanup(pipeline.close)
+        self.assertEqual([], pipeline.get_element("ip").build_property_names)
+
 
 @unittest.skipUnless(
     os.path.isfile(data_file),

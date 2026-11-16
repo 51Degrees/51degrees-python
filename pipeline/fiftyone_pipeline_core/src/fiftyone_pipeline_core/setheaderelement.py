@@ -46,7 +46,16 @@ class SetHeaderElement(FlowElement):
 
         self.properties = {"responseheaderdictionary" : { "type": "dict"} }
 
+        # A copy of the SetHeader properties of the first Pipeline found to
+        # have any, for code that reads them. Processing does not use it.
         self.setheader_properties = {}
+
+        # The SetHeader properties of each Pipeline the element processes
+        # for, keyed by the Pipeline, as each Pipeline holds its own
+        # elements. Each value is what get_setheader_properties_pipeline
+        # returns for that Pipeline. The element already holds each Pipeline
+        # it is added to in pipelines, so the keys keep none alive longer.
+        self._setheader_properties_by_pipeline = {}
 		
         self.exclude_from_messages = True
 
@@ -69,10 +78,25 @@ class SetHeaderElement(FlowElement):
     
         """
 
-        if not self.setheader_properties:
-            self.setheader_properties = self.get_setheader_properties_pipeline(flowdata.pipeline)
-        
-        response_headers = self.get_response_header_value(flowdata, self.setheader_properties)
+        # An empty list is built again on the next request, because a cloud
+        # engine has no properties until the cloud service answers. Requests
+        # that build a list at the same time build the same one, so either
+        # may be kept.
+        pipeline = flowdata.pipeline
+        setheader_properties = self._setheader_properties_by_pipeline.get(
+            pipeline)
+        if not setheader_properties:
+            setheader_properties = self.get_setheader_properties_pipeline(
+                pipeline)
+            self._setheader_properties_by_pipeline[pipeline] = (
+                setheader_properties)
+            if setheader_properties and not self.setheader_properties:
+                self.setheader_properties = {
+                    datakey: list(names)
+                    for datakey, names in setheader_properties.items()}
+
+        response_headers = self.get_response_header_value(
+            flowdata, setheader_properties)
 
         data = ElementDataDictionary(self, {"responseheaderdictionary": response_headers})
 

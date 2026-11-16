@@ -99,3 +99,52 @@ class WatcherWithoutLicenceKeyTests(unittest.TestCase):
             flowdata.evidence.add("query.client-ip", "8.8.8.8")
             flowdata.process()
             self.assertEqual({}, flowdata.errors)
+
+
+@unittest.skipUnless(
+    os.path.isfile(data_file),
+    "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
+    "or set the _51DEGREES_IPI_PATH environment variable." % data_file)
+class RefreshFromFileAfterMemoryTests(unittest.TestCase):
+    """!
+    An engine whose data file is kept on disk, refreshed from data in
+    memory as an update from memory does when it cannot write the file, is
+    still refreshed from the file by polling and the file system watcher.
+    """
+
+    def check_refresh_from_file_after_memory(self, **settings):
+        pipeline = IpIntelligenceOnPremisePipelineBuilder(
+            data_file_path=data_file,
+            usage_sharing=False,
+            file_system_watcher=True,
+            **settings).build()
+        self.addCleanup(pipeline.close)
+        element = pipeline.get_element("ip")
+        kept = element.data_file
+
+        # The refresh from memory, with the data file in memory mode for
+        # that one refresh.
+        with open(data_file, "rb") as file:
+            kept.data = file.read()
+        kept.download = False
+        try:
+            kept.refresh()
+        finally:
+            kept.download = True
+            del kept.data
+
+        # The refresh from the file that polling and the watcher make.
+        kept.refresh()
+
+        self.assertEqual(data_file, element.engine.getDataFilePath())
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add("query.client-ip", "8.8.8.8")
+            flowdata.process()
+            self.assertEqual({}, flowdata.errors)
+
+    def test_with_a_temporary_copy(self):
+        self.check_refresh_from_file_after_memory(create_temp_data_copy=True)
+
+    def test_without_a_temporary_copy(self):
+        self.check_refresh_from_file_after_memory(
+            create_temp_data_copy=False)

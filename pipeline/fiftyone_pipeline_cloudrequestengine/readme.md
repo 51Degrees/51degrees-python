@@ -76,7 +76,46 @@ cloud engines after it have no property metadata.
 Each entry in the `warnings` list of an answer from the cloud service is
 given as a warning, with any licence key masked.
 
+A cloud engine takes its properties from the Cloud Request Engine in its
+pipeline. It can be in several pipelines that share one Cloud Request
+Engine, and a pipeline with a different Cloud Request Engine refuses it,
+so build a cloud engine for each Cloud Request Engine.
+
+An engine whose discovery has completed gives what it discovered with
+`discovery_state()`, as one JSON document. Keep it, and give it as the
+`discovery_state` setting of an engine with the same credentials, for
+example on the next start of a short-lived host, and that engine is built
+without asking the cloud service. The document is the one the Java
+package's `CloudDiscoveryState` writes.
+
 See the [Start-up activity section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#start-up-activity).
+
+## Timeout
+
+Each request to the cloud service waits at most `timeout_seconds` to
+connect, and at most that long again for each part of the answer, before it
+fails with a timeout. The default is 2 seconds, as the
+[configuration options of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#configuration-options)
+give. A value that is not a finite number above zero raises `ValueError` when the
+engine is built. A request that times out while the engine is built is a
+failure that may pass, so the engine is built with a warning and asks
+again when it is first used.
+
+A client given as `http_client` is passed the timeout when its `request`
+method has a `timeout_seconds` parameter, as `RequestClient.request` does,
+and is called without it otherwise.
+
+## Reading the answer
+
+The engine's data holds the raw JSON answer of the cloud service as its
+`cloud` property, and is read under `cloud-response`, the key the
+[Element Data section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#element-data)
+gives, as in `flowdata.get("cloud-response").get("cloud")`. The old key,
+`cloud`, gives the same data and is deprecated, so read under
+`cloud-response` instead. The old key will be removed in a later release.
+The engine's own data key is still `cloud`, so
+`pipeline.get_element("cloud")` still finds the engine, and the JSON for the
+browser leaves the engine's data out as before.
 
 ## Pointing the engine at another host
 

@@ -437,7 +437,7 @@ def main(argv):
             "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&utm_term=resource-key-required. "
             "Once complete, set the first environment variable named at "
             "the start of this message to the key.")
-        sys.exit(1)
+        return
 
     try:
         pipeline = create_pipeline(

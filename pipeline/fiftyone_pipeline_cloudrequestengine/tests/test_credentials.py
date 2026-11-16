@@ -595,13 +595,12 @@ class TestCredentials(CloudRequestEngineTestsBase):
                 str(warning.message) for warning in caught
                 if "not covered" in str(warning.message)])
 
-    def test_missing_property_message_names_both_causes(self):
+    def test_missing_property_message_names_the_properties_carried(self):
         """
-        With a licence key the accessible properties list everything the
-        licence entitles, so a property can be listed as carried and still
-        be absent from an answer because it was not requested. The message
-        for a property that is not in the data says so, and names the
-        element it looked in rather than assuming device.
+        With a licence key, a property the key does not carry gives the
+        missing properties table's message for it, which lists the
+        properties the key carries under the element it looked in rather
+        than assuming device.
         """
 
         engine = CloudRequestEngine({
@@ -621,7 +620,8 @@ class TestCredentials(CloudRequestEngineTestsBase):
             data.device.get("other")
 
         message = str(context.exception)
-        self.assertIn("Property other not found", message)
-        self.assertIn("requested_properties", message)
-        self.assertIn("under device are value", message)
-        self.assertNotIn("your resource key", message)
+        self.assertIn(
+            "Property 'other' not found in data for element 'device'. This "
+            "is because your resource key does not include access to this "
+            "property. The properties included for your key under 'device' "
+            "are value.", message)
