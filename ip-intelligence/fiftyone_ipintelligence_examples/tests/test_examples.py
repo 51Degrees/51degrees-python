@@ -108,8 +108,7 @@ class ExampleTests(unittest.TestCase):
         printed = []
         DataFileUpdateConsole().update_programmatically(
             data_file, printed.append)
-        shown = "
-".join(printed)
+        shown = "\n".join(printed)
         self.assertIn("A programmatic update needs no licence key", shown)
         self.assertIn(
             "gave the status UpdateStatus.AUTO_UPDATE_SUCCESS", shown)
