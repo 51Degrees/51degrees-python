@@ -1292,12 +1292,18 @@ class PolledCheckErrorTests(UpdateServiceTestCase):
 
 class StartUpCheckErrorTests(UpdateServiceTestCase):
     """!
-    data-updates.md line 354. Every check MUST be reported to
-    onUpdateCallbacks once it ends, the update on start-up included, so an
-    error the errors table does not name is reported as
-    AUTO_UPDATE_UNKNOWN_ERROR and logged, the next check is scheduled, and
-    registering the data file does not raise into the code that built the
-    Pipeline.
+    An error the errors table does not name, raised in the update on
+    start-up. data-updates.md line 354 says every check MUST be reported
+    to onUpdateCallbacks once it ends, "including the checks made by
+    update polling, by the file watcher, by the update on start-up and by
+    a programmatic call". Lines 477 to 478 say "A programmatic check, the
+    update on start-up and an update from memory pass the error to their
+    caller instead of logging it", and lines 475 to 476 say a failure
+    "MUST NOT stop later checks for updates".
+
+    So the check is reported as AUTO_UPDATE_UNKNOWN_ERROR, the error
+    reaches the caller that registered the data file, nothing is logged,
+    and the next check is still scheduled.
     """
 
     def setUp(self):
@@ -1306,27 +1312,34 @@ class StartUpCheckErrorTests(UpdateServiceTestCase):
         self.data_file.updated_on_start = False
         self.data_file.auto_update = True
         self.hold_timers()
+        self.failure = ValueError("the update URL could not be made")
 
         def update_url():
-            raise ValueError("the update URL could not be made")
+            raise self.failure
 
         self.data_file.get_update_url = update_url
 
-    def testAnErrorOnStartUpIsLoggedAndReported(self):
-        self.service.register_data_file(self.data_file)
+    def register(self):
+        """Registers the data file, which makes the update on start-up,
+        and returns the error it passed to this caller."""
+        with self.assertRaises(ValueError) as caught:
+            self.service.register_data_file(self.data_file)
+        return caught.exception
+
+    def testTheErrorIsReportedAndPassedToTheCaller(self):
+        self.assertIs(self.failure, self.register())
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
-        errors = [message for level, message in self.pipeline.logs
-                  if level == "error"]
-        self.assertEqual(1, len(errors), self.pipeline.logs)
-        self.assertTrue(errors[0].startswith(
-            "An unhandled error occurred while checking for automatic "
-            "updates for engine 'FakeEngine'. Error detail: "), errors[0])
-        self.assertIn("the update URL could not be made", errors[0])
         self.assertFalse(self.data_file.updating)
 
-    def testTheNextCheckIsScheduledAfterAnErrorOnStartUp(self):
-        self.service.register_data_file(self.data_file)
+    def testTheErrorIsNotLogged(self):
+        self.register()
+        self.assertEqual(
+            [], [message for level, message in self.pipeline.logs
+                 if level == "error"])
+
+    def testTheNextCheckIsScheduledAndStillAppliesAGoodFile(self):
+        self.register()
         self.assertEqual(1, len(self.pending))
         self.get(response(200))
         self.data_file.get_update_url = lambda: URL
