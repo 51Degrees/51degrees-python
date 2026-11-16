@@ -237,20 +237,27 @@ class CookieTests(unittest.TestCase):
 
 class PackageTests(unittest.TestCase):
 
-    def test_each_record_names_every_51degrees_package_in_use(self):
-        records = records_of(ShareUsage(**QUEUE_ONLY), [
+    def test_the_first_record_names_every_51degrees_package_in_use(self):
+        # The packages are invariant values, so the record after the first,
+        # written within the hour, names none (usage-sharing-element.md
+        # lines 138 to 153 at 07e1fced).
+        usage = ShareUsage(**QUEUE_ONLY)
+        # A record written before the lookup of the server's address ends
+        # does not count as carrying them, so wait for it.
+        usage._server_ip_found.wait(10)
+        records = records_of(usage, [
             {"header.user-agent": "first"},
             {"header.user-agent": "second"},
         ])
 
         self.assertEqual(2, len(records))
-        for record in records:
-            packages = packages_in(record)
-            self.assertEqual(
-                sorted(USAGE_SHARING_PACKAGES),
-                sorted(canonical(name) for name, _ in packages))
-            for name, version in packages:
-                self.assertEqual(metadata.version(name), version, name)
+        packages = packages_in(records[0])
+        self.assertEqual(
+            sorted(USAGE_SHARING_PACKAGES),
+            sorted(canonical(name) for name, _ in packages))
+        for name, version in packages:
+            self.assertEqual(metadata.version(name), version, name)
+        self.assertEqual([], packages_in(records[1]))
 
     def test_packages_follow_the_flow_elements(self):
         record = records_of(ShareUsage(**QUEUE_ONLY), [

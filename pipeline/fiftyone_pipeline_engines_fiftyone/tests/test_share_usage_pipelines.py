@@ -105,10 +105,35 @@ class ShareUsagePipelinesTests(unittest.TestCase):
             agent = re.search(r'Name="user-agent">([^<]*)<', record).group(1)
             by_agent.setdefault(agent, []).append(
                 re.findall(r"<FlowElement>([^<]*)</FlowElement>", record))
+        # The flow elements are invariant values, so only the first record
+        # from each Pipeline names them (usage-sharing-element.md lines 150
+        # to 153 at 07e1fced). The repeat of each request is not shared.
         self.assertEqual(
             {"first agent": [["FirstElement", "ShareUsage"]],
              "second agent": [["SecondElement", "ShareUsage"]]},
             by_agent)
+
+    def test_only_the_first_record_from_each_pipeline_names_its_elements(self):
+        usage = ShareUsage(requested_package_size=1000,
+                           endpoint="http://127.0.0.1:9")
+        # A record written before the lookup of the server's address ends
+        # does not count as carrying the flow elements, so wait for it.
+        usage._server_ip_found.wait(10)
+        first = PipelineBuilder(NO_DEFAULT_ELEMENTS) \
+            .add(FirstElement()).add(usage).build()
+        second = PipelineBuilder(NO_DEFAULT_ELEMENTS) \
+            .add(SecondElement()).add(usage).build()
+
+        for index in range(2):
+            process(first, f"first agent {index}")
+            process(second, f"second agent {index}")
+        records = sent_on_close(usage)
+
+        self.assertEqual(
+            [["FirstElement", "ShareUsage"], ["SecondElement", "ShareUsage"],
+             [], []],
+            [re.findall(r"<FlowElement>([^<]*)</FlowElement>", record)
+             for record in records])
 
 
 if __name__ == "__main__":
