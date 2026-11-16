@@ -72,8 +72,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         printed = []
         DataFileUpdateConsole().update_programmatically(
             self.data_file, printed.append)
-        shown = "
-".join(printed)
+        shown = "\n".join(printed)
         self.assertIn("A programmatic update needs no licence key", shown)
         self.assertIn(
             "gave the status UpdateStatus.AUTO_UPDATE_SUCCESS", shown)
