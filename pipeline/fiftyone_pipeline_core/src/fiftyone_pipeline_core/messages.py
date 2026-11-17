@@ -47,3 +47,16 @@ class Messages():
 
     # FlowData already processed.
     FLOW_DATA_PROCESSED = "FlowData already processed"
+
+    # A write to a FlowData that has finished processing. This takes what was
+    # being added as a format argument.
+    FLOW_DATA_FINISHED = (
+        "This FlowData has finished processing, so {} cannot be added to it. "
+        "A FlowData is read only once processing has finished.")
+
+    # A write to ElementData once its FlowElement has finished. This takes
+    # the name written and the element's data key as format arguments.
+    ELEMENT_DATA_FINISHED = (
+        "'{}' cannot be written to the '{}' ElementData, because the "
+        "FlowElement that writes it has finished processing. ElementData is "
+        "written only while the FlowElement that provides it processes.")

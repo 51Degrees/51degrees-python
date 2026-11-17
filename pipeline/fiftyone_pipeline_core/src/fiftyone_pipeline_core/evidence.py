@@ -20,6 +20,8 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .messages import Messages
+
 # The key the web integration gives the web request itself, which the usage
 # sharing element reads. No element uses it as evidence, so filter() always
 # sets it aside, whatever the elements' filters accept.
@@ -51,7 +53,11 @@ class Evidence:
 
         @type value: mixed
         @param value: a piece of evidence
+        @raise Exception: once the FlowData has finished processing
         """
+
+        if self.flowdata.processed:
+            raise Exception(Messages.FLOW_DATA_FINISHED.format("Evidence"))
 
         folded = str(key).lower()
         if folded in self.keys:
@@ -66,7 +72,11 @@ class Evidence:
 
         @type evidence_dictionary: dict
         @param evidence_dictionary: Dict of evidence
+        @raise Exception: once the FlowData has finished processing
         """
+
+        if self.flowdata.processed:
+            raise Exception(Messages.FLOW_DATA_FINISHED.format("Evidence"))
 
         if not type(evidence_dictionary) is dict:
             self.flowdata.set_error("core", "Must pass valid dictionary.")

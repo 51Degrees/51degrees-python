@@ -20,6 +20,8 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .messages import Messages
+
 
 class ElementData(object):
 
@@ -48,6 +50,45 @@ class ElementData(object):
         """
 
         self.flow_element = flow_element
+
+    # Set once the FlowElement that writes the data has finished processing,
+    # and cleared while one that shares the instance processes. A class
+    # default, so data whose constructor does not call this one has it too.
+    _finished = False
+
+    def __setattr__(self, name, value):
+
+        """!
+        Set an attribute, unless the FlowElement that writes the data has
+        finished processing, when a public attribute cannot be set. Names
+        starting with an underscore hold the data's own state, such as
+        values kept once read, and are not writes.
+
+        @raise Exception: when the FlowElement has finished processing
+        """
+
+        if self._finished and not name.startswith("_"):
+            self._raise_finished(name)
+        object.__setattr__(self, name, value)
+
+    def _check_writable(self, name):
+
+        """!
+        Raise unless the FlowElement that writes the data is processing. A
+        write method calls this first.
+
+        @type name: str
+        @param name: what is being written, for the message
+        @raise Exception: when the FlowElement has finished processing
+        """
+
+        if self._finished:
+            self._raise_finished(name)
+
+    def _raise_finished(self, name):
+        flow_element = self.__dict__.get("flow_element")
+        key = getattr(flow_element, "datakey", "")
+        raise Exception(Messages.ELEMENT_DATA_FINISHED.format(name, key))
 
     def get(self, key):
 
