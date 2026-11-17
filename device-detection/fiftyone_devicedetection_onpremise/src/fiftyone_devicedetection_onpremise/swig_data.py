@@ -39,14 +39,16 @@ class SwigData(AspectData):
     Extention of AspectData made for retrieving results
     created by the SWIG wrapper of the On Premise Device Detection engine
 
-    An instance reads its values from a results instance, the native results
-    of one request, which holds unmanaged memory. Multi-threaded access to a
-    results instance is not supported, for performance reasons, so an
-    instance is not safe to use from several threads at once. The caller is
-    responsible for thread-safe access, and either gives each thread its own
-    Flow Data, and so its own results instance, or coordinates its own
-    access, for example with a lock of its own around every read and around
-    close().
+    An instance reads its values from a results instance, the object the
+    native code fills for one request, which references unmanaged memory.
+    Multi-threaded access to a results instance is not supported, for
+    performance reasons. Reading a value from it writes into it, so it is not
+    safe to use from several threads at once, and neither is this instance.
+    The engine, its results instances and this instance take no lock to make
+    those reads safe for several threads. The caller is responsible for
+    thread-safe access, and either gives each thread its own Flow Data, and
+    so its own results instance, or coordinates its own access, for example
+    with a lock of its own around every read and around close().
 
     Free-threaded Python is supported. The native module does not declare
     that it can run without the GIL, so Python turns the GIL back on when it
