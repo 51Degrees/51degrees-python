@@ -75,6 +75,15 @@ class SwigData(AspectData):
         with self._read_lock:
             self.swig_results = None
 
+    def _clear(self):
+
+        """!
+        Drop the results, ready for a new request. See ElementData._clear.
+        """
+
+        super(SwigData, self)._clear()
+        self.swig_results = None
+
     def get(self, key):
 
         """!

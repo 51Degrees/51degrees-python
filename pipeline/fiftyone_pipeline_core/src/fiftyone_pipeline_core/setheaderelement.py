@@ -23,6 +23,7 @@
 from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
+from .elementdata_pool import ElementDataPool
 from .messages import Messages
 
 # The start of the name of every property whose value is for a response
@@ -56,8 +57,10 @@ class SetHeaderElement(FlowElement):
         # returns for that Pipeline. The element already holds each Pipeline
         # it is added to in pipelines, so the keys keep none alive longer.
         self._setheader_properties_by_pipeline = {}
-		
+
         self.exclude_from_messages = True
+
+        self._element_data_pool = ElementDataPool()
 
     def get_evidence_key_filter(self):
 
@@ -98,7 +101,10 @@ class SetHeaderElement(FlowElement):
         response_headers = self.get_response_header_value(
             flowdata, setheader_properties)
 
-        data = ElementDataDictionary(self, {"responseheaderdictionary": response_headers})
+        data = self._element_data_pool.take()
+        if data is None:
+            data = ElementDataDictionary(self, {})
+        data.contents["responseheaderdictionary"] = response_headers
 
         flowdata.set_element_data(data)
 
