@@ -300,6 +300,10 @@ class ShareUsage(Engine):
         # from each Pipeline, by the clock. A Pipeline missing here has had
         # them written to none of its records.
         self._invariants_written = {}
+        # The Pipelines whose last record to carry them was written before
+        # the lookup of the server's address ended, so with an empty
+        # ServerIP.
+        self._invariants_without_server_ip = set()
         self._invariants_lock = threading.Lock()
 
         # The address of this machine for the record's ServerIP, looked up
@@ -438,51 +442,81 @@ class ShareUsage(Engine):
         the element is in. A record carries it only when
         _write_invariants says so.
         """
+        return self._constant_xml(pipeline, self._server_ip)
+
+    def _constant_xml(self, pipeline, server_ip):
+        """!
+        get_constant_xml with the server's address read once, as server_ip,
+        which is None while the lookup is running. A part made then carries
+        an empty ServerIP and is not kept, so that ServerIP carries the
+        address once the lookup has ended.
+        """
         if pipeline is not None:
             xml = self._constant_xml_by_pipeline.get(pipeline)
             if xml is None:
                 xml = self._make_constant_xml(
                     self.get_flow_elements(pipeline),
-                    list(pipeline.flow_elements))
-                if self._server_ip is not None:
+                    list(pipeline.flow_elements), server_ip)
+                if server_ip is not None:
                     self._constant_xml_by_pipeline[pipeline] = xml
             return xml
         if self.constant_xml is None:
             xml = self._make_constant_xml(
-                self.get_flow_elements(), self._pipeline_flow_elements())
-            # Kept once the lookup of the address has ended, so that
-            # ServerIP carries the address from then on.
-            if self._server_ip is None:
+                self.get_flow_elements(), self._pipeline_flow_elements(),
+                server_ip)
+            if server_ip is None:
                 return xml
             self.constant_xml = xml
         return self.constant_xml
 
-    def _write_invariants(self, pipeline):
+    def _invariant_xml(self, pipeline):
         """!
-        Whether the record being written for a request from the Pipeline
-        carries the values that do not change. They go in the first record
-        from each Pipeline, and again in the first one written once
-        INVARIANT_VALUES_INTERVAL_SECONDS have passed since they were last
-        written, whether or not that record is ever sent. A record written
-        before the lookup of the server's address has ended carries them
-        with an empty ServerIP, so it does not count as having written them
-        and the next record carries them again.
+        The values that do not change, for the record being written for a
+        request from the Pipeline, or None when that record leaves them
+        out. The decision and the values are made under one lock from one
+        reading of the server's address, so that the address a record
+        carries is the one the decision was made on.
         """
         with self._invariants_lock:
-            now = self.clock()
-            written = self._invariants_written.get(pipeline)
-            if written is not None and \
-                    now - written < INVARIANT_VALUES_INTERVAL_SECONDS:
-                return False
-            if self._server_ip is not None:
-                self._invariants_written[pipeline] = now
-            return True
+            server_ip = self._server_ip
+            if not self._write_invariants(pipeline, server_ip):
+                return None
+            return self._constant_xml(pipeline, server_ip)
 
-    def _make_constant_xml(self, flow_element_names, flow_elements=()):
+    def _write_invariants(self, pipeline, server_ip):
+        """!
+        Whether the record being written for a request from the Pipeline
+        carries the values that do not change, given the server's address,
+        None while the lookup is running. They go in the first record from
+        each Pipeline, and again in the first one written once
+        INVARIANT_VALUES_INTERVAL_SECONDS have passed since they were last
+        written, whether or not that record is ever sent. When the last
+        record to carry them was written before the lookup ended, so with
+        an empty ServerIP, they go again in the first record written once
+        the lookup has found the address. No other record carries them.
+        Called with _invariants_lock held.
+        """
+        now = self.clock()
+        written = self._invariants_written.get(pipeline)
+        found_since = bool(server_ip) and \
+            pipeline in self._invariants_without_server_ip
+        if written is not None and not found_since and \
+                now - written < INVARIANT_VALUES_INTERVAL_SECONDS:
+            return False
+        self._invariants_written[pipeline] = now
+        if server_ip is None:
+            self._invariants_without_server_ip.add(pipeline)
+        else:
+            self._invariants_without_server_ip.discard(pipeline)
+        return True
+
+    def _make_constant_xml(self, flow_element_names, flow_elements=(),
+                           server_ip=None):
         """!
         The constant part of a record for the flow elements of one
-        Pipeline, given their names and the elements themselves, whose
-        packages the record names.
+        Pipeline, given their names, the elements themselves, whose
+        packages the record names, and the server's address, written empty
+        when it is None.
         """
         coreVersion = version("fiftyone_pipeline_core")
         osVersion = f"{ReplacedString(platform.system()).result} {ReplacedString(platform.release()).result}"
@@ -505,7 +539,7 @@ class ShareUsage(Engine):
         # The software language version
         xml += f"<LanguageVersion>{pyVersion}</LanguageVersion>"
         # The address of this machine
-        xml += plain_element("ServerIP", self._server_ip or "")
+        xml += plain_element("ServerIP", server_ip or "")
         # The OS name and version
         xml += f"<Platform>{osVersion}</Platform>"
         return xml
@@ -734,9 +768,12 @@ class ShareUsage(Engine):
         # leaves out the values that do not change to those values.
         xml += plain_element("ProcessId", self.process_id)
 
-        # --- write invariant data, to the first record and once an hour
-        if self._write_invariants(data.pipeline):
-            xml += self.get_constant_xml(data.pipeline)
+        # --- write invariant data, to the first record, once an hour, and
+        # to the first record once the server's address is found when the
+        # last record to carry them went without it
+        invariants = self._invariant_xml(data.pipeline)
+        if invariants is not None:
+            xml += invariants
 
         # --- write variable data
         # The SessionID used to track a series of requests
