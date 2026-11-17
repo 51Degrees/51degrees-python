@@ -47,6 +47,10 @@ class SwigDataThreadTests(unittest.TestCase):
 
     def test_the_documentation_says_the_caller_coordinates_threads(self):
         text = " ".join(SwigData.__doc__.split())
+        self.assertIn("unmanaged memory", text)
+        self.assertIn(
+            "Multi-threaded access to a results instance is not supported, "
+            "for performance reasons", text)
         self.assertIn("not safe to use from several threads at once", text)
         self.assertIn("caller is responsible for thread-safe access", text)
 

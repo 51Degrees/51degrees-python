@@ -39,15 +39,14 @@ class SwigData(AspectData):
     Extention of AspectData made for retrieving results
     created by the SWIG wrapper of the On Premise Device Detection engine
 
-    An instance is not safe to use from several threads at once, because it
-    reads its values from a results instance, the native results of one
-    request, which references unmanaged memory and is written into by each
-    read. The caller is responsible for thread-safe access. Give each thread
-    its own Flow Data, and so its own results instance, or hold a lock of
-    the caller's own around every read and around close(). No lock is taken
-    here, as the specification says implementations "MUST NOT lock a results
-    instance, or the reads that Element Data makes from one, to make it safe
-    for several threads".
+    An instance reads its values from a results instance, the native results
+    of one request, which holds unmanaged memory. Multi-threaded access to a
+    results instance is not supported, for performance reasons, so an
+    instance is not safe to use from several threads at once. The caller is
+    responsible for thread-safe access, and either gives each thread its own
+    Flow Data, and so its own results instance, or coordinates its own
+    access, for example with a lock of its own around every read and around
+    close().
     """
 
     def __init__(self, flow_element, swig_results):
