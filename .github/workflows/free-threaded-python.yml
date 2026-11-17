@@ -1,0 +1,126 @@
+name: Free-threaded Python
+
+# Builds the Device Detection and IP Intelligence on-premise packages on the
+# free-threaded builds of Python and runs their tests there, with the free
+# Lite data files. The native modules do not declare that they run without
+# the GIL, so Python turns the GIL back on when it loads them.
+# tests/test_free_threaded.py in each package checks that it does, and is
+# skipped on every other build of Python.
+on:
+  pull_request:
+    paths:
+      - 'device-detection/fiftyone_devicedetection_onpremise/**'
+      - 'ip-intelligence/fiftyone_ipintelligence_onpremise/**'
+      - 'pipeline/fiftyone_pipeline_core/**'
+      - 'pipeline/fiftyone_pipeline_engines/**'
+      - 'pipeline/fiftyone_pipeline_engines_fiftyone/**'
+      - 'cxx'
+      - '.github/workflows/free-threaded-python.yml'
+  push:
+    branches:
+      - main
+      - rc
+    paths:
+      - 'device-detection/fiftyone_devicedetection_onpremise/**'
+      - 'ip-intelligence/fiftyone_ipintelligence_onpremise/**'
+      - 'pipeline/fiftyone_pipeline_core/**'
+      - 'pipeline/fiftyone_pipeline_engines/**'
+      - 'pipeline/fiftyone_pipeline_engines_fiftyone/**'
+      - 'cxx'
+      - '.github/workflows/free-threaded-python.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  free-threaded:
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: '3.13t'
+          - os: ubuntu-latest
+            python: '3.14t'
+          - os: windows-latest
+            python: '3.14t'
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          # The native source is the cxx submodule, and the data files are
+          # linked from its own data submodule.
+          submodules: recursive
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Check the build is free-threaded
+        run: |
+          python -c "import sys, sysconfig; print(sys.version); assert sysconfig.get_config_var('Py_GIL_DISABLED') == 1, 'not a free-threaded build'; assert not sys._is_gil_enabled(), 'the GIL is on at start'"
+
+      - name: Install the packages the tests use
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest flask flask-unittest json5 ruamel.yaml Cython setuptools
+          # The pipeline packages come from this checkout, as the tests run
+          # with the pipeline code they are released with.
+          python -m pip install `
+            -e pipeline/fiftyone_pipeline_core `
+            -e pipeline/fiftyone_pipeline_engines `
+            -e pipeline/fiftyone_pipeline_engines_fiftyone `
+            -e pipeline/fiftyone_pipeline_cloudrequestengine `
+            -e device-detection/fiftyone_devicedetection_shared `
+            -e device-detection/fiftyone_devicedetection_cloud `
+            -e ip-intelligence/fiftyone_ipintelligence_shared
+          # These two require the on-premise package by name, which the
+          # tests read from its source folder instead.
+          python -m pip install --no-deps `
+            -e device-detection/fiftyone_devicedetection `
+            -e device-detection/fiftyone_devicedetection_examples
+
+      - name: Fetch the free Lite data files
+        run: |
+          ./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash '20000 Evidence Records.yml' '20000 User Agents.csv' 51Degrees-LiteV41.ipi 51Degrees-IPIV4AsnIpiV41.ipi
+          New-Item -ItemType Directory -Force -Path ip-intelligence/assets | Out-Null
+          New-Item -ItemType HardLink `
+            -Path ip-intelligence/assets/51Degrees-LiteIpiV41.ipi `
+            -Target cxx/data/ip-intelligence/51Degrees-LiteV41.ipi | Out-Null
+
+      - name: Build the native modules
+        run: |
+          if ($IsWindows) {
+            # A short temporary path, for the MSVC path length limit.
+            $env:TEMP = New-Item -ItemType Directory -Force -Path 'C:\tmp'
+            $env:TMP = $env:TEMP
+          }
+          foreach ($package in 'device-detection/fiftyone_devicedetection_onpremise', 'ip-intelligence/fiftyone_ipintelligence_onpremise') {
+            Push-Location $package
+            python setup.py build_clib build_ext --inplace
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            Pop-Location
+          }
+
+      - name: Run the tests
+        run: |
+          $failed = $false
+          foreach ($package in 'device-detection/fiftyone_devicedetection_onpremise', 'ip-intelligence/fiftyone_ipintelligence_onpremise') {
+            Write-Host "::group::$package"
+            Push-Location $package
+            $env:PYTHONPATH = Join-Path $PWD 'src'
+            # -rs lists any test that skipped, and none should here.
+            python -m pytest -rs tests
+            if ($LASTEXITCODE) { $failed = $true }
+            Pop-Location
+            Write-Host '::endgroup::'
+          }
+          if ($failed) { exit 1 }
