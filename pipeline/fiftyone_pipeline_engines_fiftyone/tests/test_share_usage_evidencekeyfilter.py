@@ -95,16 +95,31 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
         self.assertFalse(keys.filter_evidence_key("header.x-other"))
         self.assertTrue(keys.filter_evidence_key("header.x"))
 
-    def test_no_parameter_list_shares_only_51d_parameters(self):
+    def test_no_parameter_list_shares_every_parameter(self):
         """!
-        Check that None in place of the parameters to share holds no
-        names, as an empty list does, so only parameters starting 51D_ are
-        shared unless every parameter is.
+        Check that None in place of the parameters to share shares every
+        parameter, and an empty list only those starting 51D_.
+        """
+
+        every = ShareUsageEvidenceKeyFilter(query_whitelist=None)
+        prefixed = ShareUsageEvidenceKeyFilter(query_whitelist=[])
+
+        self.assertTrue(every.filter_evidence_key("query.campaign"))
+        self.assertFalse(prefixed.filter_evidence_key("query.campaign"))
+        self.assertTrue(prefixed.filter_evidence_key("query.51d_campaign"))
+
+    def test_the_option_given_decides_whatever_the_list(self):
+        """!
+        Check that with share_all_query_string_parameters given, None in
+        place of the parameters to share holds no names, as an empty list
+        does, so the option off shares only parameters starting 51D_ and
+        the option on shares every parameter.
         """
 
         for query_whitelist in (None, []):
             prefixed = ShareUsageEvidenceKeyFilter(
-                query_whitelist=query_whitelist)
+                query_whitelist=query_whitelist,
+                share_all_query_string_parameters=False)
             every = ShareUsageEvidenceKeyFilter(
                 query_whitelist=query_whitelist,
                 share_all_query_string_parameters=True)
