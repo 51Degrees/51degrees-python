@@ -60,6 +60,12 @@ Execute `export FLASK_APP=web` where `web` is the example file, and start your a
 
 Execute `$env:FLASK_APP = "web"` where `web` is the example file, and start your application via `flask run`.
 
+A Flow Data cannot be used by two threads at once, so the web example
+creates a Flow Data for each request, uses it only in the code that handles
+that request, and closes it before the request ends. To hand work to
+another thread or task, read the values it needs from the Flow Data first
+and pass those values, not the Flow Data.
+
 ## Find out more
 
 - [Geolocation](https://51degrees.com/geolocation?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=find-out-more-geolocation)
