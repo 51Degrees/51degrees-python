@@ -52,6 +52,7 @@ class SwigDataThreadTests(unittest.TestCase):
             "Multi-threaded access to a results instance is not supported, "
             "for performance reasons", text)
         self.assertIn("not safe to use from several threads at once", text)
+        self.assertIn("take no lock", text)
         self.assertIn("caller is responsible for thread-safe access", text)
 
     def test_an_instance_holds_no_lock(self):
