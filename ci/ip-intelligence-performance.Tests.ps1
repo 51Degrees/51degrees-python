@@ -92,12 +92,15 @@ It 'runs the console benchmark on the free Lite file and the evidence' {
 It 'writes the summary the performance step reports' {
     & $script:Script -RepoName $script:Product -Name 'test' | Out-Null
 
-    $summary = Join-Path $script:Product 'test-results' 'performance-summary' `
-        'results_test.json'
-    $summary | Should -Exist
-    $results = Get-Content $summary | ConvertFrom-Json
-    $results.HigherIsBetter.DetectionsPerSecond | Should -Be 1
-    $results.LowerIsBetter.AvgMillisecsPerDetection | Should -Be 1
+    # common-ci compares results_<Name>.json, one file for each configuration,
+    # which also holds Device Detection's figures, so these carry the product.
+    $folder = Join-Path $script:Product 'test-results' 'performance-summary'
+    Get-ChildItem $folder | ForEach-Object Name | Should -Be 'results_test.json'
+    $results = Get-Content (Join-Path $folder 'results_test.json') |
+        ConvertFrom-Json
+    $results.HigherIsBetter.IpIntelligence_DetectionsPerSecond | Should -Be 1
+    $results.LowerIsBetter.IpIntelligence_AvgMillisecsPerDetection |
+        Should -Be 1
 }
 
 It 'fails rather than skipping when the free Lite file is absent' {
