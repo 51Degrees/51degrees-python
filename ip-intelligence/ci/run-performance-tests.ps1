@@ -20,9 +20,9 @@ if (!$RunPerformance) {
 # lookup returns a value as it does with a paid file.
 $dataFileName = '51Degrees-LiteIpiV41.ipi'
 $evidenceFileName = 'ip-intelligence-evidence.yml'
-foreach ($name in $dataFileName, $evidenceFileName) {
-    if (!(Test-Path "assets/$name")) {
-        throw "$name is not in the assets, so the performance tests cannot run"
+foreach ($file in $dataFileName, $evidenceFileName) {
+    if (!(Test-Path "assets/$file")) {
+        throw "$file is not in the assets, so the performance tests cannot run"
     }
 }
 
@@ -40,13 +40,16 @@ try {
     Write-Output "Running Console performance tests on $dataFileName"
     python fiftyone_ipintelligence_examples/src/fiftyone_ipintelligence_examples/onpremise/performance_console.py --data_file "$assets/$dataFileName" --evidence_file "$assets/$evidenceFileName" --json_output $pwd/summary.json || $(throw "performance tests failed with $LASTEXITCODE")
 
+    # The root step puts every product's figures in the one summary of the
+    # configuration, and Device Detection measures the same things, so these
+    # carry the product's name.
     $Results = Get-Content $pwd/summary.json | ConvertFrom-Json
     @{
         HigherIsBetter = @{
-            DetectionsPerSecond = $Results.DetectionsPerSecond
+            IpIntelligence_DetectionsPerSecond = $Results.DetectionsPerSecond
         };
         LowerIsBetter = @{
-            AvgMillisecsPerDetection = $Results.MsPerDetection
+            IpIntelligence_AvgMillisecsPerDetection = $Results.MsPerDetection
         }
     } | ConvertTo-Json | Out-File $perfSummary/results_$Name.json
 } finally {
