@@ -247,6 +247,54 @@ class InvariantValuesTests(unittest.TestCase):
         self.assertIn("<ServerIP>" + SERVER_IP + "</ServerIP>", records[1])
         self.assertEqual([], invariants_in(records[2]))
 
+    def test_the_values_go_again_only_in_the_first_record_once_known(self):
+        # usage-sharing-element.md lines 152 to 155 at 44d815f8: "When one
+        # of them is not yet known as the first record is written, for
+        # example a server address still being looked up, the element MUST
+        # write all of them again to the first record it writes once that
+        # value is known. They MUST NOT be written to any other record."
+        # So a second record written while the lookup is still running
+        # leaves them out, and the hour runs from the record that carried
+        # the address.
+        release = threading.Event()
+        self.addCleanup(release.set)
+
+        def slow():
+            release.wait(LOOKUP_WAIT_SECONDS)
+            return SERVER_IP
+
+        with mock.patch.object(share_usage, "host_address", slow):
+            usage, clock, pipeline = element_with_clock(
+                wait_for_server_ip=False)
+            process(pipeline, "first, while the lookup runs")
+            clock.now += 1
+            process(pipeline, "second, while the lookup runs")
+            release.set()
+            self.assertTrue(usage._server_ip_found.wait(LOOKUP_WAIT_SECONDS))
+        clock.now += 1
+        process(pipeline, "first once the address is known")
+        clock.now += 1
+        process(pipeline, "next after that")
+        # An hour less a second after the record that carried the address,
+        # and more than an hour after the first record.
+        clock.now += HOUR - 2
+        process(pipeline, "within the hour of the address")
+        clock.now += 1
+        process(pipeline, "an hour after the address")
+
+        records = sent_on_close(usage)
+
+        self.assertEqual(6, len(records))
+        self.assertEqual(list(INVARIANT_ELEMENTS), invariants_in(records[0]))
+        self.assertIn("<ServerIP></ServerIP>", records[0])
+        self.assertEqual([], invariants_in(records[1]))
+        self.assertEqual(list(INVARIANT_ELEMENTS), invariants_in(records[2]))
+        self.assertIn("<ServerIP>" + SERVER_IP + "</ServerIP>", records[2])
+        self.assertEqual([], invariants_in(records[3]))
+        self.assertEqual([], invariants_in(records[4]))
+        self.assertEqual(list(INVARIANT_ELEMENTS), invariants_in(records[5]))
+        self.assertIn("<ServerIP>" + SERVER_IP + "</ServerIP>", records[5])
+
 
 # Writes one record from a new element and prints its ProcessId, so that a
 # test can compare the identifiers of two processes.
