@@ -31,9 +31,18 @@ class ElementData(object):
     Only the Flow Element that creates an instance writes it, so an instance
     does not need to be safe to write from several threads. A finished
     instance, once the Flow Element that writes it has finished, is safe to
-    read from several threads at once, such as the caller's own threads. An
-    instance that is written from several threads, or read while another
-    thread writes it, is not catered for.
+    read from several threads at once, such as the caller's own threads, as
+    its values are Python's own managed data and do not change once
+    written. An instance that is written from several threads, or read
+    while another thread writes it, is not catered for.
+
+    The exception is Element Data that reads its values from a results
+    instance, such as an on-premise engine's, which holds unmanaged memory.
+    Multi-threaded access to a results instance is not supported, for
+    performance reasons, so such Element Data is not safe to use from
+    several threads at once. The caller is responsible for thread-safe
+    access, and either gives each thread its own Flow Data or coordinates
+    its own access.
 
     """
 
