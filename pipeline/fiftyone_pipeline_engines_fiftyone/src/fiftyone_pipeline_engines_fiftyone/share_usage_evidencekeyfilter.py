@@ -67,14 +67,17 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
             header_blacklist = (),
             include_session = False,
             share_all = False,
-            share_all_query_string_parameters = False):
+            share_all_query_string_parameters = None):
         """!
         Constructor for ShareUsageEvidenceKeyFilter
         @type cookie: string
         @param cookie: the name of the cookie that identifies the session
         @type query_whitelist: list or str
         @param query_whitelist: query string and form parameters to share as
-        well as those starting 51D_. None holds no names. A string is read as names separated by commas.
+        well as those starting 51D_. A string is read as names separated by
+        commas. None shares every parameter when
+        share_all_query_string_parameters is not given, and holds no names
+        when it is.
         @type header_blacklist: list or str
         @param header_blacklist: headers not to share. A string is read as
         names separated by commas.
@@ -85,12 +88,19 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
         evidence that is never shared and cookies not starting 51D_
         @type share_all_query_string_parameters: bool
         @param share_all_query_string_parameters: whether every query
-        string and form parameter is shared, whatever query_whitelist holds
+        string and form parameter is shared, whatever query_whitelist holds.
+        When it is not given, every one is shared only when query_whitelist
+        is None.
         """
         self.cookie = cookie.lower() if cookie else None
 
         query_whitelist = _split_names(query_whitelist)
         header_blacklist = _split_names(header_blacklist)
+
+        # With the option not given, None in place of the list asks for
+        # every parameter. Given, the option decides.
+        if share_all_query_string_parameters is None:
+            share_all_query_string_parameters = query_whitelist is None
 
         self.query_whitelist = \
             [parameter.lower() for parameter in query_whitelist or ()]
