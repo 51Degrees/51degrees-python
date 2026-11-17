@@ -78,6 +78,18 @@ To run the tests use:
 
 `python -m unittest discover -s tests -p test*.py -b`
 
+## Free-threaded Python
+
+The package runs on the free-threaded builds of Python 3.13 and 3.14. Its native module does not declare that it can run without the global interpreter lock (GIL), so Python turns the GIL back on when it loads the module and prints this warning.
+
+```
+RuntimeWarning: The global interpreter lock (GIL) has been enabled to load module 'fiftyone_devicedetection_onpremise._DeviceDetectionHashEngineModule', which has not declared that it can run safely without the GIL. To override this behavior and keep the GIL disabled (at your own risk), run with PYTHON_GIL=0 or -Xgil=0.
+```
+
+The native code then runs with the GIL held, as it does on the standard build of Python, so the package gains nothing from free-threading. To start with the GIL on, and so without the warning, set the environment variable `PYTHON_GIL=1` or run Python with `-X gil=1`. The package has not been tested with the GIL kept off by `PYTHON_GIL=0`.
+
+Whichever build of Python runs it, the results of one request are not safe to use from several threads at once. Give each thread its own Flow Data, or coordinate access with a lock of your own.
+
 ## Find out more
 
 - [Device Detection](https://51degrees.com/device-detection?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise&utm_term=find-out-more-device-detection)
