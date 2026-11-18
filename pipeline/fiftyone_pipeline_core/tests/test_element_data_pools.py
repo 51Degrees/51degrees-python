@@ -96,6 +96,19 @@ class PooledElement(FlowElement):
         flowdata.set_element_data(data)
 
 
+class OwnAttributeElement(FlowElement):
+    """Keeps no pool, but has an attribute of its own with the name the
+    pooled elements use, holding something else."""
+
+    def __init__(self):
+        super(OwnAttributeElement, self).__init__()
+        self.datakey = "own"
+        self._element_data_pool = "a value of the element's own"
+
+    def process_internal(self, flowdata):
+        flowdata.set_element_data(ElementDataDictionary(self, {"a": 1}))
+
+
 def build(*elements):
     builder = PipelineBuilder({"add_javascript_builder": False,
                                "use_setheader_properties": False})
@@ -222,6 +235,23 @@ class ReuseTests(unittest.TestCase):
         self.assertEqual({"pooled": REQUESTS}, counts)
         self.assertEqual(0, len(element._element_data_pool))
         self.assertEqual([], [ref for ref in made if ref() is not None])
+
+
+class PoolLookupTests(unittest.TestCase):
+
+    def test_an_element_names_the_pool_it_keeps(self):
+        element = SequenceElement()
+        self.assertIs(element._element_data_pool,
+                      element.get_element_data_pool())
+        self.assertIsNone(FlowElement().get_element_data_pool())
+
+    def test_an_attribute_that_is_not_a_pool_is_not_taken_for_one(self):
+        element = OwnAttributeElement()
+        pipeline = build(element)
+        flowdata = process(pipeline)
+        flowdata.close()
+        self.assertIsNone(element.get_element_data_pool())
+        self.assertEqual(1, flowdata.own.get("a"))
 
 
 if __name__ == "__main__":
