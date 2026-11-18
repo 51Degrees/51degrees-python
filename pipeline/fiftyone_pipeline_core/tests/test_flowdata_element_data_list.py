@@ -127,6 +127,8 @@ class ElementDataListTests(unittest.TestCase):
         self.assertEqual(["one"], list(flowdata.data))
 
     def test_an_add_takes_no_lock(self):
+        """A smoke test. It looks only at the FlowData's own attributes, so
+        a lock kept anywhere else would not be seen."""
         flowdata = pipeline(AddsItsData("one")).create_flowdata()
 
         flowdata.process()
@@ -134,6 +136,95 @@ class ElementDataListTests(unittest.TestCase):
         held = [name for name, value in vars(flowdata).items()
                 if isinstance(value, lock_types())]
         self.assertEqual([], held)
+
+    def test_a_write_through_a_view_shows_in_that_view(self):
+        element = AddsItsData("one")
+        flowdata = pipeline(element).create_flowdata()
+        view = flowdata.data
+        first = ElementDataDictionary(element, {"name": "first"})
+        second = ElementDataDictionary(element, {"name": "second"})
+        third = ElementDataDictionary(element, {"name": "third"})
+
+        view["first"] = first
+        view.update({"second": second})
+        view.setdefault("third", third)
+
+        self.assertIs(first, view["first"])
+        self.assertIs(second, view["second"])
+        self.assertIs(third, view["third"])
+        self.assertEqual(["first", "second", "third"], list(view))
+        self.assertIs(first, flowdata.get("first"))
+
+    def test_a_copy_is_a_dict_of_the_element_data(self):
+        flowdata = pipeline(
+            AddsItsData("one"), AddsItsData("two")).create_flowdata()
+        flowdata.process()
+
+        copy = flowdata.data.copy()
+
+        self.assertIs(dict, type(copy))
+        self.assertEqual(["one", "two"], list(copy))
+        self.assertIs(flowdata.get("two"), copy["two"])
+
+    def test_element_data_is_not_removed(self):
+        flowdata = pipeline(
+            AddsItsData("one"), AddsItsData("two")).create_flowdata()
+        flowdata.process()
+
+        def remove(view):
+            del view["one"]
+
+        for removal in (
+                remove,
+                lambda view: view.pop("one"),
+                lambda view: view.popitem(),
+                lambda view: view.clear()):
+            with self.assertRaises(TypeError):
+                removal(flowdata.data)
+        self.assertEqual(["one", "two"], list(flowdata.data))
+
+    def test_setting_data_copies_the_mapping_given(self):
+        element = AddsItsData("one")
+        flowdata = pipeline(element).create_flowdata()
+        given = {"one": ElementDataDictionary(element, {"name": "one"})}
+
+        flowdata.data = given
+        given["two"] = ElementDataDictionary(element, {"name": "two"})
+
+        self.assertEqual(["one"], list(flowdata.data))
+
+    def test_a_reader_on_another_thread_always_sees_a_whole_list(self):
+        element = AddsItsData("one")
+        flowdata = pipeline(element).create_flowdata()
+        keys = ["key%d" % index for index in range(2000)]
+        seen = []
+        failures = []
+        done = threading.Event()
+
+        def read():
+            try:
+                while not done.is_set():
+                    listed = list(flowdata.data)
+                    # A whole list is every key added so far, in order.
+                    if listed != keys[:len(listed)]:
+                        failures.append(listed)
+                    seen.append(len(listed))
+            except Exception as error:
+                failures.append(error)
+
+        reader = threading.Thread(target=read)
+        reader.start()
+        try:
+            for key in keys:
+                flowdata.data[key] = ElementDataDictionary(
+                    element, {"name": key})
+        finally:
+            done.set()
+            reader.join()
+
+        self.assertEqual([], failures)
+        self.assertTrue(seen)
+        self.assertEqual(keys, list(flowdata.data))
 
 
 if __name__ == "__main__":
