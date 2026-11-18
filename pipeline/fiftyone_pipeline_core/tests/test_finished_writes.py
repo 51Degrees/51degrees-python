@@ -28,9 +28,11 @@ last tests process every FlowElement this package defines, and its example
 FlowElements, then write to each one's ElementData and expect the error.
 """
 
+import copy
 import importlib
 import importlib.util
 import inspect
+import json
 import os
 import pkgutil
 import unittest
@@ -67,6 +69,43 @@ class WritingElement(FlowElement):
             data = ElementDataDictionary(self, {})
             flowdata.set_element_data(data)
         data.written = self.value
+
+
+class AddingElement(FlowElement):
+    """Adds data under another FlowElement's key, and a value to its
+    contents while it processes."""
+
+    def __init__(self):
+        super(AddingElement, self).__init__()
+        self.datakey = "adder"
+
+    def process_internal(self, flowdata):
+        data = ElementDataDictionary(WritingElement("other"), {})
+        data.contents["item"] = "while processing"
+        flowdata.set_element_data(data)
+
+
+def item_store(data):
+    """The dictionary the data keeps its values in, or None."""
+    if isinstance(data, dict):
+        return data
+    if (isinstance(getattr(type(data), "contents", None), property)
+            or "contents" in vars(data)):
+        return data.contents
+    return None
+
+
+# Each way a dictionary can be written.
+DICT_WRITES = (
+    ("[]=", lambda d: d.__setitem__("b", 2)),
+    ("del", lambda d: d.__delitem__("a")),
+    ("update", lambda d: d.update(b=2)),
+    ("pop", lambda d: d.pop("a")),
+    ("popitem", lambda d: d.popitem()),
+    ("setdefault", lambda d: d.setdefault("b", 2)),
+    ("clear", lambda d: d.clear()),
+    ("|=", lambda d: d.__ior__({"b": 2})),
+)
 
 
 def process(*elements, **settings):
@@ -168,6 +207,34 @@ class FinishedElementDataTests(unittest.TestCase):
         data._kept = "a value kept once read"
         self.assertEqual("a value kept once read", data._kept)
 
+    def test_the_contents_cannot_be_written_once_finished(self):
+        for name, write in DICT_WRITES:
+            with self.subTest(name):
+                data = process(WritingElement()).get("writer")
+                dict.__setitem__(data.contents, "a", 1)
+                for contents in (data.contents, data.as_dictionary()):
+                    with self.assertRaises(Exception) as caught:
+                        write(contents)
+                    self.assertIn(FINISHED, str(caught.exception))
+                self.assertEqual({"a": 1}, dict(data.contents))
+
+    def test_the_contents_cannot_be_replaced_once_finished(self):
+        data = process(WritingElement()).get("writer")
+        with self.assertRaises(Exception) as caught:
+            data.contents = {"b": 2}
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertEqual({}, dict(data.contents))
+
+    def test_the_contents_are_a_dict_that_is_written_while_processing(self):
+        flowdata = process(AddingElement())
+        contents = flowdata.get("other").contents
+        self.assertIsInstance(contents, dict)
+        self.assertEqual({"item": "while processing"}, contents)
+        self.assertEqual('{"item": "while processing"}',
+                         json.dumps(contents))
+        self.assertIs(dict, type(copy.deepcopy(contents)))
+        self.assertIs(dict, type(contents.copy()))
+
     def test_closing_the_flow_data_is_not_a_write(self):
         class ClosingData(ElementDataDictionary):
             def close(self):
@@ -193,6 +260,11 @@ class EveryFlowElementTests(unittest.TestCase):
         with self.assertRaises(Exception) as caught:
             data.written_after_processing = True
         self.assertIn(FINISHED, str(caught.exception))
+        contents = item_store(data)
+        if contents is not None:
+            with self.assertRaises(Exception) as caught:
+                contents["written_after_processing"] = True
+            self.assertIn(FINISHED, str(caught.exception))
 
     def test_the_package_flow_elements_refuse_writes_once_finished(self):
         flowdata = PipelineBuilder().build().create_flowdata()

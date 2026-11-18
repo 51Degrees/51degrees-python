@@ -44,6 +44,14 @@ from fiftyone_devicedetection_cloud.hardwareprofile_cloud import \
 
 FINISHED = "finished processing"
 
+
+def item_store(data):
+    """The dictionary the data keeps its values in."""
+    if isinstance(data, dict):
+        return data
+    return data.contents
+
+
 # FlowElements that only other FlowElements build on.
 BASES = set()
 
@@ -91,9 +99,41 @@ class FinishedWritesTests(unittest.TestCase):
             with self.assertRaises(Exception) as caught:
                 data.written_after_processing = True
             self.assertIn(FINISHED, str(caught.exception))
+            with self.assertRaises(Exception) as caught:
+                item_store(data)["written_after_processing"] = True
+            self.assertIn(FINISHED, str(caught.exception))
             processed.add(type(element))
         self.assertEqual(
             defined_flow_elements(fiftyone_devicedetection_cloud) - BASES, processed)
+
+    def test_a_hardware_profile_refuses_writes_once_finished(self):
+        writes = (
+            ("attribute", lambda p: setattr(p, "written", True)),
+            ("[]=", lambda p: p.__setitem__("written", True)),
+            ("del", lambda p: p.__delitem__("hardwarevendor")),
+            ("update", lambda p: p.update(written=True)),
+            ("pop", lambda p: p.pop("hardwarevendor")),
+            ("popitem", lambda p: p.popitem()),
+            ("setdefault", lambda p: p.setdefault("written", True)),
+            ("clear", lambda p: p.clear()),
+            ("|=", lambda p: p.__ior__({"written": True})),
+        )
+        element = HardwareProfileCloud()
+        request = StandInRequestEngine([element.datakey])
+        request.answer = json.dumps({element.datakey: {
+            "profiles": [{"hardwarevendor": "Apple"}]}})
+        flowdata = PipelineBuilder({"add_javascript_builder": False,
+                                    "use_setheader_properties": False}) \
+            .add(request).add(element).build().create_flowdata()
+        flowdata.process()
+        profile = flowdata.get(element.datakey).get("profiles")[0]
+        for name, write in writes:
+            with self.subTest(name):
+                with self.assertRaises(Exception) as caught:
+                    write(profile)
+                self.assertIn(FINISHED, str(caught.exception))
+        self.assertEqual(["hardwarevendor"], list(profile))
+        self.assertEqual("Apple", profile.hardwarevendor.value())
 
 
 if __name__ == "__main__":

@@ -45,6 +45,15 @@ from fiftyone_pipeline_derivedproperty.derived_property_element import \
 from .helpers import SourceElement, band_script, pipeline_of, processed
 
 FINISHED = "finished processing"
+
+
+def item_store(data):
+    """The dictionary the data keeps its values in."""
+    if isinstance(data, dict):
+        return data
+    return data.contents
+
+
 EXAMPLES = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples")
 
@@ -77,6 +86,8 @@ def test_every_derived_element_writes_only_while_it_processes():
         data.set_value("Demo", "written after processing")
     with pytest.raises(Exception, match=FINISHED):
         data.written_after_processing = True
+    with pytest.raises(Exception, match=FINISHED):
+        item_store(data)["written_after_processing"] = True
     assert data.get("Demo").value() == "High"
     assert defined_flow_elements(fiftyone_pipeline_derivedproperty) == \
         {DerivedPropertyElement}
@@ -90,3 +101,5 @@ def test_the_example_flow_element_refuses_writes_once_finished():
     flowdata = processed(pipeline_of([module.ScreenElement()]))
     with pytest.raises(Exception, match=FINISHED):
         flowdata.get("screen").written_after_processing = True
+    with pytest.raises(Exception, match=FINISHED):
+        item_store(flowdata.get("screen"))["written_after_processing"] = True

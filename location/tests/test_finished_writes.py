@@ -41,6 +41,14 @@ from fiftyone_location.location_cloud import LocationCloud
 
 FINISHED = "finished processing"
 
+
+def item_store(data):
+    """The dictionary the data keeps its values in."""
+    if isinstance(data, dict):
+        return data
+    return data.contents
+
+
 # FlowElements that only other FlowElements build on.
 BASES = set()
 
@@ -87,6 +95,9 @@ class FinishedWritesTests(unittest.TestCase):
             data = flowdata.get(element.datakey)
             with self.assertRaises(Exception) as caught:
                 data.written_after_processing = True
+            self.assertIn(FINISHED, str(caught.exception))
+            with self.assertRaises(Exception) as caught:
+                item_store(data)["written_after_processing"] = True
             self.assertIn(FINISHED, str(caught.exception))
             processed.add(type(element))
         self.assertEqual(
