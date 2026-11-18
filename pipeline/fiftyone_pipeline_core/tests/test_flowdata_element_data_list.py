@@ -193,6 +193,28 @@ class ElementDataListTests(unittest.TestCase):
 
         self.assertEqual(["one"], list(flowdata.data))
 
+    def test_setting_data_replaces_the_whole_list_at_once(self):
+        element = AddsItsData("one")
+        flowdata = pipeline(element).create_flowdata()
+        flowdata.data = {
+            "old": ElementDataDictionary(element, {"name": "old"})}
+        seen = []
+
+        class Contents(dict):
+            # Lists the Element Data part way through the replacement, as
+            # a reader on another thread could.
+            def items(self):
+                for key, value in dict.items(self):
+                    yield key, value
+                    seen.append(list(flowdata.data))
+
+        flowdata.data = Contents({
+            "a": ElementDataDictionary(element, {"name": "a"}),
+            "b": ElementDataDictionary(element, {"name": "b"})})
+
+        self.assertEqual([["old"], ["old"]], seen)
+        self.assertEqual(["a", "b"], list(flowdata.data))
+
     def test_a_reader_on_another_thread_always_sees_a_whole_list(self):
         element = AddsItsData("one")
         flowdata = pipeline(element).create_flowdata()
