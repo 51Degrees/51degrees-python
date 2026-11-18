@@ -23,6 +23,86 @@
 from .messages import Messages
 
 
+class _CheckedDictWrites(object):
+
+    """!
+    The write methods of a dict, each of which calls _check_writable first,
+    so a dict that holds Element Data values refuses writes once the
+    FlowElement that writes them has finished. Reads are the dict's own.
+    """
+
+    __slots__ = ()
+
+    def __setitem__(self, key, value):
+        self._check_writable(key)
+        super(_CheckedDictWrites, self).__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self._check_writable(key)
+        super(_CheckedDictWrites, self).__delitem__(key)
+
+    def __ior__(self, other):
+        self._check_writable("|=")
+        return super(_CheckedDictWrites, self).__ior__(other)
+
+    def update(self, *args, **kwargs):
+        self._check_writable("update")
+        super(_CheckedDictWrites, self).update(*args, **kwargs)
+
+    def pop(self, *args):
+        self._check_writable(args[0] if args else "pop")
+        return super(_CheckedDictWrites, self).pop(*args)
+
+    def popitem(self):
+        self._check_writable("popitem")
+        return super(_CheckedDictWrites, self).popitem()
+
+    def setdefault(self, key, default=None):
+        self._check_writable(key)
+        return super(_CheckedDictWrites, self).setdefault(key, default)
+
+    def clear(self):
+        self._check_writable("clear")
+        super(_CheckedDictWrites, self).clear()
+
+
+class _ContentsDict(_CheckedDictWrites, dict):
+
+    """!
+    The contents of Element Data that keeps its values in a dict. A write
+    raises once the FlowElement that writes the data has finished, as a
+    write to the data itself does. A copy is a plain dict.
+    """
+
+    __slots__ = ("_owner",)
+
+    def __init__(self, owner, values):
+        dict.__init__(self, values)
+        self._owner = owner
+
+    def _check_writable(self, name):
+        self._owner._check_writable(name)
+
+    def __reduce_ex__(self, protocol):
+        return (dict, (dict(self),))
+
+
+def _get_contents(data):
+    return data.__dict__.get("_contents")
+
+
+def _set_contents(data, values):
+    data._contents = _ContentsDict(data, values)
+
+
+# The contents property of the Element Data classes that keep their values
+# in a dict. Setting it keeps a copy, which refuses writes once finished.
+_contents_property = property(
+    _get_contents, _set_contents,
+    doc="The values, keyed by property name. Written only while the "
+        "FlowElement that provides the data processes.")
+
+
 class ElementData(object):
 
     """!
