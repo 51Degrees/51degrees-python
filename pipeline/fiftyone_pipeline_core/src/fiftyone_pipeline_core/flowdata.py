@@ -104,6 +104,11 @@ class FlowData:
                 finally:
                     _set_finished(self.data.get(key), True)
 
+        # Data added before processing, or under another FlowElement's key,
+        # is finished too.
+        for element_data in list(self.data.values()):
+            _set_finished(element_data, True)
+
         # Set processed flag to true. flowdata can only be processed once,
         # and is read only from now on.
         self.processed = True
