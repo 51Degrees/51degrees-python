@@ -328,10 +328,15 @@ class FlowData:
 
     def _add(self, key, element_data):
 
-        # A new node at the head, with a plain write, as no parallel group
-        # adds at the same time. A reader that has already read the head
+        # A new node at the head. A reader that has already read the head
         # keeps the list it saw.
-        self._head = _ElementDataNode(key, element_data, self._head)
+        self._write_head(_ElementDataNode(key, element_data, self._head))
+
+    def _write_head(self, head):
+
+        # The only write of the list, with a plain write, as no parallel
+        # group adds at the same time.
+        self._head = head
 
     @property
     def data(self):
@@ -349,10 +354,13 @@ class FlowData:
     def data(self, contents):
 
         # Replaces the list with the contents given, in their order. The
-        # mapping given is copied, so later changes to it are not seen.
-        self._head = None
+        # new list is built first and put in place with one write, so a
+        # reader sees the old list or the new one. The mapping given is
+        # copied, so later changes to it are not seen.
+        head = None
         for key, element_data in contents.items():
-            self._add(key, element_data)
+            head = _ElementDataNode(key, element_data, head)
+        self._write_head(head)
 
 
     def set_error(self, flow_error):
