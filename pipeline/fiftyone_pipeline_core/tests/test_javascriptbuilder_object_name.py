@@ -38,7 +38,9 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
+import warnings
 
 from parameterized import parameterized
 
@@ -93,10 +95,30 @@ def _write(script):
     return path
 
 
-def _node(*args):
-    return subprocess.run(
-        [NODE] + list(args), capture_output=True, text=True, timeout=60)
+_TIMES = {"check": [], "harness": []}
 
+
+def _node(*args):
+    started = time.perf_counter()
+    try:
+        return subprocess.run(
+            [NODE] + list(args), capture_output=True, text=True, timeout=60)
+    finally:
+        _TIMES["check" if args[0] == "--check" else "harness"].append(
+            time.perf_counter() - started)
+
+
+def tearDownModule():
+    for kind, times in _TIMES.items():
+        if times:
+            ordered = sorted(times)
+            warnings.warn(
+                "NODE-TIMING {} calls={} min={:.3f}s median={:.3f}s "
+                "p95={:.3f}s max={:.3f}s total={:.1f}s".format(
+                    kind, len(ordered), ordered[0],
+                    ordered[len(ordered) // 2],
+                    ordered[int(len(ordered) * 0.95)], ordered[-1],
+                    sum(ordered)))
 
 def _declared_names(script):
     return re.findall(
