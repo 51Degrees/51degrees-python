@@ -144,11 +144,10 @@ class ShareUsage(Engine):
         needs cookie to be set, and works the same whether or not
         share_all is True.
         @type query_whitelist: list or str
-        @param query_whitelist: The query string and HTTP form parameters
-        to share, as well as those prefixed with '51D_', when
-        share_all_query_string_parameters is False. A string of names
-        separated by commas, which is how a configuration file gives a
-        list, is read as those names. None holds no names.
+        @param query_whitelist: Deprecated, and has no effect. A query
+        string or HTTP form parameter is shared only when its name starts
+        with '51D_' or the Pipeline uses it as evidence, whatever the
+        settings.
         @type header_blacklist: list or str
         @param header_blacklist: By default, all HTTP headers
         except Cookie are shared.
@@ -160,13 +159,13 @@ class ShareUsage(Engine):
         @type share_all: bool
         @param share_all: If True, all evidence is shared apart from the
         email address, the salt used for hashed email identifiers, the
-        request's query string and path, and every cookie whose name does
-        not start with '51D_'. False by default.
+        request's query string and path, every cookie whose name does not
+        start with '51D_', and every query string or HTTP form parameter
+        whose name does not start with '51D_' and that the Pipeline does
+        not use as evidence. False by default.
         @type share_all_query_string_parameters: bool
-        @param share_all_query_string_parameters: If True, every query
-        string and HTTP form parameter is shared. If False, only those
-        prefixed with '51D_' and those in query_whitelist are. True by
-        default.
+        @param share_all_query_string_parameters: Deprecated, and has no
+        effect, as query_whitelist.
         @type max_queue_size: int
         @param max_queue_size: The most entries held while waiting to be
         sent. When the queue is full, new entries are dropped. The default
@@ -741,7 +740,7 @@ class ShareUsage(Engine):
             # A hash of the values that would be shared, as the element
             # accepts no evidence of its own.
             cachekey = self.tracker_evidence_key_filter.filter_evidence(
-                self.found_evidence(flow_data))
+                self.found_evidence(flow_data), flow_data.pipeline)
             # Evidence keys ignore case, so a repeat is found whatever the
             # letters of its keys.
             cachekey = json.dumps(
@@ -784,7 +783,8 @@ class ShareUsage(Engine):
                         f"The value '{value}' could not be parsed to an integer.")
             else:
                 # Check if we can send this piece of evidence
-                if self.data_evidence_key_filter.filter_evidence_key(key):
+                if self.data_evidence_key_filter.filter_evidence_key(
+                        key, flow_data.pipeline):
                     data.try_add(key, value)
 
         return data
