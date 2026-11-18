@@ -93,10 +93,23 @@ def _write(script):
     return path
 
 
+# The longest one call to Node may take once Node has started.
+NODE_CALL_SECONDS = 60
+# The longest Node's first start on a runner may take. That start can be far
+# slower than any later call, so it is made once, before the tests.
+NODE_START_SECONDS = 300
+
+
+def setUpModule():
+    if NODE:
+        subprocess.run([NODE, "-e", "0"], capture_output=True,
+                       timeout=NODE_START_SECONDS)
+
+
 def _node(*args):
     return subprocess.run(
-        [NODE] + list(args), capture_output=True, text=True, timeout=60)
-
+        [NODE] + list(args), capture_output=True, text=True,
+        timeout=NODE_CALL_SECONDS)
 
 def _declared_names(script):
     return re.findall(
