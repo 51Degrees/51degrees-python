@@ -1,0 +1,26 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "51Degrees Device Detection and IP Intelligence for Python",
+  "description": "User-Agent parser for Python that supports Device Detection, browser detection, mobile detection and crawler detection on-premise or in the cloud, as an alternative to UAParser.js, DeviceAtlas and WURFL. IP Intelligence adds IP geolocation, including IP to country data, as an alternative to MaxMind and IPinfo.",
+  "excludeFolders": [
+    ".github",
+    "ci",
+    "cxx",
+    "tests",
+    "performance-tests",
+    "pipeline/owid-python",
+    "pipeline/fiftyone_pipeline_core/src/fiftyone_pipeline_core/js_templates",
+    "pipeline/fiftyone_pipeline_derivedproperty/src/fiftyone_pipeline_derivedproperty/derived-properties",
+    "archive",
+    "archived",
+    "old",
+    "deprecated",
+    "legacy",
+    "previous",
+    "outdated",
+    "superseded",
+    "benchmark",
+    "benchmarks",
+    "benches"
+  ]
+}
