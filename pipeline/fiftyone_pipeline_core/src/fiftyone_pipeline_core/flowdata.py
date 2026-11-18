@@ -28,6 +28,17 @@ import sys
 from collections.abc import MutableMapping
 
 
+def _find(node, key):
+
+    # Follows the links from the node given to the first, so newest, node
+    # for the key.
+    while node is not None:
+        if node.key == key:
+            return node
+        node = node.next
+    return None
+
+
 class _ElementDataNode(object):
 
     """!
@@ -47,10 +58,17 @@ class ElementDataView(MutableMapping):
 
     """!
     The Element Data of a FlowData, keyed by data key, as the list was when
-    the view was taken. Adds made after that are not seen, so a reader part
-    way through always sees a whole list. Setting a key adds to the FlowData,
-    not to this view. Iteration gives each key once, in the order the keys
-    were first added, which is Pipeline order.
+    the view was taken. Adds made elsewhere after that are not seen, so a
+    reader part way through always sees a whole list.
+
+    Setting a key adds to the FlowData, and this view then shows the list
+    as it is after the add. Element Data is not removed, so del, pop,
+    popitem and clear raise TypeError. copy gives a dict.
+
+    Iteration gives each key once, in the order the keys were first added.
+    While a Pipeline processes, each Flow Element adds its own in turn, so
+    that is Pipeline order. Element Data added another way, such as before
+    processing, is listed by when it was added.
     """
 
     def __init__(self, flowdata, head):
@@ -71,15 +89,15 @@ class ElementDataView(MutableMapping):
         return latest
 
     def __getitem__(self, key):
-        node = self._head
-        while node is not None:
-            if node.key == key:
-                return node.element_data
-            node = node.next
-        raise KeyError(key)
+        node = _find(self._head, key)
+        if node is None:
+            raise KeyError(key)
+        return node.element_data
 
     def __setitem__(self, key, element_data):
         self._flowdata._add(key, element_data)
+        # This view now shows the list with the add, as a mapping should.
+        self._head = self._flowdata._head
 
     def __delitem__(self, key):
         raise TypeError("Element Data is not removed from a FlowData")
@@ -92,6 +110,18 @@ class ElementDataView(MutableMapping):
 
     def __repr__(self):
         return repr(self._latest())
+
+    def copy(self):
+        return self._latest()
+
+    def keys(self):
+        return self._latest().keys()
+
+    def values(self):
+        return self._latest().values()
+
+    def items(self):
+        return self._latest().items()
 
 
 class FlowData:
@@ -240,11 +270,14 @@ class FlowData:
         """
 
         try:
-            return self.data[flow_element_key.lower()]
-
+            node = _find(self._head, flow_element_key.lower())
         except Exception:
+            node = None
 
+        if node is None:
             return self.pipeline.element_not_found(flow_element_key, self)
+
+        return node.element_data
 
     def __getattr__(self, flow_element_key):
 
@@ -315,7 +348,8 @@ class FlowData:
     @data.setter
     def data(self, contents):
 
-        # Replaces the list with the contents given, in their order.
+        # Replaces the list with the contents given, in their order. The
+        # mapping given is copied, so later changes to it are not seen.
         self._head = None
         for key, element_data in contents.items():
             self._add(key, element_data)
