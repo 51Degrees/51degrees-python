@@ -56,6 +56,9 @@ class SwigDataThreadTests(unittest.TestCase):
         self.assertIn("caller is responsible for thread-safe access", text)
 
     def test_an_instance_holds_no_lock(self):
+        """A smoke test. It looks only at the instance's own attributes,
+        so a lock at module level, on the engine or in AspectData would
+        still pass."""
         data = SwigData(FakeElement(), object())
         locks = [name for name, value in vars(data).items()
                  if isinstance(value, LOCK_TYPES)]
