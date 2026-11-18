@@ -91,6 +91,9 @@ class ElementDataPool(object):
 
         """
 
+        # The check is on the element, not on this instance. A cache may
+        # hold any instance its element makes, so none comes back, even one
+        # the cache did not keep. The specification asks for no less.
         if getattr(element_data.flow_element, "cache", None) is not None:
             return
         with self._lock:

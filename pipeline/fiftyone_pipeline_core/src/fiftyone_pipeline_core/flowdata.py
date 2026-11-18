@@ -174,6 +174,9 @@ class FlowData:
                     close(element_data)
                 finally:
                     _set_finished(element_data, finished)
+            # Given back only once its close has returned. Data whose close
+            # waits for a lazy task still writing it so goes back only after
+            # that task has finished, which the specification requires.
             _give_back(element_data)
 
     def __enter__(self):
