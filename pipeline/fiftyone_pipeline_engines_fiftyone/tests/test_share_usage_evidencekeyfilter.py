@@ -119,7 +119,7 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
         self.assertFalse(keys.filter_evidence_key("header.x-other"))
         self.assertTrue(keys.filter_evidence_key("header.x"))
 
-    def test_no_parameter_list_shares_every_parameter(self):
+    def test_no_parameter_list_shares_only_51d_parameters(self):
         """!
         Check that None in place of the deprecated parameters to share, and
         an empty list, both share only parameters starting 51D_ when the
@@ -132,7 +132,7 @@ class ShareUsageEvidenceKeyFilterTests(unittest.TestCase):
             self.assertFalse(keys.filter_evidence_key("query.campaign"))
             self.assertTrue(keys.filter_evidence_key("query.51d_campaign"))
 
-    def test_the_option_given_decides_whatever_the_list(self):
+    def test_the_deprecated_option_changes_nothing(self):
         """!
         Check that the deprecated share_all_query_string_parameters option
         shares nothing more, on or off, whatever the list.
