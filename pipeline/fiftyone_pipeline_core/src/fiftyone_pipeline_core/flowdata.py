@@ -25,6 +25,74 @@ from .flowerror import FlowError
 from .messages import Messages	
 import traceback
 import sys
+from collections.abc import MutableMapping
+
+
+class _ElementDataNode(object):
+
+    """!
+    One Element Data in a FlowData's list. A node never changes once it is
+    in the list, so a reader follows the links with no lock.
+    """
+
+    __slots__ = ("key", "element_data", "next")
+
+    def __init__(self, key, element_data, next):
+        self.key = key
+        self.element_data = element_data
+        self.next = next
+
+
+class ElementDataView(MutableMapping):
+
+    """!
+    The Element Data of a FlowData, keyed by data key, as the list was when
+    the view was taken. Adds made after that are not seen, so a reader part
+    way through always sees a whole list. Setting a key adds to the FlowData,
+    not to this view. Iteration gives each key once, in the order the keys
+    were first added, which is Pipeline order.
+    """
+
+    def __init__(self, flowdata, head):
+        self._flowdata = flowdata
+        self._head = head
+
+    def _latest(self):
+        # The list holds the newest first, so it is sorted into the order
+        # the keys were added, keeping the newest Element Data for each.
+        nodes = []
+        node = self._head
+        while node is not None:
+            nodes.append(node)
+            node = node.next
+        latest = {}
+        for node in reversed(nodes):
+            latest[node.key] = node.element_data
+        return latest
+
+    def __getitem__(self, key):
+        node = self._head
+        while node is not None:
+            if node.key == key:
+                return node.element_data
+            node = node.next
+        raise KeyError(key)
+
+    def __setitem__(self, key, element_data):
+        self._flowdata._add(key, element_data)
+
+    def __delitem__(self, key):
+        raise TypeError("Element Data is not removed from a FlowData")
+
+    def __iter__(self):
+        return iter(self._latest())
+
+    def __len__(self):
+        return len(self._latest())
+
+    def __repr__(self):
+        return repr(self._latest())
+
 
 class FlowData:
     """!
@@ -32,6 +100,14 @@ class FlowData:
     It collects evidence set by the user
     It passes evidence to FlowElements in the Pipeline
     These elements can return ElementData or populate an errors object
+
+    The Element Data is kept in a linked list, newest first. An add puts a
+    new node at the head with a plain write and takes no lock, because no
+    parallel group adds at the same time. Readers follow the links with no
+    lock.
+
+    A FlowData is not safe to use from several threads at once. The caller
+    is responsible for any locking.
 
     """
 
@@ -45,7 +121,8 @@ class FlowData:
 
         """
 
-        self.data = {}
+        # The newest node of the Element Data list. See data.
+        self._head = None
         self.errors = {}
         self.pipeline = pipeline
         self.processed = False
@@ -214,7 +291,34 @@ class FlowData:
         """
 
         # Kept under the data key in lower case, which is how get reads it.
-        self.data[element_data.flow_element.datakey.lower()] = element_data
+        self._add(element_data.flow_element.datakey.lower(), element_data)
+
+    def _add(self, key, element_data):
+
+        # A new node at the head, with a plain write, as no parallel group
+        # adds at the same time. A reader that has already read the head
+        # keeps the list it saw.
+        self._head = _ElementDataNode(key, element_data, self._head)
+
+    @property
+    def data(self):
+
+        """!
+        The Element Data in this FlowData, keyed by data key in lower case,
+        as the list is now. Iteration gives Pipeline order.
+
+        @rtype: ElementDataView
+        """
+
+        return ElementDataView(self, self._head)
+
+    @data.setter
+    def data(self, contents):
+
+        # Replaces the list with the contents given, in their order.
+        self._head = None
+        for key, element_data in contents.items():
+            self._add(key, element_data)
 
 
     def set_error(self, flow_error):
