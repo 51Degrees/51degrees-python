@@ -38,7 +38,9 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 import unittest
+import warnings
 
 from parameterized import parameterized
 
@@ -93,10 +95,44 @@ def _write(script):
     return path
 
 
-def _node(*args):
-    return subprocess.run(
-        [NODE] + list(args), capture_output=True, text=True, timeout=60)
+# The longest one call to Node may take once Node has started.
+NODE_CALL_SECONDS = 60
+# The longest Node's first start on a runner may take. That start can be far
+# slower than any later call, so it is made once, before the tests.
+NODE_START_SECONDS = 300
 
+
+_TIMES = {"start": [], "check": [], "harness": []}
+
+
+def setUpModule():
+    if NODE:
+        started = time.perf_counter()
+        subprocess.run([NODE, "-e", "0"], capture_output=True,
+                       timeout=NODE_START_SECONDS)
+        _TIMES["start"].append(time.perf_counter() - started)
+
+
+def _node(*args):
+    started = time.perf_counter()
+    try:
+        return subprocess.run(
+            [NODE] + list(args), capture_output=True, text=True,
+            timeout=NODE_CALL_SECONDS)
+    finally:
+        _TIMES["check" if args[0] == "--check" else "harness"].append(
+            time.perf_counter() - started)
+
+
+def tearDownModule():
+    for kind, times in _TIMES.items():
+        if times:
+            ordered = sorted(times)
+            warnings.warn(
+                "NODE-TIMING {} calls={} first={:.3f}s median={:.3f}s "
+                "max={:.3f}s maxindex={}".format(
+                    kind, len(times), times[0], ordered[len(ordered) // 2],
+                    ordered[-1], times.index(ordered[-1])))
 
 def _declared_names(script):
     return re.findall(
