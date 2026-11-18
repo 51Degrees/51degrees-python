@@ -235,6 +235,30 @@ class FinishedElementDataTests(unittest.TestCase):
         self.assertIs(dict, type(copy.deepcopy(contents)))
         self.assertIs(dict, type(contents.copy()))
 
+    def test_data_under_another_key_is_finished_too(self):
+        flowdata = process(AddingElement())
+        data = flowdata.get("other")
+        with self.assertRaises(Exception) as caught:
+            data.written = "after"
+        self.assertIn(FINISHED, str(caught.exception))
+        with self.assertRaises(Exception) as caught:
+            data.contents["item"] = "after"
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertEqual("while processing", data.contents["item"])
+
+    def test_data_added_before_processing_is_finished_with_it(self):
+        flowdata = PipelineBuilder({"add_javascript_builder": False,
+                                    "use_setheader_properties": False}) \
+            .add(WritingElement()).build().create_flowdata()
+        data = ElementDataDictionary(WritingElement("early"), {})
+        flowdata.set_element_data(data)
+        data.written = "before processing"
+        flowdata.process()
+        with self.assertRaises(Exception) as caught:
+            data.written = "after"
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertEqual("before processing", data.written)
+
     def test_closing_the_flow_data_is_not_a_write(self):
         class ClosingData(ElementDataDictionary):
             def close(self):
