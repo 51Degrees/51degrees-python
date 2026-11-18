@@ -33,9 +33,10 @@ class ElementDataPool(object):
     """!
     A bounded pool of the ElementData one FlowElement makes, so that a
     request reuses an instance an earlier request has finished with rather
-    than making a new one. The FlowElement keeps it as _element_data_pool
-    and takes from it while it processes. FlowData.close() gives each
-    instance back after closing it.
+    than making a new one. The FlowElement keeps it as _element_data_pool,
+    which FlowElement.get_element_data_pool() returns, and takes from it
+    while it processes. FlowData.close() gives each instance back after
+    closing it.
 
     An instance from the pool has no values and is open for writing, as
     take() calls its _clear method, which a class with values of its own

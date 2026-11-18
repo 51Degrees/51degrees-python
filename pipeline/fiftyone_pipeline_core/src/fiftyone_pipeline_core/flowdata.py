@@ -39,10 +39,12 @@ def _set_finished(element_data, finished):
 def _give_back(element_data):
 
     # Gives the data back to the pool of the FlowElement that made it, if
-    # that element keeps one.
+    # that element keeps one. An element that is not a FlowElement has no
+    # get_element_data_pool and keeps no pool.
     if isinstance(element_data, ElementData):
         flow_element = element_data.__dict__.get("flow_element")
-        pool = getattr(flow_element, "_element_data_pool", None)
+        get_pool = getattr(flow_element, "get_element_data_pool", None)
+        pool = get_pool() if callable(get_pool) else None
         if pool is not None:
             pool.give_back(element_data)
 
