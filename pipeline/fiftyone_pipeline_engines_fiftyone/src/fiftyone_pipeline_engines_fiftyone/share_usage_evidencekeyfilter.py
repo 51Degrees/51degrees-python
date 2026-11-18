@@ -92,7 +92,7 @@ class ShareUsageEvidenceKeyFilter(BasicListEvidenceKeyFilter):
             header_blacklist = (),
             include_session = False,
             share_all = False,
-            share_all_query_string_parameters = None):
+            share_all_query_string_parameters = False):
         """!
         Constructor for ShareUsageEvidenceKeyFilter
         @type cookie: string
