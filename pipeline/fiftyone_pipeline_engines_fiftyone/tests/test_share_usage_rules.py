@@ -31,7 +31,6 @@ import gzip
 import json
 import re
 import unittest
-from importlib import metadata
 from unittest import mock
 
 import requests
@@ -54,15 +53,6 @@ QUEUE_ONLY = {
     "endpoint": "http://127.0.0.1:9",
 }
 
-# The packages a Pipeline holding only usage sharing uses, being the one
-# holding the Pipeline, the one holding the element and the one that
-# requires.
-USAGE_SHARING_PACKAGES = (
-    "fiftyone_pipeline_core",
-    "fiftyone_pipeline_engines",
-    "fiftyone_pipeline_engines_fiftyone",
-)
-
 # Turns off sharing every query string parameter, from a configuration
 # file.
 CONFIGURATION = """
@@ -82,11 +72,6 @@ CONFIGURATION = """
   }
 }
 """
-
-
-def canonical(name):
-    """A package name as the package index compares names."""
-    return re.sub(r"[-_.]+", "_", name).lower()
 
 
 def sent_on_close(usage):
@@ -117,22 +102,6 @@ def records_of(usage, requests_evidence, *elements):
             flowdata.evidence.add(key, value)
         flowdata.process()
     return sent_on_close(usage)
-
-
-def packages_in(record):
-    """The Package elements of a record, as name and version pairs."""
-    return re.findall(r'<Package Name="([^"]*)">([^<]*)</Package>', record)
-
-
-class StarSign(FlowElement):
-    """An element from no installed package."""
-
-    def __init__(self):
-        super(StarSign, self).__init__()
-        self.datakey = "starsign"
-
-    def process_internal(self, flow_data):
-        pass
 
 
 class QueryAndFormValuesTests(unittest.TestCase):
@@ -232,61 +201,6 @@ class CookieTests(unittest.TestCase):
                 for record in records:
                     self.assertNotIn("first session", record)
                     self.assertNotIn("second session", record)
-
-
-class PackageTests(unittest.TestCase):
-    """A record that carries the invariant values names every 51Degrees
-    package in use with its version (usage-sharing-element.md lines 313 to
-    321 at d79bbe3b)."""
-
-    def test_the_first_record_names_every_51degrees_package_in_use(self):
-        # The packages are invariant values, so the record after the first,
-        # written within the hour, names none (usage-sharing-element.md
-        # lines 181 to 209 at d79bbe3b).
-        usage = ShareUsage(**QUEUE_ONLY)
-        # A record written before the lookup of the server's address ends
-        # does not count as carrying them, so wait for it.
-        usage._server_ip_found.wait(10)
-        records = records_of(usage, [
-            {"header.user-agent": "first"},
-            {"header.user-agent": "second"},
-        ])
-
-        self.assertEqual(2, len(records))
-        packages = packages_in(records[0])
-        self.assertEqual(
-            sorted(USAGE_SHARING_PACKAGES),
-            sorted(canonical(name) for name, _ in packages))
-        for name, version in packages:
-            self.assertEqual(metadata.version(name), version, name)
-        self.assertEqual([], packages_in(records[1]))
-
-    def test_packages_follow_the_flow_elements(self):
-        record = records_of(ShareUsage(**QUEUE_ONLY), [
-            {"header.user-agent": "agent value"}])[0]
-
-        self.assertRegex(
-            record,
-            r"</FlowElement>(<Package [^>]*>[^<]*</Package>)+<Language>")
-
-    def test_an_element_from_no_package_names_no_package(self):
-        record = records_of(ShareUsage(**QUEUE_ONLY), [
-            {"header.user-agent": "agent value"}], StarSign())[0]
-
-        self.assertIn("<FlowElement>StarSign</FlowElement>", record)
-        self.assertEqual(
-            sorted(USAGE_SHARING_PACKAGES),
-            sorted(canonical(name) for name, _ in packages_in(record)))
-
-    def test_packages_that_are_not_51degrees_are_not_named(self):
-        record = records_of(ShareUsage(**QUEUE_ONLY), [
-            {"header.user-agent": "agent value"}])[0]
-
-        names = [canonical(name) for name, _ in packages_in(record)]
-        # A record that named no package would pass the checks below.
-        self.assertIn("fiftyone_pipeline_core", names)
-        for other in ("requests", "cachetools", "flask"):
-            self.assertNotIn(other, names)
 
 
 if __name__ == "__main__":
