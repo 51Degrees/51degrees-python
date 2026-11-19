@@ -26,6 +26,8 @@ more" section when they stop early, as they do after a run. These run each
 of them to each early end, so they need no key and no network.
 """
 
+import re
+
 import pytest
 
 from fiftyone_pipeline_examples.cloud.mixed import gettingstarted_console
@@ -39,6 +41,25 @@ KEY_SETTINGS = [
     ExampleUtils.LICENSE_KEY_ENV_VAR,
     ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR,
 ]
+
+# A 51degrees.com link.
+LINK = re.compile(r"https://51degrees\.com/\S+")
+
+# The utm_content the web example's links carry, naming its file.
+WEB_CONTENT = (
+    "&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-"
+    "fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&")
+
+
+def assert_tagged(printed, content):
+    """Each 51degrees.com link printed in the section is tagged as being
+    in the section and in the file named."""
+    links = LINK.findall(printed.split("Find out more:", 1)[1])
+    assert links
+    for link in links:
+        assert "utm_medium=example" in link
+        assert "utm_term=find-out-more" in link
+        assert content in link
 
 
 def test_without_a_key(monkeypatch, capsys):
@@ -81,6 +102,7 @@ def test_the_web_example_without_a_key(monkeypatch, capsys):
     assert "Find out more:" in printed
     for _, url in app.FIND_OUT_MORE:
         assert url in printed
+    assert_tagged(printed, WEB_CONTENT)
 
 
 def test_the_web_example_when_the_pipeline_cannot_be_built(monkeypatch,
@@ -95,4 +117,6 @@ def test_the_web_example_when_the_pipeline_cannot_be_built(monkeypatch,
     with pytest.raises(SystemExit):
         app.main(["a-resource-key"])
 
-    assert "Find out more:" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "Find out more:" in printed
+    assert_tagged(printed, WEB_CONTENT)

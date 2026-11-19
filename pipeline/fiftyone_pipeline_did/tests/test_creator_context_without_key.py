@@ -28,6 +28,7 @@ person who never reaches the page would otherwise never see.
 """
 
 import io
+import re
 import unittest
 from contextlib import redirect_stdout
 from unittest import mock
@@ -39,6 +40,14 @@ from .test_creator_context_server import load_server
 CONFIGURE_LINK = (
     r"https://51degrees\.com/configure[^\s?]*\?utm_source=code"
     r"&utm_medium=example&utm_campaign=51degrees-python&utm_content=")
+
+# A 51degrees.com link.
+LINK = re.compile(r"https://51degrees\.com/\S+")
+
+# The utm_content the demo's links carry, naming its file.
+CONTENT = (
+    "&utm_content=fiftyone_pipeline_did-examples-creator_context_web-"
+    "server.py&")
 
 
 class CreatorContextWithoutKeyTests(unittest.TestCase):
@@ -60,6 +69,14 @@ class CreatorContextWithoutKeyTests(unittest.TestCase):
         self.assertIn("Find out more:", said)
         for _, url in server.FIND_OUT_MORE:
             self.assertIn(url, said)
+        # Each 51degrees.com link in the section is tagged as being in the
+        # section and in this file.
+        links = LINK.findall(said.split("Find out more:", 1)[1])
+        self.assertTrue(links)
+        for link in links:
+            self.assertIn("utm_medium=example", link)
+            self.assertIn("utm_term=find-out-more", link)
+            self.assertIn(CONTENT, link)
 
 
 if __name__ == "__main__":
