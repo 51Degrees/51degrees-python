@@ -20,7 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-from .pipeline import Pipeline
+from .pipeline import Pipeline, is_usage_sharing_element
 from .logger import Logger
 from .javascriptbuilder import JavascriptBuilderElement
 from .jsonbundler import JSONBundlerElement
@@ -196,9 +196,13 @@ class PipelineBuilder(object):
         """
         Construct an immutable Pipeline using the list of flowElements, (Engines) and (Logger) currently in this Pipeline Builder.
         Call build after all items to be included in the pipeline have been added.
+        A usage sharing element added last stays last, after the web
+        integration elements.
 
         @rtype: Pipeline
         @return: Returns a Pipeline
+        @raise ValueError: if a usage sharing element was added anywhere
+        but last
 
         """
 
@@ -214,7 +218,8 @@ class PipelineBuilder(object):
         SequenceElement goes first and the others after every other element,
         except that a JSONBundler goes immediately before a JavaScriptBuilder
         the caller added, because the JavaScriptBuilder reads the
-        JSONBundler's results.
+        JSONBundler's results, and a usage sharing element that ends the
+        caller's list stays last, because it runs after every other element.
 
         @type flow_elements: list
         @param flow_elements: The FlowElements the caller added
@@ -226,6 +231,11 @@ class PipelineBuilder(object):
 
         def absent(element):
             return _data_key(element) not in present
+
+        last = []
+        if flow_elements and is_usage_sharing_element(flow_elements[-1]):
+            last = [flow_elements[-1]]
+            flow_elements = flow_elements[:-1]
 
         elements = [element for element in self.get_sequence_elements()
                     if absent(element)]
@@ -245,6 +255,8 @@ class PipelineBuilder(object):
 
         elements.extend(element for element in self.get_setheader_elements()
                         if absent(element))
+
+        elements.extend(last)
 
         return elements
 
@@ -275,7 +287,8 @@ class PipelineBuilder(object):
         @return: Returns built pipeline
         
         If an element fails to build, the elements already built are closed
-        and the error is raised.
+        and the error is raised. The same happens, with a ValueError, when
+        the configuration lists a usage sharing element anywhere but last.
 
         """
 

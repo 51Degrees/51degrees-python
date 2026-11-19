@@ -30,6 +30,16 @@ The data file update example needs a licence key, and the hardware profile
 examples need the TAC data file or its CSV export, so without them each one
 says what it needs and where to ask for it, and stops.
 
+## Web examples
+
+The `gettingstarted_web` and `useragentclienthints_web` examples, under
+`cloud` and `onpremise`, are Flask web applications. A Flow Data cannot be
+used by two threads at once, so each of them creates a Flow Data for each
+request, uses it only in the code that handles that request, and closes it
+when the request ends. To hand work to another thread or task, read the
+values it needs from the Flow Data first and pass those values, not the
+Flow Data.
+
 ## Tests
 
 To run the tests use:

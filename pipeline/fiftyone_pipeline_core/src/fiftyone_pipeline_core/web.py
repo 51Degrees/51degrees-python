@@ -20,6 +20,19 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+"""!
+Helpers that use a Pipeline in a Flask web application. webevidence takes
+the evidence from a request, set_response_header sets the response headers
+the results ask for, and javascript_response and json_response answer the
+requests of the client-side JavaScript.
+
+A Flow Data cannot be used by two threads at once. Create one for each
+request, use it only in the code that handles that request, and close it
+when the request ends, as javascript_response and json_response do. To hand
+work to another thread or task, read the values it needs from the Flow Data
+first and pass those values, not the Flow Data.
+"""
+
 import hashlib
 import json
 import re

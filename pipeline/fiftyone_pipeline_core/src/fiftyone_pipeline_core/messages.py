@@ -47,3 +47,11 @@ class Messages():
 
     # FlowData already processed.
     FLOW_DATA_PROCESSED = "FlowData already processed"
+
+    # The usage sharing element is not the last Flow Element. This takes the
+    # element's class name, its position counting from 1 and the number of
+    # Flow Elements as format arguments.
+    USAGE_SHARING_NOT_LAST = (
+        "The usage sharing element must be the last Flow Element and "
+        "outside any parallel group. {} is Flow Element {} of {} in this "
+        "Pipeline.")

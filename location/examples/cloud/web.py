@@ -30,6 +30,14 @@
 # The Pipeline running on the server then processes this evidence to populate a new JSON result object that is returned to the client.
 #
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/location/examples/cloud/web.py)
+#
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it before the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
 
 from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
 from fiftyone_pipeline_core.web import json_response, webevidence
@@ -156,24 +164,29 @@ else:
     @app.route('/')
     def server():
 
-        # Create the flowData object for the JSON route
-        flowData = pipeline.create_flowdata()
+        # A Flow Data cannot be used by two threads at once, so this one is
+        # made for this request, used only here, and closed once the page's
+        # script has been read from it.
+        with pipeline.create_flowdata() as flowData:
 
-        # Add any information from the request (headers, cookies and additional
-        # client side provided information)
+            # Add any information from the request (headers, cookies and
+            # additional client side provided information)
 
-        flowData.evidence.add_from_dict(webevidence(request))
+            flowData.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowData
+            # Process the flowData
 
-        flowData.process()
+            flowData.process()
+
+            # The JavaScript created by the pipeline
+            javascript = flowData.javascriptbuilder.javascript
 
         # Generate the HTML
         output = ""
 
         # Add the JavaScript created by the pipeline
         output += "<script>"
-        output += flowData.javascriptbuilder.javascript
+        output += javascript
         output += "</script>"
 
 
