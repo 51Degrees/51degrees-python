@@ -34,6 +34,10 @@ class _CheckedDictWrites(object):
     FlowElement that writes them has finished. Reads are the dict's own.
     """
 
+    # The class this is mixed into gives _check_writable and the dict's own
+    # methods, which pylint cannot see from here.
+    # pylint: disable=no-member
+
     __slots__ = ()
 
     def __setitem__(self, key, value):
