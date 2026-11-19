@@ -63,6 +63,17 @@ JA4 = "t13d1516h2_8daaf6152771_b0da82dd1658"
 H2 = "1:65536;4:6291456|15663105|0|m,a,s,p"
 RESOURCE_KEY = "AQS5HKcyAAAA"
 
+# The largest sequence a page may send, from sequence-element.md.
+MAX_SEQUENCE = 2147483646
+
+# Sequence values that are not present. A floating point 2.0, True, a
+# signed or spaced number, a number with an underscore in it, and a number
+# above MAX_SEQUENCE, held as an integer, as digits or as a 5,000 digit
+# string that int() cannot read by default.
+ABSENT_SEQUENCES = (
+    2.0, True, False, " 7 ", "-3", "+3", "1_0", "0x10", "2.0", "", "two",
+    MAX_SEQUENCE + 1, str(MAX_SEQUENCE + 1), "9" * 5000)
+
 
 def usage_element(**settings):
     """A usage sharing element that keeps what it would share, because its
@@ -132,19 +143,35 @@ class ShareUsageRecordFieldsTests(unittest.TestCase):
         usage = usage_element()
         self.addCleanup(usage.close)
         pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
-        for value in (2.0, True, False, " 7 ", "-3", "+3", "1_0", "0x10",
-                      "2.0", "", "two"):
+        for value in ABSENT_SEQUENCES:
             flow_data = pipeline.create_flowdata()
             flow_data.evidence.add("header.user-agent", "agent")
             flow_data.evidence.add("query.sequence", value)
             data = usage.get_data_from_evidence(flow_data)
-            self.assertEqual("", data.sequence, repr(value))
+            self.assertEqual("", data.sequence, repr(value)[:20])
+
+    def test_an_absent_sequence_logs_no_error(self):
+        # sequence-element.md says of a value that is not present "No
+        # error is recorded".
+        usage = usage_element()
+        self.addCleanup(usage.close)
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
+        with mock.patch.object(usage, "_log") as log:
+            for value in ABSENT_SEQUENCES:
+                flow_data = pipeline.create_flowdata()
+                flow_data.evidence.add("header.user-agent", "agent")
+                flow_data.evidence.add("query.sequence", value)
+                usage.get_data_from_evidence(flow_data)
+        self.assertEqual(
+            [], [c for c in log.call_args_list if c.args[0] == "error"])
 
     def test_a_sequence_of_digits_is_recorded(self):
         usage = usage_element()
         self.addCleanup(usage.close)
         pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
-        for value, expected in ((2, 2), ("2", 2), ("0002", 2)):
+        for value, expected in ((2, 2), ("2", 2), ("0002", 2),
+                                (MAX_SEQUENCE, MAX_SEQUENCE),
+                                (str(MAX_SEQUENCE), MAX_SEQUENCE)):
             flow_data = pipeline.create_flowdata()
             flow_data.evidence.add("header.user-agent", "agent")
             flow_data.evidence.add("query.sequence", value)
