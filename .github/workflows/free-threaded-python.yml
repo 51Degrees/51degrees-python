@@ -2,7 +2,10 @@ name: Free-threaded Python
 
 # Builds the Device Detection and IP Intelligence on-premise packages on the
 # free-threaded builds of Python and runs their tests there, with the free
-# Lite data files. The native modules do not declare that they run without
+# Lite data files. The first job downloads those once for each commit of the
+# data submodule, which links them, and puts them in the cache. The test jobs
+# restore them from there and never download them.
+# ci/free-threaded-python.Tests.ps1 checks this. The native modules do not declare that they run without
 # the GIL, so Python turns the GIL back on when it loads them.
 # tests/test_free_threaded.py in each package checks that it does, and is
 # skipped on every other build of Python.
@@ -34,8 +37,55 @@ permissions:
   contents: read
 
 jobs:
+  free-data-files:
+    name: Fetch the free Lite data files once
+    runs-on: ubuntu-latest
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      - name: Name the cache after the data submodule
+        id: key
+        run: |
+          # The data submodule's .link files say which files are fetched and
+          # from where, so a new commit of it needs the files again. Change
+          # v1 when the list of files below changes.
+          $data = git -C cxx rev-parse HEAD:data
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          "key=free-lite-data-v1-$data" >> $env:GITHUB_OUTPUT
+
+      - name: Look for the files in the cache
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            cxx/data/**/51Degrees-LiteV4.1.hash
+            cxx/data/**/20000 Evidence Records.yml
+            cxx/data/**/20000 User Agents.csv
+            cxx/data/**/51Degrees-LiteV41.ipi
+            cxx/data/**/51Degrees-IPIV4AsnIpiV41.ipi
+          key: ${{ steps.key.outputs.key }}
+          # The Windows job restores what this Linux job saves.
+          enableCrossOsArchive: true
+          lookup-only: true
+
+      # Runs only when the cache has no copy, and the cache saves the files
+      # when the job ends.
+      - name: Fetch the free Lite data files
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash '20000 Evidence Records.yml' '20000 User Agents.csv' 51Degrees-LiteV41.ipi 51Degrees-IPIV4AsnIpiV41.ipi
+
   free-threaded:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    needs: free-data-files
     strategy:
       fail-fast: false
       matrix:
@@ -88,9 +138,23 @@ jobs:
             -e device-detection/fiftyone_devicedetection `
             -e device-detection/fiftyone_devicedetection_examples
 
-      - name: Fetch the free Lite data files
+      - name: Restore the free Lite data files
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            cxx/data/**/51Degrees-LiteV4.1.hash
+            cxx/data/**/20000 Evidence Records.yml
+            cxx/data/**/20000 User Agents.csv
+            cxx/data/**/51Degrees-LiteV41.ipi
+            cxx/data/**/51Degrees-IPIV4AsnIpiV41.ipi
+          key: ${{ needs.free-data-files.outputs.key }}
+          enableCrossOsArchive: true
+          # The first job fetched them, so a miss is a fault, never a reason
+          # to download them here.
+          fail-on-cache-miss: true
+
+      - name: Put the IP Intelligence file where the tests look for it
         run: |
-          ./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash '20000 Evidence Records.yml' '20000 User Agents.csv' 51Degrees-LiteV41.ipi 51Degrees-IPIV4AsnIpiV41.ipi
           New-Item -ItemType Directory -Force -Path ip-intelligence/assets | Out-Null
           New-Item -ItemType HardLink `
             -Path ip-intelligence/assets/51Degrees-LiteIpiV41.ipi `
