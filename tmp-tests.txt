@@ -1,0 +1,2 @@
+pipeline/fiftyone_pipeline_engines/tests/test_datafile_update_http.py
+pipeline/fiftyone_pipeline_engines/tests/test_engine_in_pipelines.py
