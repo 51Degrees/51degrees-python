@@ -63,7 +63,9 @@ class FreeThreadedTests(unittest.TestCase):
         env.pop("PYTHON_GIL", None)
         result = subprocess.run(
             [sys.executable, "-c", CHECK], env=env, capture_output=True,
-            text=True, check=True)
+            text=True)
+        # The new interpreter's own error says why an import failed.
+        self.assertEqual(0, result.returncode, result.stderr)
         return result.stdout.splitlines()
 
     def test_loading_the_native_module_turns_the_gil_on(self):
