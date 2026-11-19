@@ -29,8 +29,11 @@ import unittest
 # the package that holds it and the version of that package it came in at,
 # so the importing package has to require at least that version. Without
 # the minimum, pip leaves an older copy of the dependency in place when the
-# importing package alone is upgraded, and the import fails. Every part of
-# a row is read from the checkout, so none of it is trusted.
+# importing package alone is upgraded, and the import fails. The test checks
+# each import, the module holding each name and each requirement against the
+# checkout. The version in each row is written here by hand, as the next
+# release of the holding package after the last one without the name, and is
+# not checked.
 IMPORTED_NAMES = (
     ("pipeline/fiftyone_pipeline_cloudrequestengine",
      "fiftyone_pipeline_engines",
