@@ -20,7 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-from .elementdata import ElementData
+from .elementdata import ElementData, _FlowDataDict
 from .evidence import Evidence
 from .flowerror import FlowError
 from .messages import Messages
@@ -36,6 +36,11 @@ def _set_finished(element_data, finished):
         object.__setattr__(element_data, "_finished", finished)
 
 
+# The attributes that hold what a FlowData has been given, each with what
+# it holds for the message when a finished FlowData is written.
+_GIVEN = {"data": "ElementData", "errors": "an error", "evidence": "Evidence"}
+
+
 class FlowData:
     """!
     FlowData is created by a specific Pipeline
@@ -49,6 +54,11 @@ class FlowData:
     in a lock of its own. A web application creates a FlowData for each
     request, uses it only in the code that handles that request, and closes
     it when the request ends.
+
+    Once processing has finished, a FlowData is read only. Adding Evidence,
+    ElementData or errors to it raises, whether through its methods or
+    through the dicts data, errors and evidence.get_all() return. Only
+    process() sets processed, and setting it back is not supported.
 
     """
 
@@ -68,6 +78,27 @@ class FlowData:
         self.processed = False
         self.stopped = False
         self.evidence = Evidence(self)
+
+    def __setattr__(self, name, value):
+
+        """!
+        Set an attribute. The ElementData and errors are kept in dicts that
+        refuse writes once processing has finished, and they and the
+        Evidence cannot be replaced then.
+
+        @raise Exception: when one of them is set once processing has
+        finished
+        """
+
+        if name in _GIVEN:
+            # Read from the instance's own fields, because a missing
+            # attribute is treated as the key of ElementData.
+            if self.__dict__.get("processed"):
+                raise Exception(Messages.FLOW_DATA_FINISHED.format(
+                    _GIVEN[name]))
+            if name != "evidence":
+                value = _FlowDataDict(self, _GIVEN[name], value)
+        object.__setattr__(self, name, value)
 
     def process(self):
 

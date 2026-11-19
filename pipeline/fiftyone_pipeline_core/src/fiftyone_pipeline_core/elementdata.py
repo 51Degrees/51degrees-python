@@ -87,6 +87,31 @@ class _ContentsDict(_CheckedDictWrites, dict):
         return (dict, (dict(self),))
 
 
+class _FlowDataDict(_CheckedDictWrites, dict):
+
+    """!
+    A dict that holds what a FlowData has been given, being its ElementData,
+    its errors or its Evidence. A write raises once the FlowData has
+    finished processing. A copy is a plain dict.
+    """
+
+    __slots__ = ("_flowdata", "_what")
+
+    def __init__(self, flowdata, what, values=()):
+        dict.__init__(self, values)
+        self._flowdata = flowdata
+        self._what = what
+
+    def _check_writable(self, name):
+        # Read from the FlowData's own fields, because FlowData treats an
+        # attribute it does not have as the key of ElementData.
+        if getattr(self._flowdata, "__dict__", {}).get("processed"):
+            raise Exception(Messages.FLOW_DATA_FINISHED.format(self._what))
+
+    def __reduce_ex__(self, protocol):
+        return (dict, (dict(self),))
+
+
 def _get_contents(data):
     return data.__dict__.get("_contents")
 

@@ -20,12 +20,16 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .elementdata import _FlowDataDict
 from .messages import Messages
 
 # The key the web integration gives the web request itself, which the usage
 # sharing element reads. No element uses it as evidence, so filter() always
 # sets it aside, whatever the elements' filters accept.
 HTTP_REQUEST_KEY = "server.http-request"
+
+# The attributes that hold Evidence values.
+_VALUES = ("evidence", "unaccepted")
 
 
 class Evidence:
@@ -36,13 +40,32 @@ class Evidence:
         @type flowdata: FlowData
         @param flowdata: Parent FlowData
         """
+        self.flowdata = flowdata
         self.evidence = {}
         # Each key in lower case to the key as first added, because keys
         # ignore letter case.
         self.keys = {}
         self.evidence_filtered = False
-        self.flowdata = flowdata
         self.unaccepted = {}
+
+    def __setattr__(self, name, value):
+
+        """!
+        Set an attribute. The Evidence values, and the values filter() sets
+        aside, are kept in dicts that refuse writes once the FlowData has
+        finished processing, and neither can be replaced then.
+
+        @raise Exception: when one of them is replaced once the FlowData
+        has finished processing
+        """
+
+        if name in _VALUES:
+            flowdata = self.__dict__.get("flowdata")
+            if name in self.__dict__ and \
+                    getattr(flowdata, "__dict__", {}).get("processed"):
+                raise Exception(Messages.FLOW_DATA_FINISHED.format("Evidence"))
+            value = _FlowDataDict(flowdata, "Evidence", value)
+        object.__setattr__(self, name, value)
 
     def add(self, key, value):
         """!
@@ -78,7 +101,7 @@ class Evidence:
         if self.flowdata.processed:
             raise Exception(Messages.FLOW_DATA_FINISHED.format("Evidence"))
 
-        if not type(evidence_dictionary) is dict:
+        if not isinstance(evidence_dictionary, dict):
             self.flowdata.set_error("core", "Must pass valid dictionary.")
 
         for key, value in evidence_dictionary.items():
