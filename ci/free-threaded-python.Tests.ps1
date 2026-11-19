@@ -34,12 +34,12 @@ BeforeAll {
         $current = $null
         foreach ($line in $script:Jobs[$Job]) {
             if ($line -match '^      - ') {
-                if ($current) { $steps += , $current }
+                if ($null -ne $current) { $steps += , $current }
                 $current = [System.Collections.Generic.List[string]]::new()
             }
-            if ($current) { $current.Add($line) }
+            if ($null -ne $current) { $current.Add($line) }
         }
-        if ($current) { $steps += , $current }
+        if ($null -ne $current) { $steps += , $current }
         return @($steps | Where-Object {
                 ($_ -join "`n") -match "uses:\s*$([regex]::Escape($Uses))@" })
     }
