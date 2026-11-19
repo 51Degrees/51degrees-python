@@ -32,9 +32,6 @@ import threading
 import time
 import unittest
 
-from fiftyone_pipeline_core.elementdata_dictionary import \
-    ElementDataDictionary
-from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_engines_fiftyone.share_usage import ShareUsage
@@ -111,22 +108,6 @@ class ChosenSend:
         return self.succeed.is_set()
 
 
-class After(FlowElement):
-    """!
-    An element after usage sharing, which records that processing reached
-    it.
-    """
-
-    def __init__(self):
-        super(After, self).__init__()
-        self.datakey = "after"
-        self.properties = {"reached": {"type": "bool"}}
-
-    def process_internal(self, flow_data):
-        flow_data.set_element_data(
-            ElementDataDictionary(self, {"reached": True}))
-
-
 class BlockedSend:
     """!
     Stands in for sending a message. The first send fails, which starts a
@@ -160,19 +141,19 @@ class ShareUsagePauseTests(unittest.TestCase):
 
     def process(self, pipeline, user_agent):
         """!
-        Process a request, returning whether processing reached the element
-        after usage sharing.
+        Process a request, returning the errors processing recorded.
         """
         flow_data = pipeline.create_flowdata()
         flow_data.evidence.add("header.user-agent", user_agent)
         flow_data.process()
-        return flow_data.get("after").get("reached")
+        return dict(flow_data.errors)
 
     def test_processing_does_not_wait_for_the_pause(self):
         """!
-        Requests processed while sending is paused return, reach the
-        elements after usage sharing and are queued, and none of them waits
-        for a send.
+        Requests processed while sending is paused return with no errors
+        and are queued, and none of them waits for a send. Usage sharing is
+        the last element, so no element follows it to show that processing
+        went on.
         """
 
         send = BlockedSend()
@@ -186,8 +167,7 @@ class ShareUsagePauseTests(unittest.TestCase):
         self.addCleanup(usage.close)
         # Runs before closing, so closing never waits on a held send.
         self.addCleanup(send.release.set)
-        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS) \
-            .add(usage).add(After()).build()
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
 
         # One failed send starts the pause.
         self.process(pipeline, "before the pause")
@@ -195,11 +175,11 @@ class ShareUsagePauseTests(unittest.TestCase):
             lambda: usage.backoff.remaining(time.monotonic()) > 0,
             "The failed send did not pause sending.")
 
-        reached = []
+        errors = []
 
         def process_during_pause():
             for i in range(REQUESTS_DURING_PAUSE):
-                reached.append(self.process(pipeline, f"during pause {i}"))
+                errors.append(self.process(pipeline, f"during pause {i}"))
 
         worker = threading.Thread(target=process_during_pause, daemon=True)
         worker.start()
@@ -209,9 +189,8 @@ class ShareUsagePauseTests(unittest.TestCase):
             worker.is_alive(),
             "Processing waited for the pause after failed sends.")
         self.assertEqual(
-            [True] * REQUESTS_DURING_PAUSE, reached,
-            "Processing during the pause did not reach the element after "
-            "usage sharing.")
+            [{}] * REQUESTS_DURING_PAUSE, errors,
+            "Processing during the pause recorded errors.")
         self.assertEqual(
             REQUESTS_DURING_PAUSE, len(usage.share_data),
             "The requests processed during the pause were not queued.")
@@ -241,7 +220,7 @@ class ShareUsagePauseTests(unittest.TestCase):
         usage.send_thread = send
         self.addCleanup(usage.close)
         pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS) \
-            .add_logger(recorder).add(usage).add(After()).build()
+            .add_logger(recorder).add(usage).build()
 
         def index_of(logged, matches):
             return next((index for index, (level, message)

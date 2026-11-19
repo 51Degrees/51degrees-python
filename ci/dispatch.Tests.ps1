@@ -46,6 +46,16 @@ BeforeAll {
             "param ([Parameter(Mandatory)][string]`$RepoName)`n$Body"
     }
 
+    # The body of a product's run-performance-tests step that writes the
+    # summary of the configuration 'test' with the given figures.
+    function Get-SummaryStep([hashtable]$Higher, [hashtable]$Lower) {
+        $json = @{ HigherIsBetter = $Higher; LowerIsBetter = $Lower } |
+            ConvertTo-Json -Compress
+        return '$dir = New-Item -ItemType Directory -Force ' +
+            '(Join-Path $RepoName "test-results" "performance-summary"); ' +
+            "Set-Content (Join-Path `$dir 'results_test.json') '$json'"
+    }
+
     # A folder laid out like a common-ci checkout, which the dispatcher runs in.
     function New-CommonCi {
         $path = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
@@ -116,6 +126,38 @@ Describe 'Invoke-ProductStep' {
         Test-Path (Join-Path $unit 'alpha.xml') | Should -BeTrue
         Test-Path (Join-Path $unit 'beta.xml') | Should -BeTrue
         Test-Path (Join-Path $script:Repo 'alpha' 'test-results') | Should -BeFalse
+    }
+
+    It 'keeps every product''s figures in the one summary of a configuration' {
+        # common-ci compares one results_<Name>.json for each configuration.
+        Set-ProductStep $script:Repo 'alpha' 'run-performance-tests' `
+            (Get-SummaryStep @{ alpha_PerSecond = 1 } @{ alpha_Ms = 2 })
+        Set-ProductStep $script:Repo 'beta' 'run-performance-tests' `
+            (Get-SummaryStep @{ beta_PerSecond = 3 } @{ beta_Ms = 4 })
+
+        Invoke-ProductStep 'run-performance-tests' $script:Repo @{
+            RepoName = $script:Repo }
+
+        $results = Get-Content (Join-Path $script:Repo 'test-results' `
+            'performance-summary' 'results_test.json') | ConvertFrom-Json
+        $results.HigherIsBetter.alpha_PerSecond | Should -Be 1
+        $results.HigherIsBetter.beta_PerSecond | Should -Be 3
+        $results.LowerIsBetter.alpha_Ms | Should -Be 2
+        $results.LowerIsBetter.beta_Ms | Should -Be 4
+    }
+
+    It 'fails the step when two products report the same figure' {
+        Set-ProductStep $script:Repo 'alpha' 'run-performance-tests' `
+            (Get-SummaryStep @{ PerSecond = 1 } @{})
+        Set-ProductStep $script:Repo 'beta' 'run-performance-tests' `
+            (Get-SummaryStep @{ PerSecond = 3 } @{})
+
+        { Invoke-ProductStep 'run-performance-tests' $script:Repo @{
+            RepoName = $script:Repo } } | Should -Throw '*failed for: beta'
+
+        $results = Get-Content (Join-Path $script:Repo 'test-results' `
+            'performance-summary' 'results_test.json') | ConvertFrom-Json
+        $results.HigherIsBetter.PerSecond | Should -Be 1
     }
 
     It 'fetches assets when called without a repository name' {

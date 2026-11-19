@@ -158,6 +158,39 @@ class PropertyTests(unittest.TestCase):
                 "component": "Metrics"},
                 properties_list[name.lower()])
 
+    def test_components_include_metrics(self):
+
+        """!
+        Tests that the components the engine returns are those of the data
+        file followed by "Metrics", the component of the match metric
+        properties, as the specification says it MUST also be added to the
+        list of components returned by the Engine.
+        """
+
+        native = deviceDetectionOnPremiseEngine.engine.getMetaData() \
+            .getComponents()
+        from_data_file = [
+            native.getByIndex(index).getName()
+            for index in range(native.getSize())]
+
+        components = deviceDetectionOnPremiseEngine.get_components()
+
+        self.assertNotIn("Metrics", from_data_file)
+        self.assertEqual(from_data_file + ["Metrics"], components)
+
+    def test_every_property_component_is_listed(self):
+
+        """!
+        Tests that the component of every property the engine lists, the
+        match metric properties included, is in the list of components the
+        engine returns.
+        """
+
+        components = deviceDetectionOnPremiseEngine.get_components()
+
+        for meta in deviceDetectionOnPremiseEngine.get_properties().values():
+            self.assertIn(meta["component"], components, meta["name"])
+
     def test_match_metrics_follow_the_data_file_properties(self):
 
         """!
