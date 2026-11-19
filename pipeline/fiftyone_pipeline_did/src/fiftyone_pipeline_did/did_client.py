@@ -53,11 +53,9 @@ import inspect
 import json
 import os
 import re
-import threading
 import urllib.error
 import urllib.parse
 import urllib.request
-import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
@@ -93,8 +91,7 @@ def __getattr__(name: str) -> int:
 
 
 #: The public cloud API base, used when neither the ``endpoint`` argument
-#: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable, nor that
-#: variable's deprecated old name ``FOD_CLOUD_API_URL``, is set.
+#: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable is set.
 DEFAULT_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 
 #: The environment variable the cloud request engine reads for the API
@@ -102,47 +99,14 @@ DEFAULT_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 CLOUD_ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
 
 #: Deprecated. Use :data:`CLOUD_ENDPOINT_VARIABLE`. This holds the name that
-#: variable had before, which is read when :data:`CLOUD_ENDPOINT_VARIABLE`
-#: is not set, so code that passes this constant to the environment reads
-#: and sets the old variable.
+#: variable had before, which is no longer read.
 ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"
 
-# Whether the old variable has been reported as deprecated, so that it is
-# reported once however many clients are made.
-_old_endpoint_reported = False
-_old_endpoint_lock = threading.Lock()
-
-
 def _endpoint_from_environment() -> Optional[str]:
-    """The API base the environment gives, or None when it gives none.
-
-    :data:`CLOUD_ENDPOINT_VARIABLE` is read first. When it is unset or
-    empty the variable :data:`ENDPOINT_VARIABLE` names is read, which is
-    the old name, and the first use of it is reported as deprecated. The
-    report is a :class:`FutureWarning`, which Python shows by default,
-    because the people who set the variable are the ones running the
-    application.
+    """The API base :data:`CLOUD_ENDPOINT_VARIABLE` gives, or None when it is
+    unset or empty.
     """
-    global _old_endpoint_reported
-    endpoint = os.environ.get(CLOUD_ENDPOINT_VARIABLE)
-    if endpoint:
-        return endpoint
-    old_name = ENDPOINT_VARIABLE
-    endpoint = os.environ.get(old_name)
-    if not endpoint:
-        return None
-    with _old_endpoint_lock:
-        report = not _old_endpoint_reported
-        _old_endpoint_reported = True
-    if report:
-        # The third frame is the code that made the client.
-        warnings.warn(
-            "The {0} environment variable is deprecated and {1} replaces "
-            "it. The cloud endpoint was read from {0} because {1} is not "
-            "set, so set {1} to the same value.".format(
-                old_name, CLOUD_ENDPOINT_VARIABLE),
-            FutureWarning, stacklevel=3)
-    return endpoint
+    return os.environ.get(CLOUD_ENDPOINT_VARIABLE) or None
 
 
 _BOUNDARY_TOLERANCE = timedelta(minutes=15)
@@ -522,7 +486,6 @@ class DidClient:
         sent only in the body of the redeem request, never in a URL.
     :param endpoint: the API base including the ``/api/v4/`` segment.
         Defaults to the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable,
-        then to that variable's deprecated old name ``FOD_CLOUD_API_URL``,
         then to the public cloud. A value without a trailing slash gains
         one.
     :param transport: the HTTP transport, either an async callable taking

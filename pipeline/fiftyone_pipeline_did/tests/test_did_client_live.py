@@ -57,7 +57,7 @@ from .live_cloud import (
 pytestmark = pytest.mark.live
 
 RESOURCE_KEY = find_resource_key()
-LICENCE_KEY = read_environment("_51DEGREES_LICENSE_KEY", "license_key")
+LICENCE_KEY = read_environment("_51DEGREES_LICENSE_KEY")
 
 FODID = "the FODid product"
 MARKETING = "the CloudV5FODiD product"

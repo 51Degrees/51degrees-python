@@ -103,9 +103,8 @@ REPOSITORY = (
 
 # The settings that let an example get past its early end.
 SETTINGS = [
-    "_51DEGREES_RESOURCE_KEY", "resource_key", "RESOURCE_KEY",
-    "_51DEGREES_LICENSE_KEY", "license_key",
-    ExampleUtils.IPI_PATH_ENV_VAR, ExampleUtils.DATA_FILE_ENV_VAR]
+    "_51DEGREES_RESOURCE_KEY", "_51DEGREES_LICENSE_KEY",
+    ExampleUtils.IPI_PATH_ENV_VAR]
 
 
 def slug(path):

@@ -4,12 +4,11 @@
 # which leaves out build output and the submodules, and fails on any name
 # that starts with the digit and on any old name.
 #
-# A variable whose name changed is still read under its old name when the new
-# one is not set, which is deprecated. So an old name is left alone in the two
-# places that read needs it. One is a line where the old name is the argument
-# straight after its _51DEGREES_ name, which is how each deprecated read is
-# written. The other is the files $FallbackNames lists, each of which may hold
-# the old names it is listed with and no others.
+# No variable is read under its old name. An old name is left alone only in
+# the files $FallbackNames lists, which hold the deprecated constants that keep
+# an old name, the tests of those constants and the documentation that says the
+# name is no longer read. Each may hold the old names it is listed with and no
+# others.
 #
 # Names are matched in any case, because Windows reads an environment
 # variable name in any case, so a lower case old name is still the old name
@@ -84,27 +83,19 @@ $script:FallbackPattern = [regex]::new(
     "[A-Za-z0-9_]*\s*=\s*['`"]$sharedOld['`"]",
     [Text.RegularExpressions.RegexOptions]::IgnoreCase)
 
-# A name given as the argument straight after a _51DEGREES_ name, which is how
-# a deprecated read of an old name is written. The old name is taken out of
-# the line before the line is checked.
-$script:DeprecatedReadPattern = [regex]::new(
-    "(['`"]_51DEGREES_[A-Za-z0-9_]*['`"]\s*,\s*)['`"][A-Za-z0-9_]+['`"]")
-
 # The old names each file may hold. The files are the ones that hold the
-# deprecated constants, the documentation that says an old name is still
-# read, the tests that set an old name to check it is read, and the lists of
-# names tox passes to the tests. A file is given by its path from the root of
+# deprecated constants, the tests of those constants, and the documentation
+# that says an old name is no longer read. A file is given by its path from the root of
 # the repository, and may hold only the names it is listed with, so any other
 # old name still fails there, and so does any other name that starts with a
 # digit. The names that are matched wherever they appear are built from
 # pieces, so that this file does not name one itself.
 $endpointOld = 'FOD_CLOUD' + '_API_URL'
 $ipiFileOld = 'IPINTELLIGENCE' + 'DATAFILE'
-$performanceOld = 'run_performance' + '_tests'
 $ddPathOld = '5' + '1DEGREES_DD_PATH'
 $script:FallbackNames = @(
     @{
-        Names = @($ddPathOld, 'LICENSE_KEY')
+        Names = @($ddPathOld)
         Paths = @(
             'device-detection/fiftyone_devicedetection_examples/tests/test_environment_names.py'
         )
@@ -118,34 +109,15 @@ $script:FallbackNames = @(
     @{
         Names = @($endpointOld)
         Paths = @(
-            'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tox.ini'
             'pipeline/fiftyone_pipeline_cloudrequestengine/readme.md'
-            'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/cloudrequestengine.py'
             'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/constants.py'
             'pipeline/fiftyone_pipeline_cloudrequestengine/tests/test_cloudrequestengine.py'
-            'pipeline/fiftyone_pipeline_did/examples/creator_context_web/server.py'
-            'pipeline/fiftyone_pipeline_did/readme.md'
             'pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client.py'
             'pipeline/fiftyone_pipeline_did/tests/test_did_client.py'
-            'pipeline/fiftyone_pipeline_did/tox.ini'
-        )
-    }
-    @{
-        Names = @($endpointOld, 'LICENSE_KEY', 'RESOURCE_KEY')
-        Paths = @(
-            'pipeline/fiftyone_pipeline_did/tests/test_creator_context_server.py'
         )
     }
     @{
         Names = @($ipiFileOld)
-        Paths = @(
-            'ip-intelligence/fiftyone_ipintelligence_examples/tox.ini'
-            'ip-intelligence/fiftyone_ipintelligence_onpremise/tests/test_environment_names.py'
-            'ip-intelligence/fiftyone_ipintelligence_onpremise/tox.ini'
-        )
-    }
-    @{
-        Names = @($ipiFileOld, 'LICENSE_KEY')
         Paths = @(
             'ip-intelligence/fiftyone_ipintelligence_examples/tests/test_environment_names.py'
         )
@@ -160,18 +132,6 @@ $script:FallbackNames = @(
         Names = @('cloud_endpoint', 'cloud_request_origin', 'license_key', 'resource_key')
         Paths = @(
             'pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/example_utils.py'
-        )
-    }
-    @{
-        Names = @('license_key', 'resource_key')
-        Paths = @(
-            'pipeline/fiftyone_pipeline_did/tests/test_live_cloud.py'
-        )
-    }
-    @{
-        Names = @($performanceOld)
-        Paths = @(
-            'device-detection/fiftyone_devicedetection_examples/tox.ini'
         )
     }
 )
@@ -191,7 +151,6 @@ function Get-FallbackName([string]$Relative) {
 # are taken out of the line, in the case they are written in, before the
 # line is checked.
 function Find-EnvironmentNameProblem([string]$Line, [string[]]$Allowed = @()) {
-    $Line = $script:DeprecatedReadPattern.Replace($Line, '$1""')
     if ($Allowed.Count -gt 0) {
         $names = ($Allowed | ForEach-Object { [regex]::Escape($_) }) -join '|'
         $Line = [regex]::Replace(
@@ -260,8 +219,8 @@ if ($found.Count -gt 0 -or $fallbacks.Count -gt 0) {
     throw ("$($found.Count) names start with a digit, which a POSIX shell " +
         'cannot set, so each must start with an underscore, and ' +
         "$($fallbacks.Count) old names are read, set or kept outside the " +
-        'deprecated reads and the files listed with them.')
+        'files listed with them.')
 }
 
 Write-Output ('No tracked file names a variable starting with a digit, or ' +
-    'an old name outside the deprecated reads.')
+    'an old name outside the files that may hold one.')
