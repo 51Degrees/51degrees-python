@@ -51,11 +51,13 @@ from .share_usage_tracker import ShareUsageTracker
 # fiftyone_pipeline_core.
 HTTP_REQUEST_KEY = "server.http-request"
 
-# A sequence is read as the Sequence Element reads query.sequence: an
-# integer, or a string of the digits 0 to 9 with no sign or spaces, from 0
-# to _MAX_SEQUENCE. Written out for the same reason as HTTP_REQUEST_KEY.
+# A sequence counts when it is an integer, or a string of the digits 0 to 9
+# with no sign or spaces, from 0 to _MAX_SEQUENCE. That is the largest 32
+# bit signed integer, which is the largest sequence the Sequence Element
+# writes, because it adds one to at most 2147483646. Written out for the
+# same reason as HTTP_REQUEST_KEY.
 _SEQUENCE_DIGITS_PATTERN = re.compile(r"[0-9]+")
-_MAX_SEQUENCE = 2147483646
+_MAX_SEQUENCE = 2147483647
 
 
 def _read_sequence(value):
