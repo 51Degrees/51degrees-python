@@ -20,9 +20,28 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-# The marker of the tests that call the live cloud service, which the
-# product's ci/run-integration-tests.ps1 leaves out when no resource key is
-# passed. The tests with no marker need no key, so they run either way.
+# The tests that call the live cloud service are marked live here, so the
+# released test files stay as they are. ci/run-integration-tests.ps1 leaves
+# the live tests out when no resource key is passed, and the other tests run.
+
+from pathlib import Path
+
+import pytest
+from _pytest.mark.expression import Expression
+
+HERE = Path(__file__).resolve().parent
+
+# Every test in these modules is live. test_web_example.py marks its own.
+LIVE_MODULES = {
+    HERE / "test_examples.py",
+    HERE / "test_properties51D.py",
+}
+
+BUILT_AT_IMPORT = {HERE / "test_properties51D.py"}
+
+
+def _is_live(item):
+    return Path(item.path).resolve() in LIVE_MODULES
 
 
 def pytest_configure(config):
@@ -30,3 +49,28 @@ def pytest_configure(config):
         "markers",
         "live: calls the live 51Degrees cloud service and needs a resource "
         "key")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    # Runs before -m deselects, so the selection sees the marker.
+    for item in items:
+        if _is_live(item):
+            item.add_marker(pytest.mark.live)
+
+
+def _leaves_out_live(config):
+    """Whether the -m expression leaves out a test marked live alone."""
+    expression = config.getoption("markexpr")
+    return bool(expression) and not Expression.compile(expression).evaluate(
+        lambda name, **kwargs: name == "live")
+
+
+# A module that builds a cloud Pipeline when imported raises with no resource
+# key, so it is not collected when the live tests are left out. Every test in
+# it is live, so the selection is the same.
+def pytest_ignore_collect(collection_path, config):
+    if (Path(collection_path).resolve() in BUILT_AT_IMPORT and
+            _leaves_out_live(config)):
+        return True
+    return None

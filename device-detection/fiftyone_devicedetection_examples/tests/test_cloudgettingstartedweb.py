@@ -20,51 +20,26 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import flask_unittest
 import re
 import unittest
-
-import pytest
-
 from fiftyone_pipeline_core.logger import Logger
+from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.cloud.gettingstarted_web.app import GettingStartedWeb
 
-from .live_cloud import find_resource_key, no_resource_key
-
-pytestmark = pytest.mark.live
-
-NO_KEY = no_resource_key(
-    "the device product", "device detection properties such as HardwareName")
-
-class CloudGettingStartedWebTests(unittest.TestCase):
+class CloudGettingStartedWebTests(flask_unittest.ClientTestCase):
     # The test client sends no User-Agent of its own, so supply one that detection can
     # resolve to a hardware profile.
     CHROME_USER_AGENT = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
-    # The pipeline is built when the tests run rather than when they are
-    # collected, because building it with no resource key raises, and the
-    # tests are collected whether or not they are run.
-    resource_key = find_resource_key()
+    # Assign the `Flask` app object
+    resource_key = ExampleUtils.get_resource_key()
+    logger = Logger()
+    app = GettingStartedWeb().build(resource_key, logger).app
 
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        if cls.resource_key:
-            GettingStartedWeb().build(cls.resource_key, Logger())
-
-    @classmethod
-    def tearDownClass(cls):
-        if cls.resource_key:
-            GettingStartedWeb.pipeline.close()
-        super().tearDownClass()
-
-    def setUp(self):
-        if not self.resource_key:
-            self.fail(NO_KEY)
-        self.client = GettingStartedWeb.app.test_client()
-
-    def test_cloud_getting_started_web(self):
-        response = self.client.get('/')
+    def test_cloud_getting_started_web(self, client):
+        response = client.get('/')
         self.assertEqual(200, response.status_code)
         self.assertIn(b"Find out more", response.data)
 
@@ -72,8 +47,8 @@ class CloudGettingStartedWebTests(unittest.TestCase):
     # inlined client-side script. Now that the script is served separately, check that the
     # page renders a real one of its own, and that detection actually found a profile
     # rather than returning the all-zero id.
-    def test_cloud_getting_started_web_device_id(self):
-        response = self.client.get('/', headers={"User-Agent": self.CHROME_USER_AGENT})
+    def test_cloud_getting_started_web_device_id(self, client):
+        response = client.get('/', headers={"User-Agent": self.CHROME_USER_AGENT})
         self.assertEqual(200, response.status_code)
         device_ids = re.findall(r"\d+-\d+-\d+-\d+", response.get_data(as_text=True))
         self.assertTrue(device_ids, "No device id was rendered on the page")
@@ -82,8 +57,8 @@ class CloudGettingStartedWebTests(unittest.TestCase):
     # The page references the client-side script by the '/51Degrees.core.js' name used
     # by the web integrations in the other Pipeline APIs, so check that the route
     # returns the bundle rather than, for example, falling through to the page.
-    def test_cloud_getting_started_web_core_js(self):
-        response = self.client.get('/51Degrees.core.js')
+    def test_cloud_getting_started_web_core_js(self, client):
+        response = client.get('/51Degrees.core.js')
         self.assertEqual(200, response.status_code)
         self.assertEqual("application/x-javascript", response.headers["Content-Type"])
         self.assertIn(b"fiftyoneDegreesManager", response.data)

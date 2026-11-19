@@ -20,9 +20,22 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-# The marker of the tests that call the live cloud service, which the
-# product's ci/run-integration-tests.ps1 leaves out when no resource key is
-# passed. The tests with no marker need no key, so they run either way.
+# The tests that call the live cloud service are marked live here, so the
+# released test files stay as they are. ci/run-integration-tests.ps1 leaves
+# the live tests out when no resource key is passed, and the other tests run.
+
+from pathlib import Path
+
+import pytest
+
+TEST_CLOUDENGINE = Path(__file__).resolve().parent / "test_cloudengine.py"
+
+
+# CloudEngineTests needs a resource key for each of its tests, in setUp.
+def _is_live(item):
+    return (Path(item.path).resolve() == TEST_CLOUDENGINE and
+            getattr(item, "cls", None) is not None and
+            item.cls.__name__ == "CloudEngineTests")
 
 
 def pytest_configure(config):
@@ -30,3 +43,11 @@ def pytest_configure(config):
         "markers",
         "live: calls the live 51Degrees cloud service and needs a resource "
         "key")
+
+
+@pytest.hookimpl(tryfirst=True)
+def pytest_collection_modifyitems(config, items):
+    # Runs before -m deselects, so the selection sees the marker.
+    for item in items:
+        if _is_live(item):
+            item.add_marker(pytest.mark.live)
