@@ -53,9 +53,13 @@ import inspect
 import json
 import os
 import re
+# Kept so that ``from ... import *`` of this module still gives it.
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+# Kept so that ``from ... import *`` of this module still gives it.
+import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum

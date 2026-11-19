@@ -26,6 +26,8 @@ import inspect
 import json
 import math
 import os
+# Kept so that ``from ... import *`` of this module still gives it.
+import threading
 import warnings
 from functools import cached_property
 from json import JSONDecodeError
