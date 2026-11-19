@@ -97,6 +97,25 @@ class AddingElement(FlowElement):
         flowdata.set_element_data(data)
 
 
+class ClosingData(ElementDataDictionary):
+    """Sets a public attribute when it is closed, as a close method that
+    releases what the data holds may."""
+
+    def close(self):
+        self.closed = True
+
+
+class ClosingElement(FlowElement):
+    """Adds data that has a close method of its own."""
+
+    def __init__(self):
+        super(ClosingElement, self).__init__()
+        self.datakey = "closing"
+
+    def process_internal(self, flowdata):
+        flowdata.set_element_data(ClosingData(self, {}))
+
+
 def item_store(data):
     """The dictionary the data keeps its values in, or None."""
     if isinstance(data, dict):
@@ -340,21 +359,18 @@ class FinishedElementDataTests(unittest.TestCase):
         self.assertEqual("before processing", data.written)
 
     def test_closing_the_flow_data_is_not_a_write(self):
-        class ClosingData(ElementDataDictionary):
-            def close(self):
-                self.closed = True
-
-        class ClosingElement(FlowElement):
-            def __init__(self):
-                super(ClosingElement, self).__init__()
-                self.datakey = "closing"
-
-            def process_internal(self, flowdata):
-                flowdata.set_element_data(ClosingData(self, {}))
-
         flowdata = process(ClosingElement())
         flowdata.close()
         self.assertTrue(flowdata.get("closing").closed)
+
+    def test_closing_the_data_itself_is_not_a_write(self):
+        data = process(ClosingElement()).get("closing")
+        data.close()
+        self.assertTrue(data.closed)
+        with self.assertRaises(Exception) as caught:
+            data.closed = False
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertTrue(data.closed)
 
 
 class EveryFlowElementTests(unittest.TestCase):

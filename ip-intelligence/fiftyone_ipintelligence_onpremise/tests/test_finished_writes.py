@@ -32,6 +32,7 @@ import pkgutil
 import unittest
 
 import fiftyone_ipintelligence_onpremise
+from fiftyone_ipintelligence_onpremise.constants import RESULTS_CLOSED
 from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise import \
     IpIntelligenceOnPremise
 from fiftyone_pipeline_core.flowelement import FlowElement
@@ -75,6 +76,25 @@ class FinishedWritesTests(unittest.TestCase):
         self.assertEqual(
             {IpIntelligenceOnPremise},
             defined_flow_elements(fiftyone_ipintelligence_onpremise))
+
+    def test_the_data_can_be_closed_once_finished(self):
+        # Closing releases the native results, which is not a write, so it
+        # works on finished data, as closing the FlowData does.
+        engine = IpIntelligenceOnPremise(
+            data_file_path=DATA_FILE, licence_keys="", auto_update=False)
+        pipeline = PipelineBuilder().add(engine).build()
+        self.addCleanup(pipeline.close)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add("query.client-ip", "185.28.167.77")
+            flowdata.process()
+            data = flowdata.get("ip")
+            data.close()
+            with self.assertRaises(Exception) as caught:
+                data.get("registeredname")
+            self.assertEqual(RESULTS_CLOSED, str(caught.exception))
+            with self.assertRaises(Exception) as caught:
+                data.registeredname = "written after processing"
+            self.assertIn(FINISHED, str(caught.exception))
 
 
 if __name__ == "__main__":

@@ -32,6 +32,7 @@ import pkgutil
 import unittest
 
 import fiftyone_devicedetection_onpremise
+from fiftyone_devicedetection_onpremise.constants import RESULTS_CLOSED
 from fiftyone_devicedetection_onpremise.devicedetection_onpremise import \
     DeviceDetectionOnPremise
 from fiftyone_pipeline_core.flowelement import FlowElement
@@ -75,6 +76,25 @@ class FinishedWritesTests(unittest.TestCase):
         self.assertEqual(
             {DeviceDetectionOnPremise},
             defined_flow_elements(fiftyone_devicedetection_onpremise))
+
+    def test_the_data_can_be_closed_once_finished(self):
+        # Closing releases the native results, which is not a write, so it
+        # works on finished data, as closing the FlowData does.
+        engine = DeviceDetectionOnPremise(
+            data_file_path=DATA_FILE, licence_keys="", auto_update=False)
+        pipeline = PipelineBuilder().add(engine).build()
+        self.addCleanup(pipeline.close)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add("header.user-agent", USER_AGENT)
+            flowdata.process()
+            data = flowdata.get("device")
+            data.close()
+            with self.assertRaises(Exception) as caught:
+                data.get("ismobile")
+            self.assertEqual(RESULTS_CLOSED, str(caught.exception))
+            with self.assertRaises(Exception) as caught:
+                data.ismobile = False
+            self.assertIn(FINISHED, str(caught.exception))
 
 
 if __name__ == "__main__":
