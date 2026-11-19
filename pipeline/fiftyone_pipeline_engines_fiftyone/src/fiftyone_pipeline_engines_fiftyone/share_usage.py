@@ -51,6 +51,39 @@ from .share_usage_tracker import ShareUsageTracker
 # fiftyone_pipeline_core.
 HTTP_REQUEST_KEY = "server.http-request"
 
+# A sequence is read as the Sequence Element reads query.sequence: an
+# integer, or a string of the digits 0 to 9 with no sign or spaces, from 0
+# to _MAX_SEQUENCE. Written out for the same reason as HTTP_REQUEST_KEY.
+_SEQUENCE_DIGITS_PATTERN = re.compile(r"[0-9]+")
+_MAX_SEQUENCE = 2147483646
+
+
+def _read_sequence(value):
+    """!
+    The sequence a page sent, or None when it is not present.
+
+    @type value: object
+    @param value: The query.sequence Evidence, which may be anything
+    @rtype: int
+    @return: The sequence, or None. Nothing raises.
+    """
+
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value if 0 <= value <= _MAX_SEQUENCE else None
+    if not isinstance(value, str) or \
+            not _SEQUENCE_DIGITS_PATTERN.fullmatch(value):
+        return None
+    # The length is checked first, because int() refuses a very long run
+    # of digits.
+    digits = value.lstrip("0") or "0"
+    if len(digits) > len(str(_MAX_SEQUENCE)):
+        return None
+    sequence = int(digits)
+    return sequence if sequence <= _MAX_SEQUENCE else None
+
+
 # The maximum length of a piece of evidence's value which can be
 # added to the usage data being sent.
 SHARE_USAGE_MAX_EVIDENCE_LENGTH = 10000
@@ -774,14 +807,11 @@ class ShareUsage(Engine):
                 # The SessionID is dealt with separately.
                 data.session_id = value
             elif folded == 'query.sequence':
-                # The Sequence is dealt with separately.
-                try:
-                    sequence = int(value)
+                # The Sequence is dealt with separately. A value that is
+                # not present leaves it out, with no error.
+                sequence = _read_sequence(value)
+                if sequence is not None:
                     data.sequence = sequence
-                except:
-                    self._log(
-                        "error",
-                        f"The value '{value}' could not be parsed to an integer.")
             else:
                 # Check if we can send this piece of evidence
                 if self.data_evidence_key_filter.filter_evidence_key(key):
