@@ -98,6 +98,11 @@ def devices_message(entries):
 
 
 class ShareUsage(Engine):
+
+    # Marks the usage sharing element, which a Pipeline refuses anywhere but
+    # last. Pipeline core reads this, as it cannot import this class.
+    is_usage_sharing_element = True
+
     def __init__(
         self,
         interval = 1200,

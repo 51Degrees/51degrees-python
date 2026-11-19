@@ -69,7 +69,8 @@ class DeviceDetectionOnPremisePipelineBuilder(PipelineBuilder):
         On Premise Engine Settings
 
         @type usage_sharing : bool
-        @param usage_sharing : Whether to enable usage sharing if using the on premise engine
+        @param usage_sharing : Whether to enable usage sharing if using the
+        on premise engine. The usage sharing element runs last.
         @type data_file_path: string
         @param data_file_path: path to the data file
         @type auto_update: bool
@@ -155,12 +156,27 @@ class DeviceDetectionOnPremisePipelineBuilder(PipelineBuilder):
         del settings["settings"]
         device = DeviceDetectionOnPremise(**settings)
 
-        # If usage sharing enabled, add usage sharing engine
-
-        if usage_sharing:
-            self.add(ShareUsage())
-
         self.add(device)
+
+        # Usage sharing, when on, runs after every other element, so build()
+        # moves it after any element the caller adds later.
+        self._usage_sharing = ShareUsage() if usage_sharing else None
+        if self._usage_sharing is not None:
+            self.add(self._usage_sharing)
+
+    def build(self):
+
+        """!
+        Build the Pipeline, with usage sharing after every other element.
+
+        @rtype: Pipeline
+        @return: Returns a Pipeline
+        """
+
+        if self._usage_sharing in self.flow_elements:
+            self.flow_elements.remove(self._usage_sharing)
+            self.flow_elements.append(self._usage_sharing)
+        return super(DeviceDetectionOnPremisePipelineBuilder, self).build()
 
     def _map_properties_names(self, mappings, arguments):
         if arguments is None:
