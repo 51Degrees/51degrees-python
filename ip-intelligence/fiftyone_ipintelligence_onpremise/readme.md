@@ -58,13 +58,13 @@ print(flowdata.ip.registeredname.value())
 
 ## Free-threaded Python
 
-The package runs on the free-threaded builds of Python 3.13 and 3.14. Its native module does not declare that it can run without the global interpreter lock (GIL), so Python turns the GIL back on when it loads the module and prints this warning.
+The package is tested on the free-threaded builds of Python 3.13 and 3.14 on Linux, and of Python 3.14 on Windows. It is published as source, so installing it on a free-threaded build needs a C and C++ compiler that builds for that Python. Its native module does not declare that it can run without the global interpreter lock (GIL), so Python turns the GIL back on for the whole process when it loads the module, and prints this warning.
 
 ```
 RuntimeWarning: The global interpreter lock (GIL) has been enabled to load module 'fiftyone_ipintelligence_onpremise._IpIntelligenceEngineModule', which has not declared that it can run safely without the GIL. To override this behavior and keep the GIL disabled (at your own risk), run with PYTHON_GIL=0 or -Xgil=0.
 ```
 
-The native code then runs with the GIL held, as it does on the standard build of Python, so the package gains nothing from free-threading. To start with the GIL on, and so without the warning, set the environment variable `PYTHON_GIL=1` or run Python with `-X gil=1`. The package has not been tested with the GIL kept off by `PYTHON_GIL=0`.
+From then on every thread in the program runs with the GIL, the package's native code included, as on the standard build of Python, so neither the package nor the rest of the program gains anything from free-threading. To start with the GIL on, and so without the warning, set the environment variable `PYTHON_GIL=1` or run Python with `-X gil=1`. The package has not been tested with the GIL kept off by `PYTHON_GIL=0`.
 
 Whichever build of Python runs it, the results of one request are not safe to use from several threads at once. Give each thread its own Flow Data, or coordinate access with a lock of your own.
 
