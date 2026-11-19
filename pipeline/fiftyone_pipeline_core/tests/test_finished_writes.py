@@ -40,6 +40,7 @@ import unittest
 import fiftyone_pipeline_core
 from fiftyone_pipeline_core.elementdata_dictionary import \
     ElementDataDictionary
+from fiftyone_pipeline_core.evidence import Evidence
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.flowerror import FlowError
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
@@ -69,6 +70,17 @@ class WritingElement(FlowElement):
             data = ElementDataDictionary(self, {})
             flowdata.set_element_data(data)
         data.written = self.value
+
+
+class RaisingElement(FlowElement):
+    """Raises while it processes, so the FlowData records an error."""
+
+    def __init__(self, datakey="raiser"):
+        super(RaisingElement, self).__init__()
+        self.datakey = datakey
+
+    def process_internal(self, flowdata):
+        raise Exception("raised while processing")
 
 
 class AddingElement(FlowElement):
@@ -181,6 +193,74 @@ class FinishedFlowDataTests(unittest.TestCase):
             .create_flowdata()
         flowdata.evidence.add("query.early", "value")
         self.assertEqual("value", flowdata.evidence.get("query.early"))
+
+    def assert_dict_writes_fail(self, finished, store):
+        """Each way of writing the dictionary store(finished) raises, and
+        leaves it as it was."""
+        for name, write in DICT_WRITES:
+            with self.subTest(name):
+                flowdata = finished()
+                before = dict(store(flowdata))
+                with self.assertRaises(Exception) as caught:
+                    write(store(flowdata))
+                self.assertIn(FINISHED, str(caught.exception))
+                self.assertEqual(before, dict(store(flowdata)))
+
+    def test_the_element_data_dictionary_cannot_be_written_once_processed(
+            self):
+        self.assert_dict_writes_fail(
+            lambda: process(WritingElement("a")), lambda f: f.data)
+
+    def test_the_errors_dictionary_cannot_be_written_once_processed(self):
+        self.assert_dict_writes_fail(
+            lambda: process(RaisingElement("a"),
+                            suppress_process_exceptions=True),
+            lambda f: f.errors)
+
+    def test_the_evidence_dictionaries_cannot_be_written_once_processed(
+            self):
+        def finished():
+            flowdata = PipelineBuilder().add(WritingElement()).build() \
+                .create_flowdata()
+            flowdata.evidence.add("a", "value")
+            flowdata.process()
+            return flowdata
+
+        for store in (lambda f: f.evidence.get_all(),
+                      lambda f: f.evidence.evidence,
+                      lambda f: f.evidence.get_unaccepted()):
+            self.assert_dict_writes_fail(finished, store)
+
+    def test_the_dictionaries_cannot_be_replaced_once_processed(self):
+        flowdata = process(WritingElement())
+        evidence = flowdata.evidence
+        for owner, name, value in (
+                (flowdata, "data", {}),
+                (flowdata, "errors", {}),
+                (flowdata, "evidence", Evidence(flowdata)),
+                (evidence, "evidence", {}),
+                (evidence, "unaccepted", {})):
+            with self.subTest(name):
+                before = getattr(owner, name)
+                with self.assertRaises(Exception) as caught:
+                    setattr(owner, name, value)
+                self.assertIn(FINISHED, str(caught.exception))
+                self.assertIs(before, getattr(owner, name))
+
+    def test_data_given_before_processing_is_read_only_after(self):
+        flowdata = PipelineBuilder({"add_javascript_builder": False,
+                                    "use_setheader_properties": False}) \
+            .add(WritingElement()).build().create_flowdata()
+        flowdata.data = {"given": "before processing"}
+        flowdata.errors = {}
+        flowdata.data["added"] = "before processing"
+        flowdata.process()
+        self.assertEqual("before processing", flowdata.get("given"))
+        self.assertEqual("before processing", flowdata.get("added"))
+        for store in (flowdata.data, flowdata.errors):
+            with self.assertRaises(Exception) as caught:
+                store["later"] = "after processing"
+            self.assertIn(FINISHED, str(caught.exception))
 
 
 class FinishedElementDataTests(unittest.TestCase):
