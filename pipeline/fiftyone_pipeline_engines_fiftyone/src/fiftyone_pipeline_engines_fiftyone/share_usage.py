@@ -30,7 +30,9 @@ import socket
 import datetime
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
+from importlib import metadata
 from importlib.metadata import version
 
 import requests
@@ -121,6 +123,11 @@ LOGGED_CONTENT_CHARACTERS = 500
 # The longest single wait during a pause. Longer pauses are waited out in
 # parts, as a timer cannot wait for any length of time on every platform.
 LONGEST_WAIT_SECONDS = 86400
+
+# The values that do not change while the element lives are written to its
+# first record, and again to the first record written once this many
+# seconds have passed since they were last written.
+INVARIANT_VALUES_INTERVAL_SECONDS = 3600
 
 
 def devices_message(entries):
@@ -318,6 +325,25 @@ class ShareUsage(Engine):
         # is in, as each names its own flow elements.
         self._constant_xml_by_pipeline = {}
 
+        # Written to every record as its ProcessId. Created here and never
+        # stored, so an element built again, in this process or another,
+        # has a new one.
+        self.process_id = str(uuid.uuid4())
+
+        # The clock, in seconds, that the hour between writes of the values
+        # that do not change is measured by. Not a user setting, and here so
+        # that a test can control it.
+        self._clock = time.monotonic
+
+        # When the element last wrote the values that do not change to a
+        # record, by the clock, or None before it has. One time for the
+        # element, whichever Pipeline each record is from.
+        self._invariants_written = None
+        # Whether the last record to carry them was written before the
+        # lookup of the server's address ended, so with an empty ServerIP.
+        self._invariants_without_server_ip = False
+        self._invariants_lock = threading.Lock()
+
         # The address of this machine for the record's ServerIP, looked up
         # on its own thread so that processing never waits for a slow name
         # lookup. It is None until the lookup ends, and records made before
@@ -447,32 +473,86 @@ class ShareUsage(Engine):
     def get_constant_xml(self, pipeline=None):
         """!
         The part of a record that is the same for every request of a
-        Pipeline. Given the Pipeline a request came from, it names that
+        Pipeline, being the values that do not change while the element
+        lives. Given the Pipeline a request came from, it names that
         Pipeline's flow elements, so an element in several Pipelines writes
         each one's own. With no Pipeline it names those of the one Pipeline
-        the element is in.
+        the element is in. A record carries it only when
+        _write_invariants says so.
+        """
+        return self._constant_xml(pipeline, self._server_ip)
+
+    def _constant_xml(self, pipeline, server_ip):
+        """!
+        get_constant_xml with the server's address read once, as server_ip,
+        which is None while the lookup is running. A part made then carries
+        an empty ServerIP and is not kept, so that ServerIP carries the
+        address once the lookup has ended.
         """
         if pipeline is not None:
             xml = self._constant_xml_by_pipeline.get(pipeline)
             if xml is None:
                 xml = self._make_constant_xml(
-                    self.get_flow_elements(pipeline))
-                if self._server_ip is not None:
+                    self.get_flow_elements(pipeline),
+                    list(pipeline.flow_elements), server_ip)
+                if server_ip is not None:
                     self._constant_xml_by_pipeline[pipeline] = xml
             return xml
         if self.constant_xml is None:
-            xml = self._make_constant_xml(self.get_flow_elements())
-            # Kept once the lookup of the address has ended, so that
-            # ServerIP carries the address from then on.
-            if self._server_ip is None:
+            xml = self._make_constant_xml(
+                self.get_flow_elements(), self._pipeline_flow_elements(),
+                server_ip)
+            if server_ip is None:
                 return xml
             self.constant_xml = xml
         return self.constant_xml
 
-    def _make_constant_xml(self, flow_element_names):
+    def _invariant_xml(self, pipeline):
+        """!
+        The values that do not change, for the record being written for a
+        request from the Pipeline, or None when that record leaves them
+        out. The decision and the values are made under one lock from one
+        reading of the server's address, so that the address a record
+        carries is the one the decision was made on.
+        """
+        with self._invariants_lock:
+            server_ip = self._server_ip
+            if not self._write_invariants(server_ip):
+                return None
+            return self._constant_xml(pipeline, server_ip)
+
+    def _write_invariants(self, server_ip):
+        """!
+        Whether the record being written carries the values that do not
+        change, given the server's address, None while the lookup is
+        running. They go in the first record the element writes, and again
+        in the first one written once INVARIANT_VALUES_INTERVAL_SECONDS
+        have passed since they were last written, whether or not that
+        record is ever sent. When the last record to carry them was written
+        before the lookup ended, so with an empty ServerIP, they go again
+        in the first record written once the lookup has found the address.
+        No other record carries them. The element keeps one time for all
+        the Pipelines it is in, so the record that carries them can be from
+        any of them, and names that Pipeline's flow elements. Called with
+        _invariants_lock held.
+        """
+        now = self._clock()
+        written = self._invariants_written
+        found_since = bool(server_ip) and self._invariants_without_server_ip
+        if written is not None and not found_since and \
+                now - written < INVARIANT_VALUES_INTERVAL_SECONDS:
+            return False
+        self._invariants_written = now
+        self._invariants_without_server_ip = server_ip is None
+        return True
+
+    def _make_constant_xml(self, flow_element_names, flow_elements=(),
+                           server_ip=None):
         """!
         The constant part of a record for the flow elements of one
-        Pipeline.
+        Pipeline, given their names, the elements themselves, whose
+        packages the record names, and the server's address, written empty
+        when it is None.
         """
         coreVersion = version("fiftyone_pipeline_core")
         osVersion = f"{ReplacedString(platform.system()).result} {ReplacedString(platform.release()).result}"
@@ -488,11 +568,14 @@ class ShareUsage(Engine):
         # The flow elements in the Pipeline
         for flow_element in flow_element_names:
             xml += f"<FlowElement>{flow_element}</FlowElement>"
+        # The release of each 51Degrees package in use
+        for name, package_version in fiftyone_packages(flow_elements):
+            xml += record_element("Package", package_version, name)
         xml += "<Language>Python</Language>"
         # The software language version
         xml += f"<LanguageVersion>{pyVersion}</LanguageVersion>"
         # The address of this machine
-        xml += plain_element("ServerIP", self._server_ip or "")
+        xml += plain_element("ServerIP", server_ip or "")
         # The OS name and version
         xml += f"<Platform>{osVersion}</Platform>"
         return xml
@@ -503,6 +586,16 @@ class ShareUsage(Engine):
         except Exception:
             self._server_ip = ""
         self._server_ip_found.set()
+
+    def _pipeline_flow_elements(self):
+        """!
+        The flow elements of the one Pipeline this element is in, or none
+        when it is in more than one, as get_flow_elements gives no names
+        then either.
+        """
+        if len(self.pipelines) == 1:
+            return list(self.pipelines[0].flow_elements)
+        return []
 
     def get_flow_elements(self, pipeline=None):
         """!
@@ -707,8 +800,16 @@ class ShareUsage(Engine):
         
         xml += "<Device>"
 
-        # --- write invariant data
-        xml += self.get_constant_xml(data.pipeline)
+        # The process identifier, in every record, which ties a record that
+        # leaves out the values that do not change to those values.
+        xml += plain_element("ProcessId", self.process_id)
+
+        # --- write invariant data, to the first record, once an hour, and
+        # to the first record once the server's address is found when the
+        # last record to carry them went without it
+        invariants = self._invariant_xml(data.pipeline)
+        if invariants is not None:
+            xml += invariants
 
         # --- write variable data
         # The SessionID used to track a series of requests
@@ -880,6 +981,82 @@ def host_address():
         if address.version == 4:
             return str(address)
     return str(addresses[0]) if addresses else ""
+
+
+# The text the author or author email of every package 51Degrees
+# publishes holds.
+FIFTYONE_AUTHOR = "51degrees"
+
+# The package that holds the Pipeline.
+PIPELINE_PACKAGE = "fiftyone_pipeline_core"
+
+
+def canonical_package_name(name):
+    """!
+    A package name as the package index compares names, so that each
+    package is named once however its name is spelled.
+    """
+    return re.sub(r"[-_.]+", "_", name).lower()
+
+
+def _fiftyone_distribution(name):
+    """!
+    The installed package of that name if 51Degrees publishes it, or None.
+    """
+    try:
+        distribution = metadata.distribution(name)
+    except (metadata.PackageNotFoundError, ValueError):
+        return None
+    author = " ".join(
+        distribution.metadata.get(field) or ""
+        for field in ("Author", "Author-email")).lower()
+    return distribution if FIFTYONE_AUTHOR in author else None
+
+
+def _required_names(distribution):
+    """!
+    The names of the packages a package requires, leaving out those it
+    requires only for an extra.
+    """
+    names = []
+    for requirement in distribution.requires or []:
+        if re.search(r"\bextra\s*==", requirement):
+            continue
+        match = re.match(r"\s*([A-Za-z0-9][A-Za-z0-9._-]*)", requirement)
+        if match:
+            names.append(match.group(1))
+    return names
+
+
+def fiftyone_packages(flow_elements):
+    """!
+    The name and version of every 51Degrees package in use, sorted by name
+    and each given once. These are the package that holds the Pipeline,
+    the package that holds each flow element and every 51Degrees package
+    those require. A flow element from no installed package, such as one
+    an application defines, adds none.
+
+    @type flow_elements: list
+    @param flow_elements: the flow elements of the Pipeline
+    @rtype: list
+    @return: (name, version) pairs, with the name the package is published
+    under
+    """
+    names = [PIPELINE_PACKAGE] + [
+        type(element).__module__.partition(".")[0]
+        for element in flow_elements]
+    found = {}
+    while names:
+        distribution = _fiftyone_distribution(names.pop())
+        if distribution is None:
+            continue
+        name = distribution.metadata["Name"]
+        key = canonical_package_name(name)
+        if key in found:
+            continue
+        found[key] = (name, distribution.version)
+        names.extend(_required_names(distribution))
+    return [found[key] for key in sorted(found)]
 
 
 def plain_element(tag, value):
