@@ -21,11 +21,10 @@
 # *********************************************************************
 
 """
-What usage sharing shares by default and when all Evidence is shared, and
-the packages each record names. Every query string and form parameter is
-shared unless that is turned off, no cookie but a 51D_ one is ever shared,
-the session cookie is still compared when sessions are tracked, and each
-record names every 51Degrees package in use with its version.
+What usage sharing shares by default and when all Evidence is shared.
+Every query string and form parameter is shared unless that is turned off,
+no cookie but a 51D_ one is ever shared, and the session cookie is still
+compared when sessions are tracked.
 """
 
 import gzip
@@ -236,11 +235,14 @@ class CookieTests(unittest.TestCase):
 
 
 class PackageTests(unittest.TestCase):
+    """A record that carries the invariant values names every 51Degrees
+    package in use with its version (usage-sharing-element.md lines 313 to
+    321 at d79bbe3b)."""
 
     def test_the_first_record_names_every_51degrees_package_in_use(self):
         # The packages are invariant values, so the record after the first,
         # written within the hour, names none (usage-sharing-element.md
-        # lines 138 to 153 at 07e1fced).
+        # lines 181 to 209 at d79bbe3b).
         usage = ShareUsage(**QUEUE_ONLY)
         # A record written before the lookup of the server's address ends
         # does not count as carrying them, so wait for it.
@@ -281,6 +283,8 @@ class PackageTests(unittest.TestCase):
             {"header.user-agent": "agent value"}])[0]
 
         names = [canonical(name) for name, _ in packages_in(record)]
+        # A record that named no package would pass the checks below.
+        self.assertIn("fiftyone_pipeline_core", names)
         for other in ("requests", "cachetools", "flask"):
             self.assertNotIn(other, names)
 

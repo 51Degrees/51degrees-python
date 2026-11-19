@@ -122,7 +122,7 @@ def element_in_two_pipelines():
                        endpoint="http://127.0.0.1:9")
     usage._server_ip_found.wait(10)
     clock = Clock()
-    usage.clock = clock
+    usage._clock = clock
     first = PipelineBuilder(NO_DEFAULT_ELEMENTS) \
         .add(FirstElement()).add(usage).build()
     second = PipelineBuilder(NO_DEFAULT_ELEMENTS) \

@@ -25,9 +25,10 @@ The values that do not change while a usage sharing element lives, written
 to its first record and again once an hour, and the process identifier
 written to every record.
 
-The rules are those of the specifications repository at commit 07e1fced,
-pipeline-specification/pipeline-elements/usage-sharing-element.md. The
-tests control the element's clock rather than waiting an hour.
+The rules are those of the specifications repository at commit d79bbe3b,
+pipeline-specification/pipeline-elements/usage-sharing-element.md, which
+holds specifications#189 as merged in 1d9836cf. The tests control the
+element's clock rather than waiting an hour.
 """
 
 import gzip
@@ -57,8 +58,8 @@ QUEUE_ONLY = {
     "endpoint": "http://127.0.0.1:9",
 }
 
-# usage-sharing-element.md lines 138 to 145 at 07e1fced list the invariant
-# values, and lines 208 to 210 say "A record that leaves them out has no
+# usage-sharing-element.md lines 181 to 188 at d79bbe3b list the invariant
+# values, and lines 265 to 267 say "A record that leaves them out has no
 # Version, Product, FlowElement, Package, Language, LanguageVersion,
 # ServerIP or Platform element".
 INVARIANT_ELEMENTS = (
@@ -74,8 +75,8 @@ SERVER_IP = "192.0.2.10"
 # How long a test waits for the lookup of the server's address it holds up.
 LOOKUP_WAIT_SECONDS = 10
 
-# Lines 124 and 125: "32 hexadecimal digits in groups of 8, 4, 4, 4 and 12
-# separated by hyphens", for a version 4 UUID (line 119).
+# Lines 167 and 168: "32 hexadecimal digits in groups of 8, 4, 4, 4 and 12
+# separated by hyphens", for a version 4 UUID (line 162).
 UUID4 = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-4[0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}"
     r"-[0-9a-fA-F]{12}\Z")
@@ -134,7 +135,7 @@ def element_with_clock(wait_for_server_ip=True):
     if wait_for_server_ip:
         usage._server_ip_found.wait(LOOKUP_WAIT_SECONDS)
     clock = Clock()
-    usage.clock = clock
+    usage._clock = clock
     pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
     return usage, clock, pipeline
 
@@ -142,7 +143,7 @@ def element_with_clock(wait_for_server_ip=True):
 class InvariantValuesTests(unittest.TestCase):
 
     def test_the_first_record_carries_the_invariant_values(self):
-        # Line 150: "The invariant values MUST be written to the first
+        # Line 203: "The invariant values MUST be written to the first
         # record the element writes."
         usage, clock, pipeline = element_with_clock()
         process(pipeline, "first")
@@ -153,9 +154,10 @@ class InvariantValuesTests(unittest.TestCase):
         self.assertEqual(list(INVARIANT_ELEMENTS), invariants_in(records[0]))
 
     def test_records_within_the_hour_leave_the_invariant_values_out(self):
-        # Lines 151 to 153: "They MUST be written again to the first record
-        # the element writes once an hour or more has passed since it last
-        # wrote them. They MUST NOT be written to any other record."
+        # Lines 204 and 205: "They MUST be written again to the first
+        # record the element writes once an hour or more has passed since it
+        # last wrote them." Lines 208 and 209: "They MUST NOT be written to
+        # any other record."
         usage, clock, pipeline = element_with_clock()
         process(pipeline, "first")
         clock.now += 1
@@ -171,7 +173,7 @@ class InvariantValuesTests(unittest.TestCase):
         self.assertEqual([], invariants_in(records[2]))
 
     def test_the_invariant_values_are_written_again_once_the_hour_is_up(self):
-        # Lines 151 and 152, "once an hour or more has passed since it last
+        # Lines 204 and 205, "once an hour or more has passed since it last
         # wrote them", so the hour runs from the record that last carried
         # them, here the one written exactly an hour after the first.
         usage, clock, pipeline = element_with_clock()
@@ -194,7 +196,7 @@ class InvariantValuesTests(unittest.TestCase):
         self.assertEqual([], invariants_in(records[2]))
 
     def test_a_record_that_leaves_them_out_is_otherwise_the_same(self):
-        # Lines 208 to 210: a record that leaves the invariant values out
+        # Lines 264 to 267: a record that leaves the invariant values out
         # "is otherwise the same".
         usage, clock, pipeline = element_with_clock()
         with pipeline.create_flowdata() as flowdata:
@@ -248,11 +250,11 @@ class InvariantValuesTests(unittest.TestCase):
         self.assertEqual([], invariants_in(records[2]))
 
     def test_the_values_go_again_only_in_the_first_record_once_known(self):
-        # usage-sharing-element.md lines 152 to 155 at 44d815f8: "When one
-        # of them is not yet known as the first record is written, for
-        # example a server address still being looked up, the element MUST
-        # write all of them again to the first record it writes once that
-        # value is known. They MUST NOT be written to any other record."
+        # Lines 205 to 209: "When one or more of them is not yet known as
+        # the first record is written, for example a server address still
+        # being looked up, the element MUST write all of them again to the
+        # first record it writes after each such value becomes known. They
+        # MUST NOT be written to any other record."
         # So a second record written while the lookup is still running
         # leaves them out, and the hour runs from the record that carried
         # the address.
@@ -295,6 +297,26 @@ class InvariantValuesTests(unittest.TestCase):
         self.assertEqual(list(INVARIANT_ELEMENTS), invariants_in(records[5]))
         self.assertIn("<ServerIP>" + SERVER_IP + "</ServerIP>", records[5])
 
+    def test_a_lookup_that_finds_no_address_does_not_send_them_again(self):
+        # A lookup that ends without an address leaves ServerIP empty for
+        # good, so no value becomes known and only the hour sends the
+        # values again.
+        with mock.patch.object(share_usage, "host_address", lambda: ""):
+            usage, clock, pipeline = element_with_clock()
+        process(pipeline, "first")
+        clock.now += 1
+        process(pipeline, "second")
+        clock.now += HOUR - 1
+        process(pipeline, "an hour after the first")
+
+        records = sent_on_close(usage)
+
+        self.assertEqual(3, len(records))
+        self.assertEqual(list(INVARIANT_ELEMENTS), invariants_in(records[0]))
+        self.assertIn("<ServerIP></ServerIP>", records[0])
+        self.assertEqual([], invariants_in(records[1]))
+        self.assertEqual(list(INVARIANT_ELEMENTS), invariants_in(records[2]))
+
 
 # Writes one record from a new element and prints its ProcessId, so that a
 # test can compare the identifiers of two processes.
@@ -323,7 +345,7 @@ print(",".join(re.findall("<ProcessId>([^<]*)</ProcessId>", "".join(sent))))
 class ProcessIdentifierTests(unittest.TestCase):
 
     def test_every_record_carries_the_same_identifier(self):
-        # Lines 115 and 116: "The element MUST create a process identifier
+        # Lines 158 and 159: "The element MUST create a process identifier
         # when it is built, and MUST write it to every record as the
         # ProcessId element."
         usage, clock, pipeline = element_with_clock()
@@ -341,7 +363,7 @@ class ProcessIdentifierTests(unittest.TestCase):
         self.assertRegex(identifiers[0][0], UUID4)
 
     def test_the_identifier_is_written_first_in_the_record(self):
-        # The snippet at lines 213 and 214 opens each Device with its
+        # The snippet at lines 270 and 271 opens each Device with its
         # ProcessId.
         usage, clock, pipeline = element_with_clock()
         process(pipeline, "first")
@@ -351,7 +373,7 @@ class ProcessIdentifierTests(unittest.TestCase):
         self.assertTrue(record.startswith("<Device><ProcessId>"), record)
 
     def test_a_fresh_element_has_a_new_identifier(self):
-        # Lines 128 to 131: a process that starts again creates a new
+        # Lines 171 to 174: a process that starts again creates a new
         # identifier, and "A process that builds more than one Usage
         # Sharing Element ... creates an identifier for each".
         identifiers = []
@@ -364,7 +386,7 @@ class ProcessIdentifierTests(unittest.TestCase):
         self.assertNotEqual(identifiers[0].lower(), identifiers[1].lower())
 
     def test_a_new_process_has_a_new_identifier(self):
-        # Line 128: "The identifier is never stored, so a process that
+        # Line 171: "The identifier is never stored, so a process that
         # starts again creates a new one."
         environment = dict(os.environ)
         environment["PYTHONPATH"] = os.pathsep.join(

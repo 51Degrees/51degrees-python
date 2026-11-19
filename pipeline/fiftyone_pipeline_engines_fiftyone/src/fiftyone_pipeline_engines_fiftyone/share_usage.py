@@ -294,7 +294,7 @@ class ShareUsage(Engine):
         # The clock, in seconds, that the hour between writes of the values
         # that do not change is measured by. Not a user setting, and here so
         # that a test can control it.
-        self.clock = time.monotonic
+        self._clock = time.monotonic
 
         # When the element last wrote the values that do not change to a
         # record, by the clock, or None before it has. One time for the
@@ -497,7 +497,7 @@ class ShareUsage(Engine):
         any of them, and names that Pipeline's flow elements. Called with
         _invariants_lock held.
         """
-        now = self.clock()
+        now = self._clock()
         written = self._invariants_written
         found_since = bool(server_ip) and self._invariants_without_server_ip
         if written is not None and not found_since and \
