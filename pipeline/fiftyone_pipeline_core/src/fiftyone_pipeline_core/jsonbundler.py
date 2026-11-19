@@ -23,6 +23,7 @@
 from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
+from .elementdata_pool import ElementDataPool
 
 # The property types that hold a shape in well-known text. The JSON holds such
 # a value as an object with one member, value, holding the text.
@@ -49,6 +50,8 @@ class JSONBundlerElement(FlowElement):
         self.exclude_from_messages = True
 
         self.properties = {"json" : { "type": "dict"} }
+
+        self._element_data_pool = ElementDataPool()
 
         # The delayed execution information of each flow element, keyed by
         # the element rather than its data key, as two Pipelines sharing
@@ -258,7 +261,10 @@ class JSONBundlerElement(FlowElement):
 
                         output["javascriptProperties"].append(flow_element.datakey.lower() + "." + propertykey.lower())
                  
-        data = ElementDataDictionary(self, {"json": output})
+        data = self._element_data_pool.take()
+        if data is None:
+            data = ElementDataDictionary(self, {})
+        data.contents["json"] = output
 
         flowdata.set_element_data(data)
 

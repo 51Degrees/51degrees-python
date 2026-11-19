@@ -21,6 +21,7 @@
 # *********************************************************************
 
 from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from .elementdata_pool import ElementDataPool
 
 
 class FlowElement(object):
@@ -87,6 +88,22 @@ class FlowElement(object):
         """
 
         pass
+
+    def get_element_data_pool(self):
+
+        """!
+        The ElementDataPool this element takes its ElementData from, which
+        FlowData.close() gives each instance back to. An element that keeps
+        one holds it as _element_data_pool. Anything else held under that
+        name, such as an attribute of a user's own element, is not a pool.
+
+        @rtype: ElementDataPool
+        @return: the pool, or None when the element keeps none
+
+        """
+
+        pool = getattr(self, "_element_data_pool", None)
+        return pool if isinstance(pool, ElementDataPool) else None
 
     def get_evidence_key_filter(self):
 

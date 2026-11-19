@@ -36,6 +36,19 @@ def _set_finished(element_data, finished):
         object.__setattr__(element_data, "_finished", finished)
 
 
+def _give_back(element_data):
+
+    # Gives the data back to the pool of the FlowElement that made it, if
+    # that element keeps one. An element that is not a FlowElement has no
+    # get_element_data_pool and keeps no pool.
+    if isinstance(element_data, ElementData):
+        flow_element = element_data.__dict__.get("flow_element")
+        get_pool = getattr(flow_element, "get_element_data_pool", None)
+        pool = get_pool() if callable(get_pool) else None
+        if pool is not None:
+            pool.give_back(element_data)
+
+
 class FlowData:
     """!
     FlowData is created by a specific Pipeline
@@ -61,6 +74,8 @@ class FlowData:
         self.processed = False
         self.stopped = False
         self.evidence = Evidence(self)
+        # Set by close(), so that a second call gives nothing back again.
+        self._closed = False
 
     def process(self):
 
@@ -133,9 +148,25 @@ class FlowData:
         element data that needs no cleanup, such as an entry in a results
         cache, is left alone. Values already read are unaffected.
 
+        Each element data is then given back to the ElementDataPool of the
+        FlowElement that made it, if that element keeps one, for a later
+        request to reuse. So keeping a reference to element data after its
+        FlowData is closed is not supported, because another request may
+        then change its values. Reads are not checked for this. Data a
+        cache may hold is never given back. A second call does nothing.
+
         """
 
+        if self._closed:
+            return
+        self._closed = True
+
+        given_back = set()
         for element_data in list(self.data.values()):
+            # Data held under two keys is closed and given back once.
+            if id(element_data) in given_back:
+                continue
+            given_back.add(id(element_data))
             # Looked up on the class, because ElementData treats an
             # attribute it does not have as the name of a property.
             close = getattr(type(element_data), "close", None)
@@ -148,6 +179,10 @@ class FlowData:
                     close(element_data)
                 finally:
                     _set_finished(element_data, finished)
+            # Given back only once its close has returned. Data whose close
+            # waits for a lazy task still writing it so goes back only after
+            # that task has finished, which the specification requires.
+            _give_back(element_data)
 
     def __enter__(self):
         return self

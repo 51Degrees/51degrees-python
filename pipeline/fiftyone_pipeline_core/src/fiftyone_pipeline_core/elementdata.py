@@ -117,6 +117,12 @@ class ElementData(object):
     instance that is written from several threads, or read while another
     thread writes it, is not catered for.
 
+    A FlowElement may take its instances from an ElementDataPool, and
+    closing the FlowData gives them back for a later request to reuse. So
+    keeping a reference to ElementData after its FlowData is closed is not
+    supported, because another request may then change its values. Reads
+    are not checked for this.
+
     """
 
     def __init__(self, flow_element):
@@ -169,6 +175,16 @@ class ElementData(object):
         flow_element = self.__dict__.get("flow_element")
         key = getattr(flow_element, "datakey", "")
         raise Exception(Messages.ELEMENT_DATA_FINISHED.format(name, key))
+
+    def _clear(self):
+
+        """!
+        Ready an instance taken from an ElementDataPool for a new request,
+        open for writing. A class with values of its own overrides this to
+        drop them as well, so that none of the last request's remain.
+        """
+
+        self._finished = False
 
     def get(self, key):
 
