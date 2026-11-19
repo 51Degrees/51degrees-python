@@ -296,14 +296,13 @@ class ShareUsage(Engine):
         # that a test can control it.
         self.clock = time.monotonic
 
-        # When the values that do not change were last written to a record
-        # from each Pipeline, by the clock. A Pipeline missing here has had
-        # them written to none of its records.
-        self._invariants_written = {}
-        # The Pipelines whose last record to carry them was written before
-        # the lookup of the server's address ended, so with an empty
-        # ServerIP.
-        self._invariants_without_server_ip = set()
+        # When the element last wrote the values that do not change to a
+        # record, by the clock, or None before it has. One time for the
+        # element, whichever Pipeline each record is from.
+        self._invariants_written = None
+        # Whether the last record to carry them was written before the
+        # lookup of the server's address ended, so with an empty ServerIP.
+        self._invariants_without_server_ip = False
         self._invariants_lock = threading.Lock()
 
         # The address of this machine for the record's ServerIP, looked up
@@ -479,35 +478,33 @@ class ShareUsage(Engine):
         """
         with self._invariants_lock:
             server_ip = self._server_ip
-            if not self._write_invariants(pipeline, server_ip):
+            if not self._write_invariants(server_ip):
                 return None
             return self._constant_xml(pipeline, server_ip)
 
-    def _write_invariants(self, pipeline, server_ip):
+    def _write_invariants(self, server_ip):
         """!
-        Whether the record being written for a request from the Pipeline
-        carries the values that do not change, given the server's address,
-        None while the lookup is running. They go in the first record from
-        each Pipeline, and again in the first one written once
-        INVARIANT_VALUES_INTERVAL_SECONDS have passed since they were last
-        written, whether or not that record is ever sent. When the last
-        record to carry them was written before the lookup ended, so with
-        an empty ServerIP, they go again in the first record written once
-        the lookup has found the address. No other record carries them.
-        Called with _invariants_lock held.
+        Whether the record being written carries the values that do not
+        change, given the server's address, None while the lookup is
+        running. They go in the first record the element writes, and again
+        in the first one written once INVARIANT_VALUES_INTERVAL_SECONDS
+        have passed since they were last written, whether or not that
+        record is ever sent. When the last record to carry them was written
+        before the lookup ended, so with an empty ServerIP, they go again
+        in the first record written once the lookup has found the address.
+        No other record carries them. The element keeps one time for all
+        the Pipelines it is in, so the record that carries them can be from
+        any of them, and names that Pipeline's flow elements. Called with
+        _invariants_lock held.
         """
         now = self.clock()
-        written = self._invariants_written.get(pipeline)
-        found_since = bool(server_ip) and \
-            pipeline in self._invariants_without_server_ip
+        written = self._invariants_written
+        found_since = bool(server_ip) and self._invariants_without_server_ip
         if written is not None and not found_since and \
                 now - written < INVARIANT_VALUES_INTERVAL_SECONDS:
             return False
-        self._invariants_written[pipeline] = now
-        if server_ip is None:
-            self._invariants_without_server_ip.add(pipeline)
-        else:
-            self._invariants_without_server_ip.discard(pipeline)
+        self._invariants_written = now
+        self._invariants_without_server_ip = server_ip is None
         return True
 
     def _make_constant_xml(self, flow_element_names, flow_elements=(),
