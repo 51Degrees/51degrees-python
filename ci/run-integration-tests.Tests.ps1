@@ -88,6 +88,7 @@ AfterEach {
 
 Context 'with no TestResourceKey' {
     BeforeEach {
+        $env:PYTEST_ADDOPTS = $null
         $script:Output = Invoke-ProductStep 'run-integration-tests' $script:Repo `
             @{ RepoName = $script:Repo; Keys = @{} } $script:Products *>&1 |
             Out-String
@@ -139,6 +140,25 @@ Context 'with no TestResourceKey' {
         $script:Output | Should -Match 'Selenium contract tests will not run against the cloud example'
         Test-Path (Join-Path $script:CommonCi 'selenium-api-tests') |
             Should -BeFalse
+    }
+}
+
+Context 'with no TestResourceKey and options a caller set' {
+    It 'adds the selection to the options, and puts them back after' {
+        $env:PYTEST_ADDOPTS = '-p no:cacheprovider'
+        Invoke-ProductStep 'run-integration-tests' $script:Repo `
+            @{ RepoName = $script:Repo; Keys = @{} } $script:Products *>&1 |
+            Out-Null
+
+        foreach ($product in $script:Products) {
+            $calls = Get-Calls $product
+            $calls.Count | Should -BeGreaterThan 0 -Because $product
+            foreach ($call in $calls) {
+                $call.AddOpts | Should -Be '-p no:cacheprovider -m "not live"' `
+                    -Because $product
+            }
+        }
+        $env:PYTEST_ADDOPTS | Should -Be '-p no:cacheprovider'
     }
 }
 
