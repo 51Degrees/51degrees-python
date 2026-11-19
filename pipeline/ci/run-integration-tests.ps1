@@ -28,7 +28,8 @@ param (
 # Without a resource key the tests that need one, which are marked live, are
 # left out and every other test runs. That leaves nothing of the 51Did
 # package, so it is not run. A live test still fails when it finds no key, so
-# a key that is passed but does not reach it is not missed.
+# a key that is passed but does not reach it is not missed. The selection is
+# added to any options a caller set in PYTEST_ADDOPTS.
 $packages = "fiftyone_pipeline_cloudrequestengine", "fiftyone_pipeline_cloudrequestengine/examples"
 $pipelineKeys = $Keys.Clone()
 $pipelineKeys.Remove('DeviceDetection')
@@ -41,7 +42,7 @@ $addopts = $env:PYTEST_ADDOPTS
 try {
     if (!$Keys.TestResourceKey) {
         Write-Output "::warning title=No resource key::No TestResourceKey was passed, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. fiftyone_pipeline_did runs only live tests here, so it is skipped. The workflows set it from the _51DEGREES_RESOURCE_KEY_BESPOKE secret."
-        $env:PYTEST_ADDOPTS = '-m "not live"'
+        $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
     }
     ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $pipelineKeys
     if ($LASTEXITCODE -ne 0) { $failed = $true }

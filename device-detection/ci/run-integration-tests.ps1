@@ -19,10 +19,11 @@ $packages = "fiftyone_devicedetection_cloud", "fiftyone_devicedetection_examples
 # Without a resource key the tests that need one, which are marked live, are
 # left out and every other test runs. A live test still fails when it finds
 # no key, so a key that is passed but does not reach it is not missed.
+# The selection is added to any options a caller set in PYTEST_ADDOPTS.
 $addopts = $env:PYTEST_ADDOPTS
 if (!$Keys.TestResourceKey) {
     Write-Output "::warning title=No resource key::No TestResourceKey was passed, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. The workflows set it from the _51DEGREES_RESOURCE_KEY_BESPOKE secret."
-    $env:PYTEST_ADDOPTS = '-m "not live"'
+    $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 # The cloud package runs without the CSV file too, because only its property
 # coverage tests read the file, and they say so when it is missing.
