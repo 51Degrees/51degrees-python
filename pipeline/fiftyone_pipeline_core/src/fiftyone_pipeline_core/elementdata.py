@@ -20,6 +20,9 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import functools
+import inspect
+
 from .messages import Messages
 
 
@@ -128,6 +131,23 @@ _contents_property = property(
         "FlowElement that provides the data processes.")
 
 
+def _open_while_closing(close):
+
+    # Releasing what the data holds is not a write to it, so a close method
+    # runs with the data open for writing, and finished again afterwards.
+    @functools.wraps(close)
+    def opened(self, *args, **kwargs):
+        finished = self._finished
+        object.__setattr__(self, "_finished", False)
+        try:
+            return close(self, *args, **kwargs)
+        finally:
+            object.__setattr__(self, "_finished", finished)
+
+    opened._opens_data = True
+    return opened
+
+
 class ElementData(object):
 
     """!
@@ -142,7 +162,22 @@ class ElementData(object):
     instance that is written from several threads, or read while another
     thread writes it, is not catered for.
 
+    A subclass that holds something to release, such as native results,
+    gives itself a close method. Closing is not a write, so close may set
+    the data's attributes even once it is finished, whether it is called
+    directly or by FlowData.close.
+
     """
+
+    def __init_subclass__(cls, **kwargs):
+
+        # A close method a subclass defines or inherits runs with the data
+        # open. Read without binding, so a static method is left alone.
+        super(ElementData, cls).__init_subclass__(**kwargs)
+        close = inspect.getattr_static(cls, "close", None)
+        if inspect.isfunction(close) and \
+                not getattr(close, "_opens_data", False):
+            cls.close = _open_while_closing(close)
 
     def __init__(self, flow_element):
 

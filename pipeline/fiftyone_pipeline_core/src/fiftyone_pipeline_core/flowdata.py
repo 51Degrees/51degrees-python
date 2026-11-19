@@ -178,14 +178,9 @@ class FlowData:
             # attribute it does not have as the name of a property.
             close = getattr(type(element_data), "close", None)
             if callable(close):
-                # Releasing what the data holds is not a write to it.
-                finished = (isinstance(element_data, ElementData)
-                            and element_data._finished)
-                _set_finished(element_data, False)
-                try:
-                    close(element_data)
-                finally:
-                    _set_finished(element_data, finished)
+                # Closing is not a write, and ElementData opens itself for
+                # its close method.
+                close(element_data)
 
     def __enter__(self):
         return self
