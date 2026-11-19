@@ -34,6 +34,14 @@
 # ```
 # python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_web
 # ```
+#
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it when the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
 
 from flask import Flask, request
 
@@ -74,25 +82,26 @@ def get_value(ip_data, property):
 @app.route("/")
 def index():
 
-    # Create the flowdata object for this request.
-    flowdata = pipeline.create_flowdata()
+    # A Flow Data cannot be used by two threads at once, so this one is made
+    # for this request, used only here, and closed when the route returns.
+    with pipeline.create_flowdata() as flowdata:
 
-    # Hand the whole request to the pipeline. Each engine takes the
-    # Evidence it reads from it.
-    flowdata.evidence.add_from_dict(webevidence(request))
+        # Hand the whole request to the pipeline. Each engine takes the
+        # Evidence it reads from it.
+        flowdata.evidence.add_from_dict(webevidence(request))
 
-    # Use the IP address supplied as a query parameter, or fall back
-    # to the address of the requester.
-    client_ip = request.args.get("client-ip", request.remote_addr)
+        # Use the IP address supplied as a query parameter, or fall back
+        # to the address of the requester.
+        client_ip = request.args.get("client-ip", request.remote_addr)
 
-    flowdata.evidence.add(Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY, client_ip)
+        flowdata.evidence.add(Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY, client_ip)
 
-    # Process the flowdata
-    flowdata.process()
+        # Process the flowdata
+        flowdata.process()
 
-    ip_data = flowdata.ip
+        ip_data = flowdata.ip
 
-    return f"""
+        return f"""
     <h2>51Degrees IP Intelligence - Getting Started Web (Cloud)</h2>
     <p>IP address: {client_ip}</p>
     <ul>

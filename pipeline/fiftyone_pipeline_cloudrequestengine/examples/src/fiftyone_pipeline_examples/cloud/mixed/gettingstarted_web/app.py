@@ -73,6 +73,14 @@
 # Required PyPI dependencies:
 # - [fiftyone_pipeline_cloudrequestengine](https://pypi.org/project/fiftyone-pipeline-cloudrequestengine/)
 # - [flask](https://pypi.org/project/flask/)
+#
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it when the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
 
 import os
 import sys
@@ -232,35 +240,32 @@ def create_app(pipeline):
     # else can set the header to any address.
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
-    def process():
-
-        flowdata = pipeline.create_flowdata()
-
-        # Add the evidence from the request, being its headers, cookies,
-        # query parameters and client address, along with any form fields
-        # the client-side script posts.
-        flowdata.evidence.add_from_dict(webevidence(request))
-
-        flowdata.process()
-
-        return flowdata
-
     @app.route("/")
     def index():
 
-        flowdata = process()
+        # A Flow Data cannot be used by two threads at once, so this one is
+        # made for this request, used only here, and closed when the route
+        # returns.
+        with pipeline.create_flowdata() as flowdata:
 
-        response = make_response()
+            # Add the evidence from the request, being its headers, cookies,
+            # query parameters and client address, along with any form
+            # fields the client-side script posts.
+            flowdata.evidence.add_from_dict(webevidence(request))
 
-        # Some browsers only send User-Agent Client Hints that are asked for,
-        # so set the Accept-CH header the results call for. More about this
-        # at https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&utm_term=index
-        set_response_header(flowdata, response)
+            flowdata.process()
 
-        response.set_data(render_template(
-            "index.html", **page_model(flowdata)))
+            response = make_response()
 
-        return response
+            # Some browsers only send User-Agent Client Hints that are asked
+            # for, so set the Accept-CH header the results call for. More
+            # about this at https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&utm_term=index
+            set_response_header(flowdata, response)
+
+            response.set_data(render_template(
+                "index.html", **page_model(flowdata)))
+
+            return response
 
     # The other Pipeline APIs ship web integrations that serve the
     # client-side script at '/51Degrees.core.js', so the page refers to it by

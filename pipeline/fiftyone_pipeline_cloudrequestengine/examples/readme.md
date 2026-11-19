@@ -26,6 +26,12 @@ answer. Those engines are in `src/fiftyone_pipeline_examples/cloud/engines.py`,
 and `src/fiftyone_pipeline_examples/cloud/mixed/pipeline.py` puts them
 together.
 
+A Flow Data cannot be used by two threads at once, so the web example
+creates a Flow Data for each request, uses it only in the code that handles
+that request, and closes it when the request ends. To hand work to another
+thread or task, read the values it needs from the Flow Data first and pass
+those values, not the Flow Data.
+
 ### Keys
 
 The examples call the cloud service with a resource key or a licence key.
