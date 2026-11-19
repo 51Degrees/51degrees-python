@@ -9,9 +9,9 @@ jobs:
   Build:
     uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
     with:
-      51degrees-python-name: 51degrees-python
+      repo-name: 51degrees-python
       org-name: 51Degrees
-      tmp/jr-python-239-green: tmp/jr-python-239-green
+      branch: tmp/jr-python-239-green
       prs: ''
       build-without-pull-requests: true
       dryrun: true
