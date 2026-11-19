@@ -175,33 +175,18 @@ class ClientConstructionTests(unittest.TestCase):
             DidClient(None)
 
     # The two names of the endpoint environment variable, written out so
-    # that these tests pin the names themselves. The old one is still read
-    # when the new one is not set.
+    # that these tests pin the names themselves. The old one is no longer
+    # read.
     NEW_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
     OLD_VARIABLE = "FOD_CLOUD_API_URL"
 
     def setUp(self):
-        # Each test starts with neither name set and with the old name not
-        # yet reported as deprecated, and what it sets is put back
-        # afterwards.
+        # Each test starts with the variable not set, and what it sets is
+        # put back afterwards.
         environment = mock.patch.dict(os.environ)
         environment.start()
         self.addCleanup(environment.stop)
         os.environ.pop(self.NEW_VARIABLE, None)
-        os.environ.pop(self.OLD_VARIABLE, None)
-        reported = mock.patch.object(
-            did_client, "_old_endpoint_reported", False)
-        reported.start()
-        self.addCleanup(reported.stop)
-
-    def old_name_reports(self, caught):
-        """The warnings in a recorded list that say the old endpoint
-        variable is deprecated and name the one that replaces it."""
-        return [
-            warning for warning in caught
-            if issubclass(warning.category, FutureWarning)
-            and self.OLD_VARIABLE in str(warning.message)
-            and self.NEW_VARIABLE in str(warning.message)]
 
     def test_endpoint_defaults_to_the_public_cloud(self):
         self.assertEqual(DEFAULT_ENDPOINT, DidClient(RESOURCE).endpoint)
@@ -211,62 +196,11 @@ class ClientConstructionTests(unittest.TestCase):
         self.assertEqual("https://private.example/api/v4/",
                          DidClient(RESOURCE).endpoint)
 
-    def test_endpoint_read_from_the_old_variable(self):
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", FutureWarning)
-            client = DidClient(RESOURCE)
-        self.assertEqual("https://old.example/api/v4/", client.endpoint)
-
-    def test_old_variable_read_when_the_new_one_is_empty(self):
-        os.environ[self.NEW_VARIABLE] = ""
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", FutureWarning)
-            client = DidClient(RESOURCE)
-        self.assertEqual("https://old.example/api/v4/", client.endpoint)
-
-    def test_empty_old_variable_gives_the_public_cloud(self):
-        os.environ[self.OLD_VARIABLE] = ""
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            client = DidClient(RESOURCE)
-        self.assertEqual(DEFAULT_ENDPOINT, client.endpoint)
-        self.assertEqual([], self.old_name_reports(caught))
-
-    def test_new_variable_wins_over_the_old_one(self):
-        os.environ[self.NEW_VARIABLE] = "https://private.example/api/v4"
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            client = DidClient(RESOURCE)
-        self.assertEqual("https://private.example/api/v4/", client.endpoint)
-        # The old name was not used, so it is not reported.
-        self.assertEqual([], self.old_name_reports(caught))
-
-    def test_old_variable_is_reported_as_deprecated_once(self):
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            first = DidClient(RESOURCE)
-            second = DidClient(RESOURCE)
-        self.assertEqual("https://old.example/api/v4/", first.endpoint)
-        self.assertEqual("https://old.example/api/v4/", second.endpoint)
-        self.assertEqual(1, len(self.old_name_reports(caught)))
-
     def test_endpoint_argument_wins_and_is_normalised(self):
         self.assertEqual(ENDPOINT, DidClient(
             RESOURCE, endpoint="https://cloud.example/api/v4").endpoint)
         self.assertEqual(ENDPOINT, DidClient(
             RESOURCE, endpoint="https://cloud.example/api/v4//").endpoint)
-
-    def test_endpoint_argument_wins_over_the_old_variable(self):
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            client = DidClient(RESOURCE, endpoint=ENDPOINT)
-        self.assertEqual(ENDPOINT, client.endpoint)
-        self.assertEqual([], self.old_name_reports(caught))
 
     def test_old_constant_keeps_its_old_value(self):
         # Code that passes ENDPOINT_VARIABLE to the environment has to keep
@@ -284,18 +218,6 @@ class ClientConstructionTests(unittest.TestCase):
         self.assertEqual(self.OLD_VARIABLE, names.get("ENDPOINT_VARIABLE"))
         self.assertEqual(
             self.NEW_VARIABLE, names.get("CLOUD_ENDPOINT_VARIABLE"))
-
-    def test_client_reads_the_variable_the_old_constant_names(self):
-        # The client reads the old name through the constant, as it did
-        # before, so code that points the constant at another variable
-        # still decides what is read.
-        os.environ["ANOTHER_VARIABLE"] = "https://other.example/api/v4"
-        with mock.patch.object(
-                did_client, "ENDPOINT_VARIABLE", "ANOTHER_VARIABLE"):
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", FutureWarning)
-                client = DidClient(RESOURCE)
-        self.assertEqual("https://other.example/api/v4/", client.endpoint)
 
     def test_new_constant_holds_the_new_name(self):
         self.assertEqual(
