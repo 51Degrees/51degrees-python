@@ -127,7 +127,7 @@ class GettingStartedWeb():
         # The pipeline lives as long as the app, and is closed when the server
         # stops, which releases the native data it holds.
         with GettingStartedWeb.pipeline:
-            GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5001)))
+            GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5151)))
 
     # First we make a JSON route that will be called from the client side and will return
     # a JSON encoded property database using any additional evidence provided by the client.

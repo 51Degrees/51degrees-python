@@ -97,7 +97,7 @@ class UserAgentClientHintsWeb():
         # The pipeline lives as long as the app, and is closed when the server
         # stops, which releases the native data it holds.
         with UserAgentClientHintsWeb.pipeline:
-            UserAgentClientHintsWeb.app.run(port=5001)
+            UserAgentClientHintsWeb.app.run(port=5151)
 
     # The main route performs device detection and renders the results. On the
     # second request, any additional client hints headers requested via the

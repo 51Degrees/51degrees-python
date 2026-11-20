@@ -67,10 +67,10 @@ why.
 ``_51DEGREES_CLOUD_ENDPOINT`` is the cloud API base including the ``/api/v4/``
 segment, defaulting to ``https://cloud.51degrees.com/api/v4/``, and is
 the same variable the cloud request engine and the ``DidClient`` honour.
-``PORT`` is the port to listen on, defaulting to 5100.
+``PORT`` is the port to listen on, defaulting to 5151.
 
 Standard library plus this package. Run ``python server.py`` then open
-``http://localhost:5100/``.
+``http://localhost:5151/``.
 """
 
 import asyncio
@@ -121,7 +121,7 @@ LICENCE = env("_51DEGREES_LICENSE_KEY") or ""
 # demo works unchanged against either.
 API = (env("_51DEGREES_CLOUD_ENDPOINT")
        or DEFAULT_API).rstrip("/") + "/"
-PORT = int(os.environ.get("PORT", "5100"))
+PORT = int(os.environ.get("PORT", "5151"))
 
 # Where to go next. The page ends with these links, and the demo prints
 # them when it stops before the page is served.

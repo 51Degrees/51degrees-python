@@ -141,7 +141,7 @@ class GettingStartedWeb():
 
     def run(self):
 
-        GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5000)))
+        GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5151)))
 
     # First we make a JSON route that will be called from the client side and will return
     # a JSON encoded property database using any additional evidence provided by the client.

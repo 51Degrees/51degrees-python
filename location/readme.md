@@ -54,11 +54,11 @@ To run the web example navigate into Examples folder:
 
 #### Linux
 
-Execute `export FLASK_APP=web` where `web` is the example file, and start your application via `flask run`.
+Execute `export FLASK_APP=web` where `web` is the example file, and start your application via `flask run --port 5151`.
 
 #### Windows
 
-Execute `$env:FLASK_APP = "web"` where `web` is the example file, and start your application via `flask run`.
+Execute `$env:FLASK_APP = "web"` where `web` is the example file, and start your application via `flask run --port 5151`.
 
 A Flow Data cannot be used by two threads at once, so the web example
 creates a Flow Data for each request, uses it only in the code that handles
