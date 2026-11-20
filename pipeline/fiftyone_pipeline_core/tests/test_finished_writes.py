@@ -138,6 +138,15 @@ DICT_WRITES = (
     ("|=", lambda d: d.__ior__({"b": 2})),
 )
 
+# Each way of adding to the Element Data of a FlowData. Element Data is never
+# removed from a FlowData, so the other dictionary writes are refused whether
+# or not it has finished processing.
+ELEMENT_DATA_ADDS = (
+    ("[]=", lambda d: d.__setitem__("b", 2)),
+    ("update", lambda d: d.update(b=2)),
+    ("setdefault", lambda d: d.setdefault("b", 2)),
+)
+
 
 def process(*elements, **settings):
     builder = PipelineBuilder(dict({"add_javascript_builder": False,
@@ -213,10 +222,10 @@ class FinishedFlowDataTests(unittest.TestCase):
         flowdata.evidence.add("query.early", "value")
         self.assertEqual("value", flowdata.evidence.get("query.early"))
 
-    def assert_dict_writes_fail(self, finished, store):
+    def assert_dict_writes_fail(self, finished, store, writes=DICT_WRITES):
         """Each way of writing the dictionary store(finished) raises, and
         leaves it as it was."""
-        for name, write in DICT_WRITES:
+        for name, write in writes:
             with self.subTest(name):
                 flowdata = finished()
                 before = dict(store(flowdata))
@@ -228,7 +237,8 @@ class FinishedFlowDataTests(unittest.TestCase):
     def test_the_element_data_dictionary_cannot_be_written_once_processed(
             self):
         self.assert_dict_writes_fail(
-            lambda: process(WritingElement("a")), lambda f: f.data)
+            lambda: process(WritingElement("a")), lambda f: f.data,
+            ELEMENT_DATA_ADDS)
 
     def test_the_errors_dictionary_cannot_be_written_once_processed(self):
         self.assert_dict_writes_fail(
@@ -254,7 +264,6 @@ class FinishedFlowDataTests(unittest.TestCase):
         flowdata = process(WritingElement())
         evidence = flowdata.evidence
         for owner, name, value in (
-                (flowdata, "data", {}),
                 (flowdata, "errors", {}),
                 (flowdata, "evidence", Evidence(flowdata)),
                 (evidence, "evidence", {}),
@@ -265,6 +274,25 @@ class FinishedFlowDataTests(unittest.TestCase):
                     setattr(owner, name, value)
                 self.assertIn(FINISHED, str(caught.exception))
                 self.assertIs(before, getattr(owner, name))
+
+    def test_the_element_data_cannot_be_replaced_once_processed(self):
+        flowdata = process(WritingElement())
+        before = flowdata.data.copy()
+        with self.assertRaises(Exception) as caught:
+            flowdata.data = {}
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertEqual(before, flowdata.data.copy())
+
+    def test_element_data_cannot_be_added_through_an_earlier_view(self):
+        flowdata = PipelineBuilder({"add_javascript_builder": False,
+                                    "use_setheader_properties": False}) \
+            .add(WritingElement()).build().create_flowdata()
+        view = flowdata.data
+        flowdata.process()
+        with self.assertRaises(Exception) as caught:
+            view["late"] = ElementDataDictionary(WritingElement("late"), {})
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertNotIn("late", flowdata.data)
 
     def test_data_given_before_processing_is_read_only_after(self):
         flowdata = PipelineBuilder({"add_javascript_builder": False,
