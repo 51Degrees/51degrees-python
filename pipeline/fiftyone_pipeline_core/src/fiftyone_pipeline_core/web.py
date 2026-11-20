@@ -298,17 +298,16 @@ def _client_side_response(
 
 def _uses(pipeline, key):
 
-    # Whether the key is evidence one of the pipeline's elements accepts. The
-    # web request itself, which the usage sharing element reads, is evidence
-    # no element uses, whatever the filters accept.
+    # Whether the key is evidence one of the pipeline's elements accepts,
+    # which the pipeline's own evidence key filter says. The web request
+    # itself, which the usage sharing element reads, is evidence no element
+    # uses, whatever the filters accept.
     if key.lower() == HTTP_REQUEST_KEY:
         return False
     if key.startswith("header.") and \
             key[len("header."):] in _REVALIDATION_HEADERS:
         return False
-    return any(
-        element.filter_evidence_key(key)
-        for element in pipeline.flow_elements)
+    return pipeline.get_evidence_key_filter().filter_evidence_key(key)
 
 def _opaque_tag(pipeline, evidence):
 
