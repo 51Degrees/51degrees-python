@@ -70,16 +70,19 @@ class AspectDataDictionary(AspectData):
     def get_internal(self, key):
 
         """!
-        getInternal = Internal getter for contents
+        getInternal = Internal getter for contents. The key is compared
+        without regard to case, as every key is stored in lower case.
 
         @type key: string
         @param key: the key to get
 
-        
+
         @rtype: dict
         @return: Internal getter for contents
 
         """
+
+        key = key.lower()
 
         if key in self.contents.keys():
 

@@ -44,7 +44,7 @@ class ExampleUtils:
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
     # Deprecated. Use RESOURCE_KEY_ENV_VAR. The name the resource key
-    # variable had before, read when RESOURCE_KEY_ENV_VAR is not set.
+    # variable had before, which is no longer read.
     LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
 
     # The environment variable the data file update example reads a licence
@@ -52,7 +52,7 @@ class ExampleUtils:
     LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
 
     # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
-    # variable had before, read when LICENSE_KEY_ENV_VAR is not set.
+    # variable had before, which is no longer read.
     LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
 
     # The environment variable naming a cloud service other than the public
@@ -60,7 +60,7 @@ class ExampleUtils:
     CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
 
     # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
-    # before, read when CLOUD_ENDPOINT_ENV_VAR is not set.
+    # before, which is no longer read.
     ENDPOINT_ENV_VAR = "cloud_endpoint"
 
     # The environment variable an on-premise example reads the path of its
@@ -69,7 +69,7 @@ class ExampleUtils:
     DD_PATH_ENV_VAR = "_51DEGREES_DD_PATH"
 
     # Deprecated. Use DD_PATH_ENV_VAR. The name that variable had before,
-    # read when DD_PATH_ENV_VAR is not set. A POSIX shell cannot set it,
+    # which is no longer read. A POSIX shell cannot set it,
     # because it starts with a digit.
     DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"
 
@@ -186,23 +186,16 @@ class ExampleUtils:
     @staticmethod
     def get_resource_key():
         return ExampleUtils.__get_env_variable(
-            ExampleUtils.RESOURCE_KEY_ENV_VAR,
-            ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR)
+            ExampleUtils.RESOURCE_KEY_ENV_VAR)
 
     @staticmethod
     def get_license_key():
         """!
-        The licence key from the environment, or an empty string. The old
-        name is also read in upper case, as it was before.
+        The licence key from the environment, or an empty string.
         """
 
-        return (
-            ExampleUtils.__get_env_variable(
-                ExampleUtils.LICENSE_KEY_ENV_VAR,
-                ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR)
-            or ExampleUtils.__get_env_variable(
-                ExampleUtils.LICENSE_KEY_ENV_VAR,
-                ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR.upper()))
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.LICENSE_KEY_ENV_VAR)
 
     @staticmethod
     def get_missing_resource_key_message():
@@ -213,45 +206,25 @@ class ExampleUtils:
 
         return (f"No resource key found. Set the environment variable "
                 f"'{ExampleUtils.RESOURCE_KEY_ENV_VAR}'. Create a resource key for free at "
-                "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=resource-key-required")
+                "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=resource-key-required")
 
     @staticmethod
     def get_data_file_path():
         return ExampleUtils.__get_env_variable(
-            ExampleUtils.DD_PATH_ENV_VAR, ExampleUtils.DATA_FILE_ENV_VAR)
+            ExampleUtils.DD_PATH_ENV_VAR)
 
     @staticmethod
     def get_cloud_endpoint():
         return ExampleUtils.__get_env_variable(
-            ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
-            ExampleUtils.ENDPOINT_ENV_VAR)
-
-    # The old names already reported as deprecated, so each is reported
-    # once.
-    __reported_old_names = set()
+            ExampleUtils.CLOUD_ENDPOINT_ENV_VAR)
 
     @staticmethod
-    def __get_env_variable(name, old_name):
+    def __get_env_variable(name):
         """!
         The value of the environment variable name, or an empty string.
-        When name is unset or empty the name the variable had before is
-        read, and using it prints once that the old name is deprecated.
         """
 
-        value = os.environ.get(name)
-        if value:
-            return value
-        value = os.environ.get(old_name)
-        if not value:
-            return ""
-        if old_name not in ExampleUtils.__reported_old_names:
-            ExampleUtils.__reported_old_names.add(old_name)
-            print(
-                f"The {old_name} environment variable is deprecated and {name} "
-                f"replaces it. The value was read from {old_name} because {name} "
-                f"is not set, so set {name} to the same value.",
-                file=sys.stderr)
-        return value
+        return os.environ.get(name) or ""
 
     # Find the specified file. A path to a file that exists is returned as
     # it is. Next, the data repository's folder is checked in the working
@@ -438,6 +411,18 @@ class ExampleUtils:
                 "data file adds many more properties, such as "
                 "HardwareVendor, HardwareName and DeviceType. Contact us for "
                 f"a copy at {contact_us}")
+
+    @staticmethod
+    def print_find_out_more(links, output=print):
+        """!
+        Write the "Find out more" section that an example ends with, a line
+        of "=" and then each label with its link. links is a list of label
+        and link pairs, and output takes one string, as print does.
+        """
+        message = ["=" * 79, "Find out more:"]
+        for label, url in links:
+            message.append(f"\t{label}: {url}")
+        output("\n".join(message) + "\n")
 
     @staticmethod
     def check_data_file(pipeline, logger):

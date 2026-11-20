@@ -116,4 +116,8 @@ class DeviceDetectionDataFile(DataFile):
         if self.download == False:
             self.flow_element.engine.refreshDataFromMemory(self.data)
         else:
+            # The update is written to the file the engine was built from.
             self.flow_element.engine.refreshData()
+
+        # The new data may accept other Evidence keys.
+        self.flow_element.read_evidence_keys()

@@ -125,6 +125,29 @@ class DeviceDetectionTests(unittest.TestCase):
 
         self.assertTrue(fd.device.ismobile.value())
 
+    def test_method_is_the_match_method_name(self):
+        """!
+        Method is the name of the method the match used, being one of the
+        C library's NONE, PERFORMANCE, COMBINED and PREDICTIVE, as
+        device-detection-on-premise.md's match metric table says (a
+        string, read with getMethod).
+        """
+
+        pipeline = DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
+
+        fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
+
+        fd.evidence.add("header.user-agent", mobile_ua)
+
+        fd.process()
+
+        self.assertIn(
+            fd.device.method.value(),
+            ["NONE", "PERFORMANCE", "COMBINED", "PREDICTIVE"])
+
     def test_process_with_no_evidence(self):
         """!
         Process a FlowData which does not have any evidence. This should not throw an error and all 51Degrees engines should set the default aspect properties
@@ -648,7 +671,7 @@ class DeviceDetectionTests(unittest.TestCase):
 
         for engine_property in properties:
             data_property = fd.device.get(engine_property)
-            if properties[engine_property]["category"] == "Device metrics":
+            if properties[engine_property]["category"] == "Device Metrics":
                 self.assertEqual(data_property.has_value(), True)
             elif engine_property == "deviceid":
                 self.assertEqual(fd.device.deviceid.value(), "0-0-0-0")
@@ -677,7 +700,7 @@ class DeviceDetectionTests(unittest.TestCase):
 
         for engine_property in properties:
             data_property = fd.device.get(engine_property)
-            if properties[engine_property]["category"] == "Device metrics":
+            if properties[engine_property]["category"] == "Device Metrics":
                 self.assertEqual(data_property.has_value(), True)
             elif engine_property == "deviceid":
                 self.assertEqual(fd.device.deviceid.value(), "0-0-0-0")

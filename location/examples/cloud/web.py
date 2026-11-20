@@ -30,50 +30,76 @@
 # The Pipeline running on the server then processes this evidence to populate a new JSON result object that is returned to the client.
 #
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/location/examples/cloud/web.py)
+#
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it before the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
 
 from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
 from fiftyone_pipeline_core.web import json_response, webevidence
 
 # First create the location pipeline with the desired settings.
 
-# You need to create a resource key at https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=top
+# You need to create a resource key at https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=top
 # and paste it into the code, replacing !!YOUR_RESOURCE_KEY!! below.
 # Alternatively, add a _51DEGREES_RESOURCE_KEY environment variable.
-# resource_key is the old name of that variable. It is deprecated, and is
-# read only when _51DEGREES_RESOURCE_KEY is not set.
+import html
 import os
-import sys
+
+# Where to go next, shown at the end of the page, and printed when there is
+# no resource key.
+FIND_OUT_MORE = [
+    ("Geolocation",
+     "https://51degrees.com/geolocation?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=find-out-more-geolocation"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=find-out-more-pricing"),
+    ("Location for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/location"),
+]
 
 
-def read_environment(name, old_name):
-    """The value of the environment variable name, or None when it has
-    none. When name is unset or empty the name the variable had before is
-    read, and using it prints that the old name is deprecated."""
-    value = os.environ.get(name)
-    if value:
-        return value
-    value = os.environ.get(old_name)
-    if not value:
-        return None
-    print(
-        f"The {old_name} environment variable is deprecated and {name} "
-        f"replaces it. The value was read from {old_name} because {name} "
-        f"is not set, so set {name} to the same value.",
-        file=sys.stderr)
-    return value
+def print_find_out_more():
+    """Print the Find out more section, a line of "=" and then each label
+    with its link."""
+    print("=" * 79)
+    print("Find out more:")
+    for label, url in FIND_OUT_MORE:
+        print(f"\t{label}: {url}")
 
 
-resource_key = read_environment("_51DEGREES_RESOURCE_KEY", "resource_key")
+def find_out_more_html():
+    """The Find out more section for the end of the page. A repository is
+    shown by its address, and any other link by its label."""
+    items = ""
+    for label, url in FIND_OUT_MORE:
+        href = html.escape(url)
+        label = html.escape(label)
+        if url.startswith("https://github.com/"):
+            items += f"<li>{label}: <a href=\"{href}\">{href}</a></li>"
+        else:
+            items += f"<li><a href=\"{href}\">{label}</a></li>"
+    return f"<h3>Find out more</h3><ul>{items}</ul>"
+
+
+resource_key = os.environ.get("_51DEGREES_RESOURCE_KEY")
 if not resource_key:
     resource_key = "!!YOUR_RESOURCE_KEY!!"
 
 if resource_key == "!!YOUR_RESOURCE_KEY!!":
     print("""
     You need to create a resource key at
-    https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required and paste it into the code,
-    'replacing !!YOUR_RESOURCE_KEY!!
-    To get a resourcekey with the properties used in this example go to https://configure.51degrees.com/GCrtGh1L?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required
+    https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required and set the
+    _51DEGREES_RESOURCE_KEY environment variable to it, or paste it into the
+    code in place of !!YOUR_RESOURCE_KEY!!.
+    To get a resource key with the properties used in this example go to https://51degrees.com/configure/GCrtGh1L?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=examples-cloud-web.py&utm_term=resource-key-required
     """)
+    print_find_out_more()
 else:
 
     # Here we add some callback settings for the page to make a request with extra evidence from the client side, in this case the Flask /json route we will make below
@@ -117,24 +143,29 @@ else:
     @app.route('/')
     def server():
 
-        # Create the flowData object for the JSON route
-        flowData = pipeline.create_flowdata()
+        # A Flow Data cannot be used by two threads at once, so this one is
+        # made for this request, used only here, and closed once the page's
+        # script has been read from it.
+        with pipeline.create_flowdata() as flowData:
 
-        # Add any information from the request (headers, cookies and additional
-        # client side provided information)
+            # Add any information from the request (headers, cookies and
+            # additional client side provided information)
 
-        flowData.evidence.add_from_dict(webevidence(request))
+            flowData.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowData
+            # Process the flowData
 
-        flowData.process()
+            flowData.process()
+
+            # The JavaScript created by the pipeline
+            javascript = flowData.javascriptbuilder.javascript
 
         # Generate the HTML
         output = ""
 
         # Add the JavaScript created by the pipeline
         output += "<script>"
-        output += flowData.javascriptbuilder.javascript
+        output += javascript
         output += "</script>"
 
 
@@ -165,5 +196,8 @@ else:
 
 
         """
+
+        # Where to go next.
+        output += find_out_more_html()
 
         return output

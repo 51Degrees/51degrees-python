@@ -20,8 +20,68 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from types import MappingProxyType
+
+from .evidence_keyfilter import EvidenceKeyFilter
 from .flowdata import FlowData
 from .logger import Logger
+from .messages import Messages
+
+
+def is_usage_sharing_element(flow_element):
+
+    """!
+    Whether a FlowElement is the usage sharing element. That element sets
+    the class attribute is_usage_sharing_element to True, because this
+    package cannot import it.
+
+    @type flow_element: FlowElement
+    @param flow_element: The FlowElement to check
+    @rtype: bool
+    @return: True for the usage sharing element
+    """
+
+    return getattr(flow_element, "is_usage_sharing_element", False) is True
+
+
+def check_usage_sharing_last(flow_elements):
+
+    """!
+    Refuse FlowElements that put the usage sharing element anywhere but
+    last. It shares the Evidence the other FlowElements add, so it runs after
+    all of them. A Pipeline here has no parallel groups, so the element is
+    always outside one.
+
+    @type flow_elements: sequence of FlowElement
+    @param flow_elements: The FlowElements, in the order they run
+    @raise ValueError: if a usage sharing element is not the last one
+    """
+
+    count = len(flow_elements)
+    for index, flow_element in enumerate(flow_elements):
+        if index < count - 1 and is_usage_sharing_element(flow_element):
+            raise ValueError(Messages.USAGE_SHARING_NOT_LAST.format(
+                type(flow_element).__name__, index + 1, count))
+
+
+class PipelineEvidenceKeyFilter(EvidenceKeyFilter):
+
+    """!
+    The Evidence a Pipeline accepts, being every key one of its FlowElements
+    accepts. Each element's filter is read when a key is checked, as an
+    element's list can change once its data or the cloud service's answer
+    arrives.
+
+    """
+
+    def __init__(self, pipeline):
+        self.pipeline = pipeline
+
+    def filter_evidence_key(self, key):
+        return any(
+            element.get_evidence_key_filter().filter_evidence_key(key)
+            for element in self.pipeline.flow_elements_list.values())
+
 
 class Pipeline:
 
@@ -31,6 +91,12 @@ class Pipeline:
     collecting ElementData
     Should be constructed through the PipelineBuilder class
 
+    A Pipeline cannot be changed once it is built. flow_elements and
+    flow_elements_display_list are tuples, and flow_elements_list, the
+    elements by data key, is a read-only mapping. Each is a property with
+    no setter. Code can read them, and adding, removing or replacing an
+    element, or binding one of them again, raises an error.
+
     """
 
     def __init__(self, flow_elements, logger=Logger(), suppress_process_exceptions = False, data_file_update_service = None, auto_close_elements = True):
@@ -39,7 +105,9 @@ class Pipeline:
         Pipeline constructor.
 
         @type flow_elements: list[FlowElement]
-        @param flow_elements: A list of flowElements
+        @param flow_elements: The flowElements, in the order they run. The
+        pipeline keeps a copy, so changing this list afterwards changes
+        nothing. A usage sharing element must be the last one.
 
         @type logger: Logger
         @param logger: A logger to attach to the pipeline
@@ -57,16 +125,23 @@ class Pipeline:
 
         @rtype: Pipeline
         @return: Returns a Pipeline
+        @raise ValueError: if a usage sharing element is not the last
+        flowElement, before any element is registered
 
         """
 
-        self.flow_elements = flow_elements
+        self._flow_elements = tuple(flow_elements)
+
+        check_usage_sharing_last(self._flow_elements)
 
         self.logger = logger
 
-        self.flow_elements_list = {}
+        # Filled below as each element is registered, so an element finds
+        # those registered before it, and read only through this view.
+        elements_by_key = {}
+        self._flow_elements_list = MappingProxyType(elements_by_key)
 
-        self.flow_elements_display_list = []
+        self._flow_elements_display_list = ()
 
         self.suppress_process_exceptions = suppress_process_exceptions
 
@@ -76,17 +151,38 @@ class Pipeline:
             self.data_file_update_service = data_file_update_service
             self.data_file_update_service.register_pipeline(self)
       
-        for flow_element in flow_elements:
+        for flow_element in self._flow_elements:
 
             # Notify element that it has been registered in the pipeline
             flow_element.on_registration(self)
 
-            self.flow_elements_list[flow_element.datakey] = flow_element
+            elements_by_key[flow_element.datakey] = flow_element
 
             flow_element.pipelines.append(self)
 
             if not flow_element.exclude_from_messages:
-                self.flow_elements_display_list.append(flow_element.datakey)
+                self._flow_elements_display_list += (flow_element.datakey,)
+
+    @property
+    def flow_elements(self):
+        """!
+        The FlowElements, in the order they run, as a tuple.
+        """
+        return self._flow_elements
+
+    @property
+    def flow_elements_list(self):
+        """!
+        The FlowElements by data key, as a read-only mapping.
+        """
+        return self._flow_elements_list
+
+    @property
+    def flow_elements_display_list(self):
+        """!
+        The data keys named in messages, as a tuple.
+        """
+        return self._flow_elements_display_list
 
     def create_flowdata(self):
 
@@ -111,6 +207,9 @@ class Pipeline:
         FlowData created by the pipeline are not closed by it. Close each
         one as well, because the results it holds keep the engine's data in
         memory until they are released.
+
+        @raise Exception: the first error a flow element raised when it was
+        closed, once every element has been closed
 
         """
 
@@ -168,6 +267,19 @@ class Pipeline:
 
         return self.flow_elements_list[key]
 
+    def get_evidence_key_filter(self):
+
+        """!
+        The Evidence the Pipeline accepts, being every key one of its
+        FlowElements accepts.
+
+        @rtype: EvidenceKeyFilter
+        @return: Returns an EvidenceKeyFilter
+
+        """
+
+        return PipelineEvidenceKeyFilter(self)
+
     def element_not_found(self, element, flowdata):
         """!
         Trigger error when an element cannot be found in the pipeline
@@ -176,12 +288,15 @@ class Pipeline:
         @param element: name of flowelement 
         @type flowdata: flowdata
         @param element: flowdata being processsed 
-        @rtype: Exception
-        @return: Returns exception
+        @raise Exception: always, naming the keys the FlowData does hold
 
         """
 
-        raise Exception("There is no element data for " + element + " against this flow data. Available element data keys are: " + str(flowdata.pipeline.flow_elements_display_list))
+        # A list, so the keys are shown in square brackets.
+        raise Exception(
+            "There is no element data for " + element + " against this "
+            "flow data. Available element data keys are: " +
+            str(list(flowdata.pipeline.flow_elements_display_list)))
 
 
     def get_properties(self):

@@ -22,8 +22,11 @@
 
 from __future__ import absolute_import
 
+import inspect
 import json
+import math
 import os
+# Kept so that ``from ... import *`` of this module still gives it.
 import threading
 import warnings
 from functools import cached_property
@@ -49,52 +52,40 @@ except ImportError:
     from urllib.parse import urlencode
 
 
-# Whether the old end point variable has been reported as deprecated, so
-# that it is reported once however many engines are built.
-_old_endpoint_reported = False
-_old_endpoint_lock = threading.Lock()
-
-
 def _endpoint_from_environment():
 
     """!
-    The cloud end point the environment gives, or None when it gives none.
-
-    Constants.CLOUD_ENDPOINT is read first. When it is unset or empty the
-    variable Constants.FOD_CLOUD_API_URL names is read, which is the old
-    name, and the first use of it is reported as deprecated. The report is
-    a FutureWarning, which Python shows by default, because the people who
-    set the variable are the ones running the application.
+    The cloud end point that Constants.CLOUD_ENDPOINT names, or None when
+    it is unset or empty.
 
     @rtype: string
     @return: the end point, or None
     """
 
-    global _old_endpoint_reported
-
-    endpoint = os.environ.get(Constants.CLOUD_ENDPOINT)
-    if endpoint:
-        return endpoint
-
-    old_name = Constants.FOD_CLOUD_API_URL
-    endpoint = os.environ.get(old_name)
-    if not endpoint:
-        return None
-
-    with _old_endpoint_lock:
-        report = not _old_endpoint_reported
-        _old_endpoint_reported = True
-    if report:
-        # The third frame is the code that built the engine.
-        warnings.warn(
-            Constants.MESSAGE_OLD_ENDPOINT_VARIABLE.format(
-                old_name, Constants.CLOUD_ENDPOINT),
-            FutureWarning, stacklevel=3)
-    return endpoint
+    return os.environ.get(Constants.CLOUD_ENDPOINT) or None
 
 
-# Engine that makes a call to the 51Degrees cloud service
-# Returns raw JSON as a "cloud" property under "cloud" datakey
+def _takes_timeout(client):
+
+    """!
+    Whether a client's request method has a timeout_seconds parameter. A
+    client written for an older RequestClient has none, so it is called
+    without one.
+    """
+
+    try:
+        parameter = inspect.signature(client.request).parameters.get(
+            "timeout_seconds")
+    except (TypeError, ValueError):
+        return False
+    return parameter is not None and parameter.kind in (
+        inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        inspect.Parameter.KEYWORD_ONLY)
+
+
+# Engine that makes a call to the 51Degrees cloud service. It gives the raw
+# JSON as its "cloud" property, read under the "cloud-response" key, or
+# under the deprecated key "cloud".
 class CloudRequestEngine(Engine):
     def __init__(self, settings = {}):
         """!
@@ -109,10 +100,34 @@ class CloudRequestEngine(Engine):
         service adds them to the properties the resource key carries
         2) a cloud_endpoint to overwrite the default baseurl
         3) an cloud_request_origin to use when making requests
+        4) timeout_seconds, how long each request to the cloud service
+        waits, in seconds, which is 2 when it is missing or None
+        5) an http_client to send the requests in place of a
+        RequestClient. Its request method is given timeout_seconds when it
+        has a parameter of that name.
+        6) discovery_state, a copy of what an earlier engine discovered for
+        the same credentials, as its discovery_state() gives it, either
+        the JSON text or the dictionary it holds. The engine then makes
+        no discovery request when it is built.
 
         See the Credentials section of the cloud request engine
         specification for the combinations that are accepted:
-        https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials
+        https://github.com/51Degrees/specifications/blob/6570727d2af6967390d3c4fbec77b9cf0540d3f3/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials
+
+        The constructor asks the cloud service for the accessible
+        properties and the evidence keys, as warm_up says, so a built
+        engine is ready to process. It raises CloudRequestException when
+        the service refuses either request, for example because the
+        resource key is not valid. It only warns when a request fails in a
+        way that may pass, such as the service being unreachable, so a
+        cloud outage does not stop the application starting. A request
+        that times out is such a failure.
+
+        @raise CloudRequestException: where the cloud service refuses either
+        discovery request, with an answer from 400 to 499
+        @raise ValueError: where a setting is one the engine cannot use, for
+        example neither a resource_key nor a license_key, or a license_key
+        with no requested_properties
 
         """
 
@@ -151,8 +166,7 @@ class CloudRequestEngine(Engine):
         self.reported_not_covered = set()
 
         # The endpoint is the cloud_endpoint setting, then the
-        # _51DEGREES_CLOUD_ENDPOINT environment variable, then that
-        # variable's deprecated old name FOD_CLOUD_API_URL, then
+        # _51DEGREES_CLOUD_ENDPOINT environment variable, then
         # cloud.51degrees.com. A host other than cloud.51degrees.com
         # would be used to (a) use an on premise web server, or (b) use
         # a privately hosted version of the 51Degrees cloud for
@@ -169,11 +183,16 @@ class CloudRequestEngine(Engine):
         # Make sure if baseURL does not end with '/', one will be appended
         if not self.baseURL.endswith("/"):
             self.baseURL = self.baseURL + "/"
-  
+
+        # How long each request waits, so a cloud service that takes the
+        # connection and never answers cannot hold the constructor or a
+        # request.
+        self.timeout_seconds = self.setting_timeout(settings)
+
         if "http_client" in settings:
             self.http_client = settings["http_client"]
         else:
-            self.http_client = RequestClient()
+            self.http_client = RequestClient(self.timeout_seconds)
 
         if "cloud_request_origin" in settings:
             self.cloud_request_origin = settings["cloud_request_origin"]
@@ -181,6 +200,23 @@ class CloudRequestEngine(Engine):
             self.cloud_request_origin = None
 
         self.exclude_from_messages = True
+
+        # The evidence key filter, with the key list it was made from. See
+        # get_evidence_key_filter.
+        self._evidence_key_filter = None
+
+        # The cloud service's answer to the accessible properties request,
+        # kept for discovery_state().
+        self._accessible_properties = None
+
+        # Discovery runs now, so a built engine is ready to process and a
+        # key the cloud service refuses fails here, not on a request. A
+        # saved copy of an earlier engine's discovery takes its place.
+        state = settings.get("discovery_state")
+        if state is not None:
+            self._use_discovery_state(state)
+        else:
+            self.warm_up()
 
     @staticmethod
     def setting_text(settings, name):
@@ -194,6 +230,27 @@ class CloudRequestEngine(Engine):
         if value is None:
             return ""
         return str(value).strip()
+
+    @staticmethod
+    def setting_timeout(settings):
+
+        """!
+        The timeout_seconds setting, or the default when it is missing or
+        None. A value that is not a number above zero is refused, because
+        the requests library would refuse it on every request.
+        """
+
+        value = settings.get("timeout_seconds")
+        if value is None:
+            return Constants.TIMEOUT_SECONDS_DEFAULT
+        # A bool is an int to Python, but True is not a number of seconds.
+        # A socket refuses a timeout that is not finite.
+        if (isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value <= 0):
+            raise ValueError(Constants.MESSAGE_TIMEOUT_NOT_POSITIVE.format(
+                value, Constants.TIMEOUT_SECONDS_DEFAULT))
+        return value
 
     @staticmethod
     def setting_names(settings, name):
@@ -272,14 +329,169 @@ class CloudRequestEngine(Engine):
             credentials[Constants.LICENSE_PARAMETER] = self.license_key
         return credentials
 
+    # The discovery results, each as the attribute that holds it and the
+    # words a warning uses for it, in the order they are fetched.
+    _DISCOVERY_RESULTS = (
+        ("flow_element_properties", Constants.DISCOVERY_PROPERTIES),
+        ("evidence_keys", Constants.DISCOVERY_EVIDENCE_KEYS))
+
     @cached_property
     def flow_element_properties(self):
-        # Initialise evidence keys and properties from the cloud service
+        """!
+        The properties the cloud service gives for the key in use, by the
+        data key of each product, as get_engine_properties gives them. The
+        constructor fetches them. If that failed, reading this asks again
+        and raises if the cloud service fails again. The first answer is
+        kept.
+        """
+
         return self.get_engine_properties()
 
     @cached_property
     def evidence_keys(self):
+        """!
+        The evidence keys the cloud service accepts, fetched and kept as
+        flow_element_properties is.
+        """
+
         return self.get_evidence_keys()
+
+    def known_flow_element_properties(self):
+        """!
+        flow_element_properties if the cloud service has given them, or
+        None while discovery has not completed. This never makes a request,
+        so a cloud engine can read it while the pipeline is built.
+
+        @rtype: dict
+        @return: the properties by product data key, or None
+        """
+
+        # cached_property keeps the value in the instance, under its own
+        # name, once the value has been fetched.
+        return vars(self).get("flow_element_properties")
+
+    def discovery_state(self):
+        """!
+        What this engine discovered, being the evidence keys the cloud
+        service accepts and its answer to the accessible properties
+        request, as one JSON document. Give it as the discovery_state
+        setting of another engine with the same credentials, and that
+        engine is built without asking the cloud service. The document is
+        the one the Java package's CloudDiscoveryState.toJson() writes.
+
+        @rtype: str
+        @return: the JSON document, or None while discovery has not
+        completed
+        """
+
+        keys = vars(self).get("evidence_keys")
+        if keys is None or self._accessible_properties is None:
+            return None
+        return json.dumps({
+            Constants.DISCOVERY_STATE_EVIDENCE_KEYS: keys,
+            Constants.DISCOVERY_STATE_ACCESSIBLE_PROPERTIES:
+                self._accessible_properties})
+
+    def _use_discovery_state(self, state):
+        """!
+        Take the discovery results from a copy discovery_state() gave,
+        making no request.
+
+        @raise ValueError: where the copy is not one discovery_state()
+        gives
+        """
+
+        try:
+            document = json.loads(state) if isinstance(state, (str, bytes)) \
+                else state
+            keys = document[Constants.DISCOVERY_STATE_EVIDENCE_KEYS]
+            accessible = document[
+                Constants.DISCOVERY_STATE_ACCESSIBLE_PROPERTIES]
+            if not (isinstance(keys, list)
+                    and all(isinstance(key, str) for key in keys)
+                    and isinstance(accessible, dict)
+                    and isinstance(accessible.get("Products"), dict)):
+                raise ValueError()
+            properties = self._read_accessible_properties(accessible)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            raise ValueError(Constants.MESSAGE_DISCOVERY_STATE_NOT_VALID) \
+                from None
+        self._accessible_properties = accessible
+        # cached_property keeps each value in the instance under its own
+        # name, so these are what reading them gives from now on.
+        vars(self)["flow_element_properties"] = properties
+        vars(self)["evidence_keys"] = list(keys)
+
+    def warm_up(self):
+        """!
+        Ask the cloud service for the accessible properties and the
+        evidence keys, which the constructor does so that a built engine is
+        ready to process. Both requests are made whatever the first one
+        answers, and a result already fetched is not asked for again.
+
+        An answer from 400 to 499 means the cloud service refused the
+        configuration, for example a resource key that is not valid, and
+        asking again cannot change that, so the error is raised. Any other
+        failure, such as the service being unreachable, a timeout or an
+        answer of 500 or more, may pass, so it is given as a warning and
+        the engine is still built. A result that could not be fetched is
+        asked for again when the engine is next used, and a failure then is
+        an error of that processing, which suppress_process_exceptions
+        decides whether to raise.
+
+        Raises CloudRequestException when the cloud service refused either
+        request.
+        """
+
+        missing = []
+        errors = []
+        for name, description in self._DISCOVERY_RESULTS:
+            try:
+                getattr(self, name)
+            except Exception as error:
+                missing.append(description)
+                errors.append(error)
+
+        for error in errors:
+            if self._is_refusal(error):
+                raise error
+
+        if errors:
+            warnings.warn(Constants.MESSAGE_DISCOVERY_RETRY.format(
+                " and ".join(missing),
+                " ".join(self._describe(error) for error in errors)))
+
+    @staticmethod
+    def _is_refusal(error):
+        """!
+        Whether an error is the cloud service refusing a request, with a
+        status from 400 to 499, rather than a failure that may pass.
+        """
+
+        return (isinstance(error, CloudRequestException)
+                and Constants.HTTP_CLIENT_ERROR_MIN
+                <= error.httpStatusCode < Constants.HTTP_SERVER_ERROR_MIN)
+
+    def _describe(self, error):
+        """!
+        An error as text for a warning, with the licence key masked. The
+        text of an error for several answered by the cloud service gives
+        each of them.
+        """
+
+        return self.masked(
+            "{}(\"{}\")".format(type(error).__name__, error))
+
+    def _complete_discovery(self):
+        """!
+        Fetch any discovery result the constructor could not get, raising
+        the error of a request that fails. Reading a result fetches it only
+        when it is missing, so this makes no request once discovery has
+        completed.
+        """
+
+        for name, _ in self._DISCOVERY_RESULTS:
+            getattr(self, name)
 
     def get_evidence_keys(self):
         """!
@@ -296,15 +508,26 @@ class CloudRequestEngine(Engine):
 
     def get_evidence_key_filter(self):
         """!
-        Instance of EvidenceKeyFilter based on the evidence keys fetched
-        from the cloud service by the private getEvidenceKeys() method
-        
+        Instance of EvidenceKeyFilter based on evidence_keys. If the
+        constructor could not fetch them, this asks the cloud service again
+        and raises if it fails again, so that processing reports the
+        failure rather than using a filter that accepts nothing.
+
+        The filter is kept, as it is asked for once for each evidence key
+        of every request. It is made again only when evidence_keys holds
+        another list.
+
         @type: BasicListEvidenceKeyFilter
         @return: Returns BasicListEvidenceKeyFilter
 
         """
 
-        return BasicListEvidenceKeyFilter(self.evidence_keys)
+        keys = self.evidence_keys
+        kept = self._evidence_key_filter
+        if kept is None or kept[0] is not keys:
+            kept = (keys, BasicListEvidenceKeyFilter(keys))
+            self._evidence_key_filter = kept
+        return kept[1]
 
     def get_engine_properties(self):
         """!
@@ -332,6 +555,17 @@ class CloudRequestEngine(Engine):
                 'POST', propertiesURL, self.get_credentials())
 
         properties = json.loads(properties)
+        flowElementProperties = self._read_accessible_properties(properties)
+        self._accessible_properties = properties
+        return flowElementProperties
+
+    @staticmethod
+    def _read_accessible_properties(properties):
+        """!
+        The properties of each product, by data key and then by property
+        name, from the cloud service's answer to the accessible properties
+        request.
+        """
 
         flowElementProperties = {}
 
@@ -358,36 +592,45 @@ class CloudRequestEngine(Engine):
         check_for_error_messages=True,
     ):
         """!
-        Validate the JSON response from the cloud service.
-    
+        Validate the JSON response from the cloud service. Each entry in
+        the warnings list of the response is given as a warning, with the
+        licence key masked, and does not fail the request.
+
         @type: Response
         @param: Response returned from the cloud service.
-        @rtype: Exception
-        @return: Thrown if there are errors returned from the cloud service.
+        @raise CloudRequestException: where the response is not JSON, holds
+        errors, has no data, or has a status other than 200
         """
 
         has_data = cloud_response.text and cloud_response.text.strip()
         messages = []
 
         if has_data and check_for_error_messages:
+            # The status goes with the error, so a caller can tell a
+            # refusal from a failure that may pass.
             try:
                 json_response = cloud_response.json()
             except (JSONDecodeError, requests.exceptions.JSONDecodeError):
                 raise CloudRequestException(self.masked(
                     f'Cloud request engine properties list request returned code "{cloud_response.status_code}"'
                     f' with non-JSON content "{cloud_response.text}"'
-                ))
+                ), cloud_response.status_code)
             except Exception as e:
                 raise CloudRequestException(self.masked(
                     f'Cloud request engine properties list request returned code "{cloud_response.status_code}"'
                     f' with content "{cloud_response.text}".\nError: "{type(e).__name__}: {e}"'
-                ))
+                ), cloud_response.status_code)
 
             has_errors = "errors" in json_response and len(json_response["errors"])
             has_data = len(json_response) > (1 if has_errors else 0)
 
+            # Each entry of the errors list is the text of one error.
             if has_errors:
-                messages.append(json.dumps(json_response["errors"]))
+                messages.extend(
+                    entry if isinstance(entry, str) else json.dumps(entry)
+                    for entry in json_response["errors"])
+
+            self._warn_response_warnings(json_response)
 
         # If there were no errors but there was also no other data
         # in the response then add an explanation to the list of
@@ -410,17 +653,24 @@ class CloudRequestEngine(Engine):
         if not messages:
             return
 
-        # If there are any errors returned from the cloud service
-        # then throw an exception
-        exception_message = (
-            f"{Constants.EXCEPTION_CLOUD_ERRORS_MULTIPLE} {messages}" if len(messages) > 1
-            else Constants.EXCEPTION_CLOUD_ERROR.format(messages[0])
-        )
-
+        # One error is raised with its text as the message. Several are
+        # raised together, one exception for each in the exceptions of the
+        # one raised.
+        errors = [
+            CloudRequestException(
+                self.masked(Constants.EXCEPTION_CLOUD_ERROR.format(message)),
+                cloud_response.status_code,
+                cloud_response.headers,
+            )
+            for message in messages
+        ]
+        if len(errors) == 1:
+            raise errors[0]
         raise CloudRequestException(
-            self.masked(exception_message),
+            Constants.EXCEPTION_CLOUD_ERRORS_MULTIPLE,
             cloud_response.status_code,
             cloud_response.headers,
+            errors,
         )
 
     def masked(self, text):
@@ -437,6 +687,22 @@ class CloudRequestEngine(Engine):
                 self.license_key, mask_licence_key(self.license_key))
         return text
 
+    def _warn_response_warnings(self, json_response):
+
+        """!
+        Give each entry in the warnings list of a cloud answer as a
+        warning, with the licence key masked. An answer with no such list
+        gives none.
+        """
+
+        if not isinstance(json_response, dict):
+            return
+        entries = json_response.get("warnings")
+        if not isinstance(entries, list):
+            return
+        for entry in entries:
+            warnings.warn(self.masked(str(entry)))
+
     def make_cloud_request(self, type, url, content = None):
 
         """!    
@@ -447,8 +713,14 @@ class CloudRequestEngine(Engine):
         @return Returns dict with data and error properties error contains any errors from the request, data contains the response
         """
 
-        cloudResponse = self.http_client.request(type, url, content, self.cloud_request_origin)
- 
+        if _takes_timeout(self.http_client):
+            cloudResponse = self.http_client.request(
+                type, url, content, self.cloud_request_origin,
+                timeout_seconds=self.timeout_seconds)
+        else:
+            cloudResponse = self.http_client.request(
+                type, url, content, self.cloud_request_origin)
+
         self.validate_response(cloudResponse)
 
         return cloudResponse.text           
@@ -460,12 +732,19 @@ class CloudRequestEngine(Engine):
         Makes a request to the cloud service with the supplied resource key
         and evidence and returns a JSON object that is then parsed by cloud engines
         placed later in the pipeline
-        
+
+        A discovery result the constructor could not fetch is fetched
+        first. If the cloud service fails again, the error is raised and no
+        request for data is made, so the pipeline's
+        suppress_process_exceptions decides what the caller sees.
+
         @type FlowData: FlowData
         @param FlowData: Returns a JSON object that is then parsed by cloud engines
 
         """
-   
+
+        self._complete_discovery()
+
         # A resource key names the route. A licence key
         # alone has no resource key to put there, so it uses the data
         # endpoint that takes none and travels in the body with the list
@@ -491,6 +770,29 @@ class CloudRequestEngine(Engine):
         flowdata.set_element_data(data)
 
         return
+
+    def process(self, flowdata):
+
+        """!
+        Process as any engine does, the cache included, then give the data
+        under cloud-response, the key the specification gives, as well as
+        under the engine's datakey, cloud, which is deprecated. Both keys
+        give the same object. The datakey stays cloud, so the pipeline
+        still names the engine by it and the JSON for the browser still
+        leaves its data out.
+
+        @type flowdata: FlowData
+        @param flowdata: the FlowData to process
+        """
+
+        result = super(CloudRequestEngine, self).process(flowdata)
+
+        # FlowData keeps each element's data under its datakey in lower case.
+        data = flowdata.data.get(self.datakey.lower())
+        if data is not None:
+            flowdata.data[Constants.RESPONSE_DATA_KEY] = data
+
+        return result
 
     def is_cacheable(self, data):
 

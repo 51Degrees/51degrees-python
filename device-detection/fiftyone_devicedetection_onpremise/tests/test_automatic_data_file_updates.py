@@ -223,6 +223,30 @@ class DeviceDetectionTests(unittest.TestCase):
         self.assertTrue(flow_element_data_file.verify_md5)
         self._assertSignedUrl(flow_element_data_file.get_update_url())
 
+    def test_on_premise_data_update_verify_md5_config_old_property_off(self):
+        # The engine verifies the MD5 by default, so turning it off under
+        # the older name shows that the name reaches the engine.
+        config = self._build_pipeline_config(
+            {
+                "data_file_path": f"{data_file}",
+                "usage_sharing": False,
+                "licence_keys": "test",
+                "update_on_start": True,
+                "verify_md5": False,
+                "data_update_url": f"http://127.0.0.1:{self.port}"
+            }
+        )
+
+        pipeline = PipelineBuilder().build_from_configuration(config)
+        self.addCleanup(pipeline.close)
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.process()
+
+        flow_element_data_file = pipeline.get_element("device").data_file
+        self.assertIsInstance(flow_element_data_file, DeviceDetectionDataFile)
+        self.assertFalse(flow_element_data_file.verify_md5)
+        self._assertSignedUrl(flow_element_data_file.get_update_url())
+
     def test_on_premise_data_update_use_url_formatter(self):
         pipeline = DeviceDetectionOnPremisePipelineBuilder(
             data_file_path=data_file,

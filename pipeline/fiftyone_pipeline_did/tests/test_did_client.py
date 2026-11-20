@@ -58,6 +58,7 @@ from fiftyone_pipeline_did.did_client import (
 # build payloads byte by byte, so they read it from the private module, as
 # https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md
 # says the package's own tests may.
+from fiftyone_pipeline_did import _layout
 from fiftyone_pipeline_did._layout import (
     MATCH_KEY_LENGTH,
     MATCH_KEY_OFFSET,
@@ -174,33 +175,18 @@ class ClientConstructionTests(unittest.TestCase):
             DidClient(None)
 
     # The two names of the endpoint environment variable, written out so
-    # that these tests pin the names themselves. The old one is still read
-    # when the new one is not set.
+    # that these tests pin the names themselves. The old one is no longer
+    # read.
     NEW_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
     OLD_VARIABLE = "FOD_CLOUD_API_URL"
 
     def setUp(self):
-        # Each test starts with neither name set and with the old name not
-        # yet reported as deprecated, and what it sets is put back
-        # afterwards.
+        # Each test starts with the variable not set, and what it sets is
+        # put back afterwards.
         environment = mock.patch.dict(os.environ)
         environment.start()
         self.addCleanup(environment.stop)
         os.environ.pop(self.NEW_VARIABLE, None)
-        os.environ.pop(self.OLD_VARIABLE, None)
-        reported = mock.patch.object(
-            did_client, "_old_endpoint_reported", False)
-        reported.start()
-        self.addCleanup(reported.stop)
-
-    def old_name_reports(self, caught):
-        """The warnings in a recorded list that say the old endpoint
-        variable is deprecated and name the one that replaces it."""
-        return [
-            warning for warning in caught
-            if issubclass(warning.category, FutureWarning)
-            and self.OLD_VARIABLE in str(warning.message)
-            and self.NEW_VARIABLE in str(warning.message)]
 
     def test_endpoint_defaults_to_the_public_cloud(self):
         self.assertEqual(DEFAULT_ENDPOINT, DidClient(RESOURCE).endpoint)
@@ -210,62 +196,11 @@ class ClientConstructionTests(unittest.TestCase):
         self.assertEqual("https://private.example/api/v4/",
                          DidClient(RESOURCE).endpoint)
 
-    def test_endpoint_read_from_the_old_variable(self):
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", FutureWarning)
-            client = DidClient(RESOURCE)
-        self.assertEqual("https://old.example/api/v4/", client.endpoint)
-
-    def test_old_variable_read_when_the_new_one_is_empty(self):
-        os.environ[self.NEW_VARIABLE] = ""
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", FutureWarning)
-            client = DidClient(RESOURCE)
-        self.assertEqual("https://old.example/api/v4/", client.endpoint)
-
-    def test_empty_old_variable_gives_the_public_cloud(self):
-        os.environ[self.OLD_VARIABLE] = ""
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            client = DidClient(RESOURCE)
-        self.assertEqual(DEFAULT_ENDPOINT, client.endpoint)
-        self.assertEqual([], self.old_name_reports(caught))
-
-    def test_new_variable_wins_over_the_old_one(self):
-        os.environ[self.NEW_VARIABLE] = "https://private.example/api/v4"
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            client = DidClient(RESOURCE)
-        self.assertEqual("https://private.example/api/v4/", client.endpoint)
-        # The old name was not used, so it is not reported.
-        self.assertEqual([], self.old_name_reports(caught))
-
-    def test_old_variable_is_reported_as_deprecated_once(self):
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            first = DidClient(RESOURCE)
-            second = DidClient(RESOURCE)
-        self.assertEqual("https://old.example/api/v4/", first.endpoint)
-        self.assertEqual("https://old.example/api/v4/", second.endpoint)
-        self.assertEqual(1, len(self.old_name_reports(caught)))
-
     def test_endpoint_argument_wins_and_is_normalised(self):
         self.assertEqual(ENDPOINT, DidClient(
             RESOURCE, endpoint="https://cloud.example/api/v4").endpoint)
         self.assertEqual(ENDPOINT, DidClient(
             RESOURCE, endpoint="https://cloud.example/api/v4//").endpoint)
-
-    def test_endpoint_argument_wins_over_the_old_variable(self):
-        os.environ[self.OLD_VARIABLE] = "https://old.example/api/v4"
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            client = DidClient(RESOURCE, endpoint=ENDPOINT)
-        self.assertEqual(ENDPOINT, client.endpoint)
-        self.assertEqual([], self.old_name_reports(caught))
 
     def test_old_constant_keeps_its_old_value(self):
         # Code that passes ENDPOINT_VARIABLE to the environment has to keep
@@ -284,21 +219,188 @@ class ClientConstructionTests(unittest.TestCase):
         self.assertEqual(
             self.NEW_VARIABLE, names.get("CLOUD_ENDPOINT_VARIABLE"))
 
-    def test_client_reads_the_variable_the_old_constant_names(self):
-        # The client reads the old name through the constant, as it did
-        # before, so code that points the constant at another variable
-        # still decides what is read.
-        os.environ["ANOTHER_VARIABLE"] = "https://other.example/api/v4"
-        with mock.patch.object(
-                did_client, "ENDPOINT_VARIABLE", "ANOTHER_VARIABLE"):
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore", FutureWarning)
-                client = DidClient(RESOURCE)
-        self.assertEqual("https://other.example/api/v4/", client.endpoint)
-
     def test_new_constant_holds_the_new_name(self):
         self.assertEqual(
             self.NEW_VARIABLE, did_client.CLOUD_ENDPOINT_VARIABLE)
+
+
+#: The layout names the did_client module held, which it still gives with
+#: a warning until they are removed.
+DID_CLIENT_LAYOUT_NAMES = ("GUID_LENGTH", "HEADER_LENGTH", "MATCH_KEY_LENGTH")
+
+#: Every name a star import of the did_client module gives other than the
+#: layout names, being each name the module binds without a leading
+#: underscore, imported names included. A patch release removes none.
+DID_CLIENT_STAR_NAMES = (
+    "annotations",
+    "asyncio",
+    "inspect",
+    "json",
+    "os",
+    "re",
+    "threading",
+    "urllib",
+    "warnings",
+    "dataclass",
+    "datetime",
+    "timedelta",
+    "timezone",
+    "Enum",
+    "Any",
+    "Awaitable",
+    "Callable",
+    "Dict",
+    "List",
+    "Optional",
+    "Tuple",
+    "Union",
+    "Version",
+    "DATE_EPOCH",
+    "FodId",
+    "IdType",
+    "DEFAULT_ENDPOINT",
+    "CLOUD_ENDPOINT_VARIABLE",
+    "ENDPOINT_VARIABLE",
+    "KEY_LIST_MAX_AGE",
+    "SUPPORTED_VERSION",
+    "DEFAULT_TIMEOUT",
+    "USER_AGENT",
+    "ContextResult",
+    "SignatureResult",
+    "FactorResult",
+    "SignatureReason",
+    "DidClientError",
+    "DidArgumentError",
+    "DidNotSupportedError",
+    "PublicKeyEntry",
+    "SignatureCheck",
+    "FactorValue",
+    "Transport",
+    "parse_iso8601",
+    "RedeemResult",
+    "DidClient",
+)
+
+#: What the warning for a layout name says about the name.
+NOT_SURFACE = "is not part of the package's surface"
+WILL_BE_REMOVED = "will be removed"
+
+
+def surface_warnings(caught):
+    """The recorded warnings that say a layout name is not part of the
+    package's surface."""
+    return [warning for warning in caught
+            if NOT_SURFACE in str(warning.message)]
+
+
+class DidClientLayoutNameTests(unittest.TestCase):
+    """The layout names the did_client module held. No 51Did package makes
+    the offsets or the lengths public, and a patch release keeps every
+    public name, so each name still reads, with a DeprecationWarning, and
+    the client itself never reads one that way."""
+
+    def setUp(self):
+        schedule = KeySchedule()
+        self.client = DidClient(
+            RESOURCE, endpoint=ENDPOINT,
+            transport=FakeTransport({"id/key/": (200, schedule.json())}))
+        self.date = schedule.start(1) + timedelta(days=2)
+        self.crypto = schedule.crypto(1)
+
+    def assert_layout_warning(self, caught, name):
+        """One warning was recorded for the name, a DeprecationWarning
+        saying the name is not part of the surface and will be removed,
+        and it points at the line in this file that read the name."""
+        found = surface_warnings(caught)
+        self.assertEqual(1, len(found), [str(w.message) for w in caught])
+        warning = found[0]
+        self.assertIs(DeprecationWarning, warning.category)
+        message = str(warning.message)
+        self.assertIn("fiftyone_pipeline_did.did_client." + name, message)
+        self.assertIn(WILL_BE_REMOVED, message)
+        self.assertEqual(
+            os.path.normcase(os.path.realpath(__file__)),
+            os.path.normcase(os.path.realpath(warning.filename)))
+
+    def test_each_name_warns_and_keeps_its_value(self):
+        for name in DID_CLIENT_LAYOUT_NAMES:
+            with self.subTest(name=name):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    value = getattr(did_client, name)
+                self.assertEqual(getattr(_layout, name), value)
+                self.assert_layout_warning(caught, name)
+
+    def test_a_from_import_warns_and_keeps_its_value(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            from fiftyone_pipeline_did.did_client import (
+                HEADER_LENGTH as header_length)
+        self.assertEqual(_layout.HEADER_LENGTH, header_length)
+        self.assert_layout_warning(caught, "HEADER_LENGTH")
+
+    def test_the_module_holds_none_of_them(self):
+        # Only the private _layout module holds them, so dir(), vars() and
+        # the tools that list a module's names do not offer them.
+        for name in DID_CLIENT_LAYOUT_NAMES:
+            with self.subTest(name=name):
+                self.assertNotIn(name, vars(did_client))
+                self.assertNotIn(name, dir(did_client))
+
+    def star_import(self):
+        """The names a star import of the did_client module gives, and the
+        warnings recorded while it ran."""
+        names = {}
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            exec("from fiftyone_pipeline_did.did_client import *", names)
+        return names, caught
+
+    def test_a_star_import_brings_none_of_them(self):
+        names, caught = self.star_import()
+        self.assertEqual(
+            [], [name for name in DID_CLIENT_LAYOUT_NAMES if name in names])
+        self.assertEqual([], surface_warnings(caught))
+
+    def test_a_star_import_still_brings_every_other_name(self):
+        names, _ = self.star_import()
+        self.assertEqual(
+            [], [name for name in DID_CLIENT_STAR_NAMES if name not in names])
+        for name in DID_CLIENT_STAR_NAMES:
+            self.assertIs(getattr(did_client, name), names[name], name)
+
+    def test_a_name_it_never_held_is_still_missing(self):
+        # The fod_id module held these and the did_client module did not,
+        # so they gain no route here.
+        for name in ("FLAGS_OFFSET", "SUPPORTED_PAYLOAD_VERSION",
+                     "PAYLOAD_LENGTH", "NOT_A_NAME"):
+            with self.subTest(name=name):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    with self.assertRaises(AttributeError):
+                        getattr(did_client, name)
+                self.assertEqual([], surface_warnings(caught))
+
+    def test_verifying_gives_no_warning(self):
+        # Before it verifies, the client checks that the payload is long
+        # enough for its type, so each of these passes through that check,
+        # and the last one fails it.
+        cases = (
+            (probabilistic_payload(), SignatureReason.VERIFIED),
+            (random_payload(), SignatureReason.VERIFIED),
+            (context_payload(), SignatureReason.VERIFIED),
+            (bytes([0b1100_0001, 0, 0, 0, 0]), SignatureReason.LENGTH),
+        )
+        reasons = []
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            for payload, _ in cases:
+                fod_id = signed_fod_id(
+                    self.crypto, payload=payload, date=self.date)
+                reasons.append(run(
+                    self.client.verify_signature_detailed(fod_id)).reason)
+        self.assertEqual([reason for _, reason in cases], reasons)
+        self.assertEqual([], surface_warnings(caught))
 
 
 class PublicKeyTests(unittest.TestCase):
@@ -1244,7 +1346,8 @@ class RedeemTests(unittest.TestCase):
             "device": FactorResult.MISMATCH,
             "browserip": FactorResult.VERIFIED,
             "connectionip": FactorResult.VERIFIED,
-            "asn": None,
+            # A null is not one of the four words, so it is a mismatch.
+            "asn": FactorResult.MISMATCH,
             "platformname": FactorResult.VERIFIED,
             "platformversion": FactorResult.MISMATCH,
             "browsername": FactorResult.VERIFIED,
@@ -1299,12 +1402,16 @@ class RedeemTests(unittest.TestCase):
         self.assertIs(FactorResult.MISMATCH, result.factors["transport"])
         self.assertEqual("mismatch", result.to_dict()["factors"]["transport"])
 
-    def test_a_factor_that_was_not_compared_is_still_none(self):
+    # A null is not one of the four words either, so it is a mismatch too,
+    # and never reads as a factor that matched or one that could not be
+    # compared.
+    def test_a_null_factor_is_a_mismatch(self):
         body = json.dumps({
             "signature": "verified", "context": "mismatch",
             "factors": {"transport": None}})
         result = self.redeem(200, body)
-        self.assertIsNone(result.factors["transport"])
+        self.assertIs(FactorResult.MISMATCH, result.factors["transport"])
+        self.assertEqual("mismatch", result.to_dict()["factors"]["transport"])
 
     def test_each_listed_factor_word_is_read_only_from_its_own_word(self):
         for word, expected in (
@@ -1346,7 +1453,11 @@ class RedeemTests(unittest.TestCase):
         self.assertEqual(1, result.seconds_since_verified)
 
     def test_to_dict_is_the_cloud_shape(self):
-        self.assertEqual(json.loads(REDEEMED_WITH_FACTORS),
+        # Each factor is written as this package read it, so the null for
+        # asn comes back as a mismatch.
+        expected = json.loads(REDEEMED_WITH_FACTORS)
+        expected["factors"]["asn"] = "mismatch"
+        self.assertEqual(expected,
                          self.redeem(200, REDEEMED_WITH_FACTORS).to_dict())
         self.assertEqual(json.loads(REDEEMED_WITHOUT_FACTORS),
                          self.redeem(200, REDEEMED_WITHOUT_FACTORS).to_dict())

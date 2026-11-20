@@ -92,7 +92,10 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         has no value and gives the reason the cloud service supplied.
         """
 
-        lines = [line for line in output.split("\n")
+        # The links of the section the example ends with are left out,
+        # because they are indented as device lines are.
+        devices = output.split("Find out more:")[0]
+        lines = [line for line in devices.split("\n")
                  if line.startswith("\t")]
 
         self.assertGreater(len(lines), 0,
@@ -112,6 +115,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
         self.assertIn("Input values:", output)
         self.assertIn("Mobile Device:", output)
+        self.assertIn("Find out more:", output)
 
     def test_cloud_nativemodellookup_console(self):
         example = NativeModelLookupConsole()
@@ -123,6 +127,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
             "Which devices are associated with the native model name "
             "'SC-03L'?", output)
         self.assert_device_lines_are_meaningful(output)
+        self.assertIn("Find out more:", output)
 
     def test_cloud_taclookup_console(self):
         example = TacLookupConsole()
@@ -136,6 +141,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         self.assertIn(
             "Which devices are associated with the TAC '35925406'?", output)
         self.assert_device_lines_are_meaningful(output)
+        self.assertIn("Find out more:", output)
 
     def test_cloud_metadata_console(self):
         example = MetaDataConsole()
@@ -145,6 +151,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
         self.assertIn("Accepted evidence keys:", output)
         self.assertIn("Property - ", output)
+        self.assertIn("Find out more:", output)
 
     def test_cloud_configurator_console(self):
         example = ConfiguratorConsole()
@@ -154,6 +161,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
         self.assertIn("device.ismobile: ", output)
         self.assertNotEqual("device.ismobile:", output.strip())
+        self.assertIn("Find out more:", output)
 
     def test_cloud_failuretomatch(self):
         """The failure to match example is a script rather than a class,
@@ -174,5 +182,6 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         self.assertEqual(0, finished.returncode, output)
         self.assertNotIn("No resource key found", output)
         self.assertIn("a mobile device?", output)
+        self.assertIn("Find out more:", output)
         for marker in FAULT_MARKERS:
             self.assertNotIn(marker, output)

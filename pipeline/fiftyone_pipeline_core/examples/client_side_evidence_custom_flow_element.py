@@ -29,12 +29,46 @@
 # which gets a user's geolocation and saves the latitude as a cookie. 
 # This latitude is also then passed in to the flowdata to calculate if 
 # a person is in the northern or southern hemispheres.
+#
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it before the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
+
+import html
 
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_core.web import json_response, webevidence
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.elementdata_dictionary import ElementDataDictionary
+
+# Where to go next, shown at the end of the page.
+FIND_OUT_MORE = [
+    ("Build your own",
+     "https://51degrees.com/build-your-own?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_core-examples-client_side_evidence_custom_flow_element.py&utm_term=find-out-more-build-your-own"),
+    ("Pipeline API documentation",
+     "https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_core-examples-client_side_evidence_custom_flow_element.py&utm_term=find-out-more-documentation"),
+    ("Pipeline API for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
+]
+
+
+def find_out_more_html():
+    """The Find out more section for the end of the page. A repository is
+    shown by its address, and any other link by its label."""
+    items = ""
+    for label, url in FIND_OUT_MORE:
+        href = html.escape(url)
+        label = html.escape(label)
+        if url.startswith("https://github.com/"):
+            items += f"<li>{label}: <a href=\"{href}\">{href}</a></li>"
+        else:
+            items += f"<li><a href=\"{href}\">{label}</a></li>"
+    return f"<h3>Find out more</h3><ul>{items}</ul>"
 
 
 # Function to get star sign from month and day
@@ -179,17 +213,25 @@ def jsonroute():
 
 @app.route('/')
 def server():
-    
-    flowdata = myPipeline.create_flowdata()
 
-    # Add any information from the request (headers, cookies and additional 
-    # client side provided information)
+    # A Flow Data cannot be used by two threads at once, so this one is made
+    # for this request, used only here, and closed once the page's values
+    # have been read from it.
+    with myPipeline.create_flowdata() as flowdata:
 
-    flowdata.evidence.add_from_dict(webevidence(request))
+        # Add any information from the request (headers, cookies and
+        # additional client side provided information)
 
-    # Process the flowdata
+        flowdata.evidence.add_from_dict(webevidence(request))
 
-    flowdata.process()
+        # Process the flowdata
+
+        flowdata.process()
+
+        # The values the page shows
+        star_sign = flowdata.astrology.starSign
+        hemisphere = flowdata.astrology.hemisphere
+        javascript = flowdata.javascriptbuilder.javascript
 
     # Generate the HTML for the form that gets a user's starsign 
 
@@ -201,13 +243,13 @@ def server():
 
     ## Add the results if they're available
 
-    if (flowdata.astrology.starSign):
-        output += "<p>Your starsign is " + flowdata.astrology.starSign + "</p>"
+    if (star_sign):
+        output += "<p>Your starsign is " + star_sign + "</p>"
 
     output += "<div id='hemispheretext'>"
 
-    if (flowdata.astrology.hemisphere):
-        output += "<p>Look at the " + flowdata.astrology.hemisphere + " hemisphere stars tonight!</p>"
+    if (hemisphere):
+        output += "<p>Look at the " + hemisphere + " hemisphere stars tonight!</p>"
 
     output += "</div>"
 
@@ -221,7 +263,7 @@ def server():
     ## 3. The web server responds with new JSON data that contains the hemisphere based on the location.
     ## 4. The JavaScript integrates the new JSON data and fires the onChange callback below.
 
-    output += flowdata.javascriptbuilder.javascript
+    output += javascript
 
     output += """
         const loadHemisphere = function() {
@@ -246,6 +288,9 @@ def server():
             """
 
     output += "</script>"
+
+    # Where to go next.
+    output += find_out_more_html()
 
     # Return the full output to the page
 

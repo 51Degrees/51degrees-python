@@ -69,6 +69,14 @@
 # }
 # ```
 #
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it when the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
+#
 # ## View
 # @include onpremise/gettingstarted_web/templates/index.html
 #
@@ -85,6 +93,19 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_core.web import (
     javascript_response, json_response, webevidence, set_response_header)
 import json
+
+# Where to go next, printed when the server stops. The page ends with the
+# same links, in templates/index.html.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-gettingstarted_web-app.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
 
 class GettingStartedWeb():
     app = Flask(__name__)
@@ -106,7 +127,7 @@ class GettingStartedWeb():
         # The pipeline lives as long as the app, and is closed when the server
         # stops, which releases the native data it holds.
         with GettingStartedWeb.pipeline:
-            GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5001)))
+            GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5151)))
 
     # First we make a JSON route that will be called from the client side and will return
     # a JSON encoded property database using any additional evidence provided by the client.
@@ -139,8 +160,9 @@ class GettingStartedWeb():
     @app.route('/')
     def server():
 
-        # Create the flowdata object for the page. It is closed when the route
-        # returns, once the page has been rendered from it.
+        # A Flow Data cannot be used by two threads at once, so this one is
+        # made for this request, used only here, and closed when the route
+        # returns, which also releases the results of the detection.
         with GettingStartedWeb.pipeline.create_flowdata() as flowdata:
 
             # Add any information from the request (headers, cookies and additional 
@@ -237,6 +259,8 @@ def main(argv):
     config = GettingStartedWeb.build_config()
 
     GettingStartedWeb().build(config, logger).run()
+
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

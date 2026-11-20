@@ -57,6 +57,18 @@ from fiftyone_devicedetection_shared.example_constants import UA_FILE_NAME
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-performance.py&utm_term=enterprise-data-file"
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-performance.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-performance.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 # Here we make a function that processes a user agent
 # And returns if it is a mobile device
 
@@ -174,15 +186,15 @@ if __name__ == "__main__":
 
     # Now we make a function that returns results of the user agent matching
 
-    threads = mp.cpu_count()
+    # One process for each processor, but never more processes than
+    # User-Agents.
+    threads = max(1, min(mp.cpu_count(), number_of_user_agents))
 
     print("Using " + str(threads) + " threads")
 
-    chunk_size = int(number_of_user_agents / threads)
-
-    # Split lists by number of threads
-    split_lists = [user_agents[x:x+chunk_size]
-                for x in range(0, len(user_agents), chunk_size)]
+    # Give each process every threads-th User-Agent, so that every one is
+    # processed whether or not the count divides by the number of processes.
+    split_lists = [user_agents[x::threads] for x in range(threads)]
 
     calibration = run(args.data_file, skip=True)
 
@@ -226,3 +238,5 @@ if __name__ == "__main__":
             auto_update=False).build() as check:
         if ExampleUtils.is_lite_data_file(check.get_element("device")):
             print(ExampleUtils.get_enterprise_offer(CONTACT_US))
+
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)

@@ -20,12 +20,18 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import threading
+
 from fiftyone_pipeline_engines.aspectdata import AspectData
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 
 from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
 
 from .constants import RESULTS_CLOSED
+
+# The names of the C library's match methods, in the order of its
+# fiftyoneDegreesHashMatchMethod values, which getMethod returns.
+MATCH_METHODS = ("NONE", "PERFORMANCE", "COMBINED", "PREDICTIVE")
 
 class OnPremiseMissingPropertyService(MissingPropertyService):
 
@@ -35,6 +41,12 @@ class OnPremiseMissingPropertyService(MissingPropertyService):
             datafiles = flow_element.properties[key]["datafiles"]
             if(not flow_element.engine.getProduct() in datafiles):
                 raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. This is because your datafile does not contain the property. The property is available in' + str(datafiles))
+            # The data file holds the property, so it is missing because
+            # it is not available. A missing property always raises.
+            raise Exception(
+                "Property '" + key + "' not found in data for element '" +
+                flow_element.datakey + "'. This is because the property "
+                "has been excluded when configuring the engine.")
         else:
             raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. Please check that the element and property names are correct.')
 
@@ -61,6 +73,11 @@ class SwigData(AspectData):
 
         self.missing_property_service = OnPremiseMissingPropertyService()
 
+        # Reading a value writes into the native results, and the first read
+        # of a component can walk its graph, so one thread at a time reads
+        # this instance.
+        self._read_lock = threading.RLock()
+
     def close(self):
 
         """!
@@ -70,7 +87,8 @@ class SwigData(AspectData):
         exception. Closing the FlowData closes its results.
         """
 
-        self.swig_results = None
+        with self._read_lock:
+            self.swig_results = None
 
     def get(self, key):
 
@@ -81,12 +99,13 @@ class SwigData(AspectData):
         @returns mixed
         """
 
-        # Checked here, because AspectData.get turns an exception from
-        # get_internal into a missing property message.
-        if self.swig_results is None:
-            raise Exception(RESULTS_CLOSED)
+        with self._read_lock:
+            # Checked here, because AspectData.get turns an exception from
+            # get_internal into a missing property message.
+            if self.swig_results is None:
+                raise Exception(RESULTS_CLOSED)
 
-        return super(SwigData, self).get(key)
+            return super(SwigData, self).get(key)
 
     def get_internal(self, key):
 
@@ -107,16 +126,27 @@ class SwigData(AspectData):
             return AspectPropertyValue(value = self.swig_results.getDeviceId())
 
         if key == 'useragents':
+            # Populated only when the engine records the matched
+            # User-Agents, as its default is an empty list.
+            if not getattr(self.flow_element, "update_matched_useragent", True):
+                return AspectPropertyValue(value = [])
+            # Each component's result has a matched User-Agent, and several
+            # can match the same one, which is listed once.
             useragents = []
             for i in range(self.swig_results.getUserAgents()):
-                useragents.append(self.swig_results.getUserAgent(i))
+                useragent = self.swig_results.getUserAgent(i)
+                if useragent not in useragents:
+                    useragents.append(useragent)
             return AspectPropertyValue(value = useragents)
 
         if key == 'difference':
             return AspectPropertyValue(value = self.swig_results.getDifference())
 
         if key == 'method':
-            return AspectPropertyValue(value = self.swig_results.getMethod())
+            method = self.swig_results.getMethod()
+            return AspectPropertyValue(
+                value = MATCH_METHODS[method]
+                if 0 <= method < len(MATCH_METHODS) else "NONE")
 
         if key == 'matchednodes':
             return AspectPropertyValue(value = self.swig_results.getMatchedNodes())

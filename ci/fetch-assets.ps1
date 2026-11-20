@@ -5,10 +5,11 @@ param (
     # common-ci checkout, which is where both callers run it from.
     [string]$RepoName = (Split-Path -Leaf (Split-Path -Parent $PSScriptRoot)),
     [string]$DeviceDetection,
-    [string]$DeviceDetectionUrl,
-    [string]$CsvUrl,
     [string]$IpIntelligence,
-    [string]$IpIntelligenceUrl
+    [string]$IpIntelligenceUrl,
+    # The branch a pull request merges into, which its changes are measured
+    # against.
+    [string]$Branch = 'main'
 )
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot 'dispatch.ps1')

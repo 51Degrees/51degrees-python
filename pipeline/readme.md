@@ -18,8 +18,9 @@ This repository contains the following modules:
 - **fiftyone_pipeline_cloudrequestengine** - An engine used to make requests to the 51Degrees cloud service.
 - **fiftyone_pipeline_translation** - A flow element that translates values from a source element into another language using YAML translation files.
 - **fiftyone_pipeline_did** - A reader and cloud client for the 51Did (51Degrees Identifier) returned by the 51Degrees cloud service.
+- **fiftyone_pipeline_derivedproperty** - A flow element that computes properties such as HumanConfidence and IsGdpr from properties other elements have produced, following the scripts in the derived-properties repository. Not yet published to PyPI.
 
-The examples are described under Examples below. The `owid-python` folder is a git submodule holding the OWID library that `fiftyone_pipeline_did` carries.
+The examples are described under Examples below. The `owid-python` folder is a git submodule holding the OWID library that `fiftyone_pipeline_did` carries, and `fiftyone_pipeline_derivedproperty/src/fiftyone_pipeline_derivedproperty/derived-properties` is a git submodule of [derived-properties](https://github.com/51Degrees/derived-properties), whose `scripts` folder the package carries and whose `tests` folder its tests run.
 
 ## Dependencies
 
@@ -59,15 +60,27 @@ If you want examples that demonstrate how to use 51Degrees products such as devi
 
 | Example                                                                     | Description                                                                                          |
 |-----------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| fiftyone_pipeline_core/examples/simple_flow_element.py                      | A flow element that gives the star sign for a date of birth, from a table held in its code.          |
 | fiftyone_pipeline_core/examples/client_side_evidence_custom_flow_element.py | Demonstrates how to create a custom flow element, which can then be included in a pipeline.          |
+| fiftyone_pipeline_engines/examples/simple_onpremise_engine.py               | An on-premise engine that gives the star sign from a table in a data file beside it.                 |
 | fiftyone_pipeline_engines_fiftyone/examples/usagesharing                    | Shows how to share usage with 51Degrees. This helps us to keep our products up to date and accurate. |
+| fiftyone_pipeline_derivedproperty/examples/derived_property.py              | The derived property element, given scripts as text, from a file and from a configuration file.      |
 
-The [fiftyone_pipeline_cloudrequestengine/examples](fiftyone_pipeline_cloudrequestengine/examples/readme.md) folder holds examples that call the 51Degrees cloud service with a resource key or a licence key, and its readme says how to run them.
+The simple flow element, on-premise engine and derived property examples need no data file to download, no key and no network. Run them from this folder, once the packages are installed as above, with
+
+```sh
+python fiftyone_pipeline_core/examples/simple_flow_element.py
+python fiftyone_pipeline_engines/examples/simple_onpremise_engine.py
+python fiftyone_pipeline_derivedproperty/examples/derived_property.py
+```
+
+The [fiftyone_pipeline_cloudrequestengine/examples](fiftyone_pipeline_cloudrequestengine/examples/readme.md) folder holds examples that use the cloud request engine, and its readme says how to run them. The mixed examples call the 51Degrees cloud service with a resource key or a licence key. The cloud engine example needs no key, because it starts a star sign service of its own.
 
 | Example                                                                                                            | Description                                                                                                                     |
 |--------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
 | fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_console.py | Device detection and IP intelligence for several User-Agent and IP address pairs, from one pipeline.                            |
 | fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_web        | A Flask web application showing device detection and IP intelligence for its visitor, or for an IP address typed into the page. |
+| fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/simple_cloud_engine.py          | A cloud engine that gets the star sign from a star sign service the example starts on this machine.                             |
 
 To run the custom flow element example, you will need to use flask:
 ### Linux
@@ -82,7 +95,7 @@ export FLASK_APP=fiftyone_pipeline_core/examples/client_side_evidence_custom_flo
 ```
 then start your application with
 ```sh
-flask run
+flask run --port 5151
 ```
 
 ### Windows
@@ -97,5 +110,5 @@ $env:FLASK_APP = "fiftyone_pipeline_core/examples/client_side_evidence_custom_fl
 ```
 then start your application with 
 ```pwsh
-flask run
+flask run --port 5151
 ```

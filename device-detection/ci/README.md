@@ -10,7 +10,3 @@ The following secrets are required:
     * Example: `V3RYL0NGR4ND0M57R1NG`
 * `PYPI_TOKEN` - [PyPI token](https://pypi.org/help/#apitoken) for publishing packages
     * Example: `pypi-sUp3r-l0nG_r4nd0m-s7r1Ng`
-
-The following secrets are optional:
-* `DEVICE_DETECTION_URL` - URL for downloading the enterprise TAC hashes file
-    * Default: `https://distributor.51degrees.com/api/v2/download?LicenseKeys=DEVICE_DETECTION_KEY&Type=HashV41&Download=True&Product=V4TAC`

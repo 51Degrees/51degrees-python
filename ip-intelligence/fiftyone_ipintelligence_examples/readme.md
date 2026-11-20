@@ -11,7 +11,7 @@ Usage examples for the 51Degrees IP intelligence engines.
 ## Cloud examples
 
 Require a resource key in the `_51DEGREES_RESOURCE_KEY` environment variable.
-Obtain one from the [51Degrees Configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=cloud-examples).
+Obtain one from the [51Degrees configuration page](https://51degrees.com/configure/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-readme.md&utm_term=cloud-examples).
 
 - `cloud/gettingstarted_console.py` - resolve IP addresses using the
   cloud service from the console.
@@ -21,6 +21,10 @@ Obtain one from the [51Degrees Configurator](https://configure.51degrees.com/?ut
   keys exposed by the cloud service.
 - `cloud/mixed_console.py` - combine device detection and IP intelligence
   in a single cloud pipeline (requires the device detection package).
+- `cloud/countries_console.py` - list the countries an IP address is
+  most likely in, with their names translated to the browser's
+  language, as a country dropdown needs (requires a key carrying the
+  translated country names).
 - `cloud/gettingstarted_web/` - Flask web app using the cloud service.
 
 ```
@@ -28,6 +32,7 @@ python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_console
 python -m fiftyone_ipintelligence_examples.cloud.getallproperties_console
 python -m fiftyone_ipintelligence_examples.cloud.metadata_console
 python -m fiftyone_ipintelligence_examples.cloud.mixed_console
+python -m fiftyone_ipintelligence_examples.cloud.countries_console
 python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_web
 ```
 
@@ -94,3 +99,12 @@ pip install -e fiftyone_ipintelligence_examples[mixed]
 
 The only .NET example not ported is `Metrics-Console`, as the on-premise
 engine's range enumeration API is not exposed through the Python wrapper.
+
+## Web examples
+
+The `cloud/gettingstarted_web/` and `onpremise/gettingstarted_web/` examples
+are Flask web applications. A Flow Data cannot be used by two threads at
+once, so each of them creates a Flow Data for each request, uses it only in
+the code that handles that request, and closes it when the request ends. To
+hand work to another thread or task, read the values it needs from the Flow
+Data first and pass those values, not the Flow Data.

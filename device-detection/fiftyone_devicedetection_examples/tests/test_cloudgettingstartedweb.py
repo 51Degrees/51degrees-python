@@ -41,6 +41,7 @@ class CloudGettingStartedWebTests(flask_unittest.ClientTestCase):
     def test_cloud_getting_started_web(self, client):
         response = client.get('/')
         self.assertEqual(200, response.status_code)
+        self.assertIn(b"Find out more", response.data)
 
     # The device id used to appear on the page only by accident, inside the JSON of the
     # inlined client-side script. Now that the script is served separately, check that the

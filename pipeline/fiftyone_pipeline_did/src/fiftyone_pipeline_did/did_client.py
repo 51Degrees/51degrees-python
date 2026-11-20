@@ -53,10 +53,12 @@ import inspect
 import json
 import os
 import re
+# Kept so that ``from ... import *`` of this module still gives it.
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+# Kept so that ``from ... import *`` of this module still gives it.
 import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -66,13 +68,34 @@ from typing import (
 
 from ._owid import Version
 
-from ._layout import GUID_LENGTH, HEADER_LENGTH, MATCH_KEY_LENGTH
-from .fod_id import DATE_EPOCH, FodId, _date_minutes, _trim_white_space
+# The layout is read through the private module rather than imported by
+# name, so that this module's namespace offers none of it.
+from . import _layout
+from .fod_id import (
+    DATE_EPOCH,
+    FodId,
+    _date_minutes,
+    _deprecated_layout_name,
+    _trim_white_space,
+)
 from .id_type import IdType
 
+#: The layout names :func:`__getattr__` still gives, with a warning,
+#: until they are removed.
+_DEPRECATED_LAYOUT_NAMES = frozenset((
+    "GUID_LENGTH",
+    "HEADER_LENGTH",
+    "MATCH_KEY_LENGTH",
+))
+
+
+def __getattr__(name: str) -> int:
+    """Gives the deprecated layout names, with a warning."""
+    return _deprecated_layout_name(__name__, _DEPRECATED_LAYOUT_NAMES, name)
+
+
 #: The public cloud API base, used when neither the ``endpoint`` argument
-#: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable, nor that
-#: variable's deprecated old name ``FOD_CLOUD_API_URL``, is set.
+#: nor the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable is set.
 DEFAULT_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 
 #: The environment variable the cloud request engine reads for the API
@@ -80,47 +103,14 @@ DEFAULT_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 CLOUD_ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
 
 #: Deprecated. Use :data:`CLOUD_ENDPOINT_VARIABLE`. This holds the name that
-#: variable had before, which is read when :data:`CLOUD_ENDPOINT_VARIABLE`
-#: is not set, so code that passes this constant to the environment reads
-#: and sets the old variable.
+#: variable had before, which is no longer read.
 ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"
 
-# Whether the old variable has been reported as deprecated, so that it is
-# reported once however many clients are made.
-_old_endpoint_reported = False
-_old_endpoint_lock = threading.Lock()
-
-
 def _endpoint_from_environment() -> Optional[str]:
-    """The API base the environment gives, or None when it gives none.
-
-    :data:`CLOUD_ENDPOINT_VARIABLE` is read first. When it is unset or
-    empty the variable :data:`ENDPOINT_VARIABLE` names is read, which is
-    the old name, and the first use of it is reported as deprecated. The
-    report is a :class:`FutureWarning`, which Python shows by default,
-    because the people who set the variable are the ones running the
-    application.
+    """The API base :data:`CLOUD_ENDPOINT_VARIABLE` gives, or None when it is
+    unset or empty.
     """
-    global _old_endpoint_reported
-    endpoint = os.environ.get(CLOUD_ENDPOINT_VARIABLE)
-    if endpoint:
-        return endpoint
-    old_name = ENDPOINT_VARIABLE
-    endpoint = os.environ.get(old_name)
-    if not endpoint:
-        return None
-    with _old_endpoint_lock:
-        report = not _old_endpoint_reported
-        _old_endpoint_reported = True
-    if report:
-        # The third frame is the code that made the client.
-        warnings.warn(
-            "The {0} environment variable is deprecated and {1} replaces "
-            "it. The cloud endpoint was read from {0} because {1} is not "
-            "set, so set {1} to the same value.".format(
-                old_name, CLOUD_ENDPOINT_VARIABLE),
-            FutureWarning, stacklevel=3)
-    return endpoint
+    return os.environ.get(CLOUD_ENDPOINT_VARIABLE) or None
 
 
 _BOUNDARY_TOLERANCE = timedelta(minutes=15)
@@ -219,9 +209,10 @@ class SignatureResult(str, Enum):
 
 class FactorResult(str, Enum):
     """The outcome of one factor in a mismatch or a partly misconfigured
-    result. The cloud reports ``null`` for a factor that was not compared,
-    which is passed through as ``None``, and a word this package does not
-    list is read as :attr:`MISMATCH`."""
+    result. Each value is read only from its own word, and anything else,
+    a ``null`` or a word this package does not list, is read as
+    :attr:`MISMATCH`, so it never reads as a factor that matched or one
+    that could not be compared."""
 
     VERIFIED = "verified"
     MISMATCH = "mismatch"
@@ -310,8 +301,9 @@ class SignatureCheck:
     reason: SignatureReason
 
 
-#: The type of a factor value in :attr:`RedeemResult.factors`.
-FactorValue = Optional[FactorResult]
+#: The type of a factor value in :attr:`RedeemResult.factors`, which is
+#: never ``None``.
+FactorValue = FactorResult
 
 #: The shape of an injected transport: an async callable taking the
 #: prepared :class:`urllib.request.Request` and answering the HTTP status
@@ -386,9 +378,10 @@ class RedeemResult:
             else SignatureResult.INVALID if signature == "invalid"
             else SignatureResult.UNKNOWN)
         factors = parsed.get("factors")
-        #: Factor name to :class:`FactorResult` (or ``None`` where nothing
-        #: was compared), present only when the cloud sent ``factors``,
-        #: which is where there is something to diagnose. The names are
+        #: Factor name to :class:`FactorResult`, present only when the cloud
+        #: sent ``factors``, which is where there is something to diagnose.
+        #: A ``null`` factor reads as :attr:`FactorResult.MISMATCH`, as
+        #: every value other than the four words does. The names are
         #: ``transport``, ``device``, ``browserip``, ``connectionip``,
         #: ``asn``, ``platformname``, ``platformversion``, ``browsername``
         #: and ``browserversion``. A version mismatch beside a verified
@@ -439,8 +432,7 @@ class RedeemResult:
         body["context"] = self.context.value
         if self.factors is not None:
             body["factors"] = {
-                name: (value.value if value is not None else None)
-                for name, value in self.factors.items()}
+                name: value.value for name, value in self.factors.items()}
         if self.verified_at is not None:
             # ISO 8601 UTC to the second, as the cloud writes it.
             body["verifiedAt"] = self.verified_at.astimezone(
@@ -462,9 +454,6 @@ def _context_of(text: str) -> ContextResult:
 
 
 def _factor_of(value: Any) -> FactorValue:
-    # Nothing was compared.
-    if value is None:
-        return None
     # The cloud writes lower case words, and the comparison ignores case.
     if isinstance(value, str):
         value = value.lower()
@@ -478,9 +467,9 @@ def _factor_of(value: Any) -> FactorValue:
         return FactorResult.MISCONFIGURED
     if value == "notrecorded":
         return FactorResult.NOT_RECORDED
-    # A word this package does not list, such as one a newer service sends,
-    # is a mismatch, so it never reads as a factor that matched or one that
-    # could not be compared.
+    # Anything else is a mismatch, a null and a word a newer service sends
+    # included, so it never reads as a factor that matched or one that could
+    # not be compared.
     return FactorResult.MISMATCH
 
 
@@ -501,7 +490,6 @@ class DidClient:
         sent only in the body of the redeem request, never in a URL.
     :param endpoint: the API base including the ``/api/v4/`` segment.
         Defaults to the ``_51DEGREES_CLOUD_ENDPOINT`` environment variable,
-        then to that variable's deprecated old name ``FOD_CLOUD_API_URL``,
         then to the public cloud. A value without a trailing slash gains
         one.
     :param transport: the HTTP transport, either an async callable taking
@@ -1018,9 +1006,9 @@ def _payload_length_valid(fod_id: FodId) -> bool:
     longer payload is accepted here. The base does not include the Terms,
     because a payload ending at the match key carries no byte for it and
     reads as terms that are not stated."""
-    match_key_length = GUID_LENGTH if fod_id.type is IdType.RANDOM \
-        else MATCH_KEY_LENGTH
-    return len(fod_id.payload) >= HEADER_LENGTH + match_key_length
+    match_key_length = _layout.GUID_LENGTH if fod_id.type is IdType.RANDOM \
+        else _layout.MATCH_KEY_LENGTH
+    return len(fod_id.payload) >= _layout.HEADER_LENGTH + match_key_length
 
 
 def _moment_of(value: Any) -> Optional[datetime]:

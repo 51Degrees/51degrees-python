@@ -124,13 +124,16 @@ class DataFile():
         """
         return datetime.date.today()
 
-    def refresh(self, identifier):
+    def refresh(self, identifier=None):
         """!
         Function called when datafile has been updated.
         Defaults to a refresh method on the attached FlowElement
         @type identifier : string
-        @param identifier : identifier of the datafile
+        @param identifier : identifier of the datafile, this data file's own
+        when none is given, as the data update service gives none
         """
+        if identifier is None:
+            identifier = self.identifier
         self.flow_element.refresh(identifier)
 
     def get_update_url(self):

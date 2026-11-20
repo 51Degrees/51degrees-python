@@ -36,12 +36,12 @@ from .live_cloud import read_environment
 class CloudEngineTests(unittest.TestCase):
     def setUp(self):
         self.resource_key = read_environment(
-            "_51DEGREES_RESOURCE_KEY", "resource_key")
+            "_51DEGREES_RESOURCE_KEY")
 
         self.assertIsNotNone(
             self.resource_key,
             "You need to create a resource key at"
-            " https://configure.51degrees.com and paste it"
+            " https://51degrees.com/configure and paste it"
             " into the code, replacing !!YOUR_RESOURCE_KEY!!."
             " Please make sure to include IsMobile property."
         )
@@ -142,9 +142,7 @@ class CloudEngineTests(unittest.TestCase):
         appropriate data to be set in the CloudRequestException.
         """
         with self.assertRaises(CloudRequestException) as context:
-            engine = CloudRequestEngine({"resource_key": "resource_key"})
-            # trigger the lazy load of the properties
-            engine.flow_element_properties  # noqa
+            CloudRequestEngine({"resource_key": "resource_key"})
 
         self.assertNotEqual(context.exception.httpStatusCode, 0, "Status code should not be 0")
         self.assertIsNotNone(context.exception.responseHeaders, "Response headers are not populated")

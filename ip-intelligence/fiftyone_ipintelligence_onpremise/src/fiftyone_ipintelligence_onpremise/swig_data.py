@@ -21,6 +21,7 @@
 # *********************************************************************
 
 import math
+import threading
 from decimal import Decimal, ROUND_HALF_UP
 
 from fiftyone_pipeline_engines.aspectdata import AspectData
@@ -49,6 +50,12 @@ class OnPremiseMissingPropertyService(MissingPropertyService):
             datafiles = flow_element.properties[key]["datafiles"]
             if(not flow_element.engine.getProduct() in datafiles):
                 raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. This is because your datafile does not contain the property. The property is available in' + str(datafiles))
+            # The data file holds the property, so it is missing because
+            # it is not available. A missing property always raises.
+            raise Exception(
+                "Property '" + key + "' not found in data for element '" +
+                flow_element.datakey + "'. This is because the property "
+                "has been excluded when configuring the engine.")
         else:
             raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. Please check that the element and property names are correct.')
 
@@ -82,6 +89,11 @@ class SwigData(AspectData):
 
         self.missing_property_service = OnPremiseMissingPropertyService()
 
+        # Reading a value writes into the native results, and the first read
+        # of a component can walk its graph, so one thread at a time reads
+        # this instance.
+        self._read_lock = threading.RLock()
+
     def close(self):
 
         """!
@@ -91,7 +103,8 @@ class SwigData(AspectData):
         exception. Closing the FlowData closes its results.
         """
 
-        self.swig_results = None
+        with self._read_lock:
+            self.swig_results = None
 
     def get(self, key):
 
@@ -102,12 +115,13 @@ class SwigData(AspectData):
         @returns mixed
         """
 
-        # Checked here, because AspectData.get turns an exception from
-        # get_internal into a missing property message.
-        if self.swig_results is None:
-            raise Exception(RESULTS_CLOSED)
+        with self._read_lock:
+            # Checked here, because AspectData.get turns an exception from
+            # get_internal into a missing property message.
+            if self.swig_results is None:
+                raise Exception(RESULTS_CLOSED)
 
-        return super(SwigData, self).get(key)
+            return super(SwigData, self).get(key)
 
     @staticmethod
     def utf8_string_to_str(utf8_string):

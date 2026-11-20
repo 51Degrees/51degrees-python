@@ -11,7 +11,7 @@ location, network and registration information using the
 [51Degrees Pipeline API](https://51degrees.com/documentation/index.html?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=introduction).
 
 To use the cloud service you will need a resource key. You can obtain one
-from the [51Degrees Configurator](https://configure.51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=introduction).
+from the [51Degrees configuration page](https://51degrees.com/configure/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_cloud&utm_term=introduction).
 
 ## Usage
 
@@ -29,7 +29,8 @@ print(flowdata.ip.registeredname.value())
 
 ## Folders
 
-- `fiftyone_ipintelligence_cloud` - the IP intelligence cloud engine and
+- `fiftyone_ipintelligence_cloud` - the IP intelligence cloud engine, the
+  translated country names cloud engine (`CountriesTranslationCloud`) and the
   pipeline builder.
 - `tests` - unit tests. These mock the cloud service so no resource key is
   required; set the `_51DEGREES_RESOURCE_KEY` environment variable to also run the live

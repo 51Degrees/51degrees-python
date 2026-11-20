@@ -32,9 +32,20 @@ from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenc
 
 from .IpIntelligenceEngineModule import *
 
-from .client_ip import client_ip_keys, client_ips, readable_client_ips
+from .client_ip import (
+    client_ip_keys, client_ips, readable_client_ips, reported_addresses)
 from .swig_data import SwigData
 from .ipintelligence_datafile import IpIntelligenceDataFile
+
+# The Distributor, which serves data files only to a licence key.
+DISTRIBUTOR_URL = "https://distributor.51degrees.com/api/v2/download"
+
+LICENCE_KEY_REQUIRED_FOR_UPDATES = (
+    "Some enabled features ({}) require a licence key but one has not been "
+    "supplied. Supply one with licence_keys, or set {} to False to build "
+    "without one. The file system watcher needs no licence key. A key can be "
+    "obtained from the 51Degrees website: "
+    "https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_onpremise-src-fiftyone_ipintelligence_onpremise-ipintelligence_onpremise.py&utm_term=licence-key-required-for-updates")
 
 
 class IpIntelligenceOnPremise(Engine):
@@ -61,7 +72,7 @@ class IpIntelligenceOnPremise(Engine):
         reuse_temp_file=False,
         concurrency=multiprocessing.cpu_count(),
         update_on_start=False,
-        data_update_url="https://distributor.51degrees.com/api/v2/download",
+        data_update_url=DISTRIBUTOR_URL,
         data_update_use_url_formatter=True,
         data_update_verify_md5=True,
         data_update_product_type=None,
@@ -78,9 +89,13 @@ class IpIntelligenceOnPremise(Engine):
         @type auto_update: bool
         @param auto_update: whether to automatically update the datafile when required
         @type restricted_properties: list
-        @param restricted_properties: List of property keys to limit the engine to
+        @param restricted_properties: Property names to limit the engine to,
+        as a list or as one comma-separated string
         @type licence_keys: string
-        @param licence_keys: licencekeys to use for the data file update service
+        @param licence_keys: licence keys to use for the data file update service.
+        Needed only when auto_update or update_on_start is on with the default
+        data_update_url, and the engine refuses to build without one then. The
+        file system watcher needs no key.
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type performance_profile: string
@@ -117,8 +132,25 @@ class IpIntelligenceOnPremise(Engine):
 
         self.datakey = "ip"
 
+        # The evidence key filter, with the key list it was made from. See
+        # get_evidence_key_filter.
+        self._evidence_key_filter = None
+
         if not data_file_path and not data:
             raise Exception("data_file_path or data is required")
+
+        # Only polling and the update on start-up download from the
+        # Distributor, so only they need a licence key. The file system
+        # watcher needs none.
+        auto_update = bool(auto_update)
+        update_on_start = bool(update_on_start)
+        if data_update_url == DISTRIBUTOR_URL and not licence_keys:
+            need_key = [name for name, on in (
+                ("auto_update", auto_update),
+                ("update_on_start", update_on_start)) if on]
+            if need_key:
+                raise Exception(LICENCE_KEY_REQUIRED_FOR_UPDATES.format(
+                    ", ".join(need_key), " and ".join(need_key)))
 
         if data_file_path:
             if os.path.isfile(data_file_path) == False and not update_on_start:
@@ -131,12 +163,19 @@ class IpIntelligenceOnPremise(Engine):
         else:
             self.data = data
 
-        if not licence_keys and licence_keys != "":
-            raise Exception("licence key is required. A key can be obtained from the 51Degrees website: https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_onpremise-src-fiftyone_ipintelligence_onpremise-ipintelligence_onpremise.py&utm_term=licence-key-required. If you do not wish to use a key then you can specify an empty string, but this will cause automatic updates to be disabled.")
-
         #   Create SWIG wrapper vector for restricted properties and add
 
         restricted_properties_vector = VectorStringSwig()
+
+        # A configuration file gives a list of names as one comma-separated
+        # string. A list is copied, so the caller's own list is left as it
+        # was when the metric properties are added below.
+        if isinstance(restricted_properties, str):
+            restricted_properties = [
+                name.strip() for name in restricted_properties.split(",")
+                if name.strip()]
+        elif restricted_properties:
+            restricted_properties = list(restricted_properties)
 
         if restricted_properties:
             for restricted_property in restricted_properties:
@@ -196,37 +235,27 @@ class IpIntelligenceOnPremise(Engine):
         self.properties_list = properties_list
         self.data_file_path = data_file_path
 
-        # Disable features that require a licence key if one was not supplied.
+        # The data file is kept whatever the update settings are, because
+        # an application that asks for every update itself hands this data
+        # file to the data update service with no automatic update on.
+        update_url_params = {
+            "base_url": data_update_url
+        }
 
-        if licence_keys:
-            auto_update = auto_update and (len(licence_keys) > 0)
-            update_on_start = update_on_start and (len(licence_keys) > 0)
-        else:
-            auto_update = False
-            update_on_start = False
-
-        if auto_update or update_on_start or file_system_watcher:
-
-            # Construct DataFile
-
+        if data_update_use_url_formatter:
             update_url_params = {
-                "base_url": data_update_url
+                "base_url": data_update_url,
+                "type": "IPIV41",
+                "product": data_update_product_type if data_update_product_type else None,
+                "license_keys": licence_keys if licence_keys else None
             }
 
-            if data_update_use_url_formatter:
-                update_url_params = {
-                    "base_url": data_update_url,
-                    "type": "IPIV41",
-                    "product": data_update_product_type if data_update_product_type else None,
-                    "license_keys": licence_keys if licence_keys else None
-                }
+            # Remove keys with None values
+            update_url_params = {k: v for k, v in update_url_params.items() if v is not None}
 
-                # Remove keys with None values
-                update_url_params = {k: v for k, v in update_url_params.items() if v is not None}
+        data_file = IpIntelligenceDataFile(flow_element=self, identifier="IPIV41", verify_md5=data_update_verify_md5, auto_update = auto_update, update_on_start = update_on_start, decompress= True, path = data_file_path, download=download, file_system_watcher=file_system_watcher, polling_interval=polling_interval, update_time_maximum_randomisation=update_time_maximum_randomisation, update_url_params = update_url_params, data_update_use_url_formatter = data_update_use_url_formatter)
 
-            data_file = IpIntelligenceDataFile(flow_element=self, identifier="IPIV41", verify_md5=data_update_verify_md5, auto_update = auto_update, update_on_start = update_on_start, decompress= True, path = data_file_path, download=download, file_system_watcher=file_system_watcher, polling_interval=polling_interval, update_time_maximum_randomisation=update_time_maximum_randomisation, update_url_params = update_url_params, data_update_use_url_formatter = data_update_use_url_formatter)
-
-            self.register_data_file(data_file)
+        self.register_data_file(data_file)
 
     def init_engine(self):
 
@@ -249,20 +278,7 @@ class IpIntelligenceOnPremise(Engine):
         # so every read goes by index.
         self.property_indexes = self.read_property_indexes()
 
-        # Get keys and add to evidenceKey filter
-
-        evidence_keys = engine.getKeys()
-
-        evidence_keys_list = []
-
-        for x in range(evidence_keys.size()):
-            evidence_keys_list.append(evidence_keys.__getitem__(x))
-
-        # The client IP keys in the order the native code reads them, with
-        # the engine's own spelling, which the native code matches.
-        self.client_ip_keys = client_ip_keys(evidence_keys_list)
-
-        self.evidence_keys_list = [key.lower() for key in evidence_keys_list]
+        self.read_evidence_keys()
 
         # Get properties list
 
@@ -287,6 +303,24 @@ class IpIntelligenceOnPremise(Engine):
         # Special properties
         for metric_property_name, metric_property in self.get_metric_properties().items():
             self.properties[metric_property_name] = metric_property
+
+    def read_evidence_keys(self):
+
+        """!
+        Reads the Evidence keys the data in use accepts. The keys come from
+        the data file, so they are read at start-up and again after every
+        refresh.
+        """
+
+        evidence_keys = self.engine.getKeys()
+        keys = [evidence_keys.__getitem__(x)
+                for x in range(evidence_keys.size())]
+
+        # The client IP keys in the order the native code reads them, with
+        # the engine's own spelling, which the native code matches.
+        self.client_ip_keys = client_ip_keys(keys)
+
+        self.evidence_keys_list = [key.lower() for key in keys]
 
     def read_property_indexes(self):
 
@@ -335,9 +369,18 @@ class IpIntelligenceOnPremise(Engine):
         Returns evidence key filter for the on premise engine.
         Generated via a list of evidence keys from the swig engine
 
+        The filter is kept, as it is asked for once for each Evidence key
+        of every request. It is made again only when evidence_keys_list is
+        another list, which read_evidence_keys sets after a refresh.
+
         """
 
-        return BasicListEvidenceKeyFilter(self.evidence_keys_list)
+        keys = self.evidence_keys_list
+        kept = self._evidence_key_filter
+        if kept is None or kept[0] is not keys:
+            kept = (keys, BasicListEvidenceKeyFilter(keys))
+            self._evidence_key_filter = kept
+        return kept[1]
 
 
     def set_cache(self, cache):
@@ -361,7 +404,10 @@ class IpIntelligenceOnPremise(Engine):
         """
 
         super(IpIntelligenceOnPremise, self).on_registration(pipeline)
-        self.init_engine()
+        # The native engine is built once, so an engine in several
+        # pipelines loads its data file once and every pipeline uses it.
+        if getattr(self, "engine", None) is None:
+            self.init_engine()
 
     def close(self):
 
@@ -420,14 +466,7 @@ class IpIntelligenceOnPremise(Engine):
 
         result = self.engine.process(evidence)
 
-        ipv4 = None
-        ipv6 = None
-        if found:
-            address = found[0][1]
-            if address.version == 4:
-                ipv4 = str(address)
-            else:
-                ipv6 = str(address)
+        ipv4, ipv6 = reported_addresses(found)
 
         data = SwigData(self, result, echo_ip=ipv4, echo_ipv6=ipv6)
 

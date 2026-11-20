@@ -25,7 +25,19 @@ from fiftyone_pipeline_core.logger import Logger
 from fiftyone_devicedetection_cloud.devicedetection_cloud_pipelinebuilder import DeviceDetectionCloudPipelineBuilder
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 
-# This example is displayed at the end of the [Configurator](https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=top)
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=find-out-more-device-detection"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=find-out-more-pricing"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+]
+
+# This example is displayed at the end of the [configuration page](https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=top)
 # process, which is used to create resource keys for use with the 51Degrees cloud service.
 # 
 # It shows how to call the cloud with the newly created key and how to access the values 
@@ -79,6 +91,8 @@ class ConfiguratorConsole():
         output("device.ismobile: " +
             f"{ExampleUtils.get_human_readable(device, 'ismobile')}")
 
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output)
+
 def main(argv):
     # Use the command line args to get the resource key if present.
     # Otherwise, get it from the environment variable.
@@ -99,9 +113,10 @@ def main(argv):
             "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
             "A resource key with the properties required by this " +
             "example can be created for free at " +
-            "https://configure.51degrees.com/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
+            "https://51degrees.com/configure/1QWJwHxl?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-configurator_console.py&utm_term=resource-key-required. " +
             "Once complete, populate the environment variable " +
             "mentioned at the start of this message with the key.")
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

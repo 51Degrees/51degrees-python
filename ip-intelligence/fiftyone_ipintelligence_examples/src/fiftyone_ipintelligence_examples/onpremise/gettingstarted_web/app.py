@@ -35,9 +35,18 @@
 # ```
 # python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_web
 # ```
+#
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it when the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
 
 from flask import Flask, request
 
+from fiftyone_pipeline_core.web import webevidence
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_examples.onpremise.countries_pipeline import (
@@ -47,6 +56,19 @@ from fiftyone_ipintelligence_shared.example_constants import LITE_DATAFILE_NAME
 # Where to ask for a copy of the Enterprise data file, tagged with this
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_web-app.py&utm_term=enterprise-data-file"
+
+# Where to go next, shown at the end of the page and printed when the server
+# stops.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_web-app.py&utm_term=find-out-more-ip-intelligence"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-gettingstarted_web-app.py&utm_term=find-out-more-enterprise-data-file"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+    ("IP intelligence engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
 
 app = Flask(__name__)
 
@@ -58,7 +80,9 @@ def build_pipeline(data_file):
     builder = IpIntelligencePipelineBuilder(
         data_file_path = data_file,
         performance_profile = "LowMemory",
-        usage_sharing = False,
+        # Usage sharing is on, as it should be in production, because the
+        # requests shared improve the data every user gets.
+        usage_sharing = True,
         auto_update = False,
         licence_keys = "")
     # Add the country code and countries translation engines on top of the
@@ -98,10 +122,14 @@ def country_dropdown(translated):
 @app.route("/")
 def index():
 
-    # Create the flowdata object for this request. It is closed when the
-    # route returns, once the page has been built from it, which releases
-    # the results of the lookup straight away.
+    # A Flow Data cannot be used by two threads at once, so this one is made
+    # for this request, used only here, and closed when the route returns,
+    # which also releases the results of the lookup.
     with pipeline.create_flowdata() as flowdata:
+
+        # Hand the whole request to the pipeline. Each engine takes the
+        # Evidence it reads from it, and usage sharing takes the request.
+        flowdata.evidence.add_from_dict(webevidence(request))
 
         # Use the IP address supplied as a query parameter, or fall back
         # to the address of the requester.
@@ -137,6 +165,7 @@ def index():
         {country_dropdown(translated)}
         <p>Add ?client-ip=x.x.x.x to the url to lookup a different address, and
         &amp;translation=fr_FR to choose a language.</p>
+        {ExampleUtils.get_find_out_more_html(FIND_OUT_MORE)}
         """
 
 
@@ -153,7 +182,9 @@ def main(data_file = None):
     # The pipeline lives as long as the app, and is closed when the server
     # stops, which releases the native data it holds.
     with build_pipeline(data_file):
-        app.run(debug=False)
+        app.run(port=5151, debug=False)
+
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 
 if __name__ == "__main__":

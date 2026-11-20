@@ -21,6 +21,15 @@
 # *********************************************************************
 
 
+# The message value() raises with when there is no value and no reason was
+# given, the same as .NET's.
+NO_VALUE_MESSAGE = "This instance does not have a set value"
+
+# Stands for a value that was not given. A private object, so no value a
+# caller passes, the text "noValue" included, is taken for it.
+_NOT_SET = object()
+
+
 class AspectPropertyValue(object):
     
     """!
@@ -29,13 +38,13 @@ class AspectPropertyValue(object):
     If not value is set, a specific no value message is returned
     """
 
-    def __init__(self, no_value_message = None, value = "noValue"):
+    def __init__(self, no_value_message = None, value = _NOT_SET):
     
         """!
         Constructor for AspectPropertyValue
 
         @type value: mixed
-        @param value: the property value to store
+        @param value: the property value to store. Leave it out for no value.
 
         @type noValueMessage: string
         @param noValueMessage: if there is no value, the reason for there not being one
@@ -44,7 +53,7 @@ class AspectPropertyValue(object):
 
         self.noValueMessage = no_value_message
 
-        if(value != "noValue"):
+        if value is not _NOT_SET:
             self.__value = value
             self.__hasValue = True
         else:
@@ -66,18 +75,20 @@ class AspectPropertyValue(object):
 
         """!
         Get the value out of the AspectPropertyValue wrapper
-        Note that this will return an error (including no_value_message if set)
-        if there is no value. So check has_value() first to be sure.
+        With no value this raises, with no_value_message or, when that is
+        not set, NO_VALUE_MESSAGE. So check has_value() first to be sure.
 
         @rtype mixed
         @return the stored value
-        
+        @raise Exception: where there is no value, with no_value_message or
+        NO_VALUE_MESSAGE
+
         """
         
         if self.__hasValue:
             return self.__value
         else:
-            raise Exception(self.no_value_message())
+            raise Exception(self.no_value_message() or NO_VALUE_MESSAGE)
 
     def no_value_message(self):
 

@@ -21,6 +21,7 @@
 # *********************************************************************
 
 from datetime import datetime, timedelta
+import html
 import os
 import shlex
 import shutil
@@ -42,7 +43,7 @@ class ExampleUtils:
     CLOUD_RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
     # Deprecated. Use CLOUD_RESOURCE_KEY_ENV_VAR. The name the resource key
-    # variable had before, read when CLOUD_RESOURCE_KEY_ENV_VAR is not set.
+    # variable had before, which is no longer read.
     RESOURCE_KEY_ENV_VAR = "resource_key"
 
     # The environment variable the data file update example reads a licence
@@ -50,7 +51,7 @@ class ExampleUtils:
     LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
 
     # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
-    # variable had before, read when LICENSE_KEY_ENV_VAR is not set.
+    # variable had before, which is no longer read.
     LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
 
     # The environment variable naming a cloud service other than the public
@@ -58,7 +59,7 @@ class ExampleUtils:
     CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
 
     # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
-    # before, read when CLOUD_ENDPOINT_ENV_VAR is not set.
+    # before, which is no longer read.
     ENDPOINT_ENV_VAR = "cloud_endpoint"
 
     # The default environment variable used to get the data file path
@@ -66,7 +67,7 @@ class ExampleUtils:
     IPI_PATH_ENV_VAR = "_51DEGREES_IPI_PATH"
 
     # Deprecated. Use IPI_PATH_ENV_VAR. The name that variable had before,
-    # read when IPI_PATH_ENV_VAR is not set.
+    # which is no longer read.
     DATA_FILE_ENV_VAR = "IPINTELLIGENCEDATAFILE"
 
     # The data repository's IP intelligence folder, from the root of a
@@ -145,40 +146,36 @@ class ExampleUtils:
             return None
 
     @staticmethod
-    def get_resource_key():
+    def get_data_file_path():
         """!
-        The resource key from the environment, or None. The old name is
-        also read in upper case, as it was before.
+        The data file named in the environment, or None.
         """
 
-        return (
-            ExampleUtils.__get_env_variable(
-                ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR,
-                ExampleUtils.RESOURCE_KEY_ENV_VAR)
-            or ExampleUtils.__get_env_variable(
-                ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR,
-                ExampleUtils.RESOURCE_KEY_ENV_VAR.upper()))
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.IPI_PATH_ENV_VAR)
+
+    @staticmethod
+    def get_resource_key():
+        """!
+        The resource key from the environment, or None.
+        """
+
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR)
 
     @staticmethod
     def get_license_key():
         return ExampleUtils.__get_env_variable(
-            ExampleUtils.LICENSE_KEY_ENV_VAR,
-            ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR)
+            ExampleUtils.LICENSE_KEY_ENV_VAR)
 
     @staticmethod
     def get_cloud_endpoint():
         """!
-        The cloud endpoint from the environment, or None. The old name is
-        also read in upper case, as it was before.
+        The cloud endpoint from the environment, or None.
         """
 
-        return (
-            ExampleUtils.__get_env_variable(
-                ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
-                ExampleUtils.ENDPOINT_ENV_VAR)
-            or ExampleUtils.__get_env_variable(
-                ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
-                ExampleUtils.ENDPOINT_ENV_VAR.upper()))
+        return ExampleUtils.__get_env_variable(
+            ExampleUtils.CLOUD_ENDPOINT_ENV_VAR)
 
     @staticmethod
     def find_file(file_name):
@@ -192,7 +189,7 @@ class ExampleUtils:
         """
 
         env = ExampleUtils.__get_env_variable(
-            ExampleUtils.IPI_PATH_ENV_VAR, ExampleUtils.DATA_FILE_ENV_VAR)
+            ExampleUtils.IPI_PATH_ENV_VAR)
         if env and os.path.basename(env) == file_name and os.path.isfile(env):
             return env
 
@@ -375,6 +372,43 @@ class ExampleUtils:
                 f"Contact us for a copy at {contact_us}")
 
     @staticmethod
+    def print_find_out_more(links, output=print, prefix=""):
+
+        """!
+        Write the "Find out more" section that an example ends with, a line
+        of "=" and then each label with its link. links is a list of label
+        and link pairs, and output takes one string, as print does.
+        @param prefix: Starts each line, so that an example writing YAML can
+        write the section as comments.
+        """
+
+        message = ["=" * 79, "Find out more:"]
+        for label, url in links:
+            message.append(f"\t{label}: {url}")
+        output("\n".join(prefix + line for line in message) + "\n")
+
+    @staticmethod
+    def get_find_out_more_html(links):
+
+        """!
+        The "Find out more" section that a web example's page ends with.
+        links is a list of label and link pairs. A repository is shown by
+        its address, and any other link by its label.
+        """
+
+        items = []
+        for label, url in links:
+            href = html.escape(url)
+            label = html.escape(label)
+            if url.startswith("https://github.com/"):
+                items.append(
+                    f"<li>{label}: <a href=\"{href}\">{href}</a></li>")
+            else:
+                items.append(f"<li><a href=\"{href}\">{label}</a></li>")
+        return ("<h3 class=\"c-eg-page__heading\">Find out more</h3>\n"
+                "<ul>\n" + "\n".join(items) + "\n</ul>")
+
+    @staticmethod
     def __open(data_file):
 
         """!
@@ -428,29 +462,10 @@ class ExampleUtils:
                     f"or cxx/data/get-data-files.ps1 ip-intelligence -Update "
                     f"on Windows.")
 
-    # The old names already reported as deprecated, so each is reported
-    # once.
-    __reported_old_names = set()
-
     @staticmethod
-    def __get_env_variable(name, old_name):
+    def __get_env_variable(name):
         """!
-        The value of the environment variable name, or None. When name is
-        unset or empty the name the variable had before is read, and using
-        it prints once that the old name is deprecated.
+        The value of the environment variable name, or None.
         """
 
-        value = os.environ.get(name)
-        if value:
-            return value
-        value = os.environ.get(old_name)
-        if not value:
-            return None
-        if old_name not in ExampleUtils.__reported_old_names:
-            ExampleUtils.__reported_old_names.add(old_name)
-            print(
-                f"The {old_name} environment variable is deprecated and {name} "
-                f"replaces it. The value was read from {old_name} because {name} "
-                f"is not set, so set {name} to the same value.",
-                file=sys.stderr)
-        return value
+        return os.environ.get(name) or None

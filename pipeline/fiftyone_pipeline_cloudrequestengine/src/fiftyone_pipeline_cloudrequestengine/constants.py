@@ -25,22 +25,32 @@ class Constants:
     CLOUD_ENDPOINT = "_51DEGREES_CLOUD_ENDPOINT"
 
     # @deprecated Use Constants.CLOUD_ENDPOINT. This holds the old name of
-    # the cloud end point environment variable, which the engine reads
-    # through this constant when CLOUD_ENDPOINT is not set, so code that
-    # passes this constant to the environment reads and sets the old
-    # variable.
+    # the cloud end point environment variable, which is no longer read.
     FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"
-
-    # Message when the cloud end point came from the old environment
-    # variable. The first value is the old name and the second the new one.
-    MESSAGE_OLD_ENDPOINT_VARIABLE = (
-        "The {0} environment variable is deprecated and {1} replaces it. "
-        "The cloud endpoint was read from {0} because {1} is not set, so "
-        "set {1} to the same value.")
 
     # Default cloud end point
     BASE_URL_DEFAULT = "https://cloud.51degrees.com/api/v4/"
-	
+
+    # How long each request waits for the cloud service, in seconds, when
+    # timeout_seconds is not set. This is the default the specification
+    # gives its TimeoutSeconds option.
+    TIMEOUT_SECONDS_DEFAULT = 2
+
+    # Refuses a timeout_seconds the requests library could not use. The
+    # first value is the setting given and the second the default.
+    MESSAGE_TIMEOUT_NOT_POSITIVE = (
+        "CloudRequestEngine has timeout_seconds {!r}, which is not a "
+        "finite number of seconds above zero, so every request to the cloud "
+        "service would fail. Set timeout_seconds to a number above zero, "
+        "or leave it out for the default of {} seconds.")
+
+    # The key the engine's data is read under in a FlowData, as the
+    # specification gives it, and the key it was read under before, which
+    # is deprecated. The engine's datakey stays the old key, so the
+    # pipeline still names the engine by it.
+    RESPONSE_DATA_KEY = "cloud-response"
+    OLD_DATA_KEY = "cloud"
+
     # No Data in response message to be set in exception when cloud neither
     # return any data nor any error messages
     MESSAGE_NO_DATA_IN_RESPONSE = "No data in response from cloud service at {}"
@@ -49,6 +59,21 @@ class Constants:
     EXCEPTION_CLOUD_ERRORS_MULTIPLE = \
             "Multiple errors returned from 51Degrees cloud service. See inner " + \
             "exceptions for details."
+
+    # The members of the document discovery_state() gives, as the Java
+    # package's CloudDiscoveryState names them.
+    DISCOVERY_STATE_EVIDENCE_KEYS = "evidenceKeys"
+    DISCOVERY_STATE_ACCESSIBLE_PROPERTIES = "accessibleProperties"
+
+    # Message when the discovery_state setting is not a copy
+    # discovery_state() gives
+    MESSAGE_DISCOVERY_STATE_NOT_VALID = (
+        "The discovery_state setting is not a copy of what a Cloud Request "
+        "Engine discovered. Give the JSON document an engine's "
+        "discovery_state() returns, holding evidenceKeys, a list of text, "
+        "and accessibleProperties, the cloud service's answer with its "
+        "Products, or leave the setting out so the engine asks the cloud "
+        "service.")
 
     # Message when single error is returned from cloud service
     EXCEPTION_CLOUD_ERROR = \
@@ -82,11 +107,26 @@ class Constants:
     # error message when non-success status is returned.
     MESSAGE_ERROR_CODE_RETURNED = "Cloud service at '{}' returned status code '{}' with content {}"
 
+    # The HTTP statuses from which the cloud service refused a request
+    # (400 to 499) and failed to answer it (500 and above). A refusal of a
+    # discovery request fails the build, as no retry can change it.
+    HTTP_CLIENT_ERROR_MIN = 400
+    HTTP_SERVER_ERROR_MIN = 500
+
+    # Given as a warning when the engine is built without a discovery
+    # result. The first value names what is missing and the second gives
+    # each error.
+    MESSAGE_DISCOVERY_RETRY = (
+        "The cloud request engine could not get {} from the cloud service "
+        "when it was built, so it will ask again when it is first used. {}")
+    DISCOVERY_PROPERTIES = "the accessible properties"
+    DISCOVERY_EVIDENCE_KEYS = "the evidence keys"
+
     # The keys the cloud service reads its credentials and the list of
     # requested properties from, in the query string of a GET and in the
     # form body of a POST. See the Credentials section of the cloud request
     # engine specification:
-    # https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials
+    # https://github.com/51Degrees/specifications/blob/6570727d2af6967390d3c4fbec77b9cf0540d3f3/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials
     RESOURCE_PARAMETER = "resource"
     LICENSE_PARAMETER = "license"
     VALUES_PARAMETER = "values"
@@ -122,7 +162,7 @@ class Constants:
         "CloudRequestEngine needs a resource key or a licence key to "
         "authenticate with, as the cloud service answers 401 to a request "
         "that carries neither. Create a resource key for free at "
-        "https://configure.51degrees.com?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-constants.py&utm_term=no-credential")
+        "https://51degrees.com/configure?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-constants.py&utm_term=no-credential")
     MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES = (
         "CloudRequestEngine has a licence key and no requested_properties. "
         "A licence key names no properties of its own, so the cloud service "

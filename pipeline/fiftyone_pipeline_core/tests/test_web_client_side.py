@@ -118,6 +118,22 @@ class OnlyUserAgent(EvidenceKeyFilter):
         return key.lower() == "header.user-agent"
 
 
+class Counted(FlowElement):
+    """An element that counts the requests it processes."""
+
+    def __init__(self):
+        super(Counted, self).__init__()
+        self.datakey = "counted"
+        self.processed = 0
+
+    def process_internal(self, flowdata):
+        self.processed += 1
+        flowdata.set_element_data(ElementDataDictionary(self, {}))
+
+    def get_evidence_key_filter(self):
+        return BasicListEvidenceKeyFilter(["header.user-agent"])
+
+
 def client():
     """A test client of an application serving the two client-side
     endpoints."""
@@ -258,6 +274,76 @@ class ClientSideCacheTests(unittest.TestCase):
             for name in ("ETag", "Cache-Control", "Vary"):
                 self.assertEqual(good.headers.get(name),
                                  response.headers.get(name), name)
+
+    def test_a_matching_request_is_not_processed(self):
+        """The endpoints compare If-None-Match with the ETag before the
+        pipeline processes the request, and do not process a request that
+        matches, as the cache header detail of the web integration
+        specification asks."""
+
+        counted = Counted()
+        pipeline = PipelineBuilder({
+            "javascript_builder_settings": {"endpoint": "/json"},
+        }).add(counted).build()
+        app = Flask(__name__)
+
+        @app.route("/51Degrees.core.js")
+        def javascript():
+            return javascript_response(pipeline, request)
+
+        @app.route("/json", methods=["POST"])
+        def json_endpoint():
+            return json_response(pipeline, request)
+
+        client = app.test_client()
+        script = client.get(
+            "/51Degrees.core.js", headers={"User-Agent": CHROME})
+        results = client.post("/json", headers={"User-Agent": CHROME})
+        self.assertEqual(2, counted.processed)
+
+        for method, path, good, status in (
+                (client.get, "/51Degrees.core.js", script, 304),
+                (client.head, "/51Degrees.core.js", script, 304),
+                (client.post, "/json", results, 412)):
+            response = method(path, headers={
+                "User-Agent": CHROME,
+                "If-None-Match": good.headers["ETag"]})
+            self.assertEqual(status, response.status_code)
+
+        self.assertEqual(2, counted.processed)
+
+    def test_the_json_served_is_the_json_builders_json(self):
+        """The JavaScript Builder specification says the endpoint the
+        script calls back MUST return JSON in the same form as the JSON
+        within the script, which is the JSON Builder's. The flow data the
+        endpoint processes is kept, so the body can be compared with its
+        JSON."""
+
+        pipeline = PipelineBuilder({
+            "javascript_builder_settings": {"endpoint": "/json"},
+        }).add(Switchable()).build()
+        processed = []
+        create_flowdata = pipeline.create_flowdata
+
+        def create_and_keep():
+            flowdata = create_flowdata()
+            processed.append(flowdata)
+            return flowdata
+
+        app = Flask(__name__)
+
+        @app.route("/json", methods=["POST"])
+        def json_endpoint():
+            return json_response(pipeline, request)
+
+        with mock.patch.object(pipeline, "create_flowdata", create_and_keep):
+            response = app.test_client().post(
+                "/json", headers={"User-Agent": CHROME})
+
+        self.assertEqual(200, response.status_code)
+        self.assertEqual(1, len(processed))
+        self.assertEqual(processed[0].jsonbundler.json, response.get_json())
+        self.assertEqual(42, response.get_json()["switchable"]["answer"])
 
     def test_a_post_with_a_matching_etag_is_refused(self):
         """RFC 9110 section 13.1.2 allows a 304 for GET and HEAD only, and

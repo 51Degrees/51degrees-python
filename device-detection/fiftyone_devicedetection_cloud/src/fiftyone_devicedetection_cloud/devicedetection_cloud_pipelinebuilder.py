@@ -38,9 +38,9 @@ class DeviceDetectionCloudPipelineBuilder(PipelineBuilder):
 
         """!
 
-        Constructor for Device Detection Pipeline Builder
-        Depending on parameters passed through, builds a pipeline
-        with either the cloud or on premise device detection engines
+        Constructor for the Device Detection Cloud Pipeline Builder, which
+        builds a pipeline with the cloud request engine and the device
+        detection cloud engine.
 
         General pipeline settings:
 
@@ -66,47 +66,6 @@ class DeviceDetectionCloudPipelineBuilder(PipelineBuilder):
         @param resource_key: the 51Degrees cloud resource key
         @type cloud_request_origin: string
         @param cloud_request_origin: The value to set the Origin header to when making requests to the cloud service
-
-        On Premise Engine Settings
-
-        @type usage_sharing : bool
-        @param usage_sharing : Whether to enable usage sharing if using the on premise engine
-        @type data_file_path: string
-        @param data_file_path: path to the data file
-        @type auto_update: bool
-        @param auto_update: whether to automatically update the datafile when required
-        @type restricted_properties: list
-        @param restricted_properties: List of property keys to limit the engine to
-        @type license_keys: string
-        @param licence_keys: licencekeys to use for the data file update service
-        @type download: bool
-        @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
-        @type drift: int
-        @param drift: Set maximum drift in hash position to allow when processing HTTP headers
-        @type difference: int
-        @param difference: set the maximum difference to allow when processing HTTP headers. The difference is the difference in hash value between the hash that was found, and the hash that is being searched for. By default this is 0.
-        @type allow_unmatched : bool
-        @param allow_unmatched:  True if there should be at least one matched node in order for the results to be considered valid. By default, this is false
-        @type performance_profile: string
-        @param performance_profile: options are: LowMemory, MaxPerformance, Balanced, BalancedTemp, HighPerformance
-        @type reuse_temp_file: bool
-        @param reuse_temp_file: Indicates that an existing temp file may be used. This should be selected if multiple instances wish to use the same file to prevent high disk usage.
-        @type concurrency: int
-        @param concurrency: defaults to the number of cpus in the machine
-        @type update_on_start : bool
-        @param update_on_start : When this is set to true the datafile is updated / downloaded immediately on initialisation. This is useful if no initial datafile is present.
-        @type file_system_watcher: bool
-        @param file_system_watcher: whether to check the datafile's path for changes and update the connected FlowElement's data 
-        @type polling_interval: int
-        @param polling_interval: How often to poll for updates to the datafile (minutes)
-        @type update_time_maximum_randomisation : int
-        @param update_time_maximum_randomisation :
-        Maximum randomisation offset in seconds to polling time interval
-        @type verify_md5 : bool
-        @type create_temp_copy: bool
-        @param create_temp_copy: whether to copy datafile to temporary location when updating
-        @type data_file_update_base_url: string
-        @param data_file_update_base_url: base url for the datafile update service
 
         """
         if settings is None:
