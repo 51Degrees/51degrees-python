@@ -123,6 +123,28 @@ API = (env("_51DEGREES_CLOUD_ENDPOINT")
        or DEFAULT_API).rstrip("/") + "/"
 PORT = int(os.environ.get("PORT", "5100"))
 
+# Where to go next. The page ends with these links, and the demo prints
+# them when it stops before the page is served.
+FIND_OUT_MORE = [
+    ("What a 51Did is, and what the creator context binds it to",
+     "https://51degrees.com/documentation/_identifiers__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-creator_context_web-server.py&utm_term=find-out-more-identifiers"),
+    ("Talk to 51Degrees about using 51Did",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-creator_context_web-server.py&utm_term=find-out-more-contact-us"),
+    ("Pipeline API for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
+    ("Specifications",
+     "https://github.com/51Degrees/specifications"),
+]
+
+
+def print_find_out_more():
+    """Print the "Find out more" section, a line of "=" and then each
+    label with its link."""
+    message = ["=" * 79, "Find out more:"]
+    for label, url in FIND_OUT_MORE:
+        message.append(f"\t{label}: {url}")
+    print("\n".join(message) + "\n")
+
 
 def page_html():
     # Both files are read PER REQUEST, not once at start-up. A demo left
@@ -281,6 +303,7 @@ def run():
         print("Set _51DEGREES_RESOURCE_KEY to the resource key of the "
               "page. Resource keys are created at "
               "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-creator_context_web-server.py&utm_term=resource-key-required")
+        print_find_out_more()
         return
     if not LICENCE:
         # Only an account that holds licence keys needs one to redeem,
