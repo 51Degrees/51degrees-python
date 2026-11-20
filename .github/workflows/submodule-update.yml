@@ -19,5 +19,4 @@ jobs:
       org-name: ${{ github.event.repository.owner.login }}
       dryrun: ${{ inputs.dryrun || false }}
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
+    secrets: inherit

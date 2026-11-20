@@ -64,8 +64,9 @@ jobs:
       - name: Cloud 51Did test for each resource key secret
         shell: pwsh
         env:
-          _51DEGREES_RESOURCE_KEY_BESPOKE: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-          _51DEGREES_RESOURCE_KEY_51DID: ${{ vars._51DEGREES_RESOURCE_KEY_51DID }}
+          # The 51Did live tests use the Bespoke resource key, which carries
+          # FODid at CloudV5Bespoke.
+          _51DEGREES_RESOURCE_KEY_51DID: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
           # The redemption tests check a sealed result reads back only with a
           # license key, and the service only opens a sealed result for a
           # license key of the account whose resource key sealed it. So each
@@ -96,5 +97,5 @@ jobs:
       - name: Cloud 51Did tier test with the Basic key
         if: ${{ !cancelled() }}
         env:
-          _51DEGREES_RESOURCE_KEY_BASIC: ${{ vars._51DEGREES_RESOURCE_KEY_BASIC }}
+          _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_FREE }}
         run: tox -- tests/test_did_tier_live.py -v -rs
