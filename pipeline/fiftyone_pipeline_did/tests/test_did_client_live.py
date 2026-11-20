@@ -23,7 +23,7 @@
 """Live tests against the 51Degrees cloud service.
 
 The resource key is read from ``_51DEGREES_RESOURCE_KEY_51DID``, and every
-test fails when it is not set. The key has to carry the FODid product, and
+test skips, naming it, when it is not set. The key has to carry the FODid product, and
 the CloudV5FODiD product for the marketing usages, which
 ``test_did_tier_live.py`` shows a Basic key does not get. An optional
 license key is read from ``_51DEGREES_LICENSE_KEY_51DID``, and must be one
@@ -97,7 +97,7 @@ class DidClientLiveTests(unittest.TestCase):
 
     def setUp(self):
         if not RESOURCE_KEY:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
         self.client = DidClient(RESOURCE_KEY, LICENCE_KEY)
 
     def create(self):
@@ -311,7 +311,7 @@ class BrowserCreatorContextLiveTests(unittest.TestCase):
 
     def setUp(self):
         if not RESOURCE_KEY:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
         self.client = DidClient(RESOURCE_KEY, LICENCE_KEY)
 
     def get(self, url, user_agent):

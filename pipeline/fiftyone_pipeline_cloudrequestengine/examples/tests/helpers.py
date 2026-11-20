@@ -42,8 +42,8 @@ LICENSE_KEY = read_environment(LICENSE_KEY_NAME)
 
 # The ways a test can reach the cloud service, as the keyword arguments the
 # examples' create_pipeline takes, each passed through credentials(). A test
-# with a resource key fails when none is set. A test with a licence key is
-# skipped, naming the variable, when none is set.
+# with a resource key or a license key is skipped, naming the variables it
+# reads, when none is set.
 KEYS = [
     pytest.param(
         {"resource_key": find_resource_key()},
@@ -61,11 +61,11 @@ KEYS = [
 
 
 def credentials(keys):
-    """The keyword arguments from KEYS, failing the test when they hold a
+    """The keyword arguments from KEYS, skipping the test when they hold a
     resource key that is not set."""
 
     if "resource_key" in keys and not keys["resource_key"]:
-        pytest.fail(NO_KEY, pytrace=False)
+        pytest.skip(NO_KEY)
     return keys
 
 

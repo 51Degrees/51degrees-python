@@ -14,8 +14,9 @@ name: Cloud 51Did Tests
 # A new resource key therefore needs a line here as well as the organisation
 # secret.
 #
-# A run with no key fails, because a cloud test that passes without calling
-# the cloud has proved nothing. A pull request from a fork gets no secrets,
+# A run with no key fails, naming the variable, because a cloud test that
+# passes without calling the cloud has proved nothing. The tests themselves
+# skip without a key. A pull request from a fork gets no secrets,
 # so run this workflow from a branch in this repository.
 
 on:
@@ -72,11 +73,24 @@ jobs:
           # license key of the account whose resource key sealed it. The tests
           # read it from _51DEGREES_LICENSE_KEY_51DID.
           _51DEGREES_LICENSE_KEY_51DID: ${{ secrets._51DEGREES_LICENSE_KEY_51DID }}
-        # -rs lists any test that skipped, and none should. Without the
-        # resource key every test fails naming _51DEGREES_RESOURCE_KEY_51DID.
-        run: tox -- tests/test_did_client_live.py -v -rs
+        # The tests skip without a key, so the run fails here instead,
+        # naming the variable. -rs lists any test that skipped, and none
+        # should.
+        shell: pwsh
+        run: |
+          if (-not $env:_51DEGREES_RESOURCE_KEY_51DID) {
+            Write-Host '::error::_51DEGREES_RESOURCE_KEY_51DID is not set. It comes from the _51DEGREES_RESOURCE_KEY_BESPOKE secret.'
+            exit 1
+          }
+          tox -- tests/test_did_client_live.py -v -rs
       - name: Cloud 51Did tier test with the Basic key
         if: ${{ !cancelled() }}
         env:
           _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_FREE }}
-        run: tox -- tests/test_did_tier_live.py -v -rs
+        shell: pwsh
+        run: |
+          if (-not $env:_51DEGREES_RESOURCE_KEY_BASIC) {
+            Write-Host '::error::_51DEGREES_RESOURCE_KEY_BASIC is not set. It comes from the _51DEGREES_RESOURCE_KEY_FREE secret.'
+            exit 1
+          }
+          tox -- tests/test_did_tier_live.py -v -rs

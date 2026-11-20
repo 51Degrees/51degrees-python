@@ -26,8 +26,8 @@ A Basic key carries the FODid product, so it gets a 51Did for the
 non-marketing usage. It does not carry the CloudV5FODiD product, so the
 service refuses it the standard and personalized usages and says which
 product is missing. The key is read from ``_51DEGREES_RESOURCE_KEY_BASIC``
-only, because these tests assert what that one tier gets, and they fail
-when it is not set.
+only, because these tests assert what that one tier gets, and they skip,
+naming it, when it is not set.
 """
 
 import json
@@ -54,7 +54,7 @@ class BasicTierLiveTests(unittest.TestCase):
 
     def setUp(self):
         if not BASIC_KEY:
-            self.fail(no_resource_key(
+            self.skipTest(no_resource_key(
                 "the FODid product on the Basic tier",
                 "a 51Did under each id.usage, expecting the marketing "
                 "usages to be refused", several=True,

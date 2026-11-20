@@ -126,7 +126,7 @@ class LocationWebExampleTests(unittest.TestCase):
 
     def setUp(self):
         if not self.resource_key:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
         self.client = self.example.app.test_client()
 
     def test_page_holds_the_script_that_asks_for_the_position(self):

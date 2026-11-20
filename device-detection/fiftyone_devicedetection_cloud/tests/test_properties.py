@@ -71,7 +71,7 @@ class PropertyTests(unittest.TestCase):
 
     def setUp(self):
         if not self.resource_key:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
         if self.pipeline is None:
             # The property list comes from an asset the build fetches with
             # a licence key, so a run without it says which file is missing.

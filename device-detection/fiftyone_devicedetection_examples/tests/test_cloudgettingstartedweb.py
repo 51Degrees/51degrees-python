@@ -27,6 +27,13 @@ from fiftyone_pipeline_core.logger import Logger
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.cloud.gettingstarted_web.app import GettingStartedWeb
 
+RESOURCE_KEY = ExampleUtils.get_resource_key()
+
+
+@unittest.skipUnless(
+    RESOURCE_KEY,
+    f"{ExampleUtils.RESOURCE_KEY_ENV_VAR} is not set. Set it to a 51Degrees "
+    "cloud resource key to run the cloud example.")
 class CloudGettingStartedWebTests(flask_unittest.ClientTestCase):
     # The test client sends no User-Agent of its own, so supply one that detection can
     # resolve to a hardware profile.
@@ -34,9 +41,9 @@ class CloudGettingStartedWebTests(flask_unittest.ClientTestCase):
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
     # Assign the `Flask` app object
-    resource_key = ExampleUtils.get_resource_key()
+    resource_key = RESOURCE_KEY
     logger = Logger()
-    app = GettingStartedWeb().build(resource_key, logger).app
+    app = GettingStartedWeb().build(resource_key, logger).app         if resource_key else None
 
     def test_cloud_getting_started_web(self, client):
         response = client.get('/')

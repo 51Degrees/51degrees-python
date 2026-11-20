@@ -320,4 +320,43 @@ Describe 'Keys under their _51DEGREES_ names' {
             $text | Should -Not -Match '\$env:_51DEGREES_RESOURCE_KEY\s*='
         }
     }
+
+    Describe 'The live cloud tests' {
+
+        # A live test with no key skips, naming the variable it reads. It
+        # never fails for want of a key.
+        It 'skip rather than fail without a key in <Path>' -ForEach @(
+            Get-ChildItem $script:DiscoveryRoot -Recurse -Filter *.py |
+                Where-Object {
+                    $_.FullName -match '[\\/]tests[\\/]' -and
+                    $_.FullName -notmatch '[\\/](cxx|\.tox|\.venv|\.virtualenv)[\\/]' -and
+                    $_.Name -ne 'live_cloud.py'
+                } |
+                Where-Object { (Get-Content -Raw $_.FullName) -match 'find_resource_key|read_environment\(|get_resource_key\(' } |
+                ForEach-Object { @{ Path = [IO.Path]::GetRelativePath($script:DiscoveryRoot, $_.FullName); Full = $_.FullName } }
+        ) {
+            $text = Get-Content -Raw $Full
+            $text | Should -Not -MatchExactly '\.fail\(\s*(NO_|no_resource_key)'
+            $text | Should -Not -Match 'assertIsNotNone\(\s*self\.resource_key'
+            $text | Should -Not -Match 'raise Exception\("To run the cloud tests'
+        }
+
+        It 'skips, naming the variable, when <Path> has no key' -ForEach @(
+            @{ Path = 'location/tests/test_examples.py' }
+            @{ Path = 'device-detection/fiftyone_devicedetection_examples/tests/test_cloudgettingstartedweb.py' }
+        ) {
+            $text = Get-Content -Raw (Join-Path $script:Root $Path)
+            $text | Should -Match 'skip'
+            $text | Should -Match '_51DEGREES_RESOURCE_KEY|RESOURCE_KEY_ENV_VAR'
+        }
+
+        It 'says in live_cloud.py that a test without a key skips, in <Path>' -ForEach @(
+            Get-ChildItem $script:DiscoveryRoot -Recurse -Filter live_cloud.py |
+                Where-Object { $_.FullName -notmatch '[\\/](cxx|\.tox|\.venv)[\\/]' } |
+                ForEach-Object { @{ Path = [IO.Path]::GetRelativePath($script:DiscoveryRoot, $_.FullName); Full = $_.FullName } }
+        ) {
+            $text = Get-Content -Raw $Full
+            $text | Should -Not -Match 'There is no fallback to a skip'
+        }
+    }
 }

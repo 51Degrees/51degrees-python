@@ -21,13 +21,14 @@
 # *********************************************************************
 
 """Where the tests that call the live 51Degrees cloud service find their
-resource key, and what they fail with when there is none or when the
-answer lacks what they asked for. Also how a test reads a setting from an
+resource key, what they skip with when there is none, and what they
+fail with when the answer lacks what they asked for. Also how a test reads a setting from an
 environment variable.
 
 The same file is in each test folder whose tests read a setting from the
-environment. There is no fallback to a skip, because a cloud test that
-passes without calling the cloud has proved nothing.
+environment. A test with no key skips, naming each variable it reads,
+and never fails for want of one. CI checks that the key is set before
+it runs them, so a run that called nothing is not taken for a pass.
 """
 
 import os
@@ -70,7 +71,7 @@ def find_resource_key(names=RESOURCE_KEY_NAMES):
 
 def no_resource_key(product, asks_for, several=False,
                     names=RESOURCE_KEY_NAMES):
-    """What to fail with when no resource key is set.
+    """What to skip with when no resource key is set.
 
     product names the product the key has to carry, with its article, as in
     "the device product". asks_for says what the test asks the service for.

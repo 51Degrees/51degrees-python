@@ -61,7 +61,7 @@ class CloudGettingStartedWebTests(unittest.TestCase):
 
     def setUp(self):
         if not self.resource_key:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
         self.client = example.app.test_client()
 
     def test_page_shows_the_registration_details(self):
