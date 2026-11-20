@@ -163,6 +163,11 @@ class Pipeline:
             if not flow_element.exclude_from_messages:
                 self._flow_elements_display_list += (flow_element.datakey,)
 
+        # Built once here, as it is always needed and the Pipeline's
+        # elements do not change. It asks each element's filter when a key
+        # is checked, so an element whose keys arrive later is still read.
+        self._evidence_key_filter = PipelineEvidenceKeyFilter(self)
+
     @property
     def flow_elements(self):
         """!
@@ -271,14 +276,15 @@ class Pipeline:
 
         """!
         The Evidence the Pipeline accepts, being every key one of its
-        FlowElements accepts.
+        FlowElements accepts. The filter is built when the Pipeline is
+        created, and the same one is returned every time.
 
         @rtype: EvidenceKeyFilter
         @return: Returns an EvidenceKeyFilter
 
         """
 
-        return PipelineEvidenceKeyFilter(self)
+        return self._evidence_key_filter
 
     def element_not_found(self, element, flowdata):
         """!
