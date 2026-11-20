@@ -57,7 +57,9 @@ class SetHeaderUACHTests(unittest.TestCase):
     def test_get_response_header_value(self, device, expected_value):
         testPipeline = TestPipeline()
         setHeaderElement = SetHeaderElement()
-        flowdata = testPipeline.flowdata
+        # A FlowData that has not been processed, because a finished one
+        # takes no more ElementData.
+        flowdata = testPipeline.pipeline.create_flowdata()
         flowdata.data = device
         actual_value = setHeaderElement.get_response_header_value(flowdata, setHeader_properties_dict)
         self.assertEqual(expected_value, actual_value[Constants.ACCEPTCH_HEADER])
@@ -80,7 +82,9 @@ class SetHeaderUACHTests(unittest.TestCase):
         response = session.get('mock://test.com/3')
 
         testPipeline = TestPipeline()
-        flowdata = testPipeline.flowdata
+        # A FlowData that has not been processed, because a finished one
+        # takes no more ElementData.
+        flowdata = testPipeline.pipeline.create_flowdata()
         flowdata.data = data
 
         response = set_response_header(flowdata, response)

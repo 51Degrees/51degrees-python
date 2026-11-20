@@ -36,5 +36,11 @@ class DerivedPropertyData(ElementDataDictionary):
         super().__init__(flow_element, {})
 
     def set_value(self, name, value):
-        """! Writes the value of one property. """
+        """!
+        Writes the value of one property.
+
+        @raise Exception: once every element that writes the data has
+        finished processing
+        """
+        self._check_writable(name)
         self.contents[name.lower()] = value
