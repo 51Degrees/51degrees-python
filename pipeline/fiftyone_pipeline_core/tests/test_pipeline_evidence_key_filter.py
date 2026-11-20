@@ -21,7 +21,9 @@
 # *********************************************************************
 
 import unittest
+from unittest import mock
 
+from fiftyone_pipeline_core import pipeline as pipeline_module
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
@@ -77,6 +79,27 @@ class PipelineEvidenceKeyFilterTests(unittest.TestCase):
         self.assertFalse(accepted.filter_evidence_key("header.x-later"))
         later.keys = ["header.x-later"]
         self.assertTrue(accepted.filter_evidence_key("header.x-later"))
+
+    def test_the_pipeline_gives_the_same_filter_every_time(self):
+        pipeline = self.build(Element("one", ["header.user-agent"]))
+        self.assertIs(
+            pipeline.get_evidence_key_filter(),
+            pipeline.get_evidence_key_filter())
+
+    def test_the_pipeline_builds_its_filter_once_when_it_is_created(self):
+        # The Pipeline's filter is always needed and does not change, so it
+        # is built in the constructor and not on each call.
+        real = pipeline_module.PipelineEvidenceKeyFilter
+        with mock.patch.object(
+                pipeline_module, "PipelineEvidenceKeyFilter",
+                side_effect=real) as made:
+            pipeline = self.build(Element("one", ["header.user-agent"]))
+            self.assertEqual(1, made.call_count)
+            first = pipeline.get_evidence_key_filter()
+            pipeline.get_evidence_key_filter()
+            self.assertEqual(1, made.call_count)
+        self.assertIsInstance(first, real)
+        self.assertTrue(first.filter_evidence_key("header.user-agent"))
 
     def test_the_pipeline_filters_evidence_to_what_it_accepts(self):
         pipeline = self.build(Element("one", ["header.user-agent"]))
