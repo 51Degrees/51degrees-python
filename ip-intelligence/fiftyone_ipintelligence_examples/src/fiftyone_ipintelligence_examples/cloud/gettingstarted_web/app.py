@@ -136,7 +136,7 @@ def main(resource_key = None):
             "the start of this message with the key.")
     else:
         build_pipeline(resource_key)
-        app.run(debug=False)
+        app.run(port=5151, debug=False)
 
     # Every end, with no key or once the server stops, finishes here.
     ExampleUtils.print_find_out_more(FIND_OUT_MORE)
