@@ -54,7 +54,9 @@ setuptools.setup(
     packages=["fiftyone_pipeline_cloudrequestengine"],
     package_dir={"": "src"},
     install_requires=[
-          'fiftyone_pipeline_engines',
+          # The first version with MissingPropertyReason, which this
+          # package gives as the reason a cloud Property has no value.
+          'fiftyone_pipeline_engines>=4.5.44',
           'requests',
     ],
     license="EUPL-1.2",

@@ -65,7 +65,12 @@ setuptools.setup(
     python_requires=">=3.10",
     packages=["fiftyone_devicedetection_cloud"],
     package_dir={"": "src"},
-    install_requires=["fiftyone_devicedetection_shared"],
+    install_requires=[
+        "fiftyone_devicedetection_shared",
+        # The first version with CloudMissingPropertyService, which the
+        # hardware profile results of this package use.
+        "fiftyone_pipeline_cloudrequestengine>=4.5.45",
+    ],
     license="EUPL-1.2",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
