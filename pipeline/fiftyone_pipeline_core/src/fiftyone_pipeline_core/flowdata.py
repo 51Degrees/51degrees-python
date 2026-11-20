@@ -25,6 +25,104 @@ from .flowerror import FlowError
 from .messages import Messages	
 import traceback
 import sys
+from collections.abc import MutableMapping
+
+
+def _find(node, key):
+
+    # Follows the links from the node given to the first, so newest, node
+    # for the key.
+    while node is not None:
+        if node.key == key:
+            return node
+        node = node.next
+    return None
+
+
+class _ElementDataNode(object):
+
+    """!
+    One Element Data in a FlowData's list. A node never changes once it is
+    in the list, so a reader follows the links with no lock.
+    """
+
+    __slots__ = ("key", "element_data", "next")
+
+    def __init__(self, key, element_data, next):
+        self.key = key
+        self.element_data = element_data
+        self.next = next
+
+
+class ElementDataView(MutableMapping):
+
+    """!
+    The Element Data of a FlowData, keyed by data key, as the list was when
+    the view was taken. Adds made elsewhere after that are not seen, so a
+    reader part way through always sees a whole list.
+
+    Setting a key adds to the FlowData, and this view then shows the list
+    as it is after the add. Element Data is not removed, so del, pop,
+    popitem and clear raise TypeError. copy gives a dict.
+
+    Iteration gives each key once, in the order the keys were first added.
+    While a Pipeline processes, each Flow Element adds its own in turn, so
+    that is Pipeline order. Element Data added another way, such as before
+    processing, is listed by when it was added.
+    """
+
+    def __init__(self, flowdata, head):
+        self._flowdata = flowdata
+        self._head = head
+
+    def _latest(self):
+        # The list holds the newest first, so it is sorted into the order
+        # the keys were added, keeping the newest Element Data for each.
+        nodes = []
+        node = self._head
+        while node is not None:
+            nodes.append(node)
+            node = node.next
+        latest = {}
+        for node in reversed(nodes):
+            latest[node.key] = node.element_data
+        return latest
+
+    def __getitem__(self, key):
+        node = _find(self._head, key)
+        if node is None:
+            raise KeyError(key)
+        return node.element_data
+
+    def __setitem__(self, key, element_data):
+        self._flowdata._add(key, element_data)
+        # This view now shows the list with the add, as a mapping should.
+        self._head = self._flowdata._head
+
+    def __delitem__(self, key):
+        raise TypeError("Element Data is not removed from a FlowData")
+
+    def __iter__(self):
+        return iter(self._latest())
+
+    def __len__(self):
+        return len(self._latest())
+
+    def __repr__(self):
+        return repr(self._latest())
+
+    def copy(self):
+        return self._latest()
+
+    def keys(self):
+        return self._latest().keys()
+
+    def values(self):
+        return self._latest().values()
+
+    def items(self):
+        return self._latest().items()
+
 
 class FlowData:
     """!
@@ -32,6 +130,11 @@ class FlowData:
     It collects evidence set by the user
     It passes evidence to FlowElements in the Pipeline
     These elements can return ElementData or populate an errors object
+
+    The Element Data is kept in a linked list, newest first. An add puts a
+    new node at the head with a plain write and takes no lock, because no
+    parallel group adds at the same time. Readers follow the links with no
+    lock.
 
     A FlowData is not safe to use from several threads at once. It is used
     by one thread at a time, and where one is shared across threads, the
@@ -52,7 +155,8 @@ class FlowData:
 
         """
 
-        self.data = {}
+        # The newest node of the Element Data list. See data.
+        self._head = None
         self.errors = {}
         self.pipeline = pipeline
         self.processed = False
@@ -170,11 +274,14 @@ class FlowData:
         """
 
         try:
-            return self.data[flow_element_key.lower()]
-
+            node = _find(self._head, flow_element_key.lower())
         except Exception:
+            node = None
 
+        if node is None:
             return self.pipeline.element_not_found(flow_element_key, self)
+
+        return node.element_data
 
     def __getattr__(self, flow_element_key):
 
@@ -221,7 +328,43 @@ class FlowData:
         """
 
         # Kept under the data key in lower case, which is how get reads it.
-        self.data[element_data.flow_element.datakey.lower()] = element_data
+        self._add(element_data.flow_element.datakey.lower(), element_data)
+
+    def _add(self, key, element_data):
+
+        # A new node at the head. A reader that has already read the head
+        # keeps the list it saw.
+        self._write_head(_ElementDataNode(key, element_data, self._head))
+
+    def _write_head(self, head):
+
+        # The only write of the list, with a plain write, as no parallel
+        # group adds at the same time.
+        self._head = head
+
+    @property
+    def data(self):
+
+        """!
+        The Element Data in this FlowData, keyed by data key in lower case,
+        as the list is now. Iteration gives Pipeline order.
+
+        @rtype: ElementDataView
+        """
+
+        return ElementDataView(self, self._head)
+
+    @data.setter
+    def data(self, contents):
+
+        # Replaces the list with the contents given, in their order. The
+        # new list is built first and put in place with one write, so a
+        # reader sees the old list or the new one. The mapping given is
+        # copied, so later changes to it are not seen.
+        head = None
+        for key, element_data in contents.items():
+            head = _ElementDataNode(key, element_data, head)
+        self._write_head(head)
 
 
     def set_error(self, flow_error):
