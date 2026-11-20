@@ -1290,5 +1290,66 @@ class PolledCheckErrorTests(UpdateServiceTestCase):
              UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
 
 
+class StartUpCheckErrorTests(UpdateServiceTestCase):
+    """!
+    An error the errors table does not name, raised in the update on
+    start-up. data-updates.md line 354 says every check MUST be reported
+    to onUpdateCallbacks once it ends, "including the checks made by
+    update polling, by the file watcher, by the update on start-up and by
+    a programmatic call". Lines 477 to 478 say "A programmatic check, the
+    update on start-up and an update from memory pass the error to their
+    caller instead of logging it", and lines 475 to 476 say a failure
+    "MUST NOT stop later checks for updates".
+
+    So the check is reported as AUTO_UPDATE_UNKNOWN_ERROR, the error
+    reaches the caller that registered the data file, nothing is logged,
+    and the next check is still scheduled.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.data_file.update_on_start = True
+        self.data_file.updated_on_start = False
+        self.data_file.auto_update = True
+        self.hold_timers()
+        self.failure = ValueError("the update URL could not be made")
+
+        def update_url():
+            raise self.failure
+
+        self.data_file.get_update_url = update_url
+
+    def register(self):
+        """Registers the data file, which makes the update on start-up,
+        and returns the error it passed to this caller."""
+        with self.assertRaises(ValueError) as caught:
+            self.service.register_data_file(self.data_file)
+        return caught.exception
+
+    def testTheErrorIsReportedAndPassedToTheCaller(self):
+        self.assertIs(self.failure, self.register())
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR], self.statuses)
+        self.assertFalse(self.data_file.updating)
+
+    def testTheErrorIsNotLogged(self):
+        self.register()
+        self.assertEqual(
+            [], [message for level, message in self.pipeline.logs
+                 if level == "error"])
+
+    def testTheNextCheckIsScheduledAndStillAppliesAGoodFile(self):
+        self.register()
+        self.assertEqual(1, len(self.pending))
+        self.get(response(200))
+        self.data_file.get_update_url = lambda: URL
+        scheduled = self.pending.pop()
+        scheduled.function(*scheduled.args).join()
+        self.assertEqual([b"new"], self.data_file.refreshed)
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR,
+             UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+
+
 if __name__ == "__main__":
     unittest.main()
