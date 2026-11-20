@@ -36,7 +36,7 @@ from .live_cloud import read_environment
 class CloudEngineTests(unittest.TestCase):
     def setUp(self):
         self.resource_key = read_environment(
-            "_51DEGREES_RESOURCE_KEY", "resource_key")
+            "_51DEGREES_RESOURCE_KEY")
 
         self.assertIsNotNone(
             self.resource_key,

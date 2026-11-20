@@ -38,6 +38,22 @@ from flask import Flask, request, render_template
 import requests
 from unittest import mock
 
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.flowelement import FlowElement
+
+
+class UsingElement(FlowElement):
+    """Accepts the evidence keys given, and adds no data."""
+
+    def __init__(self, keys):
+        super(UsingElement, self).__init__()
+        self.datakey = "using"
+        self.keys = keys
+
+    def get_evidence_key_filter(self):
+        return BasicListEvidenceKeyFilter(self.keys)
+
 testHost = "127.0.0.1"
 testPort = 5000
 testEndpoint = f"http://{testHost}:{testPort}"
@@ -919,9 +935,9 @@ class UsageTests(unittest.TestCase):
 
     def test_default_shares_only_accepted_evidence(self):
         """!
-        Check that with no options the element shares headers, the
-        51Degrees cookies and every query string and form parameter, and
-        leaves out other cookies, the Cookie header and the email address.
+        Check that with no options the element shares headers and the
+        51Degrees cookies and parameters, and leaves out other cookies, the
+        Cookie header, and other query string and form parameters.
         """
 
         usage = ShareUsage(
@@ -948,7 +964,7 @@ class UsageTests(unittest.TestCase):
         self.assertIn('<query Name="51d_gethighentropyvalues">hev</query>', app.received[0])
         self.assertNotIn("cookie value", app.received[0])
         self.assertNotIn("header value", app.received[0])
-        self.assertIn('<query Name="password">password value</query>', app.received[0])
+        self.assertNotIn("password value", app.received[0])
         self.assertNotIn("email value", app.received[0])
 
     def test_never_shared_evidence(self):
@@ -984,8 +1000,9 @@ class UsageTests(unittest.TestCase):
     def test_share_all(self):
         """!
         Check that sharing all evidence shares what the other rules leave
-        out, but not the evidence that is never shared or a cookie that
-        does not start 51D_.
+        out, but not the evidence that is never shared, a cookie that
+        does not start 51D_, or a parameter that neither starts 51D_ nor is
+        used by the Pipeline.
         """
 
         usage = ShareUsage(
@@ -1007,22 +1024,21 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(len(app.received), 1)
         self.assertNotIn("cookie value", app.received[0])
         self.assertIn('<cookie Name="51d_screenpixelswidth">1080</cookie>', app.received[0])
-        self.assertIn('<query Name="campaign">campaign value</query>', app.received[0])
+        self.assertNotIn("campaign value", app.received[0])
         self.assertNotIn("email value", app.received[0])
 
     def test_parameter_names_with_dots(self):
         """!
         Check that a query string parameter whose name contains a dot is
-        matched by its whole name against the parameters to share.
+        matched by its whole name against the evidence the Pipeline uses.
         """
 
         usage = ShareUsage(
             requested_package_size=1,
-            endpoint=testEndpoint,
-            share_all_query_string_parameters=False,
-            query_whitelist=["valid.email"])
+            endpoint=testEndpoint)
 
         pipeline = (PipelineBuilder())\
+            .add(UsingElement(["query.valid.email"]))\
             .add(usage)\
             .build()
         flowdata = pipeline.create_flowdata()

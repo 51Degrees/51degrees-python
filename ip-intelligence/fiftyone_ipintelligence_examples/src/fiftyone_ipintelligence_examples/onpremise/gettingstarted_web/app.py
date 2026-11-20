@@ -35,6 +35,14 @@
 # ```
 # python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_web
 # ```
+#
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it when the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
 
 from flask import Flask, request
 
@@ -114,9 +122,9 @@ def country_dropdown(translated):
 @app.route("/")
 def index():
 
-    # Create the flowdata object for this request. It is closed when the
-    # route returns, once the page has been built from it, which releases
-    # the results of the lookup straight away.
+    # A Flow Data cannot be used by two threads at once, so this one is made
+    # for this request, used only here, and closed when the route returns,
+    # which also releases the results of the lookup.
     with pipeline.create_flowdata() as flowdata:
 
         # Hand the whole request to the pipeline. Each engine takes the

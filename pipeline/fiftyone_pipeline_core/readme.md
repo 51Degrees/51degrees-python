@@ -21,6 +21,39 @@ Engines created by 51Degrees:
 - [**fiftyone_devicedetection**](https://pypi.org/project/fiftyone-devicedetection/) - Get details about the devices accessing your web page
 - [**fiftyone_location**](https://pypi.org/project/fiftyone-location/) - Get postal address details from the location of devices accessing your web page
 
+## Web integration
+
+The `fiftyone_pipeline_core.web` module helps use a Pipeline in a Flask web
+application. `webevidence` takes the evidence from a request,
+`set_response_header` sets the response headers the results ask for, and
+`javascript_response` and `json_response` answer the requests of the
+client-side JavaScript.
+
+A Flow Data cannot be used by two threads at once. Create one for each
+request, use it only in the code that handles that request, and close it
+when the request ends, which a `with` statement does. To hand work to
+another thread or task, read the values it needs from the Flow Data first
+and pass those values, not the Flow Data. The example below does both, with
+a Pipeline that holds a device detection engine and a `concurrent.futures`
+executor.
+
+```python
+@app.route("/")
+def index():
+    with pipeline.create_flowdata() as flowdata:
+        flowdata.evidence.add_from_dict(webevidence(request))
+        flowdata.process()
+
+        # The other thread gets the browser name, not the Flow Data.
+        browser = flowdata.device.browsername
+        if browser.has_value():
+            executor.submit(record_browser, browser.value())
+
+        response = make_response(render_template("index.html", data=flowdata))
+        set_response_header(flowdata, response)
+        return response
+```
+
 ## Requirements
 
 * Python 3.8+

@@ -21,8 +21,9 @@
 # *********************************************************************
 
 """A configuration file gives a list of names as one comma-separated string,
-so the usage sharing element takes its query string parameters to share and
-its headers not to share in that form, as well as in a list."""
+so the usage sharing element takes its headers not to share in that form, as
+well as in a list. Its deprecated query string parameters to share are read
+the same way and shared no more than any other parameter."""
 
 import json
 import unittest
@@ -44,8 +45,7 @@ QUEUE_ONLY = {
     "endpoint": "http://127.0.0.1:9",
 }
 
-# Shares only the query string parameters listed and those starting 51D_,
-# where every one is shared by default.
+# The deprecated option, which no longer changes what is shared.
 LISTED_ONLY = {"share_all_query_string_parameters": False}
 
 # A configuration file that gives both lists as comma-separated strings.
@@ -114,8 +114,9 @@ class ShareUsageListTests(unittest.TestCase):
             ShareUsage(query_whitelist="first,second", **LISTED_ONLY,
                        **QUEUE_ONLY))
 
-        self.assert_shared(shared, ("first value", "second value"))
-        self.assert_not_shared(shared, ("third value", "letter value"))
+        self.assert_not_shared(
+            shared,
+            ("first value", "second value", "third value", "letter value"))
 
     def test_headers_not_to_share_from_a_string(self):
         shared = shared_alone_by(
@@ -130,10 +131,11 @@ class ShareUsageListTests(unittest.TestCase):
         usage = pipeline.get_element("shareusage")
         shared = shared_by(pipeline, usage)
 
-        self.assert_shared(
-            shared, ("first value", "second value", "agent value"))
+        self.assertEqual(["first", "second"], usage.query_whitelist)
+        self.assert_shared(shared, ("agent value",))
         self.assert_not_shared(
-            shared, ("third value", "letter value", "one value", "two value"))
+            shared, ("first value", "second value", "third value",
+                     "letter value", "one value", "two value"))
 
     def test_names_are_trimmed_and_empty_entries_left_out(self):
         usage = ShareUsage(
@@ -165,10 +167,10 @@ class ShareUsageListTests(unittest.TestCase):
         self.assertIs(names, usage.query_whitelist)
         self.assertIs(headers, usage.header_blacklist)
         shared = shared_alone_by(usage)
-        self.assert_shared(
-            shared, ("first value", "second value", "agent value"))
+        self.assert_shared(shared, ("agent value",))
         self.assert_not_shared(
-            shared, ("third value", "letter value", "one value", "two value"))
+            shared, ("first value", "second value", "third value",
+                     "letter value", "one value", "two value"))
 
 
 if __name__ == "__main__":

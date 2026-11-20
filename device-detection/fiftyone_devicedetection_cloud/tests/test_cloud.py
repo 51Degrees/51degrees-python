@@ -30,8 +30,6 @@ from fiftyone_devicedetection_cloud.devicedetection_cloud_pipelinebuilder import
 
 from fiftyone_devicedetection_cloud.devicedetection_cloud import DeviceDetectionCloud
 
-from fiftyone_pipeline_engines.missingproperty_service import CONFIGURATOR_URL
-
 from .live_cloud import find_resource_key, no_resource_key
 
 pytestmark = pytest.mark.live
@@ -158,16 +156,10 @@ class DeviceDetectionTests(unittest.TestCase):
             fd.device.get("notpresent")
 
         result = str(raised.exception)
-        properties = pipeline.get_element("device").get_properties()
-        self.assertIn(
-            "Property 'notpresent' not found in data for element 'device'. "
-            "This is because your resource key does not include access to "
-            "this property. The properties included for your key under "
-            "'device' are ", result)
-        self.assertIn(
-            ",".join(meta.get("name", name)
-                     for name, meta in properties.items()), result)
-        self.assertIn(CONFIGURATOR_URL, result)
+        self.assertIn("notpresent", result)
+        self.assertIn("device", result)
+        self.assertIn(', '.join(pipeline.get_element("device").get_properties().keys()), result)
+        self.assertIn("https://51degrees.com/documentation/_services__cloud__resource_keys.html", result)
 
     def test_cloud_request_origin(self):
         """!

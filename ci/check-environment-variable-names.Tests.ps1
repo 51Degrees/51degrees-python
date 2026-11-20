@@ -82,18 +82,15 @@ Describe 'Find-EnvironmentNameProblem' {
         Get-Kind $Line | Should -BeNullOrEmpty
     }
 
-    # A variable whose name changed is still read under its old name when
-    # the new one is not set. That read gives the old name as the argument
-    # straight after the new one, and it is left alone.
-    It 'leaves the deprecated read <Line> alone' -ForEach @(
-        @{ Line = 'RESOURCE = env("_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY")' }
-        @{ Line = 'LICENCE = env("_51DEGREES_LICENSE_KEY", "license_key")' }
+    # No variable is read under its old name any longer, so a read that
+    # gives the old name straight after the new one is found like any other.
+    It 'finds the old name in the read <Line>' -ForEach @(
         @{ Line = 'API = env("_51DEGREES_CLOUD_ENDPOINT", "FOD_CLOUD_API_URL")' }
         @{ Line = 'read_environment("_51DEGREES_IPI_PATH", "IPINTELLIGENCEDATAFILE")' }
         @{ Line = '    "_51DEGREES_RUN_PERFORMANCE_TESTS", "run_performance_tests")' }
         @{ Line = "read_environment('_51DEGREES_DD_PATH', '51DEGREES_DD_PATH')" }
     ) {
-        Get-Kind $Line | Should -BeNullOrEmpty
+        Get-Kind $Line | Should -Not -BeNullOrEmpty
     }
 }
 
@@ -126,14 +123,14 @@ Describe 'Find-EnvironmentNameProblem with the old names a file may hold' {
 Describe 'Get-FallbackName' {
 
     It 'lets <Path> hold <Name>' -ForEach @(
-        @{ Path = 'pipeline/fiftyone_pipeline_did/tox.ini'; Name = 'FOD_CLOUD_API_URL' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_did_client.py'; Name = 'FOD_CLOUD_API_URL' }
         @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py'; Name = '51DEGREES_DD_PATH' }
         @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py'; Name = 'cloud_endpoint' }
         @{ Path = 'ip-intelligence/fiftyone_ipintelligence_examples/src/fiftyone_ipintelligence_examples/example_utils.py'; Name = 'IPINTELLIGENCEDATAFILE' }
         @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/constants.py'; Name = 'FOD_CLOUD_API_URL' }
         @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/readme.md'; Name = 'FOD_CLOUD_API_URL' }
         @{ Path = 'pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client.py'; Name = 'FOD_CLOUD_API_URL' }
-        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_live_cloud.py'; Name = 'resource_key' }
+        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/example_utils.py'; Name = 'resource_key' }
     ) {
         @(Get-FallbackName $Path) | Should -Contain $Name
     }
@@ -150,6 +147,10 @@ Describe 'Get-FallbackName' {
 
     It 'lets <Path> hold no old name' -ForEach @(
         @{ Path = 'ci/run-unit-tests.ps1' }
+        # These read old names before and no longer may.
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tox.ini' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_live_cloud.py' }
+        @{ Path = 'pipeline/fiftyone_pipeline_did/examples/creator_context_web/server.py' }
         @{ Path = 'readme.md' }
         @{ Path = 'pipeline/fiftyone_pipeline_core/src/fiftyone_pipeline_core/pipeline.py' }
         @{ Path = 'pipeline/fiftyone_pipeline_core/readme.md' }

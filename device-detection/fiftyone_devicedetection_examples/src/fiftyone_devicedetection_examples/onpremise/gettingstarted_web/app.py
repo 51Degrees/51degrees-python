@@ -69,6 +69,14 @@
 # }
 # ```
 #
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it when the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
+#
 # ## View
 # @include onpremise/gettingstarted_web/templates/index.html
 #
@@ -152,8 +160,9 @@ class GettingStartedWeb():
     @app.route('/')
     def server():
 
-        # Create the flowdata object for the page. It is closed when the route
-        # returns, once the page has been rendered from it.
+        # A Flow Data cannot be used by two threads at once, so this one is
+        # made for this request, used only here, and closed when the route
+        # returns, which also releases the results of the detection.
         with GettingStartedWeb.pipeline.create_flowdata() as flowdata:
 
             # Add any information from the request (headers, cookies and additional 

@@ -99,3 +99,12 @@ pip install -e fiftyone_ipintelligence_examples[mixed]
 
 The only .NET example not ported is `Metrics-Console`, as the on-premise
 engine's range enumeration API is not exposed through the Python wrapper.
+
+## Web examples
+
+The `cloud/gettingstarted_web/` and `onpremise/gettingstarted_web/` examples
+are Flask web applications. A Flow Data cannot be used by two threads at
+once, so each of them creates a Flow Data for each request, uses it only in
+the code that handles that request, and closes it when the request ends. To
+hand work to another thread or task, read the values it needs from the Flow
+Data first and pass those values, not the Flow Data.

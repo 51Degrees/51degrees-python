@@ -90,7 +90,7 @@ from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
 
 # Deprecated. Use UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE. The name that
-# variable had before, read when the new one is not set.
+# variable had before, which is no longer read.
 UPDATE_EXAMPLE_LICENSE_KEY_NAME = ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR
 
 # Where to ask for a licence key and a copy of the Enterprise data file, tagged with this

@@ -33,6 +33,13 @@ class FlowData:
     It passes evidence to FlowElements in the Pipeline
     These elements can return ElementData or populate an errors object
 
+    A FlowData is not safe to use from several threads at once. It is used
+    by one thread at a time, and where one is shared across threads, the
+    caller is responsible for any locking, for example by wrapping each use
+    in a lock of its own. A web application creates a FlowData for each
+    request, uses it only in the code that handles that request, and closes
+    it when the request ends.
+
     """
 
     def __init__(self, pipeline):

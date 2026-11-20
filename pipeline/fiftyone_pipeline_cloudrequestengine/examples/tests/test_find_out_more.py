@@ -32,9 +32,7 @@ from fiftyone_pipeline_examples.example_utils import ExampleUtils
 # Every name a key is read from.
 KEY_SETTINGS = [
     ExampleUtils.RESOURCE_KEY_ENV_VAR,
-    ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR,
     ExampleUtils.LICENSE_KEY_ENV_VAR,
-    ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR,
 ]
 
 

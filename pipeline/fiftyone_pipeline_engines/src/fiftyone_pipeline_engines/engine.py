@@ -191,16 +191,26 @@ class Engine(FlowElement):
         The data file is registered with the update service of the first
         pipeline only, so an engine in several pipelines has its data file
         checked, downloaded and refreshed once.
+        An error from the update on start-up is passed on with the data file
+        unregistered, so no check is left running for a Pipeline that was
+        never made.
         @type pipeline: Pipeline
         @param pipeline: The pipeline the engine has been attached to
-        
+
         """
 
         if(self.data_file):
             if not hasattr(pipeline, "data_file_update_service"):
                 pipeline.data_file_update_service = DataFileUpdateService(pipeline)
             if not getattr(self.data_file, "registered", False):
-                pipeline.data_file_update_service.register_data_file(self.data_file)
+                service = pipeline.data_file_update_service
+                try:
+                    service.register_data_file(self.data_file)
+                except Exception:
+                    # The Pipeline is not made, so close() could not reach
+                    # this service. Cancel the check already scheduled.
+                    service.unregister_data_file(self.data_file)
+                    raise
 
     def close(self):
 
