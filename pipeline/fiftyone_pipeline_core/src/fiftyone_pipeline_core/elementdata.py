@@ -97,9 +97,9 @@ class _ContentsDict(_CheckedDictWrites, dict):
 class _FlowDataDict(_CheckedDictWrites, dict):
 
     """!
-    A dict that holds what a FlowData has been given, being its ElementData,
-    its errors or its Evidence. A write raises once the FlowData has
-    finished processing. A copy is a plain dict.
+    A dict that holds what a FlowData has been given, being its errors or
+    its Evidence. A write raises once the FlowData has finished processing.
+    A copy is a plain dict.
     """
 
     __slots__ = ("_flowdata", "_what")

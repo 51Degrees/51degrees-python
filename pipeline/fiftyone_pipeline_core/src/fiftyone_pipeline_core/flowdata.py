@@ -159,8 +159,8 @@ class FlowData:
     it when the request ends.
 
     Once processing has finished, a FlowData is read only. Adding Evidence,
-    ElementData or errors to it raises, whether through its methods or
-    through the dicts data, errors and evidence.get_all() return. Only
+    ElementData or errors to it raises, whether through its methods, the
+    data view or the dicts errors and evidence.get_all() return. Only
     process() sets processed, and setting it back is not supported.
 
     """
@@ -186,9 +186,10 @@ class FlowData:
     def __setattr__(self, name, value):
 
         """!
-        Set an attribute. The ElementData and errors are kept in dicts that
-        refuse writes once processing has finished, and they and the
-        Evidence cannot be replaced then.
+        Set an attribute. The errors are kept in a dict that refuses writes
+        once processing has finished, and the ElementData list refuses adds
+        then. None of the ElementData, errors and Evidence can be replaced
+        then.
 
         @raise Exception: when one of them is set once processing has
         finished
@@ -200,7 +201,8 @@ class FlowData:
             if self.__dict__.get("processed"):
                 raise Exception(Messages.FLOW_DATA_FINISHED.format(
                     _GIVEN[name]))
-            if name != "evidence":
+            # The data setter copies what it is given into the list itself.
+            if name == "errors":
                 value = _FlowDataDict(self, _GIVEN[name], value)
         object.__setattr__(self, name, value)
 
@@ -383,13 +385,15 @@ class FlowData:
 
         """
 
-        if self.processed:
-            raise Exception(Messages.FLOW_DATA_FINISHED.format("ElementData"))
-
         # Kept under the data key in lower case, which is how get reads it.
         self._add(element_data.flow_element.datakey.lower(), element_data)
 
     def _add(self, key, element_data):
+
+        # Every add comes here, whether through set_element_data or the
+        # data view, so a finished FlowData refuses each one.
+        if self.processed:
+            raise Exception(Messages.FLOW_DATA_FINISHED.format("ElementData"))
 
         # A new node at the head. A reader that has already read the head
         # keeps the list it saw.
