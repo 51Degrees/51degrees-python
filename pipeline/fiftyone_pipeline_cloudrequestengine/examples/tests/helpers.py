@@ -27,32 +27,36 @@ import re
 
 import pytest
 
-from fiftyone_pipeline_examples.example_utils import ExampleUtils
-
-from live_cloud import find_resource_key, no_resource_key
+from live_cloud import find_resource_key, no_resource_key, read_environment
 
 NO_KEY = no_resource_key(
     "the device, ip and countrynamestranslated products",
     "device detection and IP Intelligence properties, and the translated "
     "country names", several=True)
 
+# The cloud license key the tests pass to the examples. It is not the
+# examples' own _51DEGREES_LICENSE_KEY, which holds the data license in CI,
+# and which the cloud does not take on its own.
+LICENSE_KEY_NAME = "_51DEGREES_LICENSE_KEY_BESPOKE"
+LICENSE_KEY = read_environment(LICENSE_KEY_NAME)
+
 # The ways a test can reach the cloud service, as the keyword arguments the
 # examples' create_pipeline takes, each passed through credentials(). A test
 # with a resource key fails when none is set. A test with a licence key is
-# skipped when none is set, because CI has no cloud licence key to give it.
+# skipped, naming the variable, when none is set.
 KEYS = [
     pytest.param(
         {"resource_key": find_resource_key()},
         id="resource key"),
     pytest.param(
-        {"license_key": ExampleUtils.get_license_key()},
+        {"license_key": LICENSE_KEY},
         id="licence key",
         marks=pytest.mark.skipif(
-            not ExampleUtils.get_license_key(),
-            reason=f"Set {ExampleUtils.LICENSE_KEY_ENV_VAR} to a licence "
-                   "key entitled to device detection and IP intelligence "
-                   "properties to run the cloud tests with a licence "
-                   "key.")),
+            not LICENSE_KEY,
+            reason=f"{LICENSE_KEY_NAME} is not set. Set it to a cloud "
+                   "license key entitled to device detection and IP "
+                   "intelligence properties to run the cloud tests with a "
+                   "license key.")),
 ]
 
 

@@ -31,10 +31,11 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 from .live_cloud import read_environment
 
-# The licence key the live tests authenticate with, read from the variable
-# the examples in this repository read it from.
-LICENSE_KEY = read_environment(
-    "_51DEGREES_LICENSE_KEY") or ""
+# The cloud license key the live tests authenticate with. It is not
+# _51DEGREES_LICENSE_KEY, which holds the data license for the data files,
+# and which the cloud does not take on its own.
+LICENSE_KEY_NAME = "_51DEGREES_LICENSE_KEY_BESPOKE"
+LICENSE_KEY = read_environment(LICENSE_KEY_NAME) or ""
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) "
@@ -43,8 +44,8 @@ USER_AGENT = (
 
 @unittest.skipUnless(
     LICENSE_KEY != "",
-    "Set license_key to a licence key entitled to device detection to run "
-    "the live licence key tests.")
+    f"{LICENSE_KEY_NAME} is not set. Set it to a cloud license key entitled "
+    "to device detection to run the live license key tests.")
 class LicenseKeyLiveTests(unittest.TestCase):
     """!
     Runs a pipeline that authenticates on a licence key alone against the
