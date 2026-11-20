@@ -95,7 +95,7 @@ export FLASK_APP=fiftyone_pipeline_core/examples/client_side_evidence_custom_flo
 ```
 then start your application with
 ```sh
-flask run
+flask run --port 5151
 ```
 
 ### Windows
@@ -110,5 +110,5 @@ $env:FLASK_APP = "fiftyone_pipeline_core/examples/client_side_evidence_custom_fl
 ```
 then start your application with 
 ```pwsh
-flask run
+flask run --port 5151
 ```

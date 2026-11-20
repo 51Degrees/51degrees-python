@@ -36,8 +36,8 @@ from fiftyone_ipintelligence_examples.cloud import countries_console
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 
 KEY_SETTINGS = [
-    "_51DEGREES_RESOURCE_KEY", "resource_key", "RESOURCE_KEY",
-    "_51DEGREES_LICENSE_KEY", "license_key"]
+    "_51DEGREES_RESOURCE_KEY",
+    "_51DEGREES_LICENSE_KEY"]
 
 CONFIGURE_LINK = (
     r"https://51degrees\.com/configure[^\s?]*\?utm_source=code"

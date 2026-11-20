@@ -786,9 +786,18 @@ class DataFileUpdateService():
 
         if data_file.update_on_start and not data_file.updated_on_start and not run_after_error:
             self._log("info", "Updating on start-up")
-            # The update on start-up logs and reports a failure as update
-            # polling does.
-            self._check(data_file, to_caller=False)
+            # An error from a row of the errors table is logged and
+            # reported here as update polling does, and is not raised. Any
+            # other error is reported, so every check is reported once it
+            # ends, then raised to the caller that registered the data file
+            # without being logged. Reporting schedules the next check, so
+            # one error never stops later checks.
+            try:
+                self._check(data_file, to_caller=False)
+            except Exception:
+                self._end_check(
+                    data_file, UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR, True)
+                raise
 
         elif data_file.auto_update:
 

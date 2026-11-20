@@ -23,7 +23,7 @@
 from __future__ import absolute_import
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_cloudrequestengine.clouddata import \
-    CloudMissingPropertyService
+    OnPremiseMissingPropertyService
 
 from fiftyone_pipeline_engines.aspectdata import AspectData
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
@@ -96,7 +96,7 @@ class HardwareProfileData(_CheckedDictWrites, dict, AspectData):
 
         # The device data's service, so a name that is not a property is
         # reported in the same way for both.
-        self.missing_property_service = CloudMissingPropertyService()
+        self.missing_property_service = OnPremiseMissingPropertyService()
 
     @property
     def _finished(self):

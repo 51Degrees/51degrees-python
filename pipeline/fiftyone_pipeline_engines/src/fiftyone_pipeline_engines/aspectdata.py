@@ -61,17 +61,16 @@ class AspectData(ElementData):
         @rtype mixed
         @return The value stored under the chosen key
         @raise Exception: where the property was left out of the engine's
-        restricted properties, or the data has no value for it, with the
-        message the missing property service gives for the reason
+        restricted properties, saying so, or where the data has no value
+        for it, with the message the missing property service gives
         """
         
         if hasattr(self.flow_element, "restricted_property_keys"):
 
             if key.lower() not in self.flow_element.restricted_property_keys:
-                # The service gives the reason, as the property was
-                # excluded or is in a data tier the data file lacks.
-                return self.missing_property_service.check(
-                    key, self.flow_element)
+                raise Exception(
+                    "Property " + key + " was excluded from " +
+                    self.flow_element.datakey)
 
         try:
             if self.get_internal(key) == None:

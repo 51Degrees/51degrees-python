@@ -63,17 +63,14 @@ key list the offline check needs is fetched once and cached for a day.
 
 Environment variables. ``_51DEGREES_RESOURCE_KEY`` is required.
 ``_51DEGREES_LICENSE_KEY`` is optional, and the comment in ``run`` says
-why. ``RESOURCE_KEY`` and ``LICENSE_KEY`` are the old names of those two.
-They are deprecated, and each is read only when its new name is not set.
+why.
 ``_51DEGREES_CLOUD_ENDPOINT`` is the cloud API base including the ``/api/v4/``
 segment, defaulting to ``https://cloud.51degrees.com/api/v4/``, and is
 the same variable the cloud request engine and the ``DidClient`` honour.
-``FOD_CLOUD_API_URL`` is that variable's old name. It is deprecated, and
-is read only when ``_51DEGREES_CLOUD_ENDPOINT`` is not set.
-``PORT`` is the port to listen on, defaulting to 5100.
+``PORT`` is the port to listen on, defaulting to 5151.
 
 Standard library plus this package. Run ``python server.py`` then open
-``http://localhost:5100/``.
+``http://localhost:5151/``.
 """
 
 import asyncio
@@ -82,7 +79,6 @@ import os
 import secrets
 import sys
 import urllib.parse
-import warnings
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
@@ -106,27 +102,14 @@ except ImportError:
 DEFAULT_API = "https://cloud.51degrees.com/api/v4/"
 
 
-def env(name, old_name):
+def env(name):
     """The named environment variable when it is set and not empty,
-    otherwise None. When it is unset or empty the name the variable had
-    before is read, with a warning that the old name is deprecated, as
-    the ``DidClient`` gives for the cloud endpoint."""
-    value = os.environ.get(name)
-    if value:
-        return value
-    value = os.environ.get(old_name)
-    if not value:
-        return None
-    warnings.warn(
-        "The {0} environment variable is deprecated and {1} replaces it. "
-        "The value was read from {0} because {1} is not set, so set {1} "
-        "to the same value.".format(old_name, name),
-        FutureWarning, stacklevel=2)
-    return value
+    otherwise None."""
+    return os.environ.get(name) or None
 
 
-RESOURCE = env("_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY")
-LICENCE = env("_51DEGREES_LICENSE_KEY", "LICENSE_KEY") or ""
+RESOURCE = env("_51DEGREES_RESOURCE_KEY")
+LICENCE = env("_51DEGREES_LICENSE_KEY") or ""
 # The cloud API base, normalised to end in exactly one slash so that
 # every URL is the base followed by its path. The page receives the same
 # value through its __API__ placeholder and builds its two cloud calls
@@ -136,9 +119,31 @@ LICENCE = env("_51DEGREES_LICENSE_KEY", "LICENSE_KEY") or ""
 # 51Degrees cloud for performance reasons. That is the private hosting
 # option of the cloud service, and both run the same service, so this
 # demo works unchanged against either.
-API = (env("_51DEGREES_CLOUD_ENDPOINT", "FOD_CLOUD_API_URL")
+API = (env("_51DEGREES_CLOUD_ENDPOINT")
        or DEFAULT_API).rstrip("/") + "/"
-PORT = int(os.environ.get("PORT", "5100"))
+PORT = int(os.environ.get("PORT", "5151"))
+
+# Where to go next. The page ends with these links, and the demo prints
+# them when it stops before the page is served.
+FIND_OUT_MORE = [
+    ("What a 51Did is, and what the creator context binds it to",
+     "https://51degrees.com/documentation/_identifiers__index.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-creator_context_web-server.py&utm_term=find-out-more-identifiers"),
+    ("Talk to 51Degrees about using 51Did",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-creator_context_web-server.py&utm_term=find-out-more-contact-us"),
+    ("Pipeline API for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
+    ("Specifications",
+     "https://github.com/51Degrees/specifications"),
+]
+
+
+def print_find_out_more():
+    """Print the "Find out more" section, a line of "=" and then each
+    label with its link."""
+    message = ["=" * 79, "Find out more:"]
+    for label, url in FIND_OUT_MORE:
+        message.append(f"\t{label}: {url}")
+    print("\n".join(message) + "\n")
 
 
 def page_html():
@@ -298,6 +303,7 @@ def run():
         print("Set _51DEGREES_RESOURCE_KEY to the resource key of the "
               "page. Resource keys are created at "
               "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_did-examples-creator_context_web-server.py&utm_term=resource-key-required")
+        print_find_out_more()
         return
     if not LICENCE:
         # Only an account that holds licence keys needs one to redeem,

@@ -34,7 +34,7 @@ from .live_cloud import read_environment
 # The licence key the live tests authenticate with, read from the variable
 # the examples in this repository read it from.
 LICENSE_KEY = read_environment(
-    "_51DEGREES_LICENSE_KEY", "license_key") or ""
+    "_51DEGREES_LICENSE_KEY") or ""
 
 USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:78.0) "

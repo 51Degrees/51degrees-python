@@ -89,7 +89,7 @@ and the web example with
 .venv/bin/python -m fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web
 ```
 
-then open <http://localhost:5000>. Set `PORT` to listen on another port.
+then open <http://localhost:5151>. Set `PORT` to listen on another port.
 
 ### Tests
 

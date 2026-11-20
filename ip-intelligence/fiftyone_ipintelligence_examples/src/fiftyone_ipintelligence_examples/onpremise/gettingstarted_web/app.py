@@ -182,7 +182,7 @@ def main(data_file = None):
     # The pipeline lives as long as the app, and is closed when the server
     # stops, which releases the native data it holds.
     with build_pipeline(data_file):
-        app.run(debug=False)
+        app.run(port=5151, debug=False)
 
     ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 

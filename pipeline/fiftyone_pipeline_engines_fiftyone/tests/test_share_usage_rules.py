@@ -21,10 +21,11 @@
 # *********************************************************************
 
 """
-What usage sharing shares by default and when all Evidence is shared.
-Every query string and form parameter is shared unless that is turned off,
-no cookie but a 51D_ one is ever shared, and the session cookie is still
-compared when sessions are tracked.
+What usage sharing shares by default and when all Evidence is shared. A query
+string or form parameter is shared only when its name starts with 51D_ or the
+Pipeline uses it as evidence, whatever the settings, no cookie but a 51D_ one
+is ever shared, and the session cookie is still compared when sessions are
+tracked.
 """
 
 import gzip
@@ -36,6 +37,8 @@ from unittest import mock
 import requests
 from flask import Flask, request
 
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_core.web import webevidence
@@ -53,8 +56,8 @@ QUEUE_ONLY = {
     "endpoint": "http://127.0.0.1:9",
 }
 
-# Turns off sharing every query string parameter, from a configuration
-# file.
+# The deprecated option to share every query string parameter, from a
+# configuration file.
 CONFIGURATION = """
 {
   "PipelineOptions": {
@@ -104,50 +107,91 @@ def records_of(usage, requests_evidence, *elements):
     return sent_on_close(usage)
 
 
+class UsingElement(FlowElement):
+    """Accepts the query string parameter given as evidence, and adds no
+    data."""
+
+    def __init__(self, key):
+        super(UsingElement, self).__init__()
+        self.datakey = "using"
+        self.key = key
+
+    def get_evidence_key_filter(self):
+        return BasicListEvidenceKeyFilter([self.key])
+
+
+# Every way the deprecated options could once share more.
+DEPRECATED_SETTINGS = (
+    {},
+    {"share_all": True},
+    {"query_whitelist": ["password", "campaign"]},
+    {"share_all_query_string_parameters": True},
+    {"share_all_query_string_parameters": False,
+     "query_whitelist": "password,campaign"},
+)
+
+
+def shared_from_web_request(settings, method):
+    """The record usage sharing sends for one web request with the
+    parameters below, in its query string for GET or its form body for
+    POST, through a Pipeline whose other element uses query.used."""
+    app = Flask(__name__)
+    usage = ShareUsage(**dict(QUEUE_ONLY, **settings))
+    pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS) \
+        .add(UsingElement("query.used")).add(usage).build()
+    parameters = {"51D_screen": "fiftyone value", "used": "used value",
+                  "password": "password value", "campaign": "campaign value"}
+    if method == "GET":
+        context = app.test_request_context("/", query_string=parameters)
+    else:
+        context = app.test_request_context(
+            "/", method="POST", data=parameters)
+    with context:
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add_from_dict(webevidence(request))
+        flowdata.process()
+    records = sent_on_close(usage)
+    return records[0] if records else ""
+
+
 class QueryAndFormValuesTests(unittest.TestCase):
 
-    def test_every_query_value_is_shared_by_default(self):
-        records = records_of(ShareUsage(**QUEUE_ONLY), [{
-            "header.user-agent": "agent value",
-            "query.campaign": "campaign value",
-            "query.password": "password value",
-        }])
+    def test_a_51d_parameter_is_shared_from_a_query_string_and_a_form(self):
+        for method in ("GET", "POST"):
+            with self.subTest(method=method):
+                record = shared_from_web_request({}, method)
+                self.assertIn("fiftyone value", record)
 
-        self.assertEqual(1, len(records))
-        self.assertIn('<query Name="campaign">campaign value</query>',
-                      records[0])
-        self.assertIn('<query Name="password">password value</query>',
-                      records[0])
+    def test_a_parameter_the_pipeline_uses_is_shared_from_both(self):
+        for method in ("GET", "POST"):
+            with self.subTest(method=method):
+                record = shared_from_web_request({}, method)
+                self.assertIn('<query Name="used">used value</query>', record)
 
-    def test_every_form_value_of_the_web_request_is_shared_by_default(self):
-        app = Flask(__name__)
+    def test_no_other_parameter_is_ever_shared_from_either(self):
+        for settings in DEPRECATED_SETTINGS:
+            for method in ("GET", "POST"):
+                with self.subTest(settings=settings, method=method):
+                    record = shared_from_web_request(settings, method)
+                    self.assertIn("fiftyone value", record)
+                    self.assertNotIn("password value", record)
+                    self.assertNotIn("campaign value", record)
+
+    def test_the_javascript_builder_uses_only_the_parameters_it_lists(self):
         usage = ShareUsage(**QUEUE_ONLY)
-        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
-        with app.test_request_context(
-                "/", method="POST", data={"field": "form value"}):
-            flowdata = pipeline.create_flowdata()
-            flowdata.evidence.add_from_dict(webevidence(request))
-            flowdata.process()
+        pipeline = PipelineBuilder().add(usage).build()
+        flowdata = pipeline.create_flowdata()
+        flowdata.evidence.add("header.user-agent", "agent value")
+        flowdata.evidence.add("query.password", "password value")
+        flowdata.evidence.add("query.fod-js-object-name", "object value")
+        flowdata.process()
         records = sent_on_close(usage)
 
-        self.assertEqual(1, len(records))
-        self.assertIn('<query Name="field">form value</query>', records[0])
-
-    def test_turned_off_only_51d_and_listed_values_are_shared(self):
-        records = records_of(ShareUsage(
-            share_all_query_string_parameters=False,
-            query_whitelist=["campaign"], **QUEUE_ONLY), [{
-                "header.user-agent": "agent value",
-                "query.campaign": "campaign value",
-                "query.51d_gethighentropyvalues": "hev",
-                "query.password": "password value",
-            }])
-
-        self.assertIn("campaign value", records[0])
-        self.assertIn("hev", records[0])
+        self.assertIn("agent value", records[0])
+        self.assertIn("object value", records[0])
         self.assertNotIn("password value", records[0])
 
-    def test_turned_off_from_a_configuration_file(self):
+    def test_the_deprecated_option_from_a_configuration_file(self):
         pipeline = PipelineBuilder().build_from_configuration(
             json.loads(CONFIGURATION))
         usage = pipeline.get_element("shareusage")
@@ -160,7 +204,6 @@ class QueryAndFormValuesTests(unittest.TestCase):
         self.assertFalse(usage.share_all_query_string_parameters)
         self.assertIn("agent value", records[0])
         self.assertNotIn("password value", records[0])
-
 
 class CookieTests(unittest.TestCase):
 

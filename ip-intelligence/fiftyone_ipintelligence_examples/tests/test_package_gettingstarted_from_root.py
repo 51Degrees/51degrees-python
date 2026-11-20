@@ -59,8 +59,7 @@ class PackageGettingStartedFromRootTests(unittest.TestCase):
             # the environment, as CI names the Enterprise file, is set
             # aside.
             with mock.patch.dict(os.environ):
-                for name in (ExampleUtils.IPI_PATH_ENV_VAR,
-                             ExampleUtils.DATA_FILE_ENV_VAR):
+                for name in (ExampleUtils.IPI_PATH_ENV_VAR,):
                     os.environ.pop(name, None)
                 with redirect_stdout(printed):
                     runpy.run_path(str(EXAMPLE), run_name="__main__")

@@ -140,10 +140,7 @@ class EngineTests(unittest.TestCase):
         except Exception as e:
             result = str(e)
 
-        self.assertEqual(
-            "Property 'integer' not found in data for element 'example'. "
-            "This is because the property has been excluded when configuring "
-            "the engine.", result)
+        self.assertTrue(result == "Property integer was excluded from example")
 
     # Restricted property names are compared ignoring case
     def testRestrictedPropertyIgnoresCase(self):
@@ -167,9 +164,7 @@ class EngineTests(unittest.TestCase):
             with self.assertRaises(Exception) as refused:
                 flowdata.example.get(key)
             self.assertEqual(
-                "Property '" + key + "' not found in data for element "
-                "'example'. This is because the property has been excluded "
-                "when configuring the engine.",
+                "Property " + key + " was excluded from example",
                 str(refused.exception))
 
     # Test restricting properties
@@ -188,10 +183,7 @@ class EngineTests(unittest.TestCase):
         except Exception as e:
             result = str(e)
 
-        self.assertEqual(
-            "Property 'missing' not found in data for element 'example'. "
-            "The reason for this is unknown. Please check that the aspect and "
-            "property name are correct.", result)
+        self.assertTrue(result == "Property missing not found in example")
 
     # Test cache
     

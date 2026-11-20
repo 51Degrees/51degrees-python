@@ -58,7 +58,7 @@
 # ```
 # python -m fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web
 # ```
-# and open http://localhost:5000, or the port named by the PORT environment
+# and open http://localhost:5151, or the port named by the PORT environment
 # variable. Use the form on the page, or add ?client-ip=8.8.8.8 to the
 # address, to look up an IP address other than your own.
 #
@@ -153,6 +153,39 @@ COUNTRY_NAMES_PROPERTY = "countrynamesgeographicalalltranslated"
 
 # Evidence values longer than this are shortened on the page.
 EVIDENCE_DISPLAY_LENGTH = 100
+
+# Where to go next. The page ends with these links, and the example prints
+# them when it stops before the page is served.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&utm_term=find-out-more-device-detection"),
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&utm_term=find-out-more-ip-intelligence"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&utm_term=find-out-more-pricing"),
+    ("Pipeline API for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/pipeline"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("IP intelligence engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
+
+def print_find_out_more():
+
+    """!
+    Print the "Find out more" section, a line of "=" and then each label
+    with its link, to standard output. The example prints it when it stops
+    before the page is served, which ends with the same links.
+    """
+
+    message = ["=" * 79, "Find out more:"]
+    for label, url in FIND_OUT_MORE:
+        message.append(f"\t{label}: {url}")
+    print("\n".join(message) + "\n")
 
 
 def values():
@@ -442,6 +475,7 @@ def main(argv):
             "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-mixed-gettingstarted_web-app.py&utm_term=resource-key-required. "
             "Once complete, set the first environment variable named at "
             "the start of this message to the key.")
+        print_find_out_more()
         return
 
     try:
@@ -454,9 +488,10 @@ def main(argv):
         # refused it, for example because the key is limited to domains
         # that do not include the origin sent.
         logger.log("error", str(error))
+        print_find_out_more()
         sys.exit(1)
 
-    create_app(pipeline).run(port=int(os.environ.get("PORT", 5000)))
+    create_app(pipeline).run(port=int(os.environ.get("PORT", 5151)))
 
 
 if __name__ == "__main__":

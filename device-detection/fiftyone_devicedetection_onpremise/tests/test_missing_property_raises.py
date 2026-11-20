@@ -20,46 +20,36 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-"""Checks that the tests still read the data file path under the name its
-environment variable had before, when the new name is not set.
-"""
+"""A property the engine lists, in a data file tier that holds it, raises
+when the data has no value for it, as every missing property does."""
 
-import contextlib
-import io
-import os
 import unittest
-from unittest import mock
+from types import SimpleNamespace
 
-from .constants import TestConstants
-
-NEW_NAME = "_51DEGREES_IPI_PATH"
-OLD_NAME = "IPINTELLIGENCEDATAFILE"
+from fiftyone_devicedetection_onpremise.swig_data import \
+    OnPremiseMissingPropertyService
 
 
-class OldNameTests(unittest.TestCase):
+class StandInEngine:
+    """An engine whose data file is Lite, listing one property that the
+    Lite file holds."""
 
-    def setUp(self):
-        environment = mock.patch.dict(os.environ)
-        environment.start()
-        self.addCleanup(environment.stop)
-        os.environ.pop(NEW_NAME, None)
-        os.environ.pop(OLD_NAME, None)
+    datakey = "device"
+    properties = {"ismobile": {"datafiles": ["Lite", "Enterprise"]}}
+    engine = SimpleNamespace(getProduct=lambda: "Lite")
 
-    def path(self):
-        with contextlib.redirect_stderr(io.StringIO()):
-            return TestConstants.get_data_file_path()
 
-    def test_data_file_path_is_read_from_the_old_name(self):
-        os.environ[OLD_NAME] = "old.ipi"
-        self.assertEqual("old.ipi", self.path())
+class MissingPropertyRaisesTests(unittest.TestCase):
 
-    def test_new_name_wins(self):
-        os.environ[NEW_NAME] = "new.ipi"
-        os.environ[OLD_NAME] = "old.ipi"
-        self.assertEqual("new.ipi", self.path())
+    def test_a_listed_property_of_this_tier_raises(self):
+        with self.assertRaises(Exception) as raised:
+            OnPremiseMissingPropertyService().check(
+                "ismobile", StandInEngine())
 
-    def test_neither_name_gives_the_lite_file(self):
-        self.assertTrue(self.path().endswith("51Degrees-LiteIpiV41.ipi"))
+        self.assertEqual(
+            "Property 'ismobile' not found in data for element 'device'. "
+            "This is because the property has been excluded when "
+            "configuring the engine.", str(raised.exception))
 
 
 if __name__ == "__main__":
