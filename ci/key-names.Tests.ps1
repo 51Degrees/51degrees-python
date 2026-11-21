@@ -333,6 +333,45 @@ Describe 'Keys under their _51DEGREES_ names' {
             $text | Should -Not -Match '\$env:_51DEGREES_LICENSE_KEY\s*='
             $text | Should -Not -Match '\$env:_51DEGREES_RESOURCE_KEY\s*='
         }
+
+        # With the license key set and the _51DEGREES_RESOURCE_KEY_51DID
+        # secret missing, the licensed redeem would never run and the job
+        # would still pass. So the step fails, naming the missing secret. The
+        # step's script runs in its own process, with tox replaced by a
+        # function that records it was called.
+        It 'fail the Cloud 51Did step, naming _51DEGREES_RESOURCE_KEY_51DID, when only the 51Did license key is set' {
+            $lines = @(Get-Content (Join-Path $script:Root '.github/workflows/cloud-51did.yml'))
+            $name = ($lines | Select-String -Pattern '^\s*- name: Cloud 51Did test\s*$' |
+                Select-Object -First 1).LineNumber
+            $start = $lines | Select-Object -Skip $name |
+                Select-String -Pattern '^(\s*)run: \|\s*$' | Select-Object -First 1
+            $indent = $start.Matches[0].Groups[1].Value.Length
+            $body = foreach ($line in $lines[($name + $start.LineNumber)..($lines.Count - 1)]) {
+                if ($line.Trim() -and $line -notmatch "^\s{$($indent + 1),}") { break }
+                if ($line.Length -gt $indent + 2) { $line.Substring($indent + 2) } else { '' }
+            }
+            $stepFile = Join-Path $TestDrive 'cloud-51did-step.ps1'
+            @(
+                "function tox { Write-Output 'tox ran'; `$global:LASTEXITCODE = 0 }"
+                $body
+            ) | Set-Content $stepFile
+
+            $saved = @(Get-ChildItem env: | Where-Object { $_.Name -like '_51DEGREES_*' })
+            try {
+                $saved | ForEach-Object { Remove-Item "Env:$($_.Name)" }
+                $env:_51DEGREES_LICENSE_KEY_51DID = 'license-51did'
+                $output = & (Get-Process -Id $PID).Path -NoProfile -File $stepFile 2>&1 | Out-String
+                $exitCode = $LASTEXITCODE
+            } finally {
+                Get-ChildItem env: | Where-Object { $_.Name -like '_51DEGREES_*' } |
+                    ForEach-Object { Remove-Item "Env:$($_.Name)" }
+                $saved | ForEach-Object { Set-Item "Env:$($_.Name)" $_.Value }
+            }
+
+            $exitCode | Should -Not -Be 0
+            $output | Should -Match '_51DEGREES_RESOURCE_KEY_51DID'
+            $output | Should -Not -Match 'tox ran'
+        }
     }
 
     Describe 'The live cloud tests' {
