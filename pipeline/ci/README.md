@@ -7,6 +7,6 @@ The following secrets are required:
 * `_51DEGREES_RESOURCE_KEY_BESPOKE` - [resource key](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for the integration tests. common-ci exports it, and fills `_51DEGREES_RESOURCE_KEY` from it.
     * Example: `R4nd0m-S7r1ng`
 * `_51DEGREES_LICENSE_KEY_BESPOKE` - cloud license key for the license-key tests, which skip naming it when it is not set.
-* `_51DEGREES_RESOURCE_KEY_51DID` and `_51DEGREES_LICENSE_KEY_51DID` - the 51Did live tests' resource key and the license key of the same account. common-ci fills the resource key from `_51DEGREES_RESOURCE_KEY_BESPOKE`.
+* `_51DEGREES_RESOURCE_KEY_51DID` and `_51DEGREES_LICENSE_KEY_51DID` - the 51Did live tests' resource key and the license key of the same account. Both are organization secrets. With a resource key of another account, such as `_51DEGREES_RESOURCE_KEY_BESPOKE`, the licensed redeem comes back unreadable.
 * `PYPI_TOKEN` - [PyPI token](https://pypi.org/help/#apitoken) for publishing packages
     * Example: `pypi-sUp3r-l0nG_r4nd0m-s7r1Ng`

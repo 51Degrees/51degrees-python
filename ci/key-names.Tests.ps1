@@ -2,8 +2,9 @@
 # each key under its _51DEGREES_ name, and never under an old name.
 #
 # common-ci exports every _51DEGREES_ secret under its own name before any of
-# this repository's scripts run, and fills _51DEGREES_RESOURCE_KEY and
-# _51DEGREES_RESOURCE_KEY_51DID from _51DEGREES_RESOURCE_KEY_BESPOKE. It
+# this repository's scripts run, and fills _51DEGREES_RESOURCE_KEY from
+# _51DEGREES_RESOURCE_KEY_BESPOKE. The Cloud 51Did workflow takes
+# _51DEGREES_RESOURCE_KEY_51DID from the secret of the same name. It
 # downloads every data file with _51DEGREES_LICENSE_KEY, which is the data
 # license and not a cloud license. No key reaches a script as an option.
 
@@ -312,6 +313,19 @@ Describe 'Keys under their _51DEGREES_ names' {
             $text | Should -Match '"_51DEGREES_LICENSE_KEY_51DID"'
             $text | Should -Not -Match '"_51DEGREES_LICENSE_KEY"'
             $text | Should -Not -Match 'find_resource_key\(\)'
+        }
+
+        # The 51Did license key unseals only results made with the resource
+        # key of its own account. Filled from the Bespoke key, the licensed
+        # redeem comes back unreadable.
+        It 'are given _51DEGREES_RESOURCE_KEY_51DID from the secret of the same name by every workflow' {
+            $lines = @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Filter *.yml |
+                Select-String -Pattern '^\s*_51DEGREES_RESOURCE_KEY_51DID\s*:' |
+                ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" })
+            $lines | Should -Not -BeNullOrEmpty
+            $lines | Where-Object {
+                $_ -notmatch ':\s*\$\{\{\s*secrets\._51DEGREES_RESOURCE_KEY_51DID\s*\}\}\s*$'
+            } | Should -BeNullOrEmpty
         }
 
         It 'are not given another key under _51DEGREES_LICENSE_KEY or _51DEGREES_RESOURCE_KEY by the Cloud 51Did workflow' {

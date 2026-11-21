@@ -65,9 +65,11 @@ jobs:
       - name: Cloud 51Did test
         env:
           # The 51Did live tests read their resource key from
-          # _51DEGREES_RESOURCE_KEY_51DID, which is the Bespoke resource key,
-          # as it carries FODid at CloudV5Bespoke.
-          _51DEGREES_RESOURCE_KEY_51DID: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+          # _51DEGREES_RESOURCE_KEY_51DID, the secret of the same name. It has
+          # to be a key of the same account as _51DEGREES_LICENSE_KEY_51DID.
+          # With the Bespoke key in its place, the licensed redeem came back
+          # unreadable.
+          _51DEGREES_RESOURCE_KEY_51DID: ${{ secrets._51DEGREES_RESOURCE_KEY_51DID }}
           # The redemption tests check a sealed result reads back only with a
           # license key, and the service only opens a sealed result for a
           # license key of the account whose resource key sealed it. The tests
@@ -79,7 +81,7 @@ jobs:
         shell: pwsh
         run: |
           if (-not $env:_51DEGREES_RESOURCE_KEY_51DID) {
-            Write-Host '::error::_51DEGREES_RESOURCE_KEY_51DID is not set. It comes from the _51DEGREES_RESOURCE_KEY_BESPOKE secret.'
+            Write-Host '::error::_51DEGREES_RESOURCE_KEY_51DID is not set. It comes from the _51DEGREES_RESOURCE_KEY_51DID secret.'
             exit 1
           }
           tox -- tests/test_did_client_live.py -v -rs
