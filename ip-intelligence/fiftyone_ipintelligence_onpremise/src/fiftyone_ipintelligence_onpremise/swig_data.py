@@ -21,7 +21,6 @@
 # *********************************************************************
 
 import math
-import threading
 from decimal import Decimal, ROUND_HALF_UP
 
 from fiftyone_pipeline_engines.aspectdata import AspectData
@@ -65,6 +64,17 @@ class SwigData(AspectData):
     """!
     Extension of AspectData made for retrieving results
     created by the SWIG wrapper of the On Premise IP Intelligence engine
+
+    An instance reads its values from a results instance, the object the
+    native code fills for one request, which references unmanaged memory.
+    Multi-threaded access to a results instance is not supported, for
+    performance reasons. Reading a value from it writes into it, so it is not
+    safe to use from several threads at once, and neither is this instance.
+    The engine, its results instances and this instance take no lock to make
+    those reads safe for several threads. The caller is responsible for
+    thread-safe access, and either gives each thread its own Flow Data, and
+    so its own results instance, or coordinates its own access, for example
+    with a lock of its own around every read and around close().
     """
 
     def __init__(self, flow_element, swig_results, echo_ip=None, echo_ipv6=None):
@@ -89,11 +99,6 @@ class SwigData(AspectData):
 
         self.missing_property_service = OnPremiseMissingPropertyService()
 
-        # Reading a value writes into the native results, and the first read
-        # of a component can walk its graph, so one thread at a time reads
-        # this instance.
-        self._read_lock = threading.RLock()
-
     def close(self):
 
         """!
@@ -103,8 +108,7 @@ class SwigData(AspectData):
         exception. Closing the FlowData closes its results.
         """
 
-        with self._read_lock:
-            self.swig_results = None
+        self.swig_results = None
 
     def get(self, key):
 
@@ -115,13 +119,12 @@ class SwigData(AspectData):
         @returns mixed
         """
 
-        with self._read_lock:
-            # Checked here, because AspectData.get turns an exception from
-            # get_internal into a missing property message.
-            if self.swig_results is None:
-                raise Exception(RESULTS_CLOSED)
+        # Checked here, because AspectData.get turns an exception from
+        # get_internal into a missing property message.
+        if self.swig_results is None:
+            raise Exception(RESULTS_CLOSED)
 
-            return super(SwigData, self).get(key)
+        return super(SwigData, self).get(key)
 
     @staticmethod
     def utf8_string_to_str(utf8_string):
