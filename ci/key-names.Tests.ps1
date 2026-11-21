@@ -328,6 +328,18 @@ Describe 'Keys under their _51DEGREES_ names' {
             } | Should -BeNullOrEmpty
         }
 
+        # The Basic tier tests need a key on CloudV5Basic alone. Filled from
+        # the FREE key, test_non_marketing_usage_gets_a_51did failed.
+        It 'are given _51DEGREES_RESOURCE_KEY_BASIC from the secret of the same name by every workflow' {
+            $lines = @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Filter *.yml |
+                Select-String -Pattern '^\s*_51DEGREES_RESOURCE_KEY_BASIC\s*:' |
+                ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" })
+            $lines | Should -Not -BeNullOrEmpty
+            $lines | Where-Object {
+                $_ -notmatch ':\s*\$\{\{\s*secrets\._51DEGREES_RESOURCE_KEY_BASIC\s*\}\}\s*$'
+            } | Should -BeNullOrEmpty
+        }
+
         It 'are not given another key under _51DEGREES_LICENSE_KEY or _51DEGREES_RESOURCE_KEY by the Cloud 51Did workflow' {
             $text = Get-Content -Raw (Join-Path $script:Root '.github/workflows/cloud-51did.yml')
             $text | Should -Not -Match '\$env:_51DEGREES_LICENSE_KEY\s*='
