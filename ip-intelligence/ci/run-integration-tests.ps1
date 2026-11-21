@@ -1,8 +1,9 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [Parameter(Mandatory=$true)]
-    [Hashtable]$Keys
+    # The secrets, which common-ci passes on. No key is read from them: each
+    # is read from the environment under its _51DEGREES_ name.
+    [Hashtable]$Keys = @{}
 )
 
 if ($IsWindows) {
@@ -18,22 +19,25 @@ $packages = , "fiftyone_ipintelligence_examples"
 # no key, so a key that is passed but does not reach it is not missed.
 # The selection is added to any options a caller set in PYTEST_ADDOPTS.
 $addopts = $env:PYTEST_ADDOPTS
-if (!$Keys.TestResourceKey) {
-    Write-Output "::warning title=No resource key::No TestResourceKey was passed, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. The workflows set it from the _51DEGREES_RESOURCE_KEY_BESPOKE secret."
+if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
+    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization secret of that name."
     $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 
-# The tests read the resource key from _51DEGREES_RESOURCE_KEY, and common-ci
-# sets only the older resource_key, so the key is set here.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+# The tests and examples read the resource key from _51DEGREES_RESOURCE_KEY,
+# which common-ci fills from _51DEGREES_RESOURCE_KEY_BESPOKE. It is filled
+# here too when it is empty, and never replaced.
+if (!$env:_51DEGREES_RESOURCE_KEY) {
+    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
+}
 
 # Says what that key is entitled to, so a run with no IP data is read as an
 # entitlement gap rather than as broken code. Prints product names and tiers
 # only, never the key. Found through this script's own folder, because
 # common-ci runs it from the common-ci checkout, where
 # './ci/report-key-products.ps1' does not exist.
-if ($Keys.TestResourceKey) {
-    & (Join-Path $PSScriptRoot 'report-key-products.ps1') -ResourceKey $Keys.TestResourceKey
+if ($env:_51DEGREES_RESOURCE_KEY) {
+    & (Join-Path $PSScriptRoot 'report-key-products.ps1') -ResourceKey $env:_51DEGREES_RESOURCE_KEY
 }
 
 # nightly-publish-main workflow doesn't create the examples package, so

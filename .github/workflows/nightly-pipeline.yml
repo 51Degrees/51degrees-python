@@ -32,13 +32,7 @@ jobs:
       dryrun: ${{ inputs.dryrun || false }}
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
       cache-assets: true
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-      PypiToken: ${{ secrets.PYPI_TOKEN }}
+    secrets: inherit
 
   SubmoduleUpdate:
     name: Nightly Submodule Update
@@ -48,8 +42,7 @@ jobs:
       org-name: ${{ github.event.repository.owner.login }}
       dryrun: ${{ inputs.dryrun || false }}
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
+    secrets: inherit
 
   PullRequests:
     if: ${{ !cancelled() }}
@@ -65,9 +58,4 @@ jobs:
       cache-assets: true
       # One configuration that fails does not cancel the others.
       fail-fast: false
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+    secrets: inherit

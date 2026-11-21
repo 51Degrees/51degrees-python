@@ -1,7 +1,6 @@
-param (
-    [string]$IpIntelligence,
-    [string]$IpIntelligenceUrl
-)
+# The Enterprise data file comes from the Distributor with the data license,
+# which common-ci's steps/fetch-assets.ps1 reads from _51DEGREES_LICENSE_KEY.
+# No key or address is passed to it.
 $ErrorActionPreference = 'Stop'
 
 # PreBuild is a job from the nightly-publish-main workflow
@@ -13,14 +12,10 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
 $assetsDir = "$PSScriptRoot/../assets"
 New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
 
-$assets = '51Degrees-LiteIpiV41.ipi', 'ip-intelligence-evidence.yml'
-if ($IpIntelligenceUrl) {
-    $assets += '51Degrees-EnterpriseIpiV41.ipi'
-} else {
-    Write-Host "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No Data File Url::An IP intelligence data file URL was not provided, so the Enterprise data file will not be downloaded."
-}
+$assets = '51Degrees-LiteIpiV41.ipi', 'ip-intelligence-evidence.yml',
+    '51Degrees-EnterpriseIpiV41.ipi'
 
-./steps/fetch-assets.ps1 -IpIntelligence:$IpIntelligence -IpIntelligenceUrl:$IpIntelligenceUrl -Assets $assets
+./steps/fetch-assets.ps1 -Assets $assets
 
 foreach ($asset in $assets) {
     switch -Exact -CaseSensitive ($asset) {
@@ -39,8 +34,8 @@ $asn = '51Degrees-IPIV4AsnIpiV41.ipi'
 ./steps/fetch-assets.ps1 -Assets $asn
 Copy-Item "assets/$asn" $ipIntelligenceData
 
-# If the Enterprise file was downloaded, prefer it for tests by exposing
-# it through the environment variable used by the test suites.
-if ($IpIntelligenceUrl) {
+# The tests prefer the Enterprise file, which they find through the
+# environment variable the test suites read.
+if ($env:GITHUB_ENV) {
     Write-Output "_51DEGREES_IPI_PATH=$assetsDir/51Degrees-EnterpriseIpiV41.ipi" | Out-File -Append -FilePath $env:GITHUB_ENV -ErrorAction SilentlyContinue
 }

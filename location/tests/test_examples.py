@@ -35,3 +35,7 @@ class LocationExampleTests(unittest.TestCase):
             # since pytest sets sys.path to the test directory
             sys.path.append(str(Path(__file__).parent.parent.absolute() / "examples"))
             import cloud.gettingstarted
+        else:
+            self.skipTest(
+                "_51DEGREES_RESOURCE_KEY is not set. Set it to a 51Degrees "
+                "cloud resource key to run the cloud example.")

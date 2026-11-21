@@ -1,8 +1,9 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [Parameter(Mandatory=$true)]
-    [Hashtable]$Keys,
+    # The secrets, which common-ci passes on. No key is read from them: each
+    # is read from the environment under its _51DEGREES_ name.
+    [Hashtable]$Keys = @{},
     # False, from the root select-options.ps1, on every entry of a pull
     # request but one, so the browser contract runs once.
     [bool]$SeleniumContract = $true
@@ -21,8 +22,8 @@ $packages = "fiftyone_devicedetection_cloud", "fiftyone_devicedetection_examples
 # no key, so a key that is passed but does not reach it is not missed.
 # The selection is added to any options a caller set in PYTEST_ADDOPTS.
 $addopts = $env:PYTEST_ADDOPTS
-if (!$Keys.TestResourceKey) {
-    Write-Output "::warning title=No resource key::No TestResourceKey was passed, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. The workflows set it from the _51DEGREES_RESOURCE_KEY_BESPOKE secret."
+if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
+    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization secret of that name."
     $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 # The cloud package runs without the CSV file too, because only its property
@@ -39,14 +40,14 @@ if ($env:GITHUB_JOB -eq "Test") {
     pip install $RepoName/fiftyone_devicedetection_examples || $(throw "pip install failed")
 }
 
-# Resource key environment variables follow the 51Degrees convention, which
-# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'. The tests
-# and examples read the key from no other name, and common-ci sets only the
-# older resource_key, so the key is set here.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-# The data file update example's test reads the licence key for the data
-# files from _51DEGREES_LICENSE_KEY, which common-ci sets as license_key.
-$env:_51DEGREES_LICENSE_KEY = $Keys.DeviceDetection
+# The tests and examples read the resource key from _51DEGREES_RESOURCE_KEY,
+# which common-ci fills from _51DEGREES_RESOURCE_KEY_BESPOKE. It is filled
+# here too when it is empty, and never replaced.
+if (!$env:_51DEGREES_RESOURCE_KEY) {
+    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
+}
+# The data file update example's test reads the data license from
+# _51DEGREES_LICENSE_KEY, which common-ci exports. It is left as it is.
 
 try {
     ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
@@ -70,10 +71,10 @@ if (-not $SeleniumContract) {
 # key, and against the on-premise example when there is the TAC data file,
 # which is only fetched when a licence is given.
 $tac = "$PWD/assets/TAC-HashV41.hash"
-$runCloud = [bool]$Keys.TestResourceKey
+$runCloud = [bool]$env:_51DEGREES_RESOURCE_KEY_BESPOKE
 $runOnPremise = Test-Path $tac
 if (-not $runCloud) {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No resource key::No TestResourceKey was passed, so the Selenium contract tests will not run against the cloud example."
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the Selenium contract tests will not run against the cloud example."
 }
 if (-not $runOnPremise) {
     Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No TAC Data File::The TAC data file wasn't found, so the Selenium tests will not run against the on-premise example."
@@ -99,7 +100,7 @@ if (-not (Test-Path selenium-api-tests)) {
 # Settings the suite reads whichever example it drives. CLOUD_ROOT_URL is read
 # when the suite starts, so it is needed for the on-premise run too.
 $env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
-$env:PAID_RESOURCE_KEY = $Keys.TestResourceKey
+$env:PAID_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
 $env:EXAMPLE_LANG = 'python'
 
 # The examples run from their own virtual environment, created once here so a
@@ -167,9 +168,9 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
     }
 }
 
-# The cloud example, pointed at the live cloud.
+# The cloud example, pointed at the live cloud, with the resource key set
+# above.
 if ($runCloud) {
-    $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
     $env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
     $failures += Test-Example -Name 'cloud' `
         -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097

@@ -1,8 +1,9 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [Parameter(Mandatory=$true)]
-    [Hashtable]$Keys
+    # The secrets, which common-ci passes on. No key is read from them: each
+    # is read from the environment under its _51DEGREES_ name.
+    [Hashtable]$Keys = @{}
 )
 
 # The examples call the cloud service, so they are integration tests rather
@@ -10,12 +11,11 @@ param (
 # operating system in options.json, and in the nightly, which a standalone
 # workflow did not.
 #
-# This script's common-ci counterpart sets resource_key from the
-# TestResourceKey secret, and license_key from the DeviceDetection secret.
-# The workflows pass DeviceDetection for Device Detection's data files. It is
-# not a licence key for the cloud service, so the examples' licence-key tests
-# failed with it. They are not given it, and skip themselves as they did when
-# pipeline was its own repository, until a cloud licence key is passed.
+# _51DEGREES_LICENSE_KEY is the data license, for Device Detection's data
+# files, and not a license key for the cloud service. The license-key tests
+# read _51DEGREES_LICENSE_KEY_BESPOKE instead, and skip naming it when it is
+# not set. The 51Did tests read _51DEGREES_RESOURCE_KEY_51DID and
+# _51DEGREES_LICENSE_KEY_51DID, which common-ci exports.
 #
 # The 51Did package runs only its tests marked live here, as its others ran
 # in the unit step. Its tier tests need a key for another tier, which only
@@ -33,21 +33,24 @@ param (
 $packages = "fiftyone_pipeline_cloudrequestengine", "fiftyone_pipeline_cloudrequestengine/examples"
 $pipelineKeys = $Keys.Clone()
 $pipelineKeys.Remove('DeviceDetection')
-# The tests read the resource key from _51DEGREES_RESOURCE_KEY, and common-ci
-# sets only the older resource_key, so the key is set here.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+# The tests and examples read the resource key from _51DEGREES_RESOURCE_KEY,
+# which common-ci fills from _51DEGREES_RESOURCE_KEY_BESPOKE. It is filled
+# here too when it is empty, and never replaced.
+if (!$env:_51DEGREES_RESOURCE_KEY) {
+    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
+}
 
 $failed = $false
 $addopts = $env:PYTEST_ADDOPTS
 try {
-    if (!$Keys.TestResourceKey) {
-        Write-Output "::warning title=No resource key::No TestResourceKey was passed, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. fiftyone_pipeline_did runs only live tests here, so it is skipped. The workflows set it from the _51DEGREES_RESOURCE_KEY_BESPOKE secret."
+    if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
+        Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. fiftyone_pipeline_did runs only live tests here, so it is skipped. common-ci exports it from the organization secret of that name."
         $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
     }
     ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $pipelineKeys
     if ($LASTEXITCODE -ne 0) { $failed = $true }
 
-    if ($Keys.TestResourceKey) {
+    if ($env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
         # common-ci's script combines the coverage of the packages it ran
         # into .coverage, and a second run replaces that file, so the first
         # run's is kept under a name the second run's combine reads.

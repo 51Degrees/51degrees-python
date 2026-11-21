@@ -38,13 +38,11 @@ class CloudEngineTests(unittest.TestCase):
         self.resource_key = read_environment(
             "_51DEGREES_RESOURCE_KEY")
 
-        self.assertIsNotNone(
-            self.resource_key,
-            "You need to create a resource key at"
-            " https://51degrees.com/configure and paste it"
-            " into the code, replacing !!YOUR_RESOURCE_KEY!!."
-            " Please make sure to include IsMobile property."
-        )
+        if not self.resource_key:
+            self.skipTest(
+                "_51DEGREES_RESOURCE_KEY is not set. Set it to a resource "
+                "key from https://51degrees.com/configure that includes the "
+                "IsMobile property to run this test.")
 
     def test_cloud_engine(self):
         """!

@@ -1,7 +1,8 @@
 name: CI script tests
 
 # Runs the Pester tests of the scripts in ci/, which choose what a pull request
-# builds and what a publish releases, and the test of how
+# builds and what a publish releases, check that every key is read under its
+# _51DEGREES_ name (ci/key-names.Tests.ps1), and test how
 # free-threaded-python.yml fetches the free data files. common-ci's main is
 # checked out beside
 # this repository, where ci/dispatch.Tests.ps1 looks for it.
@@ -9,6 +10,11 @@ on:
   pull_request:
     paths:
       - 'ci/**'
+      - '*/ci/**'
+      - '**/tox.ini'
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/**/tests/**'
+      - 'pipeline/fiftyone_pipeline_did/tests/**'
+      - '.github/workflows/cloud-51did.yml'
       - '.github/workflows/ci-script-tests.yml'
       - '.github/workflows/free-threaded-python.yml'
   push:
@@ -17,6 +23,11 @@ on:
       - rc
     paths:
       - 'ci/**'
+      - '*/ci/**'
+      - '**/tox.ini'
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/**/tests/**'
+      - 'pipeline/fiftyone_pipeline_did/tests/**'
+      - '.github/workflows/cloud-51did.yml'
       - '.github/workflows/ci-script-tests.yml'
       - '.github/workflows/free-threaded-python.yml'
   workflow_dispatch:

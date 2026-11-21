@@ -11,7 +11,6 @@ The following secrets are required:
 * `PYPI_TOKEN` - [PyPI token](https://pypi.org/help/#apitoken) for publishing packages
     * Example: `pypi-sUp3r-l0nG_r4nd0m-s7r1Ng`
 
-The following secrets are optional:
-* `IPI_DATA_FILE_URL` - URL for downloading the Enterprise IP Intelligence data file. When it is set, the tests use that file instead of the Lite file, which is downloaded without a key.
-* `IP_INTELLIGENCE_KEY` - [licence key](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) passed with the Enterprise data file download.
+The following secret is also required:
+* `_51DEGREES_LICENSE_KEY` - [license key](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=ci-readme.md&utm_term=api-specific-ci-cd-approach) for downloading the data files from the Distributor (the Enterprise IP Intelligence data file). common-ci reads it.
     * Example: `V3RYL0NGR4ND0M57R1NG`

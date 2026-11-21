@@ -1,4 +1,4 @@
-# Tests for the integration test step when no resource key is passed.
+# Tests for the integration test step when no resource key is set.
 #
 # Each product's ci/run-integration-tests.ps1 is run as common-ci runs it,
 # through ci/dispatch.ps1 and common-ci's steps/run-script.ps1, from a folder
@@ -26,8 +26,8 @@ BeforeAll {
         'pipeline'
 
     # The environment variables the scripts set, kept to be put back.
-    $script:Saved = '_51DEGREES_RESOURCE_KEY', '_51DEGREES_LICENSE_KEY',
-        'PYTEST_ADDOPTS', 'TEMP'
+    $script:Saved = '_51DEGREES_RESOURCE_KEY', '_51DEGREES_RESOURCE_KEY_BESPOKE',
+        '_51DEGREES_LICENSE_KEY', 'PYTEST_ADDOPTS', 'TEMP'
 
     # The stand-in for common-ci's python/run-integration-tests.ps1. It
     # writes one line of JSON for each call to calls.jsonl in the folder it
@@ -75,6 +75,10 @@ BeforeEach {
         $script:Environment[$name] = [Environment]::GetEnvironmentVariable($name)
     }
     $script:CommonCi = New-CommonCi
+    # The scripts read the resource key from the environment, so each test
+    # starts with none and sets the one it needs.
+    $env:_51DEGREES_RESOURCE_KEY = $null
+    $env:_51DEGREES_RESOURCE_KEY_BESPOKE = $null
     Push-Location $script:CommonCi
 }
 
@@ -86,7 +90,7 @@ AfterEach {
     }
 }
 
-Context 'with no TestResourceKey' {
+Context 'with no _51DEGREES_RESOURCE_KEY_BESPOKE' {
     BeforeEach {
         $env:PYTEST_ADDOPTS = $null
         $script:Output = Invoke-ProductStep 'run-integration-tests' $script:Repo `
@@ -114,7 +118,7 @@ Context 'with no TestResourceKey' {
             # markers.
             $group = ($script:Output -split '::group::') |
                 Where-Object { $_ -like "run-integration-tests for $product*" }
-            $group | Should -Match ("No TestResourceKey was passed, so the " +
+            $group | Should -Match ("_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the " +
                 "tests that need a resource key are skipped") -Because $product
         }
     }
@@ -143,7 +147,7 @@ Context 'with no TestResourceKey' {
     }
 }
 
-Context 'with no TestResourceKey and options a caller set' {
+Context 'with no _51DEGREES_RESOURCE_KEY_BESPOKE and options a caller set' {
     It 'adds the selection to the options, and puts them back after' {
         $env:PYTEST_ADDOPTS = '-p no:cacheprovider'
         Invoke-ProductStep 'run-integration-tests' $script:Repo `
@@ -162,11 +166,12 @@ Context 'with no TestResourceKey and options a caller set' {
     }
 }
 
-Context 'with a TestResourceKey' {
+Context 'with _51DEGREES_RESOURCE_KEY_BESPOKE set' {
     It 'runs every test, the ones marked live included' {
+        $env:_51DEGREES_RESOURCE_KEY_BESPOKE = 'key'
         Invoke-ProductStep 'run-integration-tests' $script:Repo @{
             RepoName = $script:Repo
-            Keys = @{ TestResourceKey = 'key' }
+            Keys = @{}
             SeleniumContract = $false
         } 'device-detection', 'location' *>&1 | Out-Null
 

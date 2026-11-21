@@ -22,9 +22,4 @@ jobs:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
       cache-assets: true
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+    secrets: inherit

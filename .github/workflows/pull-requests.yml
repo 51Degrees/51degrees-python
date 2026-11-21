@@ -35,9 +35,4 @@ jobs:
       full-matrix: ${{ inputs.full-matrix || false }}
       fail-fast: false
       build-without-pull-requests: false
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+    secrets: inherit
