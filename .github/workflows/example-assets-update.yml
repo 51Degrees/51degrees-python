@@ -17,5 +17,4 @@ jobs:
     uses: 51Degrees/common-ci/.github/workflows/nightly-example-assets-update.yml@main
     with:
       repo-name: ${{ github.event.repository.name }}
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
+    secrets: inherit

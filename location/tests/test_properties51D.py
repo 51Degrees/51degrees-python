@@ -32,8 +32,9 @@ location_LON = '-0.975922996290084';
 
 resource_key = read_environment("_51DEGREES_RESOURCE_KEY")
 if not resource_key:
-    raise Exception("To run the cloud tests, please set a valid 51Degrees "
-                    "cloud resource key as the _51DEGREES_RESOURCE_KEY environment variable.")
+    raise unittest.SkipTest(
+        "_51DEGREES_RESOURCE_KEY is not set. Set it to a 51Degrees cloud "
+        "resource key to run the cloud tests.")
 
 # Create a simple pipeline to access the engine with and process it with flow data
 pipeline = LocationPipelineBuilder(resource_key = resource_key, location_provider =  "fiftyonedegrees").build()

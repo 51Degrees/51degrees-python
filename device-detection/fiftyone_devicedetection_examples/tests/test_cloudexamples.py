@@ -62,7 +62,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         self.logger = Logger()
 
         if not self.resource_key:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
 
     def run_example(self, example):
         """!

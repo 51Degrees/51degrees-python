@@ -176,21 +176,21 @@ class ExampleTests(unittest.TestCase):
 
     def test_cloud_gettingstarted_console(self):
         if not resource_key:
-            self.fail(NO_IP_KEY)
+            self.skipTest(NO_IP_KEY)
         from fiftyone_ipintelligence_examples.cloud.gettingstarted_console import GettingStartedConsole
         example = GettingStartedConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
     def test_cloud_metadata_console(self):
         if not resource_key:
-            self.fail(NO_IP_KEY)
+            self.skipTest(NO_IP_KEY)
         from fiftyone_ipintelligence_examples.cloud.metadata_console import MetadataConsole
         example = MetadataConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
     def test_cloud_getallproperties_console(self):
         if not resource_key:
-            self.fail(NO_IP_KEY)
+            self.skipTest(NO_IP_KEY)
         from fiftyone_ipintelligence_examples.cloud.getallproperties_console import GetAllPropertiesConsole
         example = GetAllPropertiesConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
@@ -207,14 +207,14 @@ class ExampleTests(unittest.TestCase):
         device_detection_available, "device detection package not available")
     def test_cloud_mixed_console(self):
         if not resource_key:
-            self.fail(NO_MIXED_KEY)
+            self.skipTest(NO_MIXED_KEY)
         from fiftyone_ipintelligence_examples.cloud.mixed_console import MixedConsole
         example = MixedConsole()
         example.run(resource_key, Logger(min_level="error"), lambda x: None)
 
     def test_cloud_countries_console(self):
         if not resource_key:
-            self.fail(NO_COUNTRIES_KEY)
+            self.skipTest(NO_COUNTRIES_KEY)
         from fiftyone_ipintelligence_examples.cloud.countries_console import (
             CountriesConsole, EVIDENCE_VALUES, LIST_HEADING)
         printed = []

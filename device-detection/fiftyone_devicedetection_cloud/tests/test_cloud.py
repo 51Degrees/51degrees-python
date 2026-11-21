@@ -49,7 +49,7 @@ class DeviceDetectionTests(unittest.TestCase):
         self.resource_key = find_resource_key()
 
         if not self.resource_key:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
 
 
     def test_pipeline_builder_cloud_engine_init(self):
