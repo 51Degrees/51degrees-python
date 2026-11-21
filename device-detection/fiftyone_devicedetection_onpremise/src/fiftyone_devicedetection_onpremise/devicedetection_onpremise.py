@@ -30,6 +30,7 @@ from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.elementdata_pool import ElementDataPool
 
 from .DeviceDetectionHashEngineModule import *
 
@@ -161,6 +162,8 @@ class DeviceDetectionOnPremise(Engine):
             raise Exception(CACHE_NOT_SUPPORTED)
 
         self.datakey = "device"
+
+        self._element_data_pool = ElementDataPool()
 
         # The evidence key filter, with the key list it was made from. See
         # get_evidence_key_filter.
@@ -515,7 +518,11 @@ class DeviceDetectionOnPremise(Engine):
 
         result = self.engine.process(evidence)
 
-        data = SwigData(self, result)
+        data = self._element_data_pool.take()
+        if data is None:
+            data = SwigData(self, result)
+        else:
+            data.swig_results = result
 
         flow_data.set_element_data(data)
 

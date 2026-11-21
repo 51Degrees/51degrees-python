@@ -37,6 +37,7 @@ from jsmin import jsmin
 from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
 from .elementdata_dictionary import ElementDataDictionary
+from .elementdata_pool import ElementDataPool
 from .constants import Constants
 from .callback_url import callback_url, is_scheme
 
@@ -327,6 +328,8 @@ class JavascriptBuilderElement(FlowElement):
 
         self.exclude_from_messages = True
 
+        self._element_data_pool = ElementDataPool()
+
         # Set once a callback URL that is not valid has been logged, because
         # a misconfigured element would otherwise log on every request.
         self._invalid_url_logged = False
@@ -517,7 +520,10 @@ class JavascriptBuilderElement(FlowElement):
             # Minify the output
             output = jsmin(output)
         
-        data = ElementDataDictionary(self, {"javascript": output})
+        data = self._element_data_pool.take()
+        if data is None:
+            data = ElementDataDictionary(self, {})
+        data.contents["javascript"] = output
 
         flowdata.set_element_data(data)
 

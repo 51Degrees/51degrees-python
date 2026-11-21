@@ -56,6 +56,16 @@ class ElementDataDictionary(ElementData):
 
         ElementData(flow_element)
 
+    def _clear(self):
+
+        """!
+        Drop the contents, ready for a new request. See ElementData._clear.
+        A new dictionary, so one returned by as_dictionary() is unchanged.
+        """
+
+        super(ElementDataDictionary, self)._clear()
+        self.contents = {}
+
     def as_dictionary(self):
         
         """!

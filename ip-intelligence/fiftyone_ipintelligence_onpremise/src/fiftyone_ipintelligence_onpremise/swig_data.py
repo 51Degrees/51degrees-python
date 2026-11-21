@@ -120,6 +120,18 @@ class SwigData(AspectData):
 
         self.swig_results = None
 
+    def _clear(self):
+
+        """!
+        Drop the results and the addresses, ready for a new request. See
+        ElementData._clear.
+        """
+
+        super(SwigData, self)._clear()
+        self.swig_results = None
+        self.echo_ip = None
+        self.echo_ipv6 = None
+
     def get(self, key):
 
         """!

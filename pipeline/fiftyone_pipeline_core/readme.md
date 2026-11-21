@@ -54,6 +54,10 @@ def index():
         return response
 ```
 
+## Element data is reused
+
+Some flow elements reuse their element data from one request to the next. When a flow data is closed, by calling `close()` or at the end of a `with` block, its element data goes back to a pool, and a later request may change its values. So read the values you need before the flow data is closed, and don't keep a reference to element data, such as `flowdata.device`, after that. Keeping one isn't supported, and reads aren't checked for it. A value you've already read is unchanged.
+
 ## Requirements
 
 * Python 3.8+

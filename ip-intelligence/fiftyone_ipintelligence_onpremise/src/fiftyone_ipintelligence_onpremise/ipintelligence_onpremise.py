@@ -29,6 +29,7 @@ from .constants import *
 from fiftyone_pipeline_engines.engine import Engine
 
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.elementdata_pool import ElementDataPool
 
 from .IpIntelligenceEngineModule import *
 
@@ -131,6 +132,8 @@ class IpIntelligenceOnPremise(Engine):
             raise Exception(CACHE_NOT_SUPPORTED)
 
         self.datakey = "ip"
+
+        self._element_data_pool = ElementDataPool()
 
         # The evidence key filter, with the key list it was made from. See
         # get_evidence_key_filter.
@@ -468,7 +471,13 @@ class IpIntelligenceOnPremise(Engine):
 
         ipv4, ipv6 = reported_addresses(found)
 
-        data = SwigData(self, result, echo_ip=ipv4, echo_ipv6=ipv6)
+        data = self._element_data_pool.take()
+        if data is None:
+            data = SwigData(self, result, echo_ip=ipv4, echo_ipv6=ipv6)
+        else:
+            data.swig_results = result
+            data.echo_ip = ipv4
+            data.echo_ipv6 = ipv6
 
         flow_data.set_element_data(data)
 
