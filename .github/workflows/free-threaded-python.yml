@@ -108,6 +108,18 @@ jobs:
           # The native source is the cxx submodule, and the data files are
           # linked from its own data submodule.
           submodules: recursive
+          # The package versions written below come from the release tags.
+          fetch-depth: 0
+
+      # ci/write-package-versions.ps1 works out the versions with common-ci's
+      # release plan.
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          path: .common-ci
+          persist-credentials: false
 
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v5
@@ -119,9 +131,18 @@ jobs:
           python -c "import sys, sysconfig; print(sys.version); assert sysconfig.get_config_var('Py_GIL_DISABLED') == 1, 'not a free-threaded build'; assert not sys._is_gil_enabled(), 'the GIL is on at start'"
 
       - name: Install the packages the tests use
+        env:
+          COMMON_CI: ${{ github.workspace }}/.common-ci
         run: |
+          # A pip install that fails stops the step here, rather than
+          # leaving the tests to fail on a missing module.
+          $PSNativeCommandUseErrorActionPreference = $true
           python -m pip install --upgrade pip
           python -m pip install pytest flask flask-unittest json5 ruamel.yaml Cython setuptools
+          # A package installed from this checkout is 0.0.0 without the
+          # version.txt this writes, which is below the versions the packages
+          # here require of each other, so pip would refuse them.
+          ./ci/write-package-versions.ps1
           # The pipeline packages come from this checkout, as the tests run
           # with the pipeline code they are released with.
           python -m pip install `

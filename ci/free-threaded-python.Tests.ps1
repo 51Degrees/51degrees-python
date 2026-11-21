@@ -129,6 +129,40 @@ Describe 'free-threaded-python.yml' {
         }
     }
 
+    It 'writes the package versions before it installs the packages from this checkout' {
+        foreach ($testing in $script:Testing) {
+            $text = $script:Jobs[$testing] -join "`n"
+            $write = $text.IndexOf('./ci/write-package-versions.ps1')
+            $install = $text.IndexOf('-e pipeline/')
+            $write | Should -BeGreaterThan -1
+            $install | Should -BeGreaterThan $write
+        }
+    }
+
+    It 'checks out the release tags and common-ci, which the versions are worked out from' {
+        foreach ($testing in $script:Testing) {
+            $checkouts = @(Get-Step $testing 'actions/checkout')
+            $own = @($checkouts | Where-Object {
+                    -not (Get-Value $_ 'repository') })
+            $own.Count | Should -Be 1
+            Get-Value $own[0] 'fetch-depth' | Should -Be '0'
+            $commonCi = @($checkouts | Where-Object {
+                    (Get-Value $_ 'repository') -eq '51Degrees/common-ci' })
+            $commonCi.Count | Should -Be 1
+            $path = Get-Value $commonCi[0] 'path'
+            ($script:Jobs[$testing] -join "`n") |
+                Should -Match "COMMON_CI:.*$([regex]::Escape($path))"
+        }
+    }
+
+    It 'fails the install step when pip fails' {
+        foreach ($testing in $script:Testing) {
+            $text = $script:Jobs[$testing] -join "`n"
+            $text | Should -Match ('- name: Install the packages the tests use' +
+                '\s*\n(\s+\S.*\n)*?\s+\$PSNativeCommandUseErrorActionPreference = \$true')
+        }
+    }
+
     It 'caches each of the free data files the tests use' {
         $paths = Get-Paths (@(Get-Step $script:Fetching[0] 'actions/cache')[0])
         foreach ($file in '51Degrees-LiteV4.1.hash', '51Degrees-LiteV41.ipi',
