@@ -152,22 +152,22 @@ class Evidence:
 
     def filter(self) -> None:
         """!
-        Filter evidence using `filter_evidence_key` and
-        `filter_evidence` methods of each FlowElement in the pipeline. The
-        keys that do not pass, and the web request under HTTP_REQUEST_KEY,
-        move to get_unaccepted().
+        Filter evidence using the Pipeline's evidence key filter, which is
+        built once with the Pipeline and asks each FlowElement's
+        `filter_evidence_key` when a key is checked. The keys that do not
+        pass, and the web request under HTTP_REQUEST_KEY, move to
+        get_unaccepted().
         """
 
         if self.evidence_filtered:
             return
 
+        accepted = self.flowdata.pipeline.get_evidence_key_filter()
+
         # Loop over a copy of the keys, as keys are removed on the way.
         for key in list(self.evidence):
-            if str(key).lower() == HTTP_REQUEST_KEY or not any([
-                flow_element.filter_evidence_key(key)
-                for flow_element
-                in self.flowdata.pipeline.flow_elements
-            ]):
+            if str(key).lower() == HTTP_REQUEST_KEY or \
+                    not accepted.filter_evidence_key(key):
                 self.unaccepted[key] = self.evidence.pop(key)
                 del self.keys[str(key).lower()]
 
