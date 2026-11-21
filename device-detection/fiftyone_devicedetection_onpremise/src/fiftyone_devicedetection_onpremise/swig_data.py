@@ -64,6 +64,16 @@ class SwigData(AspectData):
     thread-safe access, and either gives each thread its own Flow Data, and
     so its own results instance, or coordinates its own access, for example
     with a lock of its own around every read and around close().
+
+    The package is tested on the free-threaded builds of Python 3.13 and
+    3.14 on Linux, and of Python 3.14 on Windows. The native module does not
+    declare that it can run without the GIL, so Python turns the GIL back on
+    for the whole process when it loads the module, with a RuntimeWarning.
+    Every thread in the program then runs with the GIL, the native code
+    included, as on the standard build of Python, so nothing gains from
+    free-threading. Set PYTHON_GIL=1, or run Python with -X gil=1, to start
+    with the GIL on and so without the warning. A results instance is still
+    not safe to use from several threads at once.
     """
 
     def __init__(self, flow_element, swig_results):
