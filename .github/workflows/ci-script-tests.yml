@@ -1,13 +1,16 @@
 name: CI script tests
 
 # Runs the Pester tests of the scripts in ci/, which choose what a pull request
-# builds and what a publish releases. common-ci's main is checked out beside
+# builds and what a publish releases, and the test of how
+# free-threaded-python.yml fetches the free data files. common-ci's main is
+# checked out beside
 # this repository, where ci/dispatch.Tests.ps1 looks for it.
 on:
   pull_request:
     paths:
       - 'ci/**'
       - '.github/workflows/ci-script-tests.yml'
+      - '.github/workflows/free-threaded-python.yml'
   push:
     branches:
       - main
@@ -15,6 +18,7 @@ on:
     paths:
       - 'ci/**'
       - '.github/workflows/ci-script-tests.yml'
+      - '.github/workflows/free-threaded-python.yml'
   workflow_dispatch:
 
 permissions:
