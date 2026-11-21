@@ -528,3 +528,27 @@ class DeviceDetectionOnPremise(Engine):
 
     def get_component(self, property):
         return self.engine.getMetaData().getComponentForProperty(property).getName()
+
+    def get_components(self):
+
+        """!
+        The names of the components the engine returns: those of the data
+        file in use, in the order the native code gives them, followed by
+        "Metrics", the component of the match metric properties, which the
+        native code does not give. The list is read from the data file each
+        time, so it follows a refresh.
+
+        @rtype: list
+        @return: the component names
+        """
+
+        if getattr(self, "engine", None) is None:
+            raise Exception(ENGINE_CLOSED)
+
+        components = self.engine.getMetaData().getComponents()
+        names = [
+            components.getByIndex(index).getName()
+            for index in range(components.getSize())]
+        if MATCH_METRICS_COMPONENT not in names:
+            names.append(MATCH_METRICS_COMPONENT)
+        return names

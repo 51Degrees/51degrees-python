@@ -30,7 +30,7 @@ from .live_cloud import read_environment
 location_LAT = '51.4578261';
 location_LON = '-0.975922996290084';
 
-resource_key = read_environment("_51DEGREES_RESOURCE_KEY", "resource_key")
+resource_key = read_environment("_51DEGREES_RESOURCE_KEY")
 if not resource_key:
     raise Exception("To run the cloud tests, please set a valid 51Degrees "
                     "cloud resource key as the _51DEGREES_RESOURCE_KEY environment variable.")

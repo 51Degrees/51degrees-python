@@ -39,6 +39,15 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_engines.engine import Engine
 
 FINISHED = "finished processing"
+
+
+def item_store(data):
+    """The dictionary the data keeps its values in."""
+    if isinstance(data, dict):
+        return data
+    return data.contents
+
+
 EXAMPLES = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "examples")
 
@@ -78,6 +87,9 @@ class FinishedWritesTests(unittest.TestCase):
         flowdata.process()
         with self.assertRaises(Exception) as caught:
             flowdata.get("astrology").written_after_processing = True
+        self.assertIn(FINISHED, str(caught.exception))
+        with self.assertRaises(Exception) as caught:
+            item_store(flowdata.get("astrology"))["written_after_processing"] = True
         self.assertIn(FINISHED, str(caught.exception))
 
 

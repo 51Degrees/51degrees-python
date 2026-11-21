@@ -20,7 +20,136 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+import functools
+import inspect
+
 from .messages import Messages
+
+
+class _CheckedDictWrites(object):
+
+    """!
+    The write methods of a dict, each of which calls _check_writable first,
+    so a dict that holds Element Data values refuses writes once the
+    FlowElement that writes them has finished. Reads are the dict's own.
+    """
+
+    # The class this is mixed into gives _check_writable and the dict's own
+    # methods, which pylint cannot see from here.
+    # pylint: disable=no-member
+
+    __slots__ = ()
+
+    def __setitem__(self, key, value):
+        self._check_writable(key)
+        super(_CheckedDictWrites, self).__setitem__(key, value)
+
+    def __delitem__(self, key):
+        self._check_writable(key)
+        super(_CheckedDictWrites, self).__delitem__(key)
+
+    def __ior__(self, other):
+        self._check_writable("|=")
+        return super(_CheckedDictWrites, self).__ior__(other)
+
+    def update(self, *args, **kwargs):
+        self._check_writable("update")
+        super(_CheckedDictWrites, self).update(*args, **kwargs)
+
+    def pop(self, *args):
+        self._check_writable(args[0] if args else "pop")
+        return super(_CheckedDictWrites, self).pop(*args)
+
+    def popitem(self):
+        self._check_writable("popitem")
+        return super(_CheckedDictWrites, self).popitem()
+
+    def setdefault(self, key, default=None):
+        self._check_writable(key)
+        return super(_CheckedDictWrites, self).setdefault(key, default)
+
+    def clear(self):
+        self._check_writable("clear")
+        super(_CheckedDictWrites, self).clear()
+
+
+class _ContentsDict(_CheckedDictWrites, dict):
+
+    """!
+    The contents of Element Data that keeps its values in a dict. A write
+    raises once the FlowElement that writes the data has finished, as a
+    write to the data itself does. A copy is a plain dict.
+    """
+
+    __slots__ = ("_owner",)
+
+    def __init__(self, owner, values):
+        dict.__init__(self, values)
+        self._owner = owner
+
+    def _check_writable(self, name):
+        self._owner._check_writable(name)
+
+    def __reduce_ex__(self, protocol):
+        return (dict, (dict(self),))
+
+
+class _FlowDataDict(_CheckedDictWrites, dict):
+
+    """!
+    A dict that holds what a FlowData has been given, being its ElementData,
+    its errors or its Evidence. A write raises once the FlowData has
+    finished processing. A copy is a plain dict.
+    """
+
+    __slots__ = ("_flowdata", "_what")
+
+    def __init__(self, flowdata, what, values=()):
+        dict.__init__(self, values)
+        self._flowdata = flowdata
+        self._what = what
+
+    def _check_writable(self, name):
+        # Read from the FlowData's own fields, because FlowData treats an
+        # attribute it does not have as the key of ElementData.
+        if getattr(self._flowdata, "__dict__", {}).get("processed"):
+            raise Exception(Messages.FLOW_DATA_FINISHED.format(self._what))
+
+    def __reduce_ex__(self, protocol):
+        return (dict, (dict(self),))
+
+
+def _get_contents(data):
+    return data.__dict__.get("_contents")
+
+
+def _set_contents(data, values):
+    data._contents = _ContentsDict(data, values)
+
+
+# The contents property of the Element Data classes that keep their values
+# in a dict. Setting it keeps a copy, which refuses writes once finished.
+_contents_property = property(
+    _get_contents, _set_contents,
+    doc="The values, keyed by property name. Written only while the "
+        "FlowElement that provides the data processes.")
+
+
+def _open_while_closing(close):
+
+    # Releasing what the data holds is not a write to it, so a close method
+    # runs with the data open for writing, and finished again afterwards.
+    @functools.wraps(close)
+    def opened(self, *args, **kwargs):
+        finished = self._finished
+        object.__setattr__(self, "_finished", False)
+        try:
+            return close(self, *args, **kwargs)
+        finally:
+            object.__setattr__(self, "_finished", finished)
+
+    opened._opens_data = True
+    return opened
 
 
 class ElementData(object):
@@ -30,12 +159,25 @@ class ElementData(object):
     Stores information created by a FlowElement based on FlowData.
     Stored in FlowData
 
-    Only the Flow Element that creates an instance writes it, so an instance
-    does not need to be safe to write from several threads. A finished
-    instance, once the Flow Element that writes it has finished, is safe to
-    read from several threads at once, such as the caller's own threads. An
-    instance that is written from several threads, or read while another
-    thread writes it, is not catered for.
+    An instance is written only by the Flow Element that provides it, or by
+    the Flow Elements that share it, and only while they process. Once they
+    have finished, it is not written again, apart from lazy properties, so it
+    is safe to read from several threads at once, as its values are Python's
+    own managed data. The Flow Data that holds it is still used by one thread
+    at a time.
+
+    The exception is Element Data that reads its values from a results
+    instance, such as an on-premise engine's, which references unmanaged
+    memory. Multi-threaded access to a results instance is not supported, for
+    performance reasons, so such Element Data is not safe to use from several
+    threads at once. It takes no lock to make those reads safe. The caller is
+    responsible for thread-safe access, and either gives each thread its own
+    Flow Data or coordinates its own access.
+
+    A subclass that holds something to release, such as native results,
+    gives itself a close method. Closing is not a write, so close may set
+    the data's attributes even once it is finished, whether it is called
+    directly or by FlowData.close.
 
     A FlowElement may take its instances from an ElementDataPool, and
     closing the FlowData gives them back for a later request to reuse. So
@@ -44,6 +186,16 @@ class ElementData(object):
     are not checked for this.
 
     """
+
+    def __init_subclass__(cls, **kwargs):
+
+        # A close method a subclass defines or inherits runs with the data
+        # open. Read without binding, so a static method is left alone.
+        super(ElementData, cls).__init_subclass__(**kwargs)
+        close = inspect.getattr_static(cls, "close", None)
+        if inspect.isfunction(close) and \
+                not getattr(close, "_opens_data", False):
+            cls.close = _open_while_closing(close)
 
     def __init__(self, flow_element):
 

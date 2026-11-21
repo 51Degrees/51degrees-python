@@ -28,9 +28,11 @@ last tests process every FlowElement this package defines, and its example
 FlowElements, then write to each one's ElementData and expect the error.
 """
 
+import copy
 import importlib
 import importlib.util
 import inspect
+import json
 import os
 import pkgutil
 import unittest
@@ -38,6 +40,7 @@ import unittest
 import fiftyone_pipeline_core
 from fiftyone_pipeline_core.elementdata_dictionary import \
     ElementDataDictionary
+from fiftyone_pipeline_core.evidence import Evidence
 from fiftyone_pipeline_core.flowelement import FlowElement
 from fiftyone_pipeline_core.flowerror import FlowError
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
@@ -67,6 +70,73 @@ class WritingElement(FlowElement):
             data = ElementDataDictionary(self, {})
             flowdata.set_element_data(data)
         data.written = self.value
+
+
+class RaisingElement(FlowElement):
+    """Raises while it processes, so the FlowData records an error."""
+
+    def __init__(self, datakey="raiser"):
+        super(RaisingElement, self).__init__()
+        self.datakey = datakey
+
+    def process_internal(self, flowdata):
+        raise Exception("raised while processing")
+
+
+class AddingElement(FlowElement):
+    """Adds data under another FlowElement's key, and a value to its
+    contents while it processes."""
+
+    def __init__(self):
+        super(AddingElement, self).__init__()
+        self.datakey = "adder"
+
+    def process_internal(self, flowdata):
+        data = ElementDataDictionary(WritingElement("other"), {})
+        data.contents["item"] = "while processing"
+        flowdata.set_element_data(data)
+
+
+class ClosingData(ElementDataDictionary):
+    """Sets a public attribute when it is closed, as a close method that
+    releases what the data holds may."""
+
+    def close(self):
+        self.closed = True
+
+
+class ClosingElement(FlowElement):
+    """Adds data that has a close method of its own."""
+
+    def __init__(self):
+        super(ClosingElement, self).__init__()
+        self.datakey = "closing"
+
+    def process_internal(self, flowdata):
+        flowdata.set_element_data(ClosingData(self, {}))
+
+
+def item_store(data):
+    """The dictionary the data keeps its values in, or None."""
+    if isinstance(data, dict):
+        return data
+    if (isinstance(getattr(type(data), "contents", None), property)
+            or "contents" in vars(data)):
+        return data.contents
+    return None
+
+
+# Each way a dictionary can be written.
+DICT_WRITES = (
+    ("[]=", lambda d: d.__setitem__("b", 2)),
+    ("del", lambda d: d.__delitem__("a")),
+    ("update", lambda d: d.update(b=2)),
+    ("pop", lambda d: d.pop("a")),
+    ("popitem", lambda d: d.popitem()),
+    ("setdefault", lambda d: d.setdefault("b", 2)),
+    ("clear", lambda d: d.clear()),
+    ("|=", lambda d: d.__ior__({"b": 2})),
+)
 
 
 def process(*elements, **settings):
@@ -143,6 +213,74 @@ class FinishedFlowDataTests(unittest.TestCase):
         flowdata.evidence.add("query.early", "value")
         self.assertEqual("value", flowdata.evidence.get("query.early"))
 
+    def assert_dict_writes_fail(self, finished, store):
+        """Each way of writing the dictionary store(finished) raises, and
+        leaves it as it was."""
+        for name, write in DICT_WRITES:
+            with self.subTest(name):
+                flowdata = finished()
+                before = dict(store(flowdata))
+                with self.assertRaises(Exception) as caught:
+                    write(store(flowdata))
+                self.assertIn(FINISHED, str(caught.exception))
+                self.assertEqual(before, dict(store(flowdata)))
+
+    def test_the_element_data_dictionary_cannot_be_written_once_processed(
+            self):
+        self.assert_dict_writes_fail(
+            lambda: process(WritingElement("a")), lambda f: f.data)
+
+    def test_the_errors_dictionary_cannot_be_written_once_processed(self):
+        self.assert_dict_writes_fail(
+            lambda: process(RaisingElement("a"),
+                            suppress_process_exceptions=True),
+            lambda f: f.errors)
+
+    def test_the_evidence_dictionaries_cannot_be_written_once_processed(
+            self):
+        def finished():
+            flowdata = PipelineBuilder().add(WritingElement()).build() \
+                .create_flowdata()
+            flowdata.evidence.add("a", "value")
+            flowdata.process()
+            return flowdata
+
+        for store in (lambda f: f.evidence.get_all(),
+                      lambda f: f.evidence.evidence,
+                      lambda f: f.evidence.get_unaccepted()):
+            self.assert_dict_writes_fail(finished, store)
+
+    def test_the_dictionaries_cannot_be_replaced_once_processed(self):
+        flowdata = process(WritingElement())
+        evidence = flowdata.evidence
+        for owner, name, value in (
+                (flowdata, "data", {}),
+                (flowdata, "errors", {}),
+                (flowdata, "evidence", Evidence(flowdata)),
+                (evidence, "evidence", {}),
+                (evidence, "unaccepted", {})):
+            with self.subTest(name):
+                before = getattr(owner, name)
+                with self.assertRaises(Exception) as caught:
+                    setattr(owner, name, value)
+                self.assertIn(FINISHED, str(caught.exception))
+                self.assertIs(before, getattr(owner, name))
+
+    def test_data_given_before_processing_is_read_only_after(self):
+        flowdata = PipelineBuilder({"add_javascript_builder": False,
+                                    "use_setheader_properties": False}) \
+            .add(WritingElement()).build().create_flowdata()
+        flowdata.data = {"given": "before processing"}
+        flowdata.errors = {}
+        flowdata.data["added"] = "before processing"
+        flowdata.process()
+        self.assertEqual("before processing", flowdata.get("given"))
+        self.assertEqual("before processing", flowdata.get("added"))
+        for store in (flowdata.data, flowdata.errors):
+            with self.assertRaises(Exception) as caught:
+                store["later"] = "after processing"
+            self.assertIn(FINISHED, str(caught.exception))
+
 
 class FinishedElementDataTests(unittest.TestCase):
 
@@ -168,22 +306,71 @@ class FinishedElementDataTests(unittest.TestCase):
         data._kept = "a value kept once read"
         self.assertEqual("a value kept once read", data._kept)
 
+    def test_the_contents_cannot_be_written_once_finished(self):
+        for name, write in DICT_WRITES:
+            with self.subTest(name):
+                data = process(WritingElement()).get("writer")
+                dict.__setitem__(data.contents, "a", 1)
+                for contents in (data.contents, data.as_dictionary()):
+                    with self.assertRaises(Exception) as caught:
+                        write(contents)
+                    self.assertIn(FINISHED, str(caught.exception))
+                self.assertEqual({"a": 1}, dict(data.contents))
+
+    def test_the_contents_cannot_be_replaced_once_finished(self):
+        data = process(WritingElement()).get("writer")
+        with self.assertRaises(Exception) as caught:
+            data.contents = {"b": 2}
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertEqual({}, dict(data.contents))
+
+    def test_the_contents_are_a_dict_that_is_written_while_processing(self):
+        flowdata = process(AddingElement())
+        contents = flowdata.get("other").contents
+        self.assertIsInstance(contents, dict)
+        self.assertEqual({"item": "while processing"}, contents)
+        self.assertEqual('{"item": "while processing"}',
+                         json.dumps(contents))
+        self.assertIs(dict, type(copy.deepcopy(contents)))
+        self.assertIs(dict, type(contents.copy()))
+
+    def test_data_under_another_key_is_finished_too(self):
+        flowdata = process(AddingElement())
+        data = flowdata.get("other")
+        with self.assertRaises(Exception) as caught:
+            data.written = "after"
+        self.assertIn(FINISHED, str(caught.exception))
+        with self.assertRaises(Exception) as caught:
+            data.contents["item"] = "after"
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertEqual("while processing", data.contents["item"])
+
+    def test_data_added_before_processing_is_finished_with_it(self):
+        flowdata = PipelineBuilder({"add_javascript_builder": False,
+                                    "use_setheader_properties": False}) \
+            .add(WritingElement()).build().create_flowdata()
+        data = ElementDataDictionary(WritingElement("early"), {})
+        flowdata.set_element_data(data)
+        data.written = "before processing"
+        flowdata.process()
+        with self.assertRaises(Exception) as caught:
+            data.written = "after"
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertEqual("before processing", data.written)
+
     def test_closing_the_flow_data_is_not_a_write(self):
-        class ClosingData(ElementDataDictionary):
-            def close(self):
-                self.closed = True
-
-        class ClosingElement(FlowElement):
-            def __init__(self):
-                super(ClosingElement, self).__init__()
-                self.datakey = "closing"
-
-            def process_internal(self, flowdata):
-                flowdata.set_element_data(ClosingData(self, {}))
-
         flowdata = process(ClosingElement())
         flowdata.close()
         self.assertTrue(flowdata.get("closing").closed)
+
+    def test_closing_the_data_itself_is_not_a_write(self):
+        data = process(ClosingElement()).get("closing")
+        data.close()
+        self.assertTrue(data.closed)
+        with self.assertRaises(Exception) as caught:
+            data.closed = False
+        self.assertIn(FINISHED, str(caught.exception))
+        self.assertTrue(data.closed)
 
 
 class EveryFlowElementTests(unittest.TestCase):
@@ -193,6 +380,11 @@ class EveryFlowElementTests(unittest.TestCase):
         with self.assertRaises(Exception) as caught:
             data.written_after_processing = True
         self.assertIn(FINISHED, str(caught.exception))
+        contents = item_store(data)
+        if contents is not None:
+            with self.assertRaises(Exception) as caught:
+                contents["written_after_processing"] = True
+            self.assertIn(FINISHED, str(caught.exception))
 
     def test_the_package_flow_elements_refuse_writes_once_finished(self):
         flowdata = PipelineBuilder().build().create_flowdata()

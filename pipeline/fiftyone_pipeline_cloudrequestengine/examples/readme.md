@@ -26,6 +26,12 @@ answer. Those engines are in `src/fiftyone_pipeline_examples/cloud/engines.py`,
 and `src/fiftyone_pipeline_examples/cloud/mixed/pipeline.py` puts them
 together.
 
+A Flow Data cannot be used by two threads at once, so the web example
+creates a Flow Data for each request, uses it only in the code that handles
+that request, and closes it when the request ends. To hand work to another
+thread or task, read the values it needs from the Flow Data first and pass
+those values, not the Flow Data.
+
 ### Keys
 
 The examples call the cloud service with a resource key or a licence key.
@@ -83,7 +89,7 @@ and the web example with
 .venv/bin/python -m fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web
 ```
 
-then open <http://localhost:5000>. Set `PORT` to listen on another port.
+then open <http://localhost:5151>. Set `PORT` to listen on another port.
 
 ### Tests
 
@@ -93,14 +99,16 @@ then open <http://localhost:5000>. Set `PORT` to listen on another port.
 
 The tests that call the cloud service with a resource key fail when none is
 set, naming the variables they read, which are `_51DEGREES_RESOURCE_KEY`
-and `_51DEGREES_RESOURCE_KEY_BESPOKE`, in that order. The
+and `_51DEGREES_RESOURCE_KEY_BESPOKE`, in that order. They are marked
+`live`, so `python -m pytest -m "not live"` runs every other test. The
 tests that use a licence key skip themselves when none is set.
 
 In CI the examples are run by [ci/run-integration-tests.ps1](../../ci/run-integration-tests.ps1)
 through common-ci, on every Python version and operating system in
 [ci/options.json](../../ci/options.json), with the resource key the pipeline
-holds. No licence key is passed to the pipeline, so the licence-key tests
-skip themselves there. That uses the [tox.ini](tox.ini) in this folder,
+holds. When no resource key is passed, the script leaves out the tests
+marked `live`, says so, and runs the rest. No licence key is passed to the
+pipeline, so the licence-key tests skip themselves there. That uses the [tox.ini](tox.ini) in this folder,
 which can also be run by hand with `python -m tox -e py` from here.
 
 ## Cloud engine

@@ -16,10 +16,14 @@ if ($IsWindows) {
 
 $packages = "fiftyone_devicedetection_cloud", "fiftyone_devicedetection_examples"
 
+# Without a resource key the tests that need one, which are marked live, are
+# left out and every other test runs. A live test still fails when it finds
+# no key, so a key that is passed but does not reach it is not missed.
+# The selection is added to any options a caller set in PYTEST_ADDOPTS.
+$addopts = $env:PYTEST_ADDOPTS
 if (!$Keys.TestResourceKey) {
-    throw "No TestResourceKey was passed, so the cloud tests cannot call " +
-        "the cloud service. The workflows set it from the " +
-        "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
+    Write-Output "::warning title=No resource key::No TestResourceKey was passed, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. The workflows set it from the _51DEGREES_RESOURCE_KEY_BESPOKE secret."
+    $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 # The cloud package runs without the CSV file too, because only its property
 # coverage tests read the file, and they say so when it is missing.
@@ -44,7 +48,11 @@ $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
 # files from _51DEGREES_LICENSE_KEY, which common-ci sets as license_key.
 $env:_51DEGREES_LICENSE_KEY = $Keys.DeviceDetection
 
-./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
+try {
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
+} finally {
+    $env:PYTEST_ADDOPTS = $addopts
+}
 $failures = @()
 if ($LASTEXITCODE -ne 0) {
     $failures += "the Python integration tests exited with code $LASTEXITCODE"
@@ -52,6 +60,25 @@ if ($LASTEXITCODE -ne 0) {
 
 if (-not $SeleniumContract) {
     Write-Output "Another entry runs the Selenium contract tests for this pull request."
+    if ($failures.Count -gt 0) {
+        throw "Integration tests failed: $($failures -join '; ')"
+    }
+    return
+}
+
+# The contract tests run against the cloud example when there is a resource
+# key, and against the on-premise example when there is the TAC data file,
+# which is only fetched when a licence is given.
+$tac = "$PWD/assets/TAC-HashV41.hash"
+$runCloud = [bool]$Keys.TestResourceKey
+$runOnPremise = Test-Path $tac
+if (-not $runCloud) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No resource key::No TestResourceKey was passed, so the Selenium contract tests will not run against the cloud example."
+}
+if (-not $runOnPremise) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No TAC Data File::The TAC data file wasn't found, so the Selenium tests will not run against the on-premise example."
+}
+if (-not ($runCloud -or $runOnPremise)) {
     if ($failures.Count -gt 0) {
         throw "Integration tests failed: $($failures -join '; ')"
     }
@@ -141,22 +168,21 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
 }
 
 # The cloud example, pointed at the live cloud.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-$env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
-$failures += Test-Example -Name 'cloud' `
-    -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097
+if ($runCloud) {
+    $env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
+    $env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
+    $failures += Test-Example -Name 'cloud' `
+        -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097
+}
 
 # The on-premise example. The contract tests need the device type and the
 # JavaScript properties, which the Lite data file does not have, so it runs
-# against the TAC data file, which is only fetched when a licence is given.
-$tac = "$PWD/assets/TAC-HashV41.hash"
-if (Test-Path $tac) {
+# against the TAC data file.
+if ($runOnPremise) {
     $env:_51DEGREES_DD_PATH = (Resolve-Path $tac).Path
     $failures += Test-Example -Name 'onpremise' `
         -Module 'fiftyone_devicedetection_examples.onpremise.gettingstarted_web' -Port 8098
     Remove-Item Env:_51DEGREES_DD_PATH
-} else {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No TAC Data File::The TAC data file wasn't found, so the Selenium tests will not run against the on-premise example."
 }
 
 # A failure anywhere above must fail the job. This script is dot-sourced by

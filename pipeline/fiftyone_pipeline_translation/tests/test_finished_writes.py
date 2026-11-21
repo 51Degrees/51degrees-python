@@ -42,6 +42,13 @@ from fiftyone_pipeline_translation.translation_engine_base import (
 FINISHED = "finished processing"
 
 
+def item_store(data):
+    """The dictionary the data keeps its values in."""
+    if isinstance(data, dict):
+        return data
+    return data.contents
+
+
 def defined_flow_elements(package):
     """Every FlowElement class defined in the package's own modules."""
     found = set()
@@ -79,6 +86,9 @@ class FinishedWritesTests(unittest.TestCase):
         data = flowdata.get(engine.datakey)
         with self.assertRaises(Exception) as caught:
             data.written_after_processing = True
+        self.assertIn(FINISHED, str(caught.exception))
+        with self.assertRaises(Exception) as caught:
+            item_store(data)["written_after_processing"] = True
         self.assertIn(FINISHED, str(caught.exception))
         self.assertEqual(
             {TranslationEngineBase},
