@@ -26,6 +26,7 @@ import inspect
 import json
 import math
 import os
+# Kept so that ``from ... import *`` of this module still gives it.
 import threading
 import warnings
 from functools import cached_property
@@ -51,48 +52,17 @@ except ImportError:
     from urllib.parse import urlencode
 
 
-# Whether the old end point variable has been reported as deprecated, so
-# that it is reported once however many engines are built.
-_old_endpoint_reported = False
-_old_endpoint_lock = threading.Lock()
-
-
 def _endpoint_from_environment():
 
     """!
-    The cloud end point the environment gives, or None when it gives none.
-
-    Constants.CLOUD_ENDPOINT is read first. When it is unset or empty the
-    variable Constants.FOD_CLOUD_API_URL names is read, which is the old
-    name, and the first use of it is reported as deprecated. The report is
-    a FutureWarning, which Python shows by default, because the people who
-    set the variable are the ones running the application.
+    The cloud end point that Constants.CLOUD_ENDPOINT names, or None when
+    it is unset or empty.
 
     @rtype: string
     @return: the end point, or None
     """
 
-    global _old_endpoint_reported
-
-    endpoint = os.environ.get(Constants.CLOUD_ENDPOINT)
-    if endpoint:
-        return endpoint
-
-    old_name = Constants.FOD_CLOUD_API_URL
-    endpoint = os.environ.get(old_name)
-    if not endpoint:
-        return None
-
-    with _old_endpoint_lock:
-        report = not _old_endpoint_reported
-        _old_endpoint_reported = True
-    if report:
-        # The third frame is the code that built the engine.
-        warnings.warn(
-            Constants.MESSAGE_OLD_ENDPOINT_VARIABLE.format(
-                old_name, Constants.CLOUD_ENDPOINT),
-            FutureWarning, stacklevel=3)
-    return endpoint
+    return os.environ.get(Constants.CLOUD_ENDPOINT) or None
 
 
 def _takes_timeout(client):
@@ -196,8 +166,7 @@ class CloudRequestEngine(Engine):
         self.reported_not_covered = set()
 
         # The endpoint is the cloud_endpoint setting, then the
-        # _51DEGREES_CLOUD_ENDPOINT environment variable, then that
-        # variable's deprecated old name FOD_CLOUD_API_URL, then
+        # _51DEGREES_CLOUD_ENDPOINT environment variable, then
         # cloud.51degrees.com. A host other than cloud.51degrees.com
         # would be used to (a) use an on premise web server, or (b) use
         # a privately hosted version of the 51Degrees cloud for

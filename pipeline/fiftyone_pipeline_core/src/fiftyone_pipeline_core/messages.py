@@ -47,3 +47,24 @@ class Messages():
 
     # FlowData already processed.
     FLOW_DATA_PROCESSED = "FlowData already processed"
+
+    # A write to a FlowData that has finished processing. This takes what was
+    # being added as a format argument.
+    FLOW_DATA_FINISHED = (
+        "This FlowData has finished processing, so {} cannot be added to it. "
+        "A FlowData is read only once processing has finished.")
+
+    # A write to ElementData once its FlowElement has finished. This takes
+    # the name written and the element's data key as format arguments.
+    ELEMENT_DATA_FINISHED = (
+        "'{}' cannot be written to the '{}' ElementData, because the "
+        "FlowElement that writes it has finished processing. ElementData is "
+        "written only while the FlowElement that provides it processes.")
+
+    # The usage sharing element is not the last Flow Element. This takes the
+    # element's class name, its position counting from 1 and the number of
+    # Flow Elements as format arguments.
+    USAGE_SHARING_NOT_LAST = (
+        "The usage sharing element must be the last Flow Element and "
+        "outside any parallel group. {} is Flow Element {} of {} in this "
+        "Pipeline.")

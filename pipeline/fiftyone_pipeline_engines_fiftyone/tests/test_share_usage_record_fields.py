@@ -63,6 +63,23 @@ JA4 = "t13d1516h2_8daaf6152771_b0da82dd1658"
 H2 = "1:65536;4:6291456|15663105|0|m,a,s,p"
 RESOURCE_KEY = "AQS5HKcyAAAA"
 
+# The largest sequence the Sequence Element takes, from sequence-element.md.
+MAX_INPUT_SEQUENCE = 2147483646
+
+# The largest sequence a record carries, the largest 32 bit signed integer,
+# which the Sequence Element writes when it is given MAX_INPUT_SEQUENCE.
+MAX_SEQUENCE = MAX_INPUT_SEQUENCE + 1
+
+# Sequence values that are not present. A floating point 2.0, True, a
+# signed or spaced number, a number with an underscore in it, digits other
+# than 0 to 9, a trailing newline, bytes, and a number above MAX_SEQUENCE,
+# held as an integer, as digits or as a 5,000 digit string that int()
+# cannot read by default.
+ABSENT_SEQUENCES = (
+    2.0, True, False, " 7 ", "-3", -3, "+3", "1_0", "0x10", "2.0", "",
+    "two", "٣", "２", "7\n", b"2",
+    MAX_SEQUENCE + 1, str(MAX_SEQUENCE + 1), "9" * 5000)
+
 
 def usage_element(**settings):
     """A usage sharing element that keeps what it would share, because its
@@ -121,6 +138,69 @@ class ShareUsageRecordFieldsTests(unittest.TestCase):
             self.assertEqual("the session", data.session_id, session_key)
             self.assertEqual(2, data.sequence, sequence_key)
             self.assertEqual("203.0.113.7", data.client_ip, ip_key)
+
+    def test_a_sequence_that_is_not_a_whole_number_is_absent(self):
+        # A Pipeline with no Sequence Element hands the page's own value
+        # straight to usage sharing, which counts only a whole number or a
+        # string made of the digits 0 to 9. A floating point 2.0, True,
+        # a signed or spaced number and a number with an underscore in it
+        # are each absent, so the record carries no sequence rather than a
+        # number the page never sent.
+        usage = usage_element()
+        self.addCleanup(usage.close)
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
+        for value in ABSENT_SEQUENCES:
+            flow_data = pipeline.create_flowdata()
+            flow_data.evidence.add("header.user-agent", "agent")
+            flow_data.evidence.add("query.sequence", value)
+            data = usage.get_data_from_evidence(flow_data)
+            self.assertEqual("", data.sequence, repr(value)[:20])
+
+    def test_an_absent_sequence_logs_no_error(self):
+        # sequence-element.md says of a value that is not present "No
+        # error is recorded".
+        usage = usage_element()
+        self.addCleanup(usage.close)
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
+        with mock.patch.object(usage, "_log") as log:
+            for value in ABSENT_SEQUENCES:
+                flow_data = pipeline.create_flowdata()
+                flow_data.evidence.add("header.user-agent", "agent")
+                flow_data.evidence.add("query.sequence", value)
+                usage.get_data_from_evidence(flow_data)
+        self.assertEqual(
+            [], [c for c in log.call_args_list if c.args[0] == "error"])
+
+    def test_a_sequence_of_digits_is_recorded(self):
+        usage = usage_element()
+        self.addCleanup(usage.close)
+        pipeline = PipelineBuilder(NO_DEFAULT_ELEMENTS).add(usage).build()
+        for value, expected in ((2, 2), ("2", 2), ("0002", 2),
+                                (0, 0), ("0", 0), ("000", 0),
+                                (MAX_SEQUENCE, MAX_SEQUENCE),
+                                (str(MAX_SEQUENCE), MAX_SEQUENCE)):
+            flow_data = pipeline.create_flowdata()
+            flow_data.evidence.add("header.user-agent", "agent")
+            flow_data.evidence.add("query.sequence", value)
+            data = usage.get_data_from_evidence(flow_data)
+            self.assertEqual(expected, data.sequence, repr(value))
+
+    def test_the_largest_sequence_the_sequence_element_writes_is_recorded(
+            self):
+        # Usage sharing runs after the Sequence Element and reads what it
+        # wrote, which is one more than the largest sequence it takes.
+        usage = usage_element()
+        pipeline = PipelineBuilder().add(usage).build()
+        flow_data = pipeline.create_flowdata()
+        flow_data.evidence.add("header.user-agent", "agent")
+        flow_data.evidence.add("query.sequence", str(MAX_INPUT_SEQUENCE))
+        flow_data.process()
+
+        sent = sent_on_close(usage)
+
+        self.assertEqual(1, len(sent))
+        self.assertIn(
+            "<Sequence>" + str(MAX_SEQUENCE) + "</Sequence>", sent[0])
 
     def test_the_record_names_the_server_ip(self):
         with mock.patch.object(share_usage, "host_address",

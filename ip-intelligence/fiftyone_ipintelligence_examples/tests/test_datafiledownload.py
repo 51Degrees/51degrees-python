@@ -99,7 +99,6 @@ def test_find_file_downloads_a_missing_asn_file(tmp_path, monkeypatch, capfd):
     # A data file named in the environment would be used in place of the
     # search.
     monkeypatch.delenv(ExampleUtils.IPI_PATH_ENV_VAR, raising=False)
-    monkeypatch.delenv(ExampleUtils.DATA_FILE_ENV_VAR, raising=False)
     monkeypatch.chdir(tmp_path)
 
     with serving(source) as address:

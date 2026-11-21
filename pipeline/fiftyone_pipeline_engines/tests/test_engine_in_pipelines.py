@@ -91,5 +91,45 @@ class EngineInPipelinesTests(unittest.TestCase):
         self.assertTrue(engine.data_file.registered)
 
 
+class StartUpErrorTests(unittest.TestCase):
+    """!
+    An error the errors table does not name, raised by the update on
+    start-up while a Pipeline is built. The error reaches the caller, so
+    the Pipeline is never made. resource-cleanup.md says "There MUST be
+    some mechanism to clean up system resources", so closing the engine
+    still stops its data file's checks.
+    """
+
+    def failing_engine(self):
+        engine = DataFileEngine()
+        self.addCleanup(engine.close)
+        data_file = engine.data_file
+        data_file.update_on_start = True
+        data_file.updated_on_start = False
+        data_file.auto_update = True
+
+        def update_url():
+            raise ValueError("the update URL could not be made")
+
+        data_file.get_update_url = update_url
+        return engine
+
+    def test_closing_the_engine_stops_the_checks_after_a_failed_build(self):
+        engine = self.failing_engine()
+        with self.assertRaises(ValueError):
+            Pipeline([engine])
+        engine.close()
+        timer = getattr(engine.data_file, "update_timer", None)
+        if timer is not None:
+            timer.join(5)
+            self.assertFalse(timer.is_alive())
+
+    def test_a_failed_build_leaves_the_data_file_unregistered(self):
+        engine = self.failing_engine()
+        with self.assertRaises(ValueError):
+            Pipeline([engine])
+        self.assertFalse(engine.data_file.registered)
+
+
 if __name__ == "__main__":
     unittest.main()

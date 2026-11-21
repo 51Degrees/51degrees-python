@@ -267,6 +267,9 @@ setup(
         # The first versions with close(), which releases the native memory
         # this package holds.
         "fiftyone_pipeline_core>=4.5.42",
-        "fiftyone_pipeline_engines>=4.5.42",
+        # The first version with OnPremiseMissingPropertyService, which the
+        # results of this package give a caller that reads a Property the
+        # data file in use does not hold.
+        "fiftyone_pipeline_engines>=4.5.44",
     ],
 )

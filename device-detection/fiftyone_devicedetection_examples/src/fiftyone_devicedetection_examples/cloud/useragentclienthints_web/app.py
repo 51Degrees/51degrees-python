@@ -38,6 +38,14 @@
 # - [fiftyone_devicedetection_cloud](https://pypi.org/project/fiftyone-devicedetection-cloud/)
 # - [flask](https://pypi.org/project/flask/)
 #
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it when the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
+#
 # ## View
 # @include cloud/useragentclienthints_web/templates/index.html
 #
@@ -93,7 +101,7 @@ class UserAgentClientHintsWeb():
         return self
 
     def run(self):
-        UserAgentClientHintsWeb.app.run(port=int(os.environ.get("PORT", 5000)))
+        UserAgentClientHintsWeb.app.run(port=int(os.environ.get("PORT", 5151)))
 
     # The main route performs device detection and renders the results. On the
     # second request, any additional client hints headers requested via the
@@ -103,33 +111,35 @@ class UserAgentClientHintsWeb():
     @app.route('/')
     def server():
 
-        # Create the flowdata object for the device detection
-        flowdata = UserAgentClientHintsWeb.pipeline.create_flowdata()
+        # A Flow Data cannot be used by two threads at once, so this one is
+        # made for this request, used only here, and closed when the route
+        # returns.
+        with UserAgentClientHintsWeb.pipeline.create_flowdata() as flowdata:
 
-        # Add any information from the request (headers, cookies and any other
-        # additional information)
-        flowdata.evidence.add_from_dict(webevidence(request))
+            # Add any information from the request (headers, cookies and any other
+            # additional information)
+            flowdata.evidence.add_from_dict(webevidence(request))
 
-        # Process the flowdata
-        flowdata.process()
+            # Process the flowdata
+            flowdata.process()
 
-        response = make_response()
+            response = make_response()
 
-        # Some browsers require that extra HTTP headers are explicitly
-        # requested. So set whatever headers are required by the browser in
-        # order to return the evidence needed by the pipeline.
-        # More info on this can be found at
-        # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=server
-        set_response_header(flowdata, response)
+            # Some browsers require that extra HTTP headers are explicitly
+            # requested. So set whatever headers are required by the browser in
+            # order to return the evidence needed by the pipeline.
+            # More info on this can be found at
+            # https://51degrees.com/blog/user-agent-client-hints?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-useragentclienthints_web-app.py&utm_term=server
+            set_response_header(flowdata, response)
 
-        # Generate the HTML
-        response.set_data(render_template(
-            'index.html',
-            data=flowdata,
-            utils=ExampleUtils,
-            response=response))
+            # Generate the HTML
+            response.set_data(render_template(
+                'index.html',
+                data=flowdata,
+                utils=ExampleUtils,
+                response=response))
 
-        return response
+            return response
 
 
 def main(argv):

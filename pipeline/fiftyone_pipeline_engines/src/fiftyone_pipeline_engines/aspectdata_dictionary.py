@@ -20,6 +20,8 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from fiftyone_pipeline_core.elementdata import _contents_property
+
 from .aspectdata import AspectData
 
 class AspectDataDictionary(AspectData):
@@ -29,6 +31,9 @@ class AspectDataDictionary(AspectData):
     AspectDataDictionary class extension that stores content as dictionary
     
     """
+
+    # A dict that refuses writes once the FlowElement has finished.
+    contents = _contents_property
 
     def __init__(self, flow_element, contents):
     

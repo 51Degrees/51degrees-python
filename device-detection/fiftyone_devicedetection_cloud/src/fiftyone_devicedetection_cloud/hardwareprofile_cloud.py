@@ -23,11 +23,12 @@
 from __future__ import absolute_import
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_cloudrequestengine.clouddata import \
-    CloudMissingPropertyService
+    OnPremiseMissingPropertyService
 
 from fiftyone_pipeline_engines.aspectdata import AspectData
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
+from fiftyone_pipeline_core.elementdata import _CheckedDictWrites
 
 import json
 
@@ -60,7 +61,7 @@ def _cloud_response(flowdata):
     return data.get("cloud")
 
 
-class HardwareProfileData(dict, AspectData):
+class HardwareProfileData(_CheckedDictWrites, dict, AspectData):
     """!
     One hardware profile from a profile lookup, read in the way the device
     data is read. It is Aspect Data, so a property is read as an attribute,
@@ -72,6 +73,10 @@ class HardwareProfileData(dict, AspectData):
     Attribute access, get(), [] and in compare names ignoring letter case.
     A property whose name is also a dict method, such as keys, is read
     with get() or [].
+
+    A profile is part of the hardware data, and is written only while the
+    engine processes. Once it has finished, setting an attribute or writing
+    through a dict method raises an exception.
     """
 
     # Attributes set in the constructor, which are never read as properties.
@@ -91,7 +96,19 @@ class HardwareProfileData(dict, AspectData):
 
         # The device data's service, so a name that is not a property is
         # reported in the same way for both.
-        self.missing_property_service = CloudMissingPropertyService()
+        self.missing_property_service = OnPremiseMissingPropertyService()
+
+    @property
+    def _finished(self):
+        # Finished when the hardware data that holds the profile is, as
+        # FlowData records that on the data it holds, not on each profile.
+        holder = self.__dict__.get("_holder")
+        return (self.__dict__.get("_own_finished", False)
+                or (holder is not None and holder._finished))
+
+    @_finished.setter
+    def _finished(self, finished):
+        self.__dict__["_own_finished"] = finished
 
     def _matching_key(self, key):
         """!
@@ -247,6 +264,8 @@ class HardwareProfileCloud(CloudEngine):
         contents["profiles"] = devices
 
         data = AspectDataDictionary(self, contents)
+        for device in devices:
+            device._holder = data
 
         flowdata.set_element_data(data)
         
