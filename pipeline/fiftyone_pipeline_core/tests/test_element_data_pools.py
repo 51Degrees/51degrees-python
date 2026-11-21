@@ -96,6 +96,15 @@ class PooledElement(FlowElement):
         flowdata.set_element_data(data)
 
 
+class TwoKeysElement(PooledElement):
+    """Adds its ElementData under its own data key and under a second key,
+    so one instance is in the FlowData's list twice."""
+
+    def process_internal(self, flowdata):
+        super(TwoKeysElement, self).process_internal(flowdata)
+        flowdata.data["second"] = flowdata.get("pooled")
+
+
 class OwnAttributeElement(FlowElement):
     """Keeps no pool, but has an attribute of its own with the name the
     pooled elements use, holding something else."""
@@ -220,6 +229,16 @@ class ReuseTests(unittest.TestCase):
         pipeline = build(element)
         flowdata = process(pipeline)
         flowdata.close()
+        flowdata.close()
+        self.assertEqual(1, len(element._element_data_pool))
+        with process(pipeline) as one, process(pipeline) as two:
+            self.assertIsNot(one.pooled, two.pooled)
+
+    def test_data_under_two_keys_is_given_back_once(self):
+        element = TwoKeysElement()
+        pipeline = build(element)
+        flowdata = process(pipeline)
+        self.assertIs(flowdata.get("pooled"), flowdata.get("second"))
         flowdata.close()
         self.assertEqual(1, len(element._element_data_pool))
         with process(pipeline) as one, process(pipeline) as two:
