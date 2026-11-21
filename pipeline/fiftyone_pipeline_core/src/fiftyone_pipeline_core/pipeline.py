@@ -68,9 +68,14 @@ class PipelineEvidenceKeyFilter(EvidenceKeyFilter):
 
     """!
     The Evidence a Pipeline accepts, being every key one of its FlowElements
-    accepts. Each element's filter is read when a key is checked, as an
-    element's list can change once its data or the cloud service's answer
-    arrives.
+    accepts. Each element is asked when a key is checked, in the order the
+    elements run, and nothing an element answers is kept, as an element's
+    list can change once its data or the cloud service's answer arrives.
+    Making the filter asks no element, so a Pipeline is built while an
+    element cannot yet say what it accepts.
+
+    This is the filter that decides which evidence processing keeps, and
+    which evidence the web integration counts as used.
 
     """
 
@@ -79,8 +84,8 @@ class PipelineEvidenceKeyFilter(EvidenceKeyFilter):
 
     def filter_evidence_key(self, key):
         return any(
-            element.get_evidence_key_filter().filter_evidence_key(key)
-            for element in self.pipeline.flow_elements_list.values())
+            element.filter_evidence_key(key)
+            for element in self.pipeline.flow_elements)
 
 
 class Pipeline:
@@ -133,6 +138,13 @@ class Pipeline:
         self._flow_elements = tuple(flow_elements)
 
         check_usage_sharing_last(self._flow_elements)
+
+        # Built once here, as it is always needed and the Pipeline's
+        # elements do not change. It is made before the elements are
+        # registered, so one that filters evidence as it is registered
+        # finds it. It asks each element when a key is checked, so an
+        # element whose keys arrive later is still read.
+        self._evidence_key_filter = PipelineEvidenceKeyFilter(self)
 
         self.logger = logger
 
@@ -271,14 +283,15 @@ class Pipeline:
 
         """!
         The Evidence the Pipeline accepts, being every key one of its
-        FlowElements accepts.
+        FlowElements accepts. The filter is built when the Pipeline is
+        created, and the same one is returned every time.
 
         @rtype: EvidenceKeyFilter
         @return: Returns an EvidenceKeyFilter
 
         """
 
-        return PipelineEvidenceKeyFilter(self)
+        return self._evidence_key_filter
 
     def element_not_found(self, element, flowdata):
         """!

@@ -14,11 +14,14 @@ if ($IsWindows) {
 
 $packages = , "fiftyone_ipintelligence_examples"
 
+# Without a resource key the tests that need one, which are marked live, are
+# left out and every other test runs. A live test still fails when it finds
+# no key, so a key that is passed but does not reach it is not missed.
+# The selection is added to any options a caller set in PYTEST_ADDOPTS.
+$addopts = $env:PYTEST_ADDOPTS
 if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
-    throw "_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the cloud tests " +
-        "cannot call the cloud service. common-ci exports it from the " +
-        "organization secret of that name, which the workflows pass with " +
-        "'secrets: inherit'."
+    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization secret of that name."
+    $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 
 # The tests and examples read the resource key from _51DEGREES_RESOURCE_KEY,
@@ -33,7 +36,9 @@ if (!$env:_51DEGREES_RESOURCE_KEY) {
 # only, never the key. Found through this script's own folder, because
 # common-ci runs it from the common-ci checkout, where
 # './ci/report-key-products.ps1' does not exist.
-& (Join-Path $PSScriptRoot 'report-key-products.ps1') -ResourceKey $env:_51DEGREES_RESOURCE_KEY
+if ($env:_51DEGREES_RESOURCE_KEY) {
+    & (Join-Path $PSScriptRoot 'report-key-products.ps1') -ResourceKey $env:_51DEGREES_RESOURCE_KEY
+}
 
 # nightly-publish-main workflow doesn't create the examples package, so
 # install-package.ps1 won't install it and its test dependencies won't get
@@ -43,6 +48,10 @@ if ($env:GITHUB_JOB -eq "Test") {
     pip install $RepoName/fiftyone_ipintelligence_examples || $(throw "pip install failed")
 }
 
-./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
+try {
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
+} finally {
+    $env:PYTEST_ADDOPTS = $addopts
+}
 
 exit $LASTEXITCODE

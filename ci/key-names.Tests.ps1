@@ -153,7 +153,7 @@ Describe 'Keys under their _51DEGREES_ names' {
             $seen.Resource | Should -Be 'bespoke-resource-key'
         }
 
-        It 'fails naming _51DEGREES_RESOURCE_KEY_BESPOKE when it is not set in <Product>' -ForEach @(
+        It 'runs the tests that need no key, naming _51DEGREES_RESOURCE_KEY_BESPOKE, when it is not set in <Product>' -ForEach @(
             @{ Product = 'device-detection'; Extra = @{ SeleniumContract = $false } }
             @{ Product = 'ip-intelligence'; Extra = @{} }
             @{ Product = 'location'; Extra = @{} }
@@ -162,12 +162,14 @@ Describe 'Keys under their _51DEGREES_ names' {
             $repoName = New-ProductRepo $Product 'run-integration-tests.ps1'
             Push-Location $script:CommonCi
             try {
-                { & (Join-Path $repoName 'ci' 'run-integration-tests.ps1') `
-                    -RepoName $repoName -Keys @{} @Extra } |
-                    Should -Throw '*_51DEGREES_RESOURCE_KEY_BESPOKE*'
+                $output = & (Join-Path $repoName 'ci' 'run-integration-tests.ps1') `
+                    -RepoName $repoName -Keys @{} @Extra *>&1 | Out-String
             } finally {
                 Pop-Location
             }
+
+            $output | Should -Match '_51DEGREES_RESOURCE_KEY_BESPOKE is not set'
+            Join-Path $script:CommonCi 'seen.json' | Should -Exist
         }
     }
 

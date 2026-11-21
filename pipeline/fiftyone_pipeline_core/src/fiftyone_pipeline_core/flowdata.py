@@ -20,9 +20,10 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .elementdata import ElementData, _FlowDataDict
 from .evidence import Evidence
 from .flowerror import FlowError
-from .messages import Messages	
+from .messages import Messages
 import traceback
 import sys
 from collections.abc import MutableMapping
@@ -124,6 +125,20 @@ class ElementDataView(MutableMapping):
         return self._latest().items()
 
 
+
+def _set_finished(element_data, finished):
+
+    # Records whether the FlowElement that writes the data has finished, which
+    # ElementData checks before a write. Data of another type is left alone.
+    if isinstance(element_data, ElementData):
+        object.__setattr__(element_data, "_finished", finished)
+
+
+# The attributes that hold what a FlowData has been given, each with what
+# it holds for the message when a finished FlowData is written.
+_GIVEN = {"data": "ElementData", "errors": "an error", "evidence": "Evidence"}
+
+
 class FlowData:
     """!
     FlowData is created by a specific Pipeline
@@ -142,6 +157,11 @@ class FlowData:
     in a lock of its own. A web application creates a FlowData for each
     request, uses it only in the code that handles that request, and closes
     it when the request ends.
+
+    Once processing has finished, a FlowData is read only. Adding Evidence,
+    ElementData or errors to it raises, whether through its methods or
+    through the dicts data, errors and evidence.get_all() return. Only
+    process() sets processed, and setting it back is not supported.
 
     """
 
@@ -163,6 +183,27 @@ class FlowData:
         self.stopped = False
         self.evidence = Evidence(self)
 
+    def __setattr__(self, name, value):
+
+        """!
+        Set an attribute. The ElementData and errors are kept in dicts that
+        refuse writes once processing has finished, and they and the
+        Evidence cannot be replaced then.
+
+        @raise Exception: when one of them is set once processing has
+        finished
+        """
+
+        if name in _GIVEN:
+            # Read from the instance's own fields, because a missing
+            # attribute is treated as the key of ElementData.
+            if self.__dict__.get("processed"):
+                raise Exception(Messages.FLOW_DATA_FINISHED.format(
+                    _GIVEN[name]))
+            if name != "evidence":
+                value = _FlowDataDict(self, _GIVEN[name], value)
+        object.__setattr__(self, name, value)
+
     def process(self):
 
         """!
@@ -171,36 +212,48 @@ class FlowData:
 
         @rtype: FlowData
         @return: Returns flowdata
-        @raise Exception: the first error a flow element raised, or the
-        error saying this FlowData has already been processed, unless the
-        Pipeline suppresses process exceptions. Every error is in errors
-        either way.
+        @raise Exception: the first error a flow element raised, unless the
+        Pipeline suppresses process exceptions, and every error is in errors
+        either way. A second call raises the error saying this FlowData has
+        already been processed, as a finished FlowData takes no more errors.
 
         """
 
-        if not self.processed:
-            # filter evidence before processing
-            try:
-                self.evidence.filter()
-            except Exception as e:
-                flow_error = FlowError("global", e, traceback.format_exc())
-                self.set_error(flow_error)
+        # A finished FlowData takes no more errors, so a second call raises.
+        if self.processed:
+            raise Exception(Messages.FLOW_DATA_PROCESSED)
 
-            for flow_element in self.pipeline.flow_elements:
-                if self.stopped is not True:
-                    # All errors are caught and stored in an errors array keyed by the
-                    # flowElement that set the error
-                    try:
-                        flow_element.process(self)
-                    except Exception:
-                        flow_error = FlowError(flow_element.datakey, sys.exc_info()[1], traceback.format_exc())
-                        self.set_error(flow_error)
-
-            # Set processed flag to true. flowdata can only be processed once
-            self.processed = True
-        else:
-            flow_error = FlowError("global", Exception(Messages.FLOW_DATA_PROCESSED), Messages.FLOW_DATA_PROCESSED)
+        # filter evidence before processing
+        try:
+            self.evidence.filter()
+        except Exception as e:
+            flow_error = FlowError("global", e, traceback.format_exc())
             self.set_error(flow_error)
+
+        for flow_element in self.pipeline.flow_elements:
+            if self.stopped is not True:
+                key = str(flow_element.datakey).lower()
+                # A FlowElement that shares data another added may write it
+                # again while it processes.
+                _set_finished(self.data.get(key), False)
+                # All errors are caught and stored in an errors array keyed by the
+                # flowElement that set the error
+                try:
+                    flow_element.process(self)
+                except Exception:
+                    flow_error = FlowError(flow_element.datakey, sys.exc_info()[1], traceback.format_exc())
+                    self.set_error(flow_error)
+                finally:
+                    _set_finished(self.data.get(key), True)
+
+        # Data added before processing, or under another FlowElement's key,
+        # is finished too.
+        for element_data in list(self.data.values()):
+            _set_finished(element_data, True)
+
+        # Set processed flag to true. flowdata can only be processed once,
+        # and is read only from now on.
+        self.processed = True
 
         if self.errors and self.pipeline.suppress_process_exceptions is False:
             errored_flow_element_key = next(iter(self.errors))
@@ -229,6 +282,8 @@ class FlowData:
             # attribute it does not have as the name of a property.
             close = getattr(type(element_data), "close", None)
             if callable(close):
+                # Closing is not a write, and ElementData opens itself for
+                # its close method.
                 close(element_data)
 
     def __enter__(self):
@@ -324,8 +379,12 @@ class FlowData:
 
         @type element_data: ElementData
         @param element_data: elementData to be added to flowdata
+        @raise Exception: once this FlowData has finished processing
 
         """
+
+        if self.processed:
+            raise Exception(Messages.FLOW_DATA_FINISHED.format("ElementData"))
 
         # Kept under the data key in lower case, which is how get reads it.
         self._add(element_data.flow_element.datakey.lower(), element_data)
@@ -374,8 +433,12 @@ class FlowData:
 
         @type error: FlowError
         @param error: Flow Error
+        @raise Exception: once this FlowData has finished processing
 
         """
+
+        if self.processed:
+            raise Exception(Messages.FLOW_DATA_FINISHED.format("an error"))
 
         self.errors[flow_error.flow_element] = flow_error
 

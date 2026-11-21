@@ -27,10 +27,14 @@ test client, against the live cloud service.
 
 import unittest
 
+import pytest
+
 from fiftyone_ipintelligence_examples.cloud.gettingstarted_web \
     import app as example
 
 from .live_cloud import find_resource_key, no_resource_key
+
+pytestmark = pytest.mark.live
 
 NO_KEY = no_resource_key(
     "the ip product",

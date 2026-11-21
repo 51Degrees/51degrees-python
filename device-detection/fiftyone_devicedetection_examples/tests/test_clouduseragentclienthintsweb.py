@@ -29,12 +29,16 @@ evidence the cloud service used and the detection results.
 import re
 import unittest
 
+import pytest
+
 from fiftyone_pipeline_core.logger import Logger
 
 from fiftyone_devicedetection_examples.cloud.useragentclienthints_web.app \
     import UserAgentClientHintsWeb
 
 from .live_cloud import find_resource_key, no_resource_key
+
+pytestmark = pytest.mark.live
 
 NO_KEY = no_resource_key(
     "the device product", "device detection properties such as BrowserName")
