@@ -37,7 +37,7 @@ from fiftyone_pipeline_cloudrequestengine.constants import Constants
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 
 KEY = "ABCDEFGHIJKL"
-MASKED = "********IJKL"
+MASKED = "************"
 
 
 def answer(status, errors):

@@ -21,9 +21,7 @@
 # *********************************************************************
 
 import re
-
-# How many characters at the end of a key are shown.
-VISIBLE_CHARACTERS = 4
+import warnings
 
 # A licence key in a URL query string or in text that holds one, whatever the
 # parameter is called (licenseKeys, licenceKey, license_keys and so on).
@@ -34,20 +32,31 @@ _LICENCE_PARAMETER = re.compile(
 _KEY_SEPARATOR = re.compile(r"(\||%7C)", re.IGNORECASE)
 
 
+def __getattr__(name):
+    """!
+    VISIBLE_CHARACTERS is deprecated and is 0, because every character of a
+    key is masked.
+    """
+
+    if name == "VISIBLE_CHARACTERS":
+        warnings.warn(
+            "VISIBLE_CHARACTERS is deprecated. Every character of a licence "
+            "key is masked.", DeprecationWarning, stacklevel=2)
+        return 0
+    raise AttributeError(
+        "module {!r} has no attribute {!r}".format(__name__, name))
+
+
 def mask_licence_key(key):
     """!
-    A licence key with each character hidden by an asterisk, except the last
-    four. A key of four or fewer characters is hidden entirely.
+    A licence key with every character hidden by an asterisk.
     @type key: str
     @param key: The licence key
     @rtype: str
     @return: The masked key, of the same length
     """
 
-    key = str(key)
-    if len(key) <= VISIBLE_CHARACTERS:
-        return "*" * len(key)
-    return "*" * (len(key) - VISIBLE_CHARACTERS) + key[-VISIBLE_CHARACTERS:]
+    return "*" * len(str(key))
 
 
 def _mask_parameter(match):

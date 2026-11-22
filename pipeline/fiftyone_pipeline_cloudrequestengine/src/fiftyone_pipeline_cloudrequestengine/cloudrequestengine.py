@@ -676,9 +676,9 @@ class CloudRequestEngine(Engine):
     def masked(self, text):
 
         """!
-        Text from or about a cloud answer with the licence key in use shown
-        only as its last four characters. The cloud service names the key in
-        some of its errors, and a URL may carry it in its query.
+        Text from or about a cloud answer with every character of the
+        licence key in use masked. The cloud service names the key in some of
+        its errors, and a URL may carry it in its query.
         """
 
         text = mask_licence_keys_in_text(text)

@@ -45,12 +45,12 @@ from .test_datafile_update_service import ScheduledCheck
 
 URL = "https://example.com/update"
 
-# An update URL that carries a licence key, which no message may hold in
-# full. Only its last four characters may be shown.
+# An update URL that carries a licence key, which every message gives with
+# each character of the key masked.
 KEY = "ABCDEFGHIJKL"
 KEYED_URL = "https://example.com/update?licenseKeys=" + KEY + "&Type=HashV41"
 MASKED_URL = (
-    "https://example.com/update?licenseKeys=********IJKL&Type=HashV41")
+    "https://example.com/update?licenseKeys=************&Type=HashV41")
 
 
 class FakeEngine:

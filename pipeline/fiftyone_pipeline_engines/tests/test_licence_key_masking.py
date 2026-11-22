@@ -21,11 +21,11 @@
 # *********************************************************************
 
 """
-A licence key is shown as its last 4 characters, each hidden character
-replaced by an asterisk, wherever a key or a URL that carries one is logged or
-raised. A key of 4 or fewer characters is replaced entirely.
+Every character of a licence key is replaced by an asterisk wherever a key or
+a URL that carries one is logged or raised.
 """
 
+import re
 import unittest
 from unittest import mock
 
@@ -40,21 +40,24 @@ from .test_datafile_update_service import RecordingPipeline
 KEY = "ABCDEFGHIJKL"
 URL = "https://example.com/update?Type=Hash&licenseKeys=" + KEY + "&Product=V4"
 MASKED_URL = (
-    "https://example.com/update?Type=Hash&licenseKeys=********IJKL"
+    "https://example.com/update?Type=Hash&licenseKeys=************"
     "&Product=V4")
 
 
 class MaskTests(unittest.TestCase):
 
-    def test_last_four_characters_are_shown(self):
-        self.assertEqual("********IJKL", mask_licence_key(KEY))
-        self.assertEqual("*2345", mask_licence_key("12345"))
-
-    def test_four_or_fewer_characters_are_replaced_entirely(self):
+    def test_every_character_is_replaced(self):
+        self.assertEqual("************", mask_licence_key(KEY))
+        self.assertEqual("*****", mask_licence_key("12345"))
         self.assertEqual("****", mask_licence_key("abcd"))
         self.assertEqual("***", mask_licence_key("abc"))
         self.assertEqual("*", mask_licence_key("a"))
         self.assertEqual("", mask_licence_key(""))
+
+    def test_visible_characters_is_deprecated_and_zero(self):
+        with self.assertWarns(DeprecationWarning):
+            from fiftyone_pipeline_core.keymask import VISIBLE_CHARACTERS
+        self.assertEqual(0, VISIBLE_CHARACTERS)
 
     def test_a_key_in_a_url_is_masked(self):
         self.assertEqual(MASKED_URL, mask_licence_keys_in_text(URL))
@@ -63,13 +66,13 @@ class MaskTests(unittest.TestCase):
         for separator in ("|", "%7C", "%7c"):
             text = "x?licenseKeys=AAAAAAAA" + separator + "BBBBB&a=b"
             self.assertEqual(
-                "x?licenseKeys=****AAAA" + separator + "*BBBB&a=b",
+                "x?licenseKeys=********" + separator + "*****&a=b",
                 mask_licence_keys_in_text(text), separator)
 
     def test_other_spellings_of_the_parameter_are_masked(self):
         for name in ("licenseKey", "LicenceKeys", "licence", "license_keys"):
             self.assertEqual(
-                "u?" + name + "=********IJKL",
+                "u?" + name + "=************",
                 mask_licence_keys_in_text("u?" + name + "=" + KEY), name)
 
     def test_text_without_a_key_is_unchanged(self):
@@ -168,6 +171,55 @@ class UpdateServiceLogTests(unittest.TestCase):
         self.assertTrue(any(MASKED_URL in message
                             for level, message in pipeline.logs),
                         pipeline.logs)
+
+
+# An obviously fake key, used only by these tests.
+FAKE_KEY = "FAKE0KEY1FOR2TESTS3ONLY4"
+FAKE_URL = ("https://example.com/update?Type=Hash&licenseKeys=" + FAKE_KEY +
+            "&Product=V4")
+KEY_VALUE = re.compile(r"licenseKeys=([^&'\s]*)")
+
+
+class FakeKeyDataFile(StandInDataFile):
+
+    def get_update_url(self):
+        return FAKE_URL
+
+
+class NoCharacterOfTheKeyIsLoggedTests(unittest.TestCase):
+    """The update service logs the update URL with every character of the
+    licence key masked."""
+
+    def assertNoCharacterOfTheKey(self, logs):
+        self.assertTrue(logs)
+        for level, message in logs:
+            self.assertNotIn(FAKE_KEY, message)
+        values = [value for level, message in logs
+                  for value in KEY_VALUE.findall(message)]
+        self.assertTrue(values, logs)
+        for value in values:
+            self.assertFalse(set(value) & set(FAKE_KEY), value)
+
+    def test_each_answer_logs_no_character_of_the_key(self):
+        for status in (304, 403, 429, 500):
+            pipeline = RecordingPipeline()
+            service = DataFileUpdateService(pipeline)
+            with mock.patch.object(
+                    requests, "get", lambda *a, **k: answer(status)):
+                service.async_update_data_file(FakeKeyDataFile()).join()
+            with self.subTest(status):
+                self.assertNoCharacterOfTheKey(pipeline.logs)
+
+    def test_a_failed_request_logs_no_character_of_the_key(self):
+        # The message of the request's error names the URL.
+        def fail(*args, **kwargs):
+            raise requests.ConnectionError("failed for url: " + FAKE_URL)
+
+        pipeline = RecordingPipeline()
+        service = DataFileUpdateService(pipeline)
+        with mock.patch.object(requests, "get", fail):
+            service.async_update_data_file(FakeKeyDataFile()).join()
+        self.assertNoCharacterOfTheKey(pipeline.logs)
 
 
 if __name__ == "__main__":

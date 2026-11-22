@@ -59,7 +59,7 @@ DATA = "data"
 
 RESOURCE_KEY = "resource_key"
 LICENSE_KEY = "ABCDEFGHIJKL"
-MASKED_LICENSE_KEY = "********IJKL"
+MASKED_LICENSE_KEY = "************"
 
 # What the stand-in answers when it refuses a discovery request, in the
 # form the cloud service uses.
