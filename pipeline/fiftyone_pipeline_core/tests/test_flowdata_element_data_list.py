@@ -155,6 +155,40 @@ class ElementDataListTests(unittest.TestCase):
         self.assertEqual(["first", "second", "third"], list(view))
         self.assertIs(first, flowdata.get("first"))
 
+    def test_an_in_place_union_adds_through_a_view(self):
+        element = AddsItsData("one")
+        flowdata = pipeline(element).create_flowdata()
+        view = flowdata.data
+        added = ElementDataDictionary(element, {"name": "added"})
+
+        view |= {"added": added}
+
+        self.assertIs(added, view["added"])
+        self.assertIs(added, flowdata.get("added"))
+
+    def test_each_read_gives_its_own_view_while_element_data_is_added(self):
+        flowdata = pipeline(AddsItsData("one")).create_flowdata()
+
+        self.assertIsNot(flowdata.data, flowdata.data)
+
+    def test_a_finished_flow_data_gives_the_same_view_each_time(self):
+        flowdata = pipeline(AddsItsData("one")).create_flowdata()
+        flowdata.process()
+
+        self.assertIs(flowdata.data, flowdata.data)
+
+    def test_a_removal_from_a_finished_flow_data_says_it_is_read_only(self):
+        flowdata = pipeline(AddsItsData("one")).create_flowdata()
+        with self.assertRaises(TypeError) as before:
+            del flowdata.data["one"]
+        flowdata.process()
+        with self.assertRaises(TypeError) as after:
+            del flowdata.data["one"]
+
+        self.assertNotIn("finished processing", str(before.exception))
+        self.assertIn("is not removed", str(after.exception))
+        self.assertIn("finished processing", str(after.exception))
+
     def test_a_copy_is_a_dict_of_the_element_data(self):
         flowdata = pipeline(
             AddsItsData("one"), AddsItsData("two")).create_flowdata()

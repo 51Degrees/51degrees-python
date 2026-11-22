@@ -35,33 +35,31 @@ import unittest
 # release of the holding package after the last one without the name, and is
 # not checked.
 IMPORTED_NAMES = (
-    ("pipeline/fiftyone_pipeline_cloudrequestengine",
-     "fiftyone_pipeline_engines",
+    ("pipeline/fiftyone_pipeline_engines",
+     "fiftyone_pipeline_core",
      "4.5.44",
-     "fiftyone_pipeline_engines.missingproperty_service",
-     "MissingPropertyReason"),
+     "fiftyone_pipeline_core.elementdata",
+     "_contents_property"),
     ("device-detection/fiftyone_devicedetection_cloud",
-     "fiftyone_pipeline_cloudrequestengine",
-     "4.5.45",
-     "fiftyone_pipeline_cloudrequestengine.clouddata",
-     "CloudMissingPropertyService"),
+     "fiftyone_pipeline_core",
+     "4.5.44",
+     "fiftyone_pipeline_core.elementdata",
+     "_CheckedDictWrites"),
     ("device-detection/fiftyone_devicedetection_onpremise",
-     "fiftyone_pipeline_engines",
+     "fiftyone_pipeline_core",
      "4.5.44",
-     "fiftyone_pipeline_engines.missingproperty_service",
-     "OnPremiseMissingPropertyService"),
+     "fiftyone_pipeline_core.elementdata_pool",
+     "ElementDataPool"),
     ("ip-intelligence/fiftyone_ipintelligence_onpremise",
-     "fiftyone_pipeline_engines",
+     "fiftyone_pipeline_core",
      "4.5.44",
-     "fiftyone_pipeline_engines.missingproperty_service",
-     "OnPremiseMissingPropertyService"),
+     "fiftyone_pipeline_core.elementdata_pool",
+     "ElementDataPool"),
 )
 
 # Where each package that holds one of the names above keeps its source.
 PACKAGE_FOLDERS = {
-    "fiftyone_pipeline_engines": "pipeline/fiftyone_pipeline_engines",
-    "fiftyone_pipeline_cloudrequestengine":
-        "pipeline/fiftyone_pipeline_cloudrequestengine",
+    "fiftyone_pipeline_core": "pipeline/fiftyone_pipeline_core",
 }
 
 # A requirement that gives a minimum version, as setup.py writes one.
