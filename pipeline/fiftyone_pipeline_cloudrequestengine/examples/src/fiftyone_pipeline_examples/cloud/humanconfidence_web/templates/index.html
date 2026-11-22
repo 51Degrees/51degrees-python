@@ -37,9 +37,9 @@
 <div class="c-eg-page">
   <h2 class="c-eg-page__title">Human Confidence demo</h2>
   <p class="c-eg-page__lead">This page shows how likely it is that a
-  person is looking at it. The server asks the cloud from the request
-  alone first. Then your browser runs the 51Degrees browser tests, and the
-  server redeems the sealed result. The License Key stays on the server.</p>
+  person is looking at it. The server asks the cloud first. Then your
+  browser runs the 51Degrees browser tests, and the server redeems the
+  sealed result. The License Key stays on the server.</p>
 
   <table class="c-eg-table">
     <thead class="c-eg-table__head">
@@ -120,7 +120,7 @@
     return ((Date.now() - started) / 1000).toFixed(1) + " s";
   }
 
-  // Step 1. The server asks the cloud from the request alone.
+  // Step 1. The server asks the cloud for the passive level.
   fetch("passive").then(function (r) { return r.json(); })
     .then(function (answer) {
       if (answer.error) {
@@ -177,10 +177,8 @@
         show("active-value", value || "not returned", levelClass(value));
         show("redeem-detail", "nothing to redeem", NONE);
         show("redeem-level", "", NONE);
-        document.getElementById("note").textContent = "The browser tests "
-          + "didn't run, so the result stays passive. The cloud may not "
-          + "have this page's tests yet, or the Resource Key may not "
-          + "include HumanConfidenceSource.";
+        document.getElementById("note").textContent = "The source isn't "
+          + "Active, so there's no sealed value to redeem.";
         return;
       }
       show("active-source", "Active after " + seconds(), PASS);

@@ -33,7 +33,7 @@
 #
 # 1. Passive. This server asks the cloud itself, sending the visitor's
 #    request headers and IP address. HumanConfidenceSource is Passive and
-#    HumanConfidence is a plain level, worked out from the request alone.
+#    HumanConfidence is a plain level.
 #    The server asks for it rather than reading it from the page, because
 #    a level a browser sends can be forged.
 # 2. Active. The page loads the 51Degrees client script, which runs the
