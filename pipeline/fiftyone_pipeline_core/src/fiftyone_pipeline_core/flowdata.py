@@ -66,6 +66,10 @@ class ElementDataView(MutableMapping):
     as it is after the add. Element Data is not removed, so del, pop,
     popitem and clear raise TypeError. copy gives a dict.
 
+    Once the FlowData has finished processing the view is read only, so
+    setting a key, update, setdefault and |= raise as a write to the
+    FlowData does.
+
     Iteration gives each key once, in the order the keys were first added.
     While a Pipeline processes, each Flow Element adds its own in turn, so
     that is Pipeline order. Element Data added another way, such as before
@@ -95,13 +99,29 @@ class ElementDataView(MutableMapping):
             raise KeyError(key)
         return node.element_data
 
+    def _finished(self):
+        # Read from the FlowData's own fields, because FlowData treats an
+        # attribute it does not have as the key of Element Data.
+        return self._flowdata.__dict__.get("processed")
+
     def __setitem__(self, key, element_data):
+        if self._finished():
+            raise Exception(
+                Messages.FLOW_DATA_FINISHED.format(_GIVEN["data"]))
         self._flowdata._add(key, element_data)
         # This view now shows the list with the add, as a mapping should.
         self._head = self._flowdata._head
 
     def __delitem__(self, key):
-        raise TypeError("Element Data is not removed from a FlowData")
+        message = "Element Data is not removed from a FlowData"
+        if self._finished():
+            message += (". This FlowData has finished processing, so it "
+                        "is read only")
+        raise TypeError(message)
+
+    def __ior__(self, other):
+        self.update(other)
+        return self
 
     def __iter__(self):
         return iter(self._latest())
@@ -190,6 +210,8 @@ class FlowData:
 
         # The newest node of the Element Data list. See data.
         self._head = None
+        # The one view given once processing has finished. See data.
+        self._finished_view = None
         self.errors = {}
         self.pipeline = pipeline
         self.processed = False
@@ -201,9 +223,10 @@ class FlowData:
     def __setattr__(self, name, value):
 
         """!
-        Set an attribute. The ElementData and errors are kept in dicts that
-        refuse writes once processing has finished, and they and the
-        Evidence cannot be replaced then.
+        Set an attribute. The errors are kept in a dict that refuses
+        writes once processing has finished, as the views of the
+        ElementData do, and neither they nor the Evidence can be replaced
+        then.
 
         @raise Exception: when one of them is set once processing has
         finished
@@ -215,7 +238,9 @@ class FlowData:
             if self.__dict__.get("processed"):
                 raise Exception(Messages.FLOW_DATA_FINISHED.format(
                     _GIVEN[name]))
-            if name != "evidence":
+            # The ElementData goes to the data property as it was given,
+            # which builds the list from it.
+            if name == "errors":
                 value = _FlowDataDict(self, _GIVEN[name], value)
         object.__setattr__(self, name, value)
 
@@ -443,9 +468,19 @@ class FlowData:
         The Element Data in this FlowData, keyed by data key in lower case,
         as the list is now. Iteration gives Pipeline order.
 
+        Each read gives a view of its own while Element Data can still be
+        added. Once processing has finished nothing is added, so every
+        read gives the same view.
+
         @rtype: ElementDataView
         """
 
+        if self.__dict__.get("processed"):
+            view = self.__dict__.get("_finished_view")
+            if view is None:
+                view = ElementDataView(self, self._head)
+                self._finished_view = view
+            return view
         return ElementDataView(self, self._head)
 
     @data.setter
