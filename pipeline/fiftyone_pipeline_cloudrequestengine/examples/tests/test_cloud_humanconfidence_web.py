@@ -26,6 +26,10 @@ Flask's test client. The resource key has to carry HumanConfidence, which
 the example asks the cloud service about before anything else, and these
 tests skip themselves when no key is set or the key does not carry it.
 
+HumanConfidenceSource is a property of its own, which a key can carry or
+not. The example gives no source for a key without it, so the passive test
+expects Passive only when the key carries it.
+
 Only the passive step is run here. The active step needs the browser tests,
 which only a browser runs.
 """
@@ -36,6 +40,7 @@ from fiftyone_pipeline_examples.cloud.humanconfidence_web import (
     app as example)
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
+from helpers import key_carries
 from live_cloud import RESOURCE_KEY_NAMES, find_resource_key
 
 DESKTOP_CHROME = (
@@ -44,7 +49,9 @@ DESKTOP_CHROME = (
 
 HEADERS = {"User-Agent": DESKTOP_CHROME}
 
-LEVELS = ("High", "Medium", "Low")
+# Every value the property has. Unknown is the one the cloud gives when it
+# has too little to rate the request.
+LEVELS = ("High", "Medium", "Low", "Unknown")
 
 
 @pytest.fixture(scope="module")
@@ -80,11 +87,14 @@ def test_page_is_served_and_never_kept(client, key):
     assert key in response.get_data(as_text=True)
 
 
-def test_passive_level_comes_from_the_cloud(client):
+def test_passive_level_comes_from_the_cloud(client, key, api):
     answer = client.get("/passive", headers=HEADERS).get_json()
     assert "error" not in answer, answer
-    assert answer["source"] == "Passive"
     assert answer["humanConfidence"] in LEVELS
+    if key_carries(api, key, "HumanConfidenceSource"):
+        assert answer["source"] == "Passive"
+    else:
+        assert answer["source"] is None
 
 
 def test_licence_key_never_reaches_the_browser(client):

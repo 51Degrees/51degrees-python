@@ -37,6 +37,8 @@ from fiftyone_pipeline_examples.cloud.humanconfidence_web import (
     app as example)
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
+from helpers import key_carries
+
 API = "https://cloud.example/api/v4/"
 RESOURCE_KEY = "a-resource-key"
 LICENCE_KEY = "a-licence-key"
@@ -257,6 +259,33 @@ def test_passive_without_the_properties_returns_neither(cloud):
 
     assert client_for().get("/passive").get_json() == {
         "source": None, "humanConfidence": None}
+
+
+# What the live tests ask of the key before they assert on a value.
+
+def test_key_carries_a_property_the_cloud_lists_for_it(cloud):
+    cloud(properties=("HumanConfidence",))
+
+    assert key_carries(API, RESOURCE_KEY, "HumanConfidence")
+    assert key_carries(API, RESOURCE_KEY, "humanconfidence")
+
+
+def test_key_does_not_carry_a_property_the_cloud_leaves_out(cloud):
+    stub = cloud(properties=("HumanConfidence",))
+
+    assert not key_carries(API, RESOURCE_KEY, "HumanConfidenceSource")
+    method, url, _ = stub.requests[0]
+    assert method == "GET"
+    assert url == API + "accessibleproperties?resource=" + RESOURCE_KEY
+
+
+def test_key_carries_stops_when_the_cloud_refuses_the_key(cloud):
+    stub = cloud()
+    stub.instead["accessibleproperties?resource=" + RESOURCE_KEY] = \
+        StubResponse('{"errors":["The resource key is not valid."]}', 400)
+
+    with pytest.raises(ValueError, match="The resource key is not valid."):
+        key_carries(API, RESOURCE_KEY, "HumanConfidence")
 
 
 def test_passive_says_what_the_cloud_refused(cloud):
