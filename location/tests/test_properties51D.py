@@ -25,16 +25,15 @@ import unittest
 
 from fiftyone_location.location_pipelinebuilder import LocationPipelineBuilder
 from .test_helper import *
-from .live_cloud import read_environment
+from .live_cloud import find_resource_key, no_resource_key
 
 location_LAT = '51.4578261';
 location_LON = '-0.975922996290084';
 
-resource_key = read_environment("_51DEGREES_RESOURCE_KEY")
+resource_key = find_resource_key()
 if not resource_key:
-    raise unittest.SkipTest(
-        "_51DEGREES_RESOURCE_KEY is not set. Set it to a 51Degrees cloud "
-        "resource key to run the cloud tests.")
+    raise unittest.SkipTest(no_resource_key(
+        "the location product", "the location properties", several=True))
 
 # Create a simple pipeline to access the engine with and process it with flow data
 pipeline = LocationPipelineBuilder(resource_key = resource_key, location_provider =  "fiftyonedegrees").build()

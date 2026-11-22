@@ -16,13 +16,6 @@ if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
     $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 
-# The tests and examples read the resource key from _51DEGREES_RESOURCE_KEY,
-# which common-ci fills from _51DEGREES_RESOURCE_KEY_BESPOKE. It is filled
-# here too when it is empty, and never replaced.
-if (!$env:_51DEGREES_RESOURCE_KEY) {
-    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
-}
-
 try {
     ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages . -Keys $Keys
 } finally {

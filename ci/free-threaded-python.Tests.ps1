@@ -151,7 +151,7 @@ Describe 'free-threaded-python.yml' {
             $commonCi.Count | Should -Be 1
             $path = Get-Value $commonCi[0] 'path'
             ($script:Jobs[$testing] -join "`n") |
-                Should -Match "COMMON_CI:.*$([regex]::Escape($path))"
+                Should -Match "(?m)^\s+_51DEGREES_COMMON_CI_DIR:.*$([regex]::Escape($path))"
         }
     }
 
@@ -166,9 +166,11 @@ Describe 'free-threaded-python.yml' {
     It 'caches each of the free data files the tests use' {
         $paths = Get-Paths (@(Get-Step $script:Fetching[0] 'actions/cache')[0])
         foreach ($file in '51Degrees-LiteV4.1.hash', '51Degrees-LiteV41.ipi',
-            '51Degrees-IPIV4AsnIpiV41.ipi', '20000 Evidence Records.yml',
-            '20000 User Agents.csv') {
+            '51Degrees-IPIV4AsnIpiV41.ipi', '20000 Evidence Records.yml') {
             $paths | Should -Contain "cxx/data/**/$file"
         }
+        # The evidence is the YAML file, and no other evidence file is cached.
+        @($paths | Where-Object { $_ -notmatch '\.(hash|ipi|yml)$' }) |
+            Should -BeNullOrEmpty
     }
 }

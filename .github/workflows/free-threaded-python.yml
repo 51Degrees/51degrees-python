@@ -57,10 +57,10 @@ jobs:
         run: |
           # The data submodule's .link files say which files are fetched and
           # from where, so a new commit of it needs the files again. Change
-          # v1 when the list of files below changes.
+          # v2 when the list of files below changes.
           $data = git -C cxx rev-parse HEAD:data
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          "key=free-lite-data-v1-$data" >> $env:GITHUB_OUTPUT
+          "key=free-lite-data-v2-$data" >> $env:GITHUB_OUTPUT
 
       - name: Look for the files in the cache
         id: cache
@@ -69,7 +69,6 @@ jobs:
           path: |
             cxx/data/**/51Degrees-LiteV4.1.hash
             cxx/data/**/20000 Evidence Records.yml
-            cxx/data/**/20000 User Agents.csv
             cxx/data/**/51Degrees-LiteV41.ipi
             cxx/data/**/51Degrees-IPIV4AsnIpiV41.ipi
           key: ${{ steps.key.outputs.key }}
@@ -81,7 +80,7 @@ jobs:
       # when the job ends.
       - name: Fetch the free Lite data files
         if: steps.cache.outputs.cache-hit != 'true'
-        run: ./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash '20000 Evidence Records.yml' '20000 User Agents.csv' 51Degrees-LiteV41.ipi 51Degrees-IPIV4AsnIpiV41.ipi
+        run: ./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash '20000 Evidence Records.yml' 51Degrees-LiteV41.ipi 51Degrees-IPIV4AsnIpiV41.ipi
 
   free-threaded:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
@@ -132,7 +131,7 @@ jobs:
 
       - name: Install the packages the tests use
         env:
-          COMMON_CI: ${{ github.workspace }}/.common-ci
+          _51DEGREES_COMMON_CI_DIR: ${{ github.workspace }}/.common-ci
         run: |
           # A pip install that fails stops the step here, rather than
           # leaving the tests to fail on a missing module.
@@ -165,7 +164,6 @@ jobs:
           path: |
             cxx/data/**/51Degrees-LiteV4.1.hash
             cxx/data/**/20000 Evidence Records.yml
-            cxx/data/**/20000 User Agents.csv
             cxx/data/**/51Degrees-LiteV41.ipi
             cxx/data/**/51Degrees-IPIV4AsnIpiV41.ipi
           key: ${{ needs.free-data-files.outputs.key }}

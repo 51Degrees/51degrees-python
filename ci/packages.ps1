@@ -6,9 +6,9 @@
 # common-ci's steps/release-plan.ps1 from ci/packages.json. common-ci runs
 # these scripts from its own root, with this repository checked out inside
 # it. A checkout of common-ci beside this repository is found too, or one
-# elsewhere can be named with COMMON_CI.
+# elsewhere can be named with _51DEGREES_COMMON_CI_DIR.
 $releasePlan = @(
-    $env:COMMON_CI,
+    $env:_51DEGREES_COMMON_CI_DIR,
     (Join-Path $PSScriptRoot '..' '..'),
     (Join-Path $PSScriptRoot '..' '..' 'common-ci')) |
     Where-Object { $_ } |
@@ -16,8 +16,8 @@ $releasePlan = @(
     Where-Object { Test-Path $_ } |
     Select-Object -First 1
 if ($null -eq $releasePlan) {
-    throw "common-ci's steps/release-plan.ps1 was not found. Set COMMON_CI " +
-        "to a checkout of common-ci."
+    throw "common-ci's steps/release-plan.ps1 was not found. Set " +
+        "_51DEGREES_COMMON_CI_DIR to a checkout of common-ci."
 }
 . $releasePlan
 Remove-Variable releasePlan

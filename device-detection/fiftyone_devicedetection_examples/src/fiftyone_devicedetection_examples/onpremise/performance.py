@@ -21,10 +21,10 @@
 # *********************************************************************
 ## @example onpremise/performance.py
 # 
-# Provides an example of processing a CSV file containing evidence for device detection. 
-# There are 20,000 examples in the supplied file of evidence representing HTTP Headers.
-# For example:
-# 
+# Provides an example of processing a YAML file containing evidence for device detection.
+# There are 20,000 examples in the supplied file of evidence representing HTTP Headers,
+# and the User-Agent of each is used.
+#
 # We create a device detection pipeline to read the data and output the time taken and information about about the detection.
 # 
 # Requesting properties from a single component
@@ -43,15 +43,14 @@
 # - [fiftyone_devicedetection](https://pypi.org/project/fiftyone-devicedetection/)
 
 import argparse
-import csv
 import json
 import time
 import multiprocessing as mp
 
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
-# This example goes through a CSV of 20000 user agents and processes them, returning the time and information about the matches
+# This example goes through the user agents of 20000 evidence records and processes them, returning the time and information about the matches
 from fiftyone_devicedetection_onpremise.devicedetection_onpremise_pipelinebuilder import DeviceDetectionOnPremisePipelineBuilder
-from fiftyone_devicedetection_shared.example_constants import UA_FILE_NAME
+from fiftyone_devicedetection_shared.example_constants import EVIDENCE_FILE_NAME
 
 # Where to ask for a copy of the Enterprise data file, tagged with this
 # example.
@@ -122,7 +121,7 @@ def process_user_agent_list(data_file, user_agent_list, list_number, output, ski
         for user_agent in user_agent_list:
             if skip:
                 break
-            result = process_user_agent(user_agent[0])
+            result = process_user_agent(user_agent)
             if(result == None):
                 results["unknown"] += 1
             if(result == True):
@@ -167,18 +166,16 @@ def run(data_file, skip = False):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description='Run detection benchmark.')
     ap.add_argument('-d', '--data_file', default='', help='Path to data file')
-    ap.add_argument('-u', '--user_agents_file', default='', help='Path to user agents evidence file')
+    ap.add_argument('-e', '--evidence_file', default='', help='Path to the YAML evidence file')
     ap.add_argument('-j', '--json_output', default='', help='Output results in JSON format')
     args = ap.parse_args()
     if args.data_file == "":
         args.data_file = ExampleUtils.find_file("51Degrees-LiteV4.1.hash")
-    if args.user_agents_file == "":
-        args.user_agents_file = ExampleUtils.find_file(UA_FILE_NAME)
+    if args.evidence_file == "":
+        args.evidence_file = ExampleUtils.find_file(EVIDENCE_FILE_NAME)
 
-    # First we read the contents of the 20000 user agents file as a list
-    with open(args.user_agents_file, newline='') as file:
-        reader = csv.reader(file)
-        user_agents = list(reader)
+    # First we read the user agent of each of the 20000 evidence records as a list
+    user_agents = ExampleUtils.read_user_agents(args.evidence_file)
 
     number_of_user_agents = len(user_agents)
 

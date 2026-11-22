@@ -89,7 +89,8 @@ and the web example with
 .venv/bin/python -m fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web
 ```
 
-then open <http://localhost:5151>. Set `PORT` to listen on another port.
+then open <http://localhost:5151>. Set `_51DEGREES_EXAMPLE_HTTP_PORTS` to
+listen on another port.
 
 ### Tests
 
@@ -97,9 +98,9 @@ then open <http://localhost:5151>. Set `PORT` to listen on another port.
 .venv/bin/python -m pytest
 ```
 
-The tests that call the cloud service with a resource key fail when none is
-set, naming the variables they read, which are `_51DEGREES_RESOURCE_KEY`
-and `_51DEGREES_RESOURCE_KEY_BESPOKE`, in that order. They are marked
+The tests that call the cloud service with a resource key skip when none is
+set, naming the variable they read, which is
+`_51DEGREES_RESOURCE_KEY_BESPOKE`. They are marked
 `live`, so `python -m pytest -m "not live"` runs every other test. The
 tests that use a licence key skip themselves when none is set.
 

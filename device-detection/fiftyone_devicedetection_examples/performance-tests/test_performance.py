@@ -61,7 +61,24 @@ def detect(app, pipeline, user_agents):
 
             return getValueHelper(flowdata, "device", "ismobile")
 
-def benchmark(data_file, user_agents_file, output=False):
+# The key an evidence record gives its User-Agent under.
+USER_AGENT_KEY = "header.user-agent:"
+
+def read_user_agents(evidence_file):
+    # The User-Agent of each record of the YAML evidence file that has one.
+    # A record gives it on a line of its own.
+    user_agents = []
+    with open(evidence_file, encoding="utf-8") as f:
+        for line in f:
+            if line[:len(USER_AGENT_KEY)].lower() == USER_AGENT_KEY:
+                value = line[len(USER_AGENT_KEY):].strip()
+                if len(value) > 1 and value[0] == value[-1] and value[0] in "'\"":
+                    value = value[1:-1]
+                if value:
+                    user_agents.append(value)
+    return user_agents
+
+def benchmark(data_file, evidence_file, output=False):
     app = Flask(__name__)
 
     # Create Device Detection pipeline using datafile
@@ -78,8 +95,7 @@ def benchmark(data_file, user_agents_file, output=False):
     # The pipeline is closed once the detections have been timed, which
     # releases the native data it holds.
     with pipeline:
-        with open(user_agents_file) as f:
-            user_agents_list = [ua.rstrip() for ua in f]
+        user_agents_list = read_user_agents(evidence_file)
         user_agents = iter(user_agents_list)
 
         print(f"Benchmarking with {len(user_agents_list)} user agents", file=sys.stderr)
@@ -97,8 +113,8 @@ def benchmark(data_file, user_agents_file, output=False):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description='Run detection benchmark.')
     ap.add_argument('data_file', help='Path to data file')
-    ap.add_argument('user_agents_file', help='Path to user agents evidence file')
+    ap.add_argument('evidence_file', help='Path to the YAML evidence file')
     ap.add_argument('-o', '--output', action='store_true', help='Output results in JSON format')
     args = ap.parse_args()
 
-    benchmark(args.data_file, args.user_agents_file, args.output)
+    benchmark(args.data_file, args.evidence_file, args.output)

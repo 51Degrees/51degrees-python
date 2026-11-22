@@ -22,8 +22,9 @@
 
 """
 The mixed web example listens on port 5151 by default, and on the port the
-PORT environment variable names when it is set. The check reads the
-example's source, so it starts no server and needs no network.
+_51DEGREES_EXAMPLE_HTTP_PORTS environment variable names when it is set. The
+check reads the example's source, so it starts no server and needs no
+network.
 """
 
 import ast
@@ -54,11 +55,13 @@ class CloudMixedWebPortTests(unittest.TestCase):
 
     def test_listens_on_5151_unless_port_names_another(self):
         port = run_port()
-        # int(os.environ.get("PORT", 5151))
+        # int() of the variable read from os.environ, or of 5151.
         self.assertIsInstance(port, ast.Call)
         get = port.args[0]
         self.assertEqual("get", get.func.attr)
-        self.assertEqual(["PORT", 5151], [arg.value for arg in get.args])
+        self.assertEqual(
+            ["_51DEGREES_EXAMPLE_HTTP_PORTS", 5151],
+            [arg.value for arg in get.args])
 
 
 if __name__ == "__main__":

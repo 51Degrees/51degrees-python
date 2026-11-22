@@ -59,16 +59,20 @@ def test_setting_is_read(getter, name, no_settings):
 def test_no_setting_gives_an_empty_string(getter, name, no_settings):
     assert getattr(ExampleUtils, getter)() == ""
 
-def test_constants_hold_the_old_and_the_new_names():
+def test_constants_hold_the_names():
     assert ExampleUtils.RESOURCE_KEY_ENV_VAR == "_51DEGREES_RESOURCE_KEY"
-    assert ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR == "resource_key"
     assert ExampleUtils.LICENSE_KEY_ENV_VAR == "_51DEGREES_LICENSE_KEY"
-    assert ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR == "license_key"
     assert ExampleUtils.CLOUD_ENDPOINT_ENV_VAR == "_51DEGREES_CLOUD_ENDPOINT"
-    assert ExampleUtils.ENDPOINT_ENV_VAR == "cloud_endpoint"
     assert (ExampleUtils.CLOUD_REQUEST_ORIGIN_ENV_VAR
             == "_51DEGREES_CLOUD_REQUEST_ORIGIN")
-    assert ExampleUtils.ORIGIN_ENV_VAR == "cloud_request_origin"
+
+
+def test_no_other_constant_names_a_variable():
+    named = sorted(
+        name for name in vars(ExampleUtils) if name.endswith("_ENV_VAR"))
+    assert named == [
+        "CLOUD_ENDPOINT_ENV_VAR", "CLOUD_REQUEST_ORIGIN_ENV_VAR",
+        "LICENSE_KEY_ENV_VAR", "RESOURCE_KEY_ENV_VAR"]
 
 
 class Results:
