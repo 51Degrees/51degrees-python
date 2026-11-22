@@ -1,0 +1,21 @@
+name: Temporary build on tmp/nightly-main-python-256-257
+on:
+  push:
+    branches:
+      - 'tmp/nightly-main-python-256-257'
+jobs:
+  Build:
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@fe908dbd21ff7eca3298f12bb5fd993f50649fc6
+    with:
+      repo-name: 51degrees-python
+      org-name: 51Degrees
+      branch: tmp/nightly-main-python-256-257
+      prs: ''
+      build-without-pull-requests: true
+      full-matrix: true
+      dryrun: true
+      cache-assets: true
+      fail-fast: false
+      skip-compare-performance: true
+      common-ci-ref: fe908dbd21ff7eca3298f12bb5fd993f50649fc6
+    secrets: inherit
