@@ -264,12 +264,10 @@ setup(
     install_requires=[
         "fiftyone_devicedetection_shared",
         "fiftyone_pipeline_engines_fiftyone",
-        # The first versions with close(), which releases the native memory
-        # this package holds.
-        "fiftyone_pipeline_core>=4.5.42",
-        # The first version with OnPremiseMissingPropertyService, which the
-        # results of this package give a caller that reads a Property the
-        # data file in use does not hold.
+        # The first version with ElementDataPool, which the engine of this
+        # package keeps its Element Data in for reuse.
+        "fiftyone_pipeline_core>=4.5.44",
+        # The release this package is built and tested with.
         "fiftyone_pipeline_engines>=4.5.44",
     ],
 )
