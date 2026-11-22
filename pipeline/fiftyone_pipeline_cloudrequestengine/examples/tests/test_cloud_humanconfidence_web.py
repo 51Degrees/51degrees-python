@@ -26,22 +26,23 @@ Flask's test client. The resource key has to carry HumanConfidence, which
 the example asks the cloud service about before anything else, and these
 tests skip themselves when no key is set or the key does not carry it.
 
-HumanConfidenceSource is a property of its own, which a key can carry or
-not. The example gives no source for a key without it, so the passive test
-expects Passive only when the key carries it.
+The passive tests check that HumanConfidenceSource comes back. A key in
+the Bespoke product gets Passive, as no browser tests have run, and a key
+outside it gets no source.
 
 Only the passive step is run here. The active step needs the browser tests,
 which only a browser runs.
 """
 
 import pytest
+import requests
 
 from fiftyone_pipeline_examples.cloud.humanconfidence_web import (
     app as example)
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
-from helpers import key_carries
-from live_cloud import RESOURCE_KEY_NAMES, find_resource_key
+from live_cloud import (
+    RESOURCE_KEY_NAMES, find_resource_key, read_environment)
 
 DESKTOP_CHROME = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -52,6 +53,13 @@ HEADERS = {"User-Agent": DESKTOP_CHROME}
 # Every value the property has. Unknown is the one the cloud gives when it
 # has too little to rate the request.
 LEVELS = ("High", "Medium", "Low", "Unknown")
+
+# The variable holding a resource key outside the Bespoke product.
+OUTSIDE_BESPOKE_KEY_NAME = "_51DEGREES_RESOURCE_KEY_BASIC"
+
+# The properties the passive tests name in their request, so the answer
+# carries both whatever the key's own list of properties holds.
+PROPERTIES = "derived.humanconfidence,derived.humanconfidencesource"
 
 
 @pytest.fixture(scope="module")
@@ -68,6 +76,21 @@ def key():
 @pytest.fixture(scope="module")
 def api():
     return example.api_base(ExampleUtils.get_cloud_endpoint())
+
+
+@pytest.fixture
+def naming_the_properties(monkeypatch):
+    """Adds the properties to each request the example makes for the
+    passive level, and leaves its evidence as it is."""
+
+    real = requests.request
+
+    def request(method, url, data=None, **kwargs):
+        if method == "POST" and url.endswith(".json"):
+            data = dict(data or {}, values=PROPERTIES)
+        return real(method, url, data=data, **kwargs)
+
+    monkeypatch.setattr(requests, "request", request)
 
 
 @pytest.fixture(scope="module")
@@ -87,14 +110,25 @@ def test_page_is_served_and_never_kept(client, key):
     assert key in response.get_data(as_text=True)
 
 
-def test_passive_level_comes_from_the_cloud(client, key, api):
+def test_passive_source_and_level_come_from_the_cloud(
+        client, naming_the_properties):
     answer = client.get("/passive", headers=HEADERS).get_json()
     assert "error" not in answer, answer
+    assert answer["source"] == "Passive", answer
     assert answer["humanConfidence"] in LEVELS
-    if key_carries(api, key, "HumanConfidenceSource"):
-        assert answer["source"] == "Passive"
-    else:
-        assert answer["source"] is None
+
+
+def test_a_key_outside_bespoke_gets_no_source(api, naming_the_properties):
+    outside = read_environment(OUTSIDE_BESPOKE_KEY_NAME)
+    if not outside:
+        pytest.skip(
+            f"{OUTSIDE_BESPOKE_KEY_NAME} is not set. Set it to a resource "
+            "key outside the Bespoke product to check that such a key gets "
+            "no HumanConfidenceSource.")
+    client = example.create_app(outside, None, api).test_client()
+    answer = client.get("/passive", headers=HEADERS).get_json()
+    assert "error" not in answer, "The cloud refused the request."
+    assert answer["source"] is None, answer
 
 
 def test_licence_key_never_reaches_the_browser(client):
