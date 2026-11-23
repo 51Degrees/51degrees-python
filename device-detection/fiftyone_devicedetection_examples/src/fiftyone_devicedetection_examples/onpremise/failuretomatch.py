@@ -1,0 +1,109 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+from fiftyone_devicedetection_onpremise.devicedetection_onpremise_pipelinebuilder import DeviceDetectionOnPremisePipelineBuilder
+from fiftyone_devicedetection_examples.example_utils import ExampleUtils
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-failuretomatch.py&utm_term=enterprise-data-file"
+
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-failuretomatch.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-failuretomatch.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
+# First create the device detection pipeline with the desired settings.
+
+data_file = ExampleUtils.find_file("51Degrees-LiteV4.1.hash")
+
+pipeline = DeviceDetectionOnPremisePipelineBuilder(
+    data_file_path = data_file, 
+    licence_keys = "", 
+    performance_profile = 'MaxPerformance', 
+    auto_update=False).build()
+
+# The pipeline is closed at the end of the with block, which releases the
+# native data it holds.
+with pipeline:
+    # We create a FlowData object from the pipeline
+    # this is used to add evidence to and then process. It is closed at the
+    # end of its with block, which releases the results of the detection.
+    with pipeline.create_flowdata() as flowdata1:
+
+        # Here we add a User-Agent of an iphone as evidence
+
+        iphone_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114"
+
+        flowdata1.evidence.add("header.user-agent", iphone_ua)
+
+        # Now we process the FlowData
+
+        flowdata1.process()
+
+        # To check whether the User-Agent is a mobile device we look at the ismobile property
+        # inside the Device Detection Engine
+
+        # first we check if this has a meaningful result
+
+        print("Is User-Agent " + iphone_ua + " a mobile device?: ") 
+        if flowdata1.device.ismobile.has_value():
+            print(flowdata1.device.ismobile.value())
+        else:
+            # Output why the value isn't meaningful
+            print(flowdata1.device.ismobile.no_value_message())
+
+        # The hardware vendor is only in the Enterprise data file, so the
+        # free Lite data file says so and where to ask for a copy.
+        vendor = ExampleUtils.get_enterprise_value(
+            pipeline.get_element("device"), flowdata1.device,
+            "hardwarevendor")
+        print("Who made the device? ")
+        print(vendor)
+        if vendor == ExampleUtils.NEEDS_ENTERPRISE:
+            print(ExampleUtils.get_enterprise_note(CONTACT_US))
+
+    # Now we do the same with a new User-Agent, this time a corrupted one
+
+    badUA = "--"
+
+    with pipeline.create_flowdata() as flowdata2:
+
+        flowdata2.evidence.add("header.user-agent", badUA)
+
+        flowdata2.process()
+
+        print("Is User-Agent " + badUA + " a mobile device?: ") 
+        if flowdata2.device.ismobile.has_value():
+            print(flowdata2.device.ismobile.value())
+        else:
+            # Output why the value isn't meaningful
+            print(flowdata2.device.ismobile.no_value_message())
+
+ExampleUtils.print_find_out_more(FIND_OUT_MORE)

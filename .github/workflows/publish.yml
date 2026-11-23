@@ -1,0 +1,30 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        type: boolean
+        default: false
+      common-ci-ref:
+        type: string
+        default: ''
+      # common-ci refuses a release less than a week after the last unless
+      # this is set, which is only for a release agreed to go out early.
+      allow-early-release:
+        description: 'Publish even though a package was released less than a week ago'
+        type: boolean
+        default: false
+
+jobs:
+  Publish:
+    name: Publish
+    uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      common-ci-ref: ${{ inputs.common-ci-ref || '' }}
+      allow-early-release: ${{ inputs.allow-early-release || false }}
+      cache-assets: true
+    secrets: inherit

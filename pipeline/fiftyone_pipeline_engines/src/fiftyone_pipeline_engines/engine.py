@@ -1,0 +1,241 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+from fiftyone_pipeline_core.flowelement import FlowElement
+from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
+
+import json
+
+class Engine(FlowElement):
+
+    """!
+    
+    An engine is an extension of the FlowElement class that adds
+    extra functionality
+
+    """
+
+    
+    def __init__(self, data_file = None):
+
+        """!
+        Constructor for an engine
+
+        """
+
+        self.data_file = data_file
+
+        super(Engine, self).__init__()
+    
+    def set_cache(self, cache):
+
+        """!
+        Add a cache to an engine
+        @type cashe: Cache
+        @param cache: Cache with get and set methods
+
+        """
+        
+        self.cache = cache
+
+
+    def set_restricted_properties(self, properties_list):
+
+        """!
+        Add a subset of properties
+        
+        @type properties_list: string[] 
+        @param properties_list: An array of properties to include
+        
+        """
+ 
+        self.restricted_properties = properties_list
+        # Names in lower case, as property names are compared ignoring case.
+        self.restricted_property_keys = {
+            name.lower() for name in properties_list}
+
+
+    def is_cacheable(self, data):
+
+        """!
+        Whether a result may be stored in the cache and served from it. A
+        result that holds a value created for the one request that asked for
+        it must not be, so an engine whose results can hold one overrides
+        this.
+
+        @type data: ElementData
+        @param data: A result the engine has just made, or one found in the
+        cache
+
+        @rtype: bool
+        @return: True if the result may be stored and served
+
+        """
+
+        return True
+
+    def _cache_key(self, flowdata):
+
+        """!
+        The cache key for a flowdata, made from the evidence this engine
+        accepts. Each key is put in lower case and the keys are sorted, so
+        neither the order the evidence was added in nor the letter case of
+        its keys changes the cache key. Values are kept as they are, because
+        values that differ in case are different evidence.
+
+        @type flowdata: FlowData
+        @param flowdata: The flowdata whose evidence makes the key
+
+        @rtype: string
+        @return: The cache key
+
+        """
+
+        evidence = {
+            str(key).lower(): value
+            for key, value in self.filter_evidence(flowdata).items()}
+
+        return json.dumps({key: evidence[key] for key in sorted(evidence)})
+
+    def in_cache(self, flowdata):
+
+        """!
+        A method to check if a flowdata's evidence is in the cache. An entry
+        the engine may not serve, because it holds a value created for the
+        one request that asked for it, counts as a miss and is left where it
+        is, so the engine processes the flowdata as if nothing was there.
+
+        @type FlowData: FlowData
+        @param FlowData:
+
+        @rtype: bool
+        @return: True or false: a flowdata's evidence is in the cache
+
+        """
+
+        cacheKey = self._cache_key(flowdata)
+
+        cached = self.cache.get_cache_value(cacheKey)
+
+        if cached is not None and self.is_cacheable(cached):
+            flowdata.set_element_data(cached)
+
+            return True
+        else:
+            return False
+  
+  
+    """!
+    
+    Function called to refresh the engine with a new datafile
+    @type identifier: string
+    @param identifier: identifier of the datafile
+    
+    """
+    def refresh(self, identifier):
+        pass
+
+    def process(self, flowdata):
+
+        """!
+        
+        Engine's core process function.
+        Calls specific overriden processInternal methods but wraps it in a cache check
+        and a cache put
+        
+        @type flowdata: FlowData
+        @param flowdata:
+        
+        """
+
+        if hasattr(self, "cache"):
+
+            if self.in_cache(flowdata):
+                return True
+            else:
+                self.process_internal(flowdata)
+                data = flowdata.get(self.datakey)
+                if self.is_cacheable(data):
+                    cacheKey = self._cache_key(flowdata)
+                    self.cache.set_cache_value(cacheKey, data)
+
+        else:
+
+            self.process_internal(flowdata)
+
+    def on_registration(self, pipeline):
+
+        """!
+        
+        Called when an engine is registered with a pipeline 
+        and if there is a data file, a data file update service is attached to the parent pipeline.
+        The data file is registered with the update service of the first
+        pipeline only, so an engine in several pipelines has its data file
+        checked, downloaded and refreshed once.
+        An error from the update on start-up is passed on with the data file
+        unregistered, so no check is left running for a Pipeline that was
+        never made.
+        @type pipeline: Pipeline
+        @param pipeline: The pipeline the engine has been attached to
+
+        """
+
+        if(self.data_file):
+            if not hasattr(pipeline, "data_file_update_service"):
+                pipeline.data_file_update_service = DataFileUpdateService(pipeline)
+            if not getattr(self.data_file, "registered", False):
+                service = pipeline.data_file_update_service
+                try:
+                    service.register_data_file(self.data_file)
+                except Exception:
+                    # The Pipeline is not made, so close() could not reach
+                    # this service. Cancel the check already scheduled.
+                    service.unregister_data_file(self.data_file)
+                    raise
+
+    def close(self):
+
+        """!
+
+        Stop the checks and updates of the engine's data file, whose timers
+        would otherwise keep the engine alive. Engines that hold native data
+        release it as well.
+
+        """
+
+        if self.data_file:
+            for pipeline in self.pipelines:
+                service = getattr(pipeline, "data_file_update_service", None)
+                if service is not None:
+                    service.unregister_data_file(self.data_file)
+
+    def register_data_file(self, data_file):
+
+        """!
+        
+        Register a data_file of the DataFile class with the engine
+        @type data_file: DataFile
+        @param data_file: DataFile (such as for an on premise engine)
+        
+        """
+        
+        self.data_file = data_file

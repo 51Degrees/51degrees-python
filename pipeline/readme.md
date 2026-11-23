@@ -1,0 +1,114 @@
+# 51Degrees Pipeline API
+
+![51Degrees](https://raw.githubusercontent.com/51Degrees/51degrees-python/main/.github/images/logo-160.png "Data rewards the curious") **Python Pipeline**
+
+[Developer Documentation](https://51degrees.com/documentation/_pipeline_api__concepts__pipeline_basics.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=51degrees-pipeline-api "Developer Documentation")
+
+## Introduction
+This repository contains the components of the Python implementation of the 51Degrees Pipeline API.
+
+The Pipeline is a generic web request intelligence and data processing solution with the ability to add a range of 51Degrees and/or custom plug ins (Engines) 
+
+## Contents
+This repository contains the following modules:
+
+- **fiftyone_pipeline_core** - Defines the essential components of the Pipeline API such as 'flow elements', 'flow data' and 'evidence'
+- **fiftyone_pipeline_engines** - Functionality for a specialized type of flow element called an engine.
+- **fiftyone_pipeline_engines_fiftyone** - A ShareUsage engine that sends usage data to 51Degrees in zipped batches.
+- **fiftyone_pipeline_cloudrequestengine** - An engine used to make requests to the 51Degrees cloud service.
+- **fiftyone_pipeline_translation** - A flow element that translates values from a source element into another language using YAML translation files.
+- **fiftyone_pipeline_did** - A reader and cloud client for the 51Did (51Degrees Identifier) returned by the 51Degrees cloud service.
+- **fiftyone_pipeline_derivedproperty** - A flow element that computes properties such as HumanConfidence and IsGdpr from properties other elements have produced, following the scripts in the derived-properties repository. Not yet published to PyPI.
+
+The examples are described under Examples below. The `owid-python` folder is a git submodule holding the OWID library that `fiftyone_pipeline_did` carries, and `fiftyone_pipeline_derivedproperty/src/fiftyone_pipeline_derivedproperty/derived-properties` is a git submodule of [derived-properties](https://github.com/51Degrees/derived-properties), whose `scripts` folder the package carries and whose `tests` folder its tests run.
+
+## Dependencies
+
+The [tested versions](https://51degrees.com/documentation/_product_summaries__tested_versions.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=dependencies) page shows the Python versions that we currently test against. The software may run fine against other versions, but additional caution should be applied.
+
+## Installation
+
+### From PyPI
+
+Generally, you will want to be installing one of the engines such as [device detection](https://pypi.org/project/fiftyone-devicedetection/) or [location](https://pypi.org/project/fiftyone-location/). However, if you do want to install the core modules directly (for example, to work on your own engine) then just use `pip install` with the relevant module name: 
+
+`pip install fiftyone-pipeline-core`
+`pip install fiftyone-pipeline-engines`
+`pip install fiftyone-pipeline-cloudrequestengine`
+
+### From GitHub
+
+* Clone the repository with its submodules, `git clone --recurse-submodules https://github.com/51Degrees/51degrees-python.git`
+* Create and activate a Python virtual environment
+* Run `pwsh ./setup.ps1` in the root of the folder, which installs the modules from the working copy, apart from `fiftyone_pipeline_did`, together with flask
+
+## Tests
+
+If you've cloned the repository from GitHub, you can run the tests 
+and examples that are available. To run tests:
+
+* Install tox with `pip install tox`
+* Go to each directory (for example `fiftyone_pipeline_core`)
+* Run `tox -e py`
+
+The tests that call the 51Degrees cloud service need a resource key. The cloud request engine's tests and its examples' tests read it from the `_51DEGREES_RESOURCE_KEY_BESPOKE` environment variable, and the 51Did tests from `_51DEGREES_RESOURCE_KEY_51DID`. Without one, those tests skip.
+
+## Examples
+
+There are several examples available that demonstrate how to make use of the Pipeline API in isolation. These are described in the table below.
+If you want examples that demonstrate how to use 51Degrees products such as device detection, then these are available in the corresponding [folder](https://github.com/51Degrees/51degrees-python/tree/main/device-detection) and on our [website](https://51degrees.com/documentation/_device_detection__examples__index.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=examples).
+
+| Example                                                                     | Description                                                                                          |
+|-----------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------|
+| fiftyone_pipeline_core/examples/simple_flow_element.py                      | A flow element that gives the star sign for a date of birth, from a table held in its code.          |
+| fiftyone_pipeline_core/examples/client_side_evidence_custom_flow_element.py | Demonstrates how to create a custom flow element, which can then be included in a pipeline.          |
+| fiftyone_pipeline_engines/examples/simple_onpremise_engine.py               | An on-premise engine that gives the star sign from a table in a data file beside it.                 |
+| fiftyone_pipeline_engines_fiftyone/examples/usagesharing                    | Shows how to share usage with 51Degrees. This helps us to keep our products up to date and accurate. |
+| fiftyone_pipeline_derivedproperty/examples/derived_property.py              | The derived property element, given scripts as text, from a file and from a configuration file.      |
+
+The simple flow element, on-premise engine and derived property examples need no data file to download, no key and no network. Run them from this folder, once the packages are installed as above, with
+
+```sh
+python fiftyone_pipeline_core/examples/simple_flow_element.py
+python fiftyone_pipeline_engines/examples/simple_onpremise_engine.py
+python fiftyone_pipeline_derivedproperty/examples/derived_property.py
+```
+
+The [fiftyone_pipeline_cloudrequestengine/examples](fiftyone_pipeline_cloudrequestengine/examples/readme.md) folder holds examples that use the cloud request engine, and its readme says how to run them. The mixed examples call the 51Degrees cloud service with a resource key or a licence key. The cloud engine example needs no key, because it starts a star sign service of its own.
+
+| Example                                                                                                            | Description                                                                                                                     |
+|--------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------|
+| fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_console.py | Device detection and IP intelligence for several User-Agent and IP address pairs, from one pipeline.                            |
+| fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/mixed/gettingstarted_web        | A Flask web application showing device detection and IP intelligence for its visitor, or for an IP address typed into the page. |
+| fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/simple_cloud_engine.py          | A cloud engine that gets the star sign from a star sign service the example starts on this machine.                             |
+
+To run the custom flow element example, you will need to use flask:
+### Linux
+
+Install packages
+```shell
+pwsh ./setup.ps1
+```
+Set path to the script, from the root of the repository
+```sh
+export FLASK_APP=fiftyone_pipeline_core/examples/client_side_evidence_custom_flow_element.py
+```
+then start your application with
+```sh
+flask run --port 5151
+```
+
+### Windows
+
+Install packages
+```shell
+pwsh ./setup.ps1
+```
+Set path to the script, from the root of the repository
+```pwsh
+$env:FLASK_APP = "fiftyone_pipeline_core/examples/client_side_evidence_custom_flow_element.py"
+```
+then start your application with 
+```pwsh
+flask run --port 5151
+```

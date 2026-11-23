@@ -1,0 +1,271 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from .flowelement import FlowElement
+from .elementdata_dictionary import ElementDataDictionary
+from .elementdata_pool import ElementDataPool
+
+# The property types that hold a shape in well-known text. The JSON holds such
+# a value as an object with one member, value, holding the text.
+WKT_TYPES = ("wkt", "wktstring", "wkb", "wkbr")
+
+class JSONBundlerElement(FlowElement):
+
+    """!
+    The JSONBundler aggregates all properties from FlowElements into a JSON object
+    It is used for retrieving via an endpoint from the client
+    side via the JavaScriptBuilder and also used inside the
+    JavaScriptBuilder itself to pass properties to the client side.
+    Both this and the JavaScriptBuilder element are automatically
+    added to a Pipeline unless specifically ommited in the PipelineBuilder
+
+    """
+
+    def __init__(self):
+
+        super(JSONBundlerElement, self).__init__()
+
+        self.datakey = "jsonbundler"
+
+        self.exclude_from_messages = True
+
+        self.properties = {"json" : { "type": "dict"} }
+
+        self._element_data_pool = ElementDataPool()
+
+        # The delayed execution information of each flow element, keyed by
+        # the element rather than its data key, as two Pipelines sharing
+        # this element can hold different elements under one data key.
+        self.property_cache = {}
+
+    def get_evidence_key_filter(self):
+
+        """!
+        The element reads only the results of other elements, so it accepts
+        no evidence.
+        """
+
+        return BasicListEvidenceKeyFilter([])
+
+    @staticmethod
+    def record_json(record):
+
+        """!
+        A record, being the Properties of one Element Data in a list, as an
+        object. A Property that has been assigned no value is null with its
+        nullreason beside it, and a Property that is null without one has no
+        entry.
+        @type record: dict
+        @param record: Property name to value or aspect property value
+        @rtype: dict
+        @return: The record as it is written to JSON
+        """
+
+        written = {}
+
+        for key, value in record.items():
+            key = str(key).lower()
+
+            if hasattr(value, "has_value"):
+                if value.has_value():
+                    written[key] = value.value()
+                else:
+                    written[key] = None
+                    written[key + "nullreason"] = (
+                        value.no_value_message() or "Unknown")
+            elif value is not None:
+                written[key] = value
+
+        return written
+
+    def process_internal(self, flowdata):
+
+        """!
+        
+        The JSONBundler extracts all properties from a FlowData and serializes them into JSON
+        @type flowdata: FlowData
+        @param flowdata: A FlowData
+    
+        """
+   
+        # The sequence number is the one the Sequence Element has put in the
+        # Evidence as a whole number. Text in the query string does not
+        # count, and without a number no JSON is set.
+        sequence = flowdata.evidence.get("query.sequence")
+        if isinstance(sequence, bool) or not isinstance(sequence, int):
+            raise Exception(
+                "The JSON Builder needs a sequence number. Place a Sequence "
+                "Element before the JSON Builder in the Pipeline.")
+
+        # Get every property on every FlowElement
+        # Storing JavaScript properties in an extra section
+
+        output = {"javascriptProperties": [] }
+
+        for flow_element in flowdata.pipeline.flow_elements:
+
+            if (flow_element.datakey == "jsonbundler" or
+                flow_element.datakey == "javascriptbuilder" or
+                flow_element.datakey == "set-headers" or
+                flow_element.datakey == "cloud"):
+                continue
+            
+            properties = flow_element.get_properties()
+
+            property_cache = self.property_cache.get(flow_element)
+
+            if property_cache is None:
+
+                delay_execution_list = []
+                delayed_evidence_properties = {}
+
+                # Loop over all properties and see if any have delay execution set to true
+
+                for propertykey, propertymeta in properties.items():
+                    
+                    if "delayexecution" in propertymeta and propertymeta["delayexecution"] == True:
+                        delay_execution_list.append(propertykey)
+
+                """
+                Loop over all properties again and see if any have evidenceproperties which
+                have delayedExecution set to true
+                """
+                
+                for propertykey, propertymeta in properties.items():
+
+                    if("evidenceproperties" in propertymeta):
+
+                        delayed_evidence_properties_list = list(filter(lambda x: x in delay_execution_list, propertymeta["evidenceproperties"]))
+
+                        if len(delayed_evidence_properties_list):
+                            
+                            delayed_evidence_properties[propertykey] = list(map(lambda x:
+                                flow_element.datakey.lower() + '.' + x, delayed_evidence_properties_list))
+
+
+                property_cache = {
+                    "delayExecutionList": delay_execution_list,
+                    "evidenceProperties": delayed_evidence_properties
+                }
+
+                # Kept once the element has properties. An element can have
+                # none until its property metadata has been fetched, so an
+                # answer taken from no properties is read again on the next
+                # request.
+                if properties:
+                    self.property_cache[flow_element] = property_cache
+
+            # Create empty area for FlowElement properties to go
+
+            output[flow_element.datakey.lower()] = {}
+
+            for propertykey, propertymeta in properties.items():
+                value = None
+                null_reason = "Unknown"
+                no_value = False
+
+                # Check if property has any delayed execution evidence properties and set in JSON if yes
+
+                if propertykey in property_cache["evidenceProperties"]:
+                    output[flow_element.datakey.lower()][propertykey.lower() + 'evidenceproperties'] = property_cache["evidenceProperties"][propertykey]
+                
+
+                try:
+
+                    value_container = flowdata.get(flow_element.datakey).get(propertykey)
+
+                    # Check if value is of the aspect property value type
+
+                    if isinstance(value_container, object) and hasattr(value_container, "has_value" ):
+                    
+                        # Check if it has a value
+
+                        if value_container.has_value():
+                            value = value_container.value()
+                        else:
+                            value = None
+                            no_value = True
+                            null_reason = (
+                                value_container.no_value_message()
+                                or null_reason)
+                        
+                    # A list of records, such as the profiles of a hardware
+                    # profile lookup, or of aspect property values
+
+                    elif isinstance(value_container, list):
+
+                        items = []
+
+                        for item in value_container:
+                            if isinstance(item, dict):
+                                items.append(self.record_json(item))
+                            elif hasattr(item, "has_value"):
+                                if item.has_value():
+                                    items.append(item.value())
+                            else:
+                                items.append(item)
+
+                        value = items
+
+                    else:
+
+                        # Standard value
+                        value = value_container
+                    
+                except:
+                    # Catching missing property exceptions and other errors
+
+                    continue
+
+                if (isinstance(value, str)
+                        and str(propertymeta.get("type", "")).lower() in WKT_TYPES):
+                    value = {"value": value}
+
+                # A null that was not assigned 'no value', which an element
+                # that is not an engine can give, has no entry of its own. A
+                # JavaScript Property is still listed below.
+                if value is not None or no_value:
+                    output[flow_element.datakey.lower()][propertykey.lower()] = value
+                    if value is None:
+                        output[flow_element.datakey.lower()][propertykey.lower() + "nullreason"] = null_reason
+
+                # A Property with delayed execution is marked only when it
+                # has a value.
+                if (value is not None and
+                        propertykey in property_cache["delayExecutionList"]):
+                    output[flow_element.datakey.lower()][propertykey.lower() + "delayexecution"] = True
+
+                if sequence < 10:
+
+                    if "type" in propertymeta and propertymeta["type"].lower() == "javascript":
+
+                        output["javascriptProperties"].append(flow_element.datakey.lower() + "." + propertykey.lower())
+                 
+        data = self._element_data_pool.take()
+        if data is None:
+            data = ElementDataDictionary(self, {})
+        data.contents["json"] = output
+
+        flowdata.set_element_data(data)
+
+        return

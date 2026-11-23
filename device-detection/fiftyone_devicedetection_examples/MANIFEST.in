@@ -1,0 +1,12 @@
+include version.txt
+include readme.md
+recursive-include src/fiftyone_devicedetection_examples *.json
+recursive-include src/fiftyone_devicedetection_examples/onpremise/gettingstarted_web/static *
+recursive-include src/fiftyone_devicedetection_examples/onpremise/gettingstarted_web/templates *
+recursive-include src/fiftyone_devicedetection_examples/onpremise/gettingstarted_web *.hash
+recursive-include src/fiftyone_devicedetection_examples/cloud/gettingstarted_web/static *
+recursive-include src/fiftyone_devicedetection_examples/cloud/gettingstarted_web/templates *
+recursive-include src/fiftyone_devicedetection_examples/onpremise/useragentclienthints_web/static *
+recursive-include src/fiftyone_devicedetection_examples/onpremise/useragentclienthints_web/templates *
+recursive-include src/fiftyone_devicedetection_examples/cloud/useragentclienthints_web/static *
+recursive-include src/fiftyone_devicedetection_examples/cloud/useragentclienthints_web/templates *

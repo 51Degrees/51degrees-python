@@ -1,0 +1,54 @@
+{
+    "PipelineOptions": {
+        "Elements": [
+            {
+                "elementName": "DeviceDetectionOnPremise",
+                "elementPath": "fiftyone_devicedetection_onpremise.devicedetection_onpremise",
+                "elementParameters": {
+                    "data_file_path": "51Degrees-LiteV4.1.hash",
+                    "auto_update": false,
+                    "performance_profile": "LowMemory",
+                    "licence_keys": ""
+                }
+            },
+            {
+                "elementName": "SequenceElement",
+                "elementPath": "fiftyone_pipeline_core.sequenceelement"
+            },
+            {
+                "elementName": "JSONBundlerElement",
+                "elementPath": "fiftyone_pipeline_core.jsonbundler"
+            },
+            {
+                "elementName": "JavascriptBuilderElement",
+                "elementPath": "fiftyone_pipeline_core.javascriptbuilder",
+                "elementParameters": {
+                    "settings": {
+                        "endpoint": "/json",
+                        "minify": true,
+                        "enable_cookies": true
+                    }
+                }
+            },
+            {
+                "elementName": "SetHeaderElement",
+                "elementPath": "fiftyone_pipeline_core.setheaderelement"
+            },
+            {
+                "elementName": "ShareUsage",
+                "elementPath": "fiftyone_pipeline_engines_fiftyone.share_usage",
+                "elementParameters": {
+                    "share_percentage": 100,
+                    "interval": 1200,
+                    "requested_package_size": 50,
+                    "cookie": "",
+                    "query_whitelist": [],
+                    "header_blacklist": []
+                }
+            }
+        ],
+        "BuildParameters": {
+            "suppress_process_exceptions": true
+        }
+    }
+}

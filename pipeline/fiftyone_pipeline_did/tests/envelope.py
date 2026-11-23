@@ -1,0 +1,307 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+"""Shared builders for the client tests: signed envelopes with a chosen
+date and version, a key schedule as the cloud publishes one, and a
+transport stand-in that records requests and answers from a script, so no
+test touches the network."""
+
+import inspect
+import json
+import urllib.parse
+from datetime import datetime, timedelta, timezone
+
+from owid import Crypto, Owid, Version
+from owid import io as owid_io
+
+from fiftyone_pipeline_did import FodId
+from fiftyone_pipeline_did.did_client import parse_iso8601
+# The named terms value is private to the package and is not exported, so
+# the payload builders here reach the private module directly, as the
+# package surface page says the package's own tests may.
+from fiftyone_pipeline_did._terms import Terms
+# The byte layout is not part of the package's public surface. These tests
+# build payloads byte by byte, so they read it from the private module, as
+# https://github.com/51Degrees/specifications/blob/main/did-specification/package-surface.md
+# says the package's own tests may.
+from fiftyone_pipeline_did._layout import (
+    FLAGS_OFFSET,
+    GUID_LENGTH,
+    LICENSE_ID_OFFSET,
+    MATCH_KEY_LENGTH,
+    MATCH_KEY_OFFSET,
+    PAYLOAD_LENGTH,
+    RANDOM_PAYLOAD_LENGTH,
+)
+
+TEST_DOMAIN = "51degrees.com"
+
+#: The OWID epoch, the moment the envelope date counts minutes from.
+EPOCH = datetime(2020, 1, 1, tzinfo=timezone.utc)
+
+
+def probabilistic_payload():
+    """A 37 byte payload of the Probabilistic type with recognisable
+    bytes."""
+    payload = bytearray(PAYLOAD_LENGTH)
+    payload[FLAGS_OFFSET] = 0b0000_0101
+    payload[LICENSE_ID_OFFSET:LICENSE_ID_OFFSET + 4] = \
+        bytes([0x78, 0x56, 0x34, 0x12])
+    for i in range(MATCH_KEY_LENGTH):
+        payload[MATCH_KEY_OFFSET + i] = 0x20 + i
+    return bytes(payload)
+
+
+def random_payload():
+    """A 21 byte payload of the Random type."""
+    payload = bytearray(RANDOM_PAYLOAD_LENGTH)
+    payload[FLAGS_OFFSET] = (1 << 6) | 0b001
+    for i in range(GUID_LENGTH):
+        payload[MATCH_KEY_OFFSET + i] = 0x40 + i
+    return bytes(payload)
+
+
+def context_payload():
+    """A Probabilistic payload, a Terms byte saying the terms are not
+    stated in the identifier, and then a creator context section. How long
+    a section is belongs to the cloud and changes with the section version,
+    so an arbitrary length is used here."""
+    return (probabilistic_payload() + bytes([Terms.NOT_STATED.index])
+            + bytes(range(1, 24)))
+
+
+def envelope_bytes(crypto, payload, date=None, version=Version.VERSION3,
+                   domain=TEST_DOMAIN, signature=None):
+    """The wire bytes of an envelope over the payload, dated as given (to
+    the minute, as the wire format stores it), stamped with the version
+    and signed with the key pair, or carrying the signature given instead.
+
+    The OWID library only hands out an envelope from a parse or from a
+    Creator, and a Creator always writes version 3, its own domain and the
+    current time, so the tests write the fields with the library's own
+    wire helpers and sign the result by hand. The bytes signed are the
+    fields without the signature, which is what the library signs too."""
+    if date is None:
+        date = datetime.now(timezone.utc)
+    buffer = bytearray()
+    owid_io.write_byte(buffer, version.as_byte())
+    owid_io.write_string(buffer, domain)
+    owid_io.write_date(buffer, date.replace(second=0, microsecond=0),
+                       version)
+    owid_io.write_byte_array(buffer, bytes(payload))
+    if signature is None:
+        signature = crypto.sign_byte_array(bytes(buffer))
+    owid_io.write_signature(buffer, signature)
+    return bytes(buffer)
+
+
+def signed_envelope(crypto, payload, date=None, version=Version.VERSION3,
+                    domain=TEST_DOMAIN):
+    """An OWID over the payload, signed with the key pair, dated as given
+    and stamped with the version, read back through the library's own
+    parser so the tests hold the same kind of envelope a caller would."""
+    read = Owid.parse_bytes(
+        envelope_bytes(crypto, payload, date, version, domain))
+    if not read.ok:
+        raise AssertionError(
+            "the test envelope did not parse: {0}".format(read.status))
+    return read.owid
+
+
+def signed_fod_id(crypto, payload=None, date=None,
+                  version=Version.VERSION3, domain=TEST_DOMAIN):
+    """A FodId over a signed envelope, Probabilistic unless a payload is
+    given."""
+    if payload is None:
+        payload = probabilistic_payload()
+    return FodId.from_owid(signed_envelope(
+        crypto, payload, date, version, domain))
+
+
+def iso_round_trip(moment):
+    """The moment as the cloud's ``o`` format writes it, with seven
+    fractional digits, which is what the key endpoint emits."""
+    return moment.astimezone(timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%S.%f0Z")
+
+
+class KeySchedule:
+    """Weekly keys by default, Monday 00:00 UTC starts, each with its own
+    key pair, published the way the cloud publishes them. With
+    ``ends_at`` each entry also carries the moment its key stops being in
+    force, as the cloud sends ``endsAt``. Without it the list has the
+    shape an older cloud sends."""
+
+    FIRST_START = datetime(2026, 8, 3, tzinfo=timezone.utc)
+
+    def __init__(self, count=4, spacing=timedelta(days=7), ends_at=False):
+        self.spacing = spacing
+        # Each entry is [start, key pair, end], a list so that a test can
+        # end a key early.
+        self.entries = [[self.FIRST_START + spacing * i, Crypto.new(), None]
+                        for i in range(count)]
+        if ends_at:
+            self.add_ends()
+
+    def start(self, index):
+        return self.entries[index][0]
+
+    def crypto(self, index):
+        return self.entries[index][1]
+
+    def end(self, index):
+        return self.entries[index][2]
+
+    def add_ends(self):
+        """Gives each entry the next entry's start as its end, and the
+        newest the start of the key after it, which is not published
+        yet."""
+        ordered = sorted(self.entries, key=lambda entry: entry[0])
+        for entry, following in zip(ordered, ordered[1:]):
+            entry[2] = following[0]
+        ordered[-1][2] = ordered[-1][0] + self.spacing
+
+    def publish_next(self):
+        """Publishes the key that starts where the newest one ends, as the
+        cloud does once that key's period starts, and answers its
+        index."""
+        newest = max(self.entries, key=lambda entry: entry[0])
+        starts_at = newest[2] or newest[0] + self.spacing
+        ends_at = starts_at + self.spacing if newest[2] else None
+        self.entries.append([starts_at, Crypto.new(), ends_at])
+        return len(self.entries) - 1
+
+    def end_early(self, index, at):
+        """Ends the key at the moment rather than at its scheduled end, as
+        the cloud does when a key has to be changed, and answers the
+        scheduled end."""
+        entry = self.entries[index]
+        scheduled = entry[2]
+        entry[2] = at
+        return scheduled
+
+    def replace(self, index, at):
+        """Ends the key early at the moment and publishes a replacement
+        from then to the replaced key's scheduled end, and answers the
+        replacement's index."""
+        scheduled = self.end_early(index, at)
+        self.entries.append([at, Crypto.new(), scheduled])
+        return len(self.entries) - 1
+
+    def json(self, start_field="startsAt", since=None):
+        """The key list body. ``start_field`` is either supported start
+        field, ``startsAt`` or the compatibility field ``created``. Where
+        ``since`` is given only the entries starting at or after it are
+        listed, as the route's ``datetime`` parameter does."""
+        keys = []
+        for starts_at, crypto, ends_at in sorted(
+                self.entries, key=lambda entry: entry[0]):
+            if since is not None and starts_at < since:
+                continue
+            entry = {"publicKey": crypto.public_key_pem()}
+            if start_field == "startsAt":
+                entry["startsAt"] = iso_round_trip(starts_at)
+                entry["weekStart"] = iso_round_trip(starts_at)
+                entry["created"] = iso_round_trip(
+                    starts_at - timedelta(days=90))
+            else:
+                entry["created"] = iso_round_trip(starts_at)
+            if ends_at is not None:
+                entry["endsAt"] = iso_round_trip(ends_at)
+            keys.append(entry)
+        # Newest first, to prove the client sorts rather than trusts the
+        # order it was given.
+        keys.reverse()
+        return json.dumps(keys)
+
+    def answer(self, request):
+        """The key route's answer to a request, honouring the ``datetime``
+        query parameter the request carries."""
+        since = since_of(request)
+        return 200, self.json(
+            since=None if since is None else parse_iso8601(since))
+
+
+class FakeTransport:
+    """An async transport that records every request and answers from a
+    script keyed on the path segment after the API base. Each answer is a
+    ``(status, body)`` pair, or a callable taking the request and returning
+    one (a coroutine function is awaited, which is how a test makes an
+    answer take time), or an exception instance to raise."""
+
+    def __init__(self, answers=None):
+        self.answers = dict(answers or {})
+        self.requests = []
+
+    async def __call__(self, request):
+        self.requests.append(request)
+        path = urllib.parse.urlparse(request.full_url).path
+        for key, answer in self.answers.items():
+            if key in path:
+                if isinstance(answer, BaseException):
+                    raise answer
+                if callable(answer):
+                    answer = answer(request)
+                    if inspect.isawaitable(answer):
+                        answer = await answer
+                    return answer
+                status, body = answer
+                if isinstance(body, str):
+                    body = body.encode("utf-8")
+                return status, body
+        return 404, b"no answer scripted for " + path.encode("utf-8")
+
+    def count(self, segment):
+        """How many recorded requests carry the segment in their path."""
+        return sum(1 for r in self.requests
+                   if segment in urllib.parse.urlparse(r.full_url).path)
+
+    def last(self):
+        return self.requests[-1]
+
+
+def since_of(request):
+    """The ``datetime`` query value a key list request carried, or ``None``
+    where it carried none."""
+    values = urllib.parse.parse_qs(
+        urllib.parse.urlparse(request.full_url).query).get("datetime")
+    return values[0] if values else None
+
+
+def form_of(request):
+    """The form fields of a recorded POST, as a dict of single values."""
+    data = request.data.decode("ascii") if request.data else ""
+    return {k: v[0] for k, v in urllib.parse.parse_qs(
+        data, keep_blank_values=True).items()}
+
+
+class FixedClock:
+    """A clock the tests move by hand."""
+
+    def __init__(self, start):
+        self.now = start
+
+    def __call__(self):
+        return self.now
+
+    def advance(self, delta):
+        self.now = self.now + delta

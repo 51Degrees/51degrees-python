@@ -1,0 +1,61 @@
+name: Nightly Pipeline
+
+on:
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        type: boolean
+        default: false
+      skip-lite-tests:
+        description: 'Skip testing with Lite data file'
+        type: boolean
+        default: false
+      common-ci-ref:
+        type: string
+        default: ''
+  schedule:
+    # The 51degrees-cxx nightly starts at 00:35 and ends by about 02:35, so
+    # its release reaches this submodule update the same night. The Node.js
+    # nightly starts at 02:30 and the Java nightly at 03:00, and both want
+    # macOS runners too, so this one starts after them.
+    - cron: '0 5 * * *'
+
+jobs:
+  # The publish builds main, which the pull requests into rc do not change, so
+  # it runs first and has the runners before the pull request builds do.
+  Publish:
+    name: Nightly Publish
+    uses: 51Degrees/common-ci/.github/workflows/nightly-publish.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      common-ci-ref: ${{ inputs.common-ci-ref || '' }}
+      cache-assets: true
+    secrets: inherit
+
+  SubmoduleUpdate:
+    name: Nightly Submodule Update
+    uses: 51Degrees/common-ci/.github/workflows/nightly-submodule-update.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      common-ci-ref: ${{ inputs.common-ci-ref || '' }}
+    secrets: inherit
+
+  PullRequests:
+    if: ${{ !cancelled() }}
+    needs: [Publish, SubmoduleUpdate]
+    name: Nightly Pull Requests
+    uses: 51Degrees/common-ci/.github/workflows/nightly-pull-requests.yml@main
+    with:
+      repo-name: ${{ github.event.repository.name }}
+      org-name: ${{ github.event.repository.owner.login }}
+      dryrun: ${{ inputs.dryrun || false }}
+      common-ci-ref: ${{ inputs.common-ci-ref || '' }}
+      skip-lite-tests: ${{ inputs.skip-lite-tests || false }}
+      cache-assets: true
+      # One configuration that fails does not cancel the others.
+      fail-fast: false
+    secrets: inherit

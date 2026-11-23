@@ -1,0 +1,144 @@
+# Examples
+
+Examples of the 51Degrees Pipeline API for Python that use the cloud request
+engine, which is the package this folder sits in. The mixed examples call
+the 51Degrees cloud service, and the cloud engine example calls a star sign
+service of its own.
+
+## Cloud, mixed
+
+The examples in `src/fiftyone_pipeline_examples/cloud/mixed` call the
+51Degrees cloud service with a resource key or a licence key, and get device
+detection and IP intelligence results from one request.
+
+- `gettingstarted_console.py` runs five pairs of User-Agent and IP address
+  through a pipeline and prints the device and IP intelligence results for
+  each.
+- `gettingstarted_web` is a Flask web application that shows the device
+  detection and IP intelligence results for the visitor, or for an IP
+  address typed into the page, along with the list of countries translated
+  by the cloud service. Client-side evidence gathered in the browser then
+  refines the device results.
+
+The pipeline in both is a cloud request engine, which makes the request to
+the cloud service, followed by engines that each read their own part of the
+answer. Those engines are in `src/fiftyone_pipeline_examples/cloud/engines.py`,
+and `src/fiftyone_pipeline_examples/cloud/mixed/pipeline.py` puts them
+together.
+
+A Flow Data cannot be used by two threads at once, so the web example
+creates a Flow Data for each request, uses it only in the code that handles
+that request, and closes it when the request ends. To hand work to another
+thread or task, read the values it needs from the Flow Data first and pass
+those values, not the Flow Data.
+
+### Keys
+
+The examples call the cloud service with a resource key or a licence key.
+
+A resource key carries the list of properties it returns. Create one
+carrying device detection and IP intelligence properties for free with the
+[configuration page](https://51degrees.com/configure?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=resource-key),
+and set the `_51DEGREES_RESOURCE_KEY` environment variable to it. A
+resource key limited to particular
+domains only answers a request whose origin is one of them, so set
+`_51DEGREES_CLOUD_REQUEST_ORIGIN` to one of its domains.
+
+A licence key can be used on its own instead, by setting
+`_51DEGREES_LICENSE_KEY`. A licence key
+carries no list of properties, so the examples ask the cloud service for
+exactly the properties they show, and the web example also asks for the
+properties its client-side script needs. A licence key identifies an
+account, so it stays on the server. The web page and its script only ever
+talk to the example, never to the cloud service. When both kinds of key are
+set, the licence key is the one used.
+
+A property the key does not carry is shown as unknown. The console example
+adds the reason, and the web example shows "Unknown" alone. A key carrying
+only one of the two products still runs, and the web example shows the list
+of countries only when the key carries the translated country names.
+
+The examples use the public cloud service at `https://cloud.51degrees.com`.
+Set `_51DEGREES_CLOUD_ENDPOINT` to the address of another cloud service,
+including the `api/v4/` path, to use that instead.
+
+### Running the examples
+
+Clone the repository with its submodules, then from this folder create a
+virtual environment and install the requirements, which install the
+Pipeline packages from this checkout.
+
+```sh
+git clone --recurse-submodules https://github.com/51Degrees/51degrees-python.git
+cd 51degrees-python/pipeline/fiftyone_pipeline_cloudrequestengine/examples
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+On Windows the interpreter is `.venv\Scripts\python.exe`.
+
+Run the console example with
+
+```sh
+.venv/bin/python -m fiftyone_pipeline_examples.cloud.mixed.gettingstarted_console
+```
+
+and the web example with
+
+```sh
+.venv/bin/python -m fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web
+```
+
+then open <http://localhost:5151>. Set `_51DEGREES_EXAMPLE_HTTP_PORTS` to
+listen on another port.
+
+### Tests
+
+```sh
+.venv/bin/python -m pytest
+```
+
+The tests that call the cloud service with a resource key skip when none is
+set, naming the variable they read, which is
+`_51DEGREES_RESOURCE_KEY_BESPOKE`. They are marked
+`live`, so `python -m pytest -m "not live"` runs every other test. The
+tests that use a licence key skip themselves when none is set.
+
+In CI the examples are run by [ci/run-integration-tests.ps1](../../ci/run-integration-tests.ps1)
+through common-ci, on every Python version and operating system in
+[ci/options.json](../../ci/options.json), with the resource key the pipeline
+holds. When no resource key is passed, the script leaves out the tests
+marked `live`, says so, and runs the rest. No licence key is passed to the
+pipeline, so the licence-key tests skip themselves there. That uses the [tox.ini](tox.ini) in this folder,
+which can also be run by hand with `python -m tox -e py` from here.
+
+## Cloud engine
+
+`src/fiftyone_pipeline_examples/cloud/simple_cloud_engine.py` shows how to
+write a cloud engine of your own. The engine gets the star sign for a date
+of birth from a remote service, through a cloud request engine, and the
+example prints the reason the service gives when it has no star sign.
+
+So that it runs with no key and no network, the example starts a small star
+sign service of its own on this machine, which answers in the shapes the
+51Degrees cloud service uses. It reads none of the environment variables
+under Keys.
+
+Run it, once the requirements are installed as above, with
+
+```sh
+.venv/bin/python -m fiftyone_pipeline_examples.cloud.simple_cloud_engine
+```
+
+Its test, `tests/test_simple_cloud_engine.py`, runs with the others and needs
+no key.
+
+## Find out more
+
+- [Device detection](https://51degrees.com/device-detection?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-device-detection)
+- [IP intelligence](https://51degrees.com/ip-intelligence?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-ip-intelligence)
+- [Resource keys](https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-resource-keys)
+- [Pricing](https://51degrees.com/pricing?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=find-out-more-pricing)
+- Pipeline API for Python: https://github.com/51Degrees/51degrees-python/tree/main/pipeline
+- Device detection for Python: https://github.com/51Degrees/51degrees-python/tree/main/device-detection
+- IP intelligence engine: https://github.com/51Degrees/51degrees-cxx

@@ -1,0 +1,64 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+# The descriptions of the match metric properties, as the on-premise device
+# detection specification gives them.
+DEVICE_ID_DESCRIPTION = ('Contains the profile ids of the matching profiles, '
+                         'separated by a hyphen symbol. For example '
+                         '[HardwareId]-[PlatformId]-[BrowserId]-[CrawlerId]. '
+                         'By convention, these will be in component Id '
+                         'order. There will often be 4 ids present, but '
+                         'this is not guaranteed.')
+USER_AGENTS_DESCRIPTION = ('The User-Agent values that were matched, each '
+                           'listed once across every result. Populated when '
+                           'the Update Matched User Agent configuration '
+                           'option is on, which it is by default.')
+DIFFERENCE_DESCRIPTION = ('Used when detection method is not Exact or None. '
+                          'The larger the value the less confident the '
+                          'detector is in this result.')
+MATCHED_NODES_DESCRIPTION = ('Indicates the number of hash nodes matched '
+                             'within the Evidence.')
+DRIFT_DESCRIPTION = ('The drift of every component\'s result added '
+                     'together, each result\'s drift being how far, in '
+                     'character positions, the substring\'s hashes were '
+                     'found from where they were expected. Never the '
+                     'largest or smallest result alone.')
+ITERATIONS_DESCRIPTION = ('The number of iterations carried out in order to '
+                          'find a match. This is the number of nodes in the '
+                          'graph which have been visited.')
+METHOD_DESCRIPTION = 'The method used to determine the match result.'
+
+# The category, component and data files of every match metric property.
+MATCH_METRICS_CATEGORY = 'Device Metrics'
+MATCH_METRICS_COMPONENT = 'Metrics'
+MATCH_METRICS_DATA_FILES = ('Lite', 'Premium', 'Enterprise', 'TAC')
+
+CACHE_NOT_SUPPORTED = ('A results cache cannot be configured in the '
+                       'on-premise device detection engine. Its results '
+                       'read from native memory, which is not safe to '
+                       'share between requests.')
+
+ENGINE_CLOSED = ('The on-premise device detection engine has been closed, '
+                 'so it cannot process evidence. Build a new pipeline.')
+
+RESULTS_CLOSED = ('These device detection results have been closed, so '
+                  'their properties cannot be read. Read the values needed '
+                  'before closing the FlowData.')

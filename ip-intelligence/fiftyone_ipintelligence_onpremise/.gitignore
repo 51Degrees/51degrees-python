@@ -1,0 +1,3 @@
+# Native source copied from the root cxx submodule at build time (see
+# setup.py stage_native_source). Not committed.
+src/fiftyone_ipintelligence_onpremise/cxx/

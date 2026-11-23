@@ -1,0 +1,188 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+ 
+class Constants:
+    # Environment variable to set cloud end point
+    CLOUD_ENDPOINT = "_51DEGREES_CLOUD_ENDPOINT"
+
+    # Default cloud end point
+    BASE_URL_DEFAULT = "https://cloud.51degrees.com/api/v4/"
+
+    # How long each request waits for the cloud service, in seconds, when
+    # timeout_seconds is not set. This is the default the specification
+    # gives its TimeoutSeconds option.
+    TIMEOUT_SECONDS_DEFAULT = 2
+
+    # Refuses a timeout_seconds the requests library could not use. The
+    # first value is the setting given and the second the default.
+    MESSAGE_TIMEOUT_NOT_POSITIVE = (
+        "CloudRequestEngine has timeout_seconds {!r}, which is not a "
+        "finite number of seconds above zero, so every request to the cloud "
+        "service would fail. Set timeout_seconds to a number above zero, "
+        "or leave it out for the default of {} seconds.")
+
+    # The key the engine's data is read under in a FlowData, as the
+    # specification gives it, and the key it was read under before, which
+    # is deprecated. The engine's datakey stays the old key, so the
+    # pipeline still names the engine by it.
+    RESPONSE_DATA_KEY = "cloud-response"
+    OLD_DATA_KEY = "cloud"
+
+    # No Data in response message to be set in exception when cloud neither
+    # return any data nor any error messages
+    MESSAGE_NO_DATA_IN_RESPONSE = "No data in response from cloud service at {}"
+	
+    # Message when multiple errors are returned from cloud service
+    EXCEPTION_CLOUD_ERRORS_MULTIPLE = \
+            "Multiple errors returned from 51Degrees cloud service. See inner " + \
+            "exceptions for details."
+
+    # The members of the document discovery_state() gives, as the Java
+    # package's CloudDiscoveryState names them.
+    DISCOVERY_STATE_EVIDENCE_KEYS = "evidenceKeys"
+    DISCOVERY_STATE_ACCESSIBLE_PROPERTIES = "accessibleProperties"
+
+    # Message when the discovery_state setting is not a copy
+    # discovery_state() gives
+    MESSAGE_DISCOVERY_STATE_NOT_VALID = (
+        "The discovery_state setting is not a copy of what a Cloud Request "
+        "Engine discovered. Give the JSON document an engine's "
+        "discovery_state() returns, holding evidenceKeys, a list of text, "
+        "and accessibleProperties, the cloud service's answer with its "
+        "Products, or leave the setting out so the engine asks the cloud "
+        "service.")
+
+    # Message when single error is returned from cloud service
+    EXCEPTION_CLOUD_ERROR = \
+            "Error returned from 51Degrees cloud service: '{}'"
+
+    # Evidence key seperator
+    EVIDENCE_SEPERATOR = "."
+
+    # Used to prefix evidence that is obtained from HTTP headers 
+    EVIDENCE_HTTPHEADER_PREFIX = "header"
+
+    # Used to prefix evidence that is obtained from HTTP bookies 
+    EVIDENCE_COOKIE_PREFIX = "cookie"
+
+    # Used to prefix evidence that is obtained from an HTTP request's
+    # query string or is passed into the pipeline for off-line 
+    # processing.
+    EVIDENCE_QUERY_PREFIX = "query"
+
+    # The prefixes after query, header and cookie, highest precedence
+    # first, as evidence.md lists them. Any other prefix ranks after these,
+    # alphabetically.
+    OTHER_PREFIX_PRECEDENCE = ("server", "fiftyone", "location")
+
+    # other evidence constant
+    EVIDENCE_OTHER = "other"
+    
+    # warning message to be shown for conflicted evidences
+    WARNING_MESSAGE = "WARNING: '{}:{}' evidence conflicts with "
+    
+    # error message when non-success status is returned.
+    MESSAGE_ERROR_CODE_RETURNED = "Cloud service at '{}' returned status code '{}' with content {}"
+
+    # The HTTP statuses from which the cloud service refused a request
+    # (400 to 499) and failed to answer it (500 and above). A refusal of a
+    # discovery request fails the build, as no retry can change it.
+    HTTP_CLIENT_ERROR_MIN = 400
+    HTTP_SERVER_ERROR_MIN = 500
+
+    # Given as a warning when the engine is built without a discovery
+    # result. The first value names what is missing and the second gives
+    # each error.
+    MESSAGE_DISCOVERY_RETRY = (
+        "The cloud request engine could not get {} from the cloud service "
+        "when it was built, so it will ask again when it is first used. {}")
+    DISCOVERY_PROPERTIES = "the accessible properties"
+    DISCOVERY_EVIDENCE_KEYS = "the evidence keys"
+
+    # The keys the cloud service reads its credentials and the list of
+    # requested properties from, in the query string of a GET and in the
+    # form body of a POST. See the Credentials section of the cloud request
+    # engine specification:
+    # https://github.com/51Degrees/specifications/blob/6570727d2af6967390d3c4fbec77b9cf0540d3f3/pipeline-specification/pipeline-elements/cloud-request-engine.md#credentials
+    RESOURCE_PARAMETER = "resource"
+    LICENSE_PARAMETER = "license"
+    VALUES_PARAMETER = "values"
+
+    # The cloud service reads these names among its accepted evidence
+    # keys, so evidence such as "query.license" would otherwise go into the
+    # request body beside the engine's own credentials, with no way to say
+    # which one the service applied. Evidence whose key strips to one of
+    # them is left out of every request.
+    LICENCE_SPELLING = "licence"
+    RESERVED_EVIDENCE_SUFFIXES = (
+        RESOURCE_PARAMETER, LICENSE_PARAMETER, LICENCE_SPELLING,
+        VALUES_PARAMETER)
+
+    # The path, below the base URL, of the data endpoint that takes no
+    # resource key in its route, used when the engine authenticates on a
+    # licence key alone.
+    LICENSE_DATA_PATH = "json"
+
+    # Logged when evidence is left out of a request because its key is one
+    # the service reads its credentials or requested properties from. The
+    # value is not included, as it may be a credential.
+    WARNING_RESERVED_EVIDENCE = (
+        "WARNING: '{}' evidence is not sent to the cloud service, because "
+        "the service reads its credentials and the list of requested "
+        "properties from that name. The engine's own settings are sent "
+        "instead.")
+
+    # Messages for the credential combinations the engine refuses when it is
+    # built. Each says why the combination cannot work, because the rule on
+    # its own reads as arbitrary.
+    MESSAGE_NO_CREDENTIAL = (
+        "CloudRequestEngine needs a resource key or a licence key to "
+        "authenticate with, as the cloud service answers 401 to a request "
+        "that carries neither. Create a resource key for free at "
+        "https://51degrees.com/configure?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-constants.py&utm_term=no-credential")
+    MESSAGE_LICENSE_KEY_NEEDS_PROPERTIES = (
+        "CloudRequestEngine has a licence key and no requested_properties. "
+        "A licence key names no properties of its own, so the cloud service "
+        "answers 400 to every request made with one that does not list the "
+        "properties it wants. Set requested_properties to the fully "
+        "qualified names wanted, for example "
+        "['device.ismobile', 'device.iscrawler'].")
+
+    # Logged once when a request with a licence key named properties and
+    # the response left some of them out without saying so. Both the
+    # licence behind a resource key and a licence key beside it decide
+    # what comes back, so the message names the keys rather than one key.
+    MESSAGE_PROPERTIES_NOT_COVERED = (
+        "The cloud service did not return the requested properties {} in "
+        "its answer. They are not covered by the keys in use, so they "
+        "will be missing from every result. The other requested "
+        "properties came back and are usable.")
+    # Logged once when a request with a resource key and no licence key
+    # named properties and the response left some of them out. Without a
+    # licence key a property no licence grants comes back as null with a
+    # reason, so a name left out is not a property.
+    MESSAGE_PROPERTIES_NOT_KNOWN = (
+        "The cloud service did not return the requested properties {} in "
+        "its answer. Every property is answered, with a reason when it has "
+        "no value, so these names are not properties. Check the spelling "
+        "of each one. The other requested properties came back and are "
+        "usable.")

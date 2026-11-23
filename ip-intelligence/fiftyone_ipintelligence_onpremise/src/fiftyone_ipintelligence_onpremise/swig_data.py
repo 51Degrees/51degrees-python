@@ -1,0 +1,360 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+import math
+from decimal import Decimal, ROUND_HALF_UP
+
+from fiftyone_pipeline_engines.aspectdata import AspectData
+from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
+
+from fiftyone_pipeline_engines.missingproperty_service import MissingPropertyService
+
+from .constants import RESULTS_CLOSED
+
+# Latitude and Longitude are given to this many decimal places, as the
+# native code gives them in text and in the WKT of Areas.
+COORDINATE_DECIMAL_PLACES = 3
+
+# The step a coordinate is rounded to, worked out from the places above so
+# that the number of places is written down once.
+COORDINATE_QUANTUM = Decimal(1).scaleb(-COORDINATE_DECIMAL_PLACES)
+
+COORDINATE_PROPERTIES = ("latitude", "longitude")
+
+
+class OnPremiseMissingPropertyService(MissingPropertyService):
+
+    def check(self, key, flow_element):
+
+        if key in flow_element.properties:
+            datafiles = flow_element.properties[key]["datafiles"]
+            if(not flow_element.engine.getProduct() in datafiles):
+                raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. This is because your datafile does not contain the property. The property is available in' + str(datafiles))
+            # The data file holds the property, so it is missing because
+            # it is not available. A missing property always raises.
+            raise Exception(
+                "Property '" + key + "' not found in data for element '" +
+                flow_element.datakey + "'. This is because the property "
+                "has been excluded when configuring the engine.")
+        else:
+            raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. Please check that the element and property names are correct.')
+
+
+class SwigData(AspectData):
+
+    """!
+    Extension of AspectData made for retrieving results
+    created by the SWIG wrapper of the On Premise IP Intelligence engine
+
+    An instance reads its values from a results instance, the object the
+    native code fills for one request, which references unmanaged memory.
+    Multi-threaded access to a results instance is not supported, for
+    performance reasons. Reading a value from it writes into it, so it is not
+    safe to use from several threads at once, and neither is this instance.
+    The engine, its results instances and this instance take no lock to make
+    those reads safe for several threads. The caller is responsible for
+    thread-safe access, and either gives each thread its own Flow Data, and
+    so its own results instance, or coordinates its own access, for example
+    with a lock of its own around every read and around close().
+
+    The package is tested on the free-threaded builds of Python 3.13 and
+    3.14 on Linux, and of Python 3.14 on Windows. The native module does not
+    declare that it can run without the GIL, so Python turns the GIL back on
+    for the whole process when it loads the module, with a RuntimeWarning.
+    Every thread in the program then runs with the GIL, the native code
+    included, as on the standard build of Python, so nothing gains from
+    free-threading. Set PYTHON_GIL=1, or run Python with -X gil=1, to start
+    with the GIL on and so without the warning. A results instance is still
+    not safe to use from several threads at once.
+    """
+
+    def __init__(self, flow_element, swig_results, echo_ip=None, echo_ipv6=None):
+
+        """!
+        Constructor for swig_data
+        @type flow_element: FlowElement
+        @param flow_element: FlowElement / Engine the data is keyed under
+        @type swig_results: ResultsIpiSwig
+        @param swig_results: Results from the SWIG wrapper's process method
+        @type echo_ip: string
+        @param echo_ip: the IPv4 address found in evidence (or None)
+        @type echo_ipv6: string
+        @param echo_ipv6: the IPv6 address found in evidence (or None)
+        """
+
+        super(SwigData, self).__init__(flow_element)
+
+        self.swig_results = swig_results
+        self.echo_ip = echo_ip
+        self.echo_ipv6 = echo_ipv6
+
+        self.missing_property_service = OnPremiseMissingPropertyService()
+
+    def close(self):
+
+        """!
+        Release the native results, which keep the engine's data in memory
+        while they are held, even after the engine is closed. Values already
+        read are unaffected, and reading a property afterwards raises an
+        exception. Closing the FlowData closes its results.
+        """
+
+        self.swig_results = None
+
+    def _clear(self):
+
+        """!
+        Drop the results and the addresses, ready for a new request. See
+        ElementData._clear.
+        """
+
+        super(SwigData, self)._clear()
+        self.swig_results = None
+        self.echo_ip = None
+        self.echo_ipv6 = None
+
+    def get(self, key):
+
+        """!
+        Get a property value, once the results are known to be open
+        @type key: string
+        @param key: The key of the property to retrieve
+        @returns mixed
+        """
+
+        # Checked here, because AspectData.get turns an exception from
+        # get_internal into a missing property message.
+        if self.swig_results is None:
+            raise Exception(RESULTS_CLOSED)
+
+        return super(SwigData, self).get(key)
+
+    @staticmethod
+    def utf8_string_to_str(utf8_string):
+
+        """!
+        Convert a SWIG wrapped std::vector<uint8_t> UTF-8 string to a
+        python string
+        """
+
+        return bytes(utf8_string).decode("utf-8", "replace")
+
+    def weighted_list_to_value(self, value, convert=None):
+
+        """!
+        Convert a SWIG wrapped weighted value list to a list of
+        {"value": ..., "weighting": ...} dictionaries wrapped in an
+        AspectPropertyValue. This matches the shape of weighted values
+        returned by the cloud engine.
+        """
+
+        if not value.hasValue():
+            return AspectPropertyValue(no_value_message=value.getNoValueMessage())
+
+        items = []
+
+        # SWIG returns the wrapped std::vector of weighted values as a
+        # python sequence
+        for weighted_value in value.getValue():
+            raw_value = weighted_value.getValue()
+            if convert:
+                raw_value = convert(raw_value)
+            items.append({
+                "value": raw_value,
+                "weighting": weighted_value.getWeight()
+            })
+
+        return AspectPropertyValue(value=items)
+
+    def ip_address_value(self, value):
+
+        """!
+        Convert a SWIG wrapped Value<IpAddress> to an AspectPropertyValue
+        holding the IP address as a string.
+        """
+
+        import ipaddress
+
+        from .IpIntelligenceEngineModule import (
+            FIFTYONE_DEGREES_IP_TYPE_IPV4,
+            FIFTYONE_DEGREES_IP_TYPE_IPV6)
+
+        if not value.hasValue():
+            return AspectPropertyValue(no_value_message=value.getNoValueMessage())
+
+        ip = value.getValue()
+        buffer = bytearray(16)
+        ip.getCopyOfIpAddress(buffer, len(buffer))
+
+        ip_type = ip.getType()
+
+        if ip_type == FIFTYONE_DEGREES_IP_TYPE_IPV4:
+            return AspectPropertyValue(value=str(ipaddress.IPv4Address(bytes(buffer[:4]))))
+        if ip_type == FIFTYONE_DEGREES_IP_TYPE_IPV6:
+            return AspectPropertyValue(value=str(ipaddress.IPv6Address(bytes(buffer[:16]))))
+
+        return AspectPropertyValue(no_value_message="The IP address type is invalid.")
+
+    @staticmethod
+    def round_coordinate(value):
+
+        """!
+        A latitude or longitude to COORDINATE_DECIMAL_PLACES places.
+
+        A value half way between two places rounds away from zero, as the
+        native code rounds it, where Python's own round() would round it to
+        the nearer even place. A value that rounds to zero from below is
+        given as zero without a sign, because the native code writes the
+        same value as text without one. A value that is not finite is given
+        as it is, having no places to round.
+        """
+
+        if math.isfinite(value) is False:
+            return value
+        rounded = float(Decimal(value).quantize(
+            COORDINATE_QUANTUM, rounding=ROUND_HALF_UP))
+        return 0.0 if rounded == 0 else rounded
+
+    def single_value(self, value, convert=None):
+
+        """!
+        Convert a SWIG wrapped Value to an AspectPropertyValue holding
+        the value (or the no value message).
+        """
+
+        if not value.hasValue():
+            return AspectPropertyValue(no_value_message=value.getNoValueMessage())
+
+        raw_value = value.getValue()
+        if convert:
+            raw_value = convert(raw_value)
+
+        return AspectPropertyValue(value=raw_value)
+
+    def get_internal(self, key):
+
+        """!
+        Get property values out of the SWIG wrapper
+        @type key: string
+        @param key: The key of the property to retrieve
+        @returns mixed
+        """
+
+        # Lowercase key
+
+        key = key.lower()
+
+        # Start with the special echo properties. The IP address supplied
+        # in evidence is echoed back in the results.
+
+        if key == "ip":
+            if self.echo_ip:
+                return AspectPropertyValue(value=self.echo_ip)
+            return AspectPropertyValue(no_value_message="IPv4 was not supplied as evidence.")
+
+        if key == "ipv6":
+            if self.echo_ipv6:
+                return AspectPropertyValue(value=self.echo_ipv6)
+            return AspectPropertyValue(no_value_message="IPv6 was not supplied as evidence.")
+
+        # End special properties
+
+        this_property = self.flow_element.properties[key]
+
+        if this_property:
+
+            results = self.swig_results
+            # Read by the property's index from the engine's build-time
+            # table. A name outside the table is read by name, which gives
+            # the native no value message.
+            target = getattr(self.flow_element, "property_indexes", {}).get(
+                key, this_property["name"])
+            property_type = this_property["type"].lower()
+
+            # Mcc is weighted even though its metadata type is "string"
+            # (ip-intelligence-dotnet parity).
+
+            if property_type == "string" and key == "mcc":
+                property_type = "weightedstring"
+
+            if property_type in ("weightedstring", "weightedwkbr", "weightedwkb"):
+                return self.weighted_list_to_value(
+                    results.getValuesAsWeightedUTF8StringList(target),
+                    convert=self.utf8_string_to_str)
+
+            if property_type == "weightedint":
+                return self.weighted_list_to_value(
+                    results.getValuesAsWeightedIntegerList(target))
+
+            # Only the coordinates are rounded.
+            round_coordinate = (
+                self.round_coordinate if key in COORDINATE_PROPERTIES
+                else None)
+
+            if property_type in ("weighteddouble", "weightedsingle"):
+                return self.weighted_list_to_value(
+                    results.getValuesAsWeightedDoubleList(target),
+                    convert=round_coordinate)
+
+            if property_type == "weightedbool":
+                return self.weighted_list_to_value(
+                    results.getValuesAsWeightedBoolList(target))
+
+            if property_type in ("wkb", "wkbr"):
+                # WKB geometry properties (e.g. Areas) are exposed as their
+                # WKT string form. getValueAsString returns the WKT directly,
+                # matching the .NET binding. The weighted-WKT list getter
+                # (getValuesAsWeightedWKTStringList) is not used as it is not
+                # safely exposed through the Python SWIG wrapper.
+                return self.single_value(results.getValueAsString(target))
+
+            if property_type == "ipaddress":
+                # IP address properties (e.g. IpRangeStart / IpRangeEnd) are
+                # read as their string form. This matches the .NET binding,
+                # which reads IP properties via getValueAsString rather than
+                # the lower-level getValueAsIpAddress accessor.
+                return self.single_value(results.getValueAsString(target))
+
+            if property_type in ("string", "javascript"):
+                return self.single_value(
+                    results.getValueAsUTF8String(target),
+                    convert=self.utf8_string_to_str)
+
+            if property_type == "int":
+                return self.single_value(results.getValueAsInteger(target))
+
+            if property_type in ("double", "single"):
+                return self.single_value(
+                    results.getValueAsDouble(target), convert=round_coordinate)
+
+            if property_type == "bool":
+                return self.single_value(results.getValueAsBool(target))
+
+            if property_type == "string[]":
+                value = results.getValues(target)
+                if value.hasValue():
+                    return AspectPropertyValue(value=list(value.getValue()))
+                return AspectPropertyValue(no_value_message=value.getNoValueMessage())
+
+            # Unknown type, fall back to string
+
+            return self.single_value(results.getValueAsString(target))

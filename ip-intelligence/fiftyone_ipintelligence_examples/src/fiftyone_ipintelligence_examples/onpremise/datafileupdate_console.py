@@ -1,0 +1,344 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+## @example onpremise/datafileupdate_console.py
+# @brief Data File Update Console Example - On-premise
+#
+# This example illustrates the parameters that control when a new data file
+# is sought and when it is loaded by the on-premise IP intelligence engine.
+#
+# Four aspects are demonstrated:
+# - Update on start-up
+# - Filesystem watcher
+# - Daily auto-update
+# - Programmatic update, which the application asks for itself
+#
+# ## License Key
+# Updating the data file needs a 51Degrees licence key for the Enterprise
+# data file. Without one, the example shows the free ASN data file and says
+# where to ask for a key. Supply the licence key as the first command line
+# argument or in the '_51DEGREES_LICENSE_KEY' environment variable. Contact us for a key:
+# https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=header
+#
+# ## Update on start-up
+# Configure the pipeline to download an Enterprise data file on start-up.
+# This requires a license key, a writable file location, a temporary data
+# copy (create_temp_data_copy=True), a DataFileUpdateService, and
+# update_on_start=True (which blocks pipeline creation until the file is
+# downloaded).
+#
+# ## Filesystem watcher
+# Configure the pipeline to watch the loaded data file on disk and reload it
+# when it changes (file_system_watcher=True). Useful if you download files
+# yourself and drop them into place.
+#
+# ## Daily auto-update
+# Each data file records when the next file is expected. With auto_update
+# enabled the pipeline connects to the 51Degrees distributor after that time
+# to download any newer file. polling_interval and
+# update_time_maximum_randomisation tune how often and how randomly the
+# check happens.
+#
+# ## Programmatic update
+# An application that gets a new data file itself, rather than letting the
+# pipeline download one, hands the new data to the data file update service,
+# which writes it where the engine reads its data and refreshes the engine
+# from it. No licence key is needed, as nothing is downloaded. Update
+# polling, the update on start-up and the file system watcher are all off,
+# so that only the application's own call to update_from_memory updates the
+# engine.
+#
+# Required PyPi Dependencies:
+# - fiftyone_ipintelligence
+
+import os
+import shutil
+import sys
+import tempfile
+import threading
+from datetime import datetime
+
+from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
+from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
+from fiftyone_pipeline_core.logger import Logger
+from fiftyone_ipintelligence_shared.example_constants import ENTERPRISE_DATAFILE_NAME
+from fiftyone_ipintelligence_shared.example_constants import ASN_DATAFILE_NAME
+from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
+from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
+
+# Environment variable checked for the license key if one is not supplied as
+# a command line argument.
+UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
+
+# Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
+
+# The product type passed to the 51Degrees distributor. This identifies the
+# IP intelligence Enterprise product and may need to be adjusted to match
+# the product your license entitles you to.
+DATA_UPDATE_PRODUCT_TYPE = "V4Enterprise"
+
+DEFAULT_DATA_FILENAME = os.path.join(
+    os.path.expanduser("~"), ENTERPRISE_DATAFILE_NAME)
+
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=find-out-more-ip-intelligence"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=find-out-more-enterprise-data-file"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+    ("IP intelligence engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
+
+class UpdateEvent(threading.Event):
+    def __init__(self):
+        self.status = None
+        super().__init__()
+
+    def set(self, status):
+        super().set()
+        self.status = status
+
+    def clear(self):
+        self.status = None
+        super().clear()
+
+
+class DataFileUpdateConsole():
+    def explain_license_key(self, data_file, output):
+        # Without a licence key the example cannot download a data file, so
+        # it shows the data file it would start from, the free ASN file
+        # unless another is given, and says what an update needs.
+        if not data_file:
+            data_file = ExampleUtils.find_file(ASN_DATAFILE_NAME)
+        if data_file and os.path.isfile(data_file):
+            pipeline = IpIntelligencePipelineBuilder(
+                data_file_path = data_file,
+                performance_profile = "LowMemory",
+                # Usage sharing is off for this example. In production turn it on,
+                # because the requests shared improve the data every user gets.
+                usage_sharing = False,
+                auto_update = False,
+                licence_keys = "").build()
+            with pipeline:
+                engine = pipeline.flow_elements_list["ip"].engine
+                published = engine.getPublishedTime()
+                date = datetime(published.getYear(), published.getMonth(),
+                                published.getDay())
+                output(f"The data file in use is the '{engine.getProduct()}' "
+                       f"file published on {date:%Y-%m-%d}, at '{data_file}'.")
+        output("")
+        output("Updating the data file downloads the Enterprise data file, "
+               "which needs a licence key. Give the key as the first command "
+               "line argument, or in the environment variable "
+               f"'{UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE}'. Contact us for a key "
+               f"and a copy at {CONTACT_US}")
+
+    def update_programmatically(self, data_file, output):
+        # An update the application asks for itself, which needs no licence
+        # key because the application already has the new data. The data
+        # file update service writes that data where the engine reads its
+        # own, then refreshes the engine from it.
+        if not data_file:
+            data_file = ExampleUtils.find_file(ASN_DATAFILE_NAME)
+        if not data_file or not os.path.isfile(data_file):
+            return
+        # The engine is built from a copy, so the update replaces the copy
+        # and leaves the file this example was given as it was.
+        directory = tempfile.mkdtemp(prefix="51Degrees-DataFileUpdate-")
+        location = os.path.join(directory, os.path.basename(data_file))
+        shutil.copy(data_file, location)
+        try:
+            update_service = DataFileUpdateService()
+            pipeline = IpIntelligencePipelineBuilder(
+                data_file_path = location,
+                performance_profile = "LowMemory",
+                # Usage sharing is off for this example. In production turn it on,
+                # because the requests shared improve the data every user gets.
+                usage_sharing = False,
+                # The application asks for each update itself, so update
+                # polling, the update on start-up and the file system
+                # watcher are all off.
+                data_file_update_service = update_service,
+                auto_update = False,
+                update_on_start = False,
+                file_system_watcher = False,
+                licence_keys = "").build()
+            # The pipeline is closed at the end of the with block, which
+            # releases the native data it holds.
+            with pipeline:
+                element = pipeline.flow_elements_list["ip"]
+                output("")
+                output("A programmatic update needs no licence key when the "
+                       "application has the new data itself. The engine "
+                       f"reads its data from '{location}'.")
+                # The new data the application has. Here it is the same file
+                # again, read now.
+                with open(data_file, "rb") as new_data:
+                    data = new_data.read()
+                status = update_service.update_from_memory(
+                    element.data_file, data)
+                published = element.engine.getPublishedTime()
+                date = datetime(published.getYear(), published.getMonth(),
+                                published.getDay())
+                output("The update this example asked for gave the status "
+                       f"{status}, and the data file in use is now the "
+                       f"'{element.engine.getProduct()}' file published on "
+                       f"{date:%Y-%m-%d}.")
+        finally:
+            shutil.rmtree(directory, ignore_errors=True)
+
+    def run(self, data_file, license_key, interactive, logger, output):
+        logger.log("info", "Starting example")
+
+        # Try to find a license key in the environment if not supplied.
+        if not license_key:
+            license_key = ExampleUtils.get_license_key()
+
+        if not license_key:
+            self.explain_license_key(data_file, output)
+            self.update_programmatically(data_file, output)
+            return
+
+        # Work out where the downloaded file will be put. The directory must
+        # exist; the file itself need not.
+        if data_file is None:
+            data_file = os.path.realpath(DEFAULT_DATA_FILENAME)
+            logger.log("warning",
+                f"No filename specified. Using default '{data_file}' which "
+                "will be downloaded to that location on start-up, if it does "
+                "not exist already")
+        elif not os.path.exists(os.path.dirname(os.path.abspath(data_file))):
+            logger.log("error",
+                "The directory must exist when specifying a location for a "
+                f"new file to be downloaded. Path specified was '{data_file}'")
+            raise Exception("Directory for new file must exist")
+
+        copy_data_file_name = data_file + ".bak"
+
+        # Confirm before using the licensed download allocation.
+        if interactive:
+            output("Please note - this example will use available downloads "
+                   "in your licensed allocation.")
+            user_input = input("Do you wish to continue with this example (y)? ")
+            if not user_input or not user_input.lower().startswith("y"):
+                logger.log("info", "Stopping example without download")
+                return
+
+        if os.path.exists(data_file):
+            logger.log("info", f"Existing data file copied to {copy_data_file_name}")
+            shutil.copy(data_file, copy_data_file_name)
+
+        logger.log("info",
+            "Creating pipeline and initiating update on start-up - please "
+            "wait for that to complete")
+
+        update_event = UpdateEvent()
+        update_service = DataFileUpdateService()
+        update_service.on_complete(lambda status, file: update_event.set(status))
+
+        # Build the pipeline, configuring it for automatic updates.
+        pipeline = IpIntelligencePipelineBuilder(
+            # The file need not exist when using update on start-up, but its
+            # directory must. Any file present is overwritten, so the engine
+            # is configured to use a temporary copy.
+            data_file_path = data_file,
+            create_temp_data_copy = True,
+            # The Enterprise data file is large, so the LowMemory profile
+            # reads it from disk rather than holding parts of it in memory.
+            performance_profile = "LowMemory",
+            # The update listener notifies us when an update is complete.
+            data_file_update_service = update_service,
+            # A license key is required for automatic updates.
+            licence_keys = license_key,
+            # Check for an update before the engine is created. This blocks
+            # pipeline creation until a file is downloaded.
+            update_on_start = True,
+            # Continue to check for updates once the pipeline is running.
+            auto_update = True,
+            # Reload automatically when the data file on disk changes.
+            file_system_watcher = True,
+            data_update_product_type = DATA_UPDATE_PRODUCT_TYPE,
+            # Usage sharing is off for this example. In production turn it on,
+            # because the requests shared improve the data every user gets.
+            usage_sharing = False).add_logger(logger).build()
+
+        # The pipeline is closed at the end of the with block, which stops the
+        # automatic updates and the file system watcher, and releases the
+        # native data it holds.
+        with pipeline:
+            # Block until the start-up update check is complete.
+            update_event.wait()
+            output(f"Update on start-up complete - status - {update_event.status}")
+
+            if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
+                output("Modifying downloaded file to trigger reload - please wait "
+                       "for that to complete")
+                update_event.clear()
+
+                # Touching the file metadata triggers the filesystem watcher,
+                # demonstrating reload when a new file is dropped into place.
+                now = datetime.now().timestamp()
+                try:
+                    os.utime(data_file, (now, now))
+                except OSError:
+                    raise Exception("Could not modify file time, abandoning example")
+
+                if update_event.wait(120):
+                    output(f"Update on file modification complete, status: "
+                           f"{update_event.status}")
+                else:
+                    output("Update on file modification timed out")
+            elif update_event.status == UpdateStatus.AUTO_UPDATE_NOT_NEEDED:
+                output("The data file is already the latest published, "
+                       "so there is nothing to download")
+            else:
+                logger.log("error", "Auto update was not successful, abandoning example")
+                error_message = f"Auto update failed: {update_event.status}"
+                if update_event.status == UpdateStatus.AUTO_UPDATE_ERR_429_TOO_MANY_ATTEMPTS:
+                    output(error_message)
+                else:
+                    raise Exception(error_message)
+
+        output("Finished Example")
+
+
+def main(argv):
+    license_key = argv[0] if len(argv) > 0 else None
+    data_file = argv[1] if len(argv) > 1 else None
+
+    # Configure a logger to output to the console.
+    logger = Logger(min_level="info")
+
+    DataFileUpdateConsole().run(data_file, license_key, True, logger, print)
+
+    # Printed however the example ended, whether it updated the data file,
+    # had no licence key, or was stopped before the download.
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
