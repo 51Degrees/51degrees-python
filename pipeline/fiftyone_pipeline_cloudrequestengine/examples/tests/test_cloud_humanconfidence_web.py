@@ -98,16 +98,24 @@ def api():
 @pytest.fixture
 def naming_the_properties(monkeypatch):
     """Adds the properties to each request the example makes for the
-    passive level, and leaves its evidence as it is."""
+    passive level, and leaves its evidence as it is. Gives the cloud's
+    answers to those requests, in order, so a test can check what the
+    cloud sent as well as what the example made of it."""
 
     real = requests.request
+    answers = []
 
     def request(method, url, data=None, **kwargs):
-        if method == "POST" and url.endswith(".json"):
+        named = method == "POST" and url.endswith(".json")
+        if named:
             data = dict(data or {}, values=PROPERTIES)
-        return real(method, url, data=data, **kwargs)
+        response = real(method, url, data=data, **kwargs)
+        if named:
+            answers.append(response)
+        return response
 
     monkeypatch.setattr(requests, "request", request)
+    return answers
 
 
 @pytest.fixture(scope="module")
@@ -164,7 +172,9 @@ def test_passive_source_and_level_come_from_the_cloud(
 
 @pytest.mark.staging
 def test_a_basic_key_gets_no_source(staging_api, naming_the_properties):
-    """The Basic product does not offer HumanConfidenceSource."""
+    """The Basic product does not offer HumanConfidenceSource, so the cloud
+    answers the property with no value and the reason, and the example
+    gives no source."""
     basic = read_environment(BASIC_KEY_NAME)
     if not basic:
         pytest.skip(
@@ -175,6 +185,20 @@ def test_a_basic_key_gets_no_source(staging_api, naming_the_properties):
     answer = client.get("/passive", headers=HEADERS).get_json()
     assert "error" not in answer, "The cloud refused the request."
     assert answer["source"] is None, answer
+
+    # The example gives no source for a property the cloud left out too,
+    # so the cloud's own answer must name the property, with no value and
+    # a reason.
+    assert naming_the_properties, "The example did not ask the cloud."
+    derived = naming_the_properties[-1].json().get("derived") or {}
+    assert "humanconfidencesource" in derived, (
+        "The cloud's answer leaves out humanconfidencesource, so it says "
+        "nothing about what the Basic product offers.")
+    assert derived["humanconfidencesource"] is None, (
+        derived["humanconfidencesource"])
+    assert isinstance(
+        derived.get("humanconfidencesourcenullreason"), str), (
+        "The cloud gave no humanconfidencesourcenullreason.")
 
 
 def test_licence_key_never_reaches_the_browser(client):
