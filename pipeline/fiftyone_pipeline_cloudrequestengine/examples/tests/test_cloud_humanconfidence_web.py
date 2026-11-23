@@ -23,8 +23,10 @@
 """
 Runs the Human Confidence web example against the cloud service through
 Flask's test client. The resource key has to carry HumanConfidence, which
-the example asks the cloud service about before anything else, and these
-tests skip themselves when no key is set or the key does not carry it.
+the example asks the cloud service about before anything else. These tests
+skip themselves when no key is set, naming the variable, and fail when the
+key does not carry it, because a test that cannot see a real value has
+proved nothing.
 
 The passive tests check that HumanConfidenceSource comes back. The Pro and
 Bespoke products offer it, and the Bespoke key gets Passive, as no browser
@@ -94,14 +96,22 @@ def naming_the_properties(monkeypatch):
     monkeypatch.setattr(requests, "request", request)
 
 
-@pytest.fixture(scope="module")
-def client(key, api):
+def client_for(key, api):
+    """The example's test client with the key, or a failure when the key
+    does not carry HumanConfidence."""
     if not example.carries_human_confidence(api, key):
-        pytest.skip(
-            "The resource key does not carry HumanConfidence, so the Human "
-            "Confidence cloud tests cannot run with it.")
+        pytest.fail(
+            f"The resource key in {RESOURCE_KEY_NAMES[0]} does not carry "
+            "HumanConfidence, so the example would show its contact us "
+            "link rather than a level. Set the variable to a key that "
+            "carries it.")
     return example.create_app(
         key, ExampleUtils.get_license_key(), api).test_client()
+
+
+@pytest.fixture(scope="module")
+def client(key, api):
+    return client_for(key, api)
 
 
 def test_page_is_served_and_never_kept(client, key):
@@ -142,6 +152,7 @@ def test_licence_key_never_reaches_the_browser(client):
     for response in (client.get("/", headers=HEADERS),
                      client.get("/passive", headers=HEADERS)):
         assert licence_key.encode() not in response.data
+
 
 def test_a_key_without_human_confidence_fails_rather_than_skips(
         monkeypatch):
