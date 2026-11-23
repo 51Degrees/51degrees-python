@@ -142,3 +142,13 @@ def test_licence_key_never_reaches_the_browser(client):
     for response in (client.get("/", headers=HEADERS),
                      client.get("/passive", headers=HEADERS)):
         assert licence_key.encode() not in response.data
+
+def test_a_key_without_human_confidence_fails_rather_than_skips(
+        monkeypatch):
+    """A key that does not carry HumanConfidence cannot prove a level, so
+    the tests that need one fail, naming the variable, rather than skip."""
+    monkeypatch.setattr(
+        example, "carries_human_confidence", lambda api, key: False)
+    with pytest.raises(pytest.fail.Exception) as failure:
+        client_for("not-a-real-key", "https://cloud.example/api/v4/")
+    assert RESOURCE_KEY_NAMES[0] in str(failure.value)
