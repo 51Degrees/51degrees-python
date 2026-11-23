@@ -25,11 +25,13 @@ import datetime
 from email.utils import formatdate
 from enum import Enum
 import gzip
+import json
 import shutil
 import os
 import random
 import threading
 import time
+from urllib.parse import parse_qsl, urljoin, urlsplit
 import warnings
 import zlib
 import requests
@@ -290,25 +292,26 @@ class DataFileUpdateService():
             "Checking for update from '" + shown_url + "' for Engine '" +
             engine + "'")
 
-        try:
-            response = requests.get(url, headers=headers)
-            failure = None
-        except requests.RequestException as e:
-            # The message of a failed request names the URL, key included,
-            # so its cause is a copy with the key masked. It is raised after
-            # this block, so the request's own error is not chained to it.
-            failure = self._masked_error(e)
-        if failure is not None:
-            raise DataUpdateException(
-                "Error accessing data update service at '" + shown_url +
-                "' for engine '" + engine + "'",
-                UpdateStatus.AUTO_UPDATE_HTTPS_ERR) from failure
+        response = self._request(url, headers, shown_url, engine)
 
-        if response is None:
-            raise DataUpdateException(
-                "No response from data update service at '" + shown_url +
-                "' for engine '" + engine + "'",
-                UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+        # A request that names no product, made with a license key that
+        # holds several, is answered with status 300 and a URI for each
+        # product. The check carries on at the URI of the product the data
+        # file in use is of. A key that holds one product never gets this
+        # answer, so its check is the one request it always was.
+        if response.status_code == 300:
+            offered = self._offered_products(response)
+            if offered:
+                product, uri = self._offered_product(
+                    data_file, offered, shown_url, engine)
+                url = urljoin(url, uri)
+                shown_url = mask_licence_keys_in_text(url)
+                self._log(
+                    "info",
+                    "The license key holds several products. Checking for "
+                    "update to product '" + product + "' from '" +
+                    shown_url + "' for Engine '" + engine + "'")
+                response = self._request(url, headers, shown_url, engine)
 
         if response.status_code == 304:
             self._log(
@@ -416,6 +419,96 @@ class DataFileUpdateService():
 
         self._refresh(data_file)
         return UpdateStatus.AUTO_UPDATE_SUCCESS
+
+    def _request(self, url, headers, shown_url, engine):
+        # One request to the data update service. A request that failed, or
+        # that gave no response, raises a DataUpdateException with the
+        # message and status of its row of the errors table.
+        try:
+            response = requests.get(url, headers=headers)
+            failure = None
+        except requests.RequestException as e:
+            # The message of a failed request names the URL, key included,
+            # so its cause is a copy with the key masked. It is raised after
+            # this block, so the request's own error is not chained to it.
+            failure = self._masked_error(e)
+        if failure is not None:
+            raise DataUpdateException(
+                "Error accessing data update service at '" + shown_url +
+                "' for engine '" + engine + "'",
+                UpdateStatus.AUTO_UPDATE_HTTPS_ERR) from failure
+
+        if response is None:
+            raise DataUpdateException(
+                "No response from data update service at '" + shown_url +
+                "' for engine '" + engine + "'",
+                UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+
+        return response
+
+    @staticmethod
+    def _offered_products(response):
+        # The products an answer of status 300 offers, each with its URI,
+        # in the order given. The answer lists the URIs as AvailableUris,
+        # and each URI names its product in its Product parameter. Empty
+        # when the answer lists none, as from a source that is not the
+        # Distributor.
+        try:
+            uris = json.loads(response.content).get("AvailableUris")
+        except (AttributeError, TypeError, ValueError):
+            return []
+        if not isinstance(uris, list):
+            return []
+        offered = []
+        for uri in uris:
+            if not isinstance(uri, str):
+                continue
+            try:
+                parameters = parse_qsl(urlsplit(uri).query)
+            except ValueError:
+                continue
+            for name, value in parameters:
+                if name.lower() == "product" and value:
+                    offered.append((value, uri))
+                    break
+        return offered
+
+    def _offered_product(self, data_file, offered, shown_url, engine):
+        # The product, with its URI, that the data file in use is of. When
+        # none of the products offered is that one, or the data file names
+        # no product, the check fails with an error that names the products
+        # offered. The URIs hold the license key, so the error names the
+        # products alone.
+        wanted = self._data_update_product(data_file)
+        if wanted is not None:
+            for product, uri in offered:
+                if product.lower() == wanted.lower():
+                    return product, uri
+        names = ", ".join("'" + product + "'" for product, uri in offered)
+        message = ("Data update service at '" + shown_url +
+                   "' offers the products " + names + " for engine '" +
+                   engine + "', ")
+        if wanted is None:
+            message += ("which has not named the product of its data file. "
+                        "Set the product to request to one of them.")
+        else:
+            message += ("and the data file in use is of the product '" +
+                        wanted + "', which is not one of them.")
+        raise DataUpdateException(message, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+
+    @staticmethod
+    def _data_update_product(data_file):
+        # The product the data file in use is of, as the data file names it
+        # to the Distributor. None when it names none, as it does before
+        # its engine has loaded a data file.
+        named = getattr(data_file, "get_data_update_product", None)
+        if named is None:
+            return None
+        try:
+            product = named()
+        except Exception:
+            return None
+        return str(product) if product else None
 
     def update_from_memory(self, data_file, data):
 

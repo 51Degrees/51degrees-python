@@ -62,7 +62,9 @@ class DeviceDetectionExampleTests(unittest.TestCase):
     def test_onpremise_datafileupdate_console(self):
         example = DataFileUpdateConsole()
         license_key = ExampleUtils.get_license_key()
-        example.run("Enterprise-HashV41.hash", license_key, False, self.logger, print)
+        # The license key the tests run with holds the TAC data file, whose
+        # product is V4TAC, so that is the file and the product asked for.
+        example.run("TAC-HashV41.hash", license_key, False, self.logger, print, "V4TAC")
 
     def test_onpremise_datafileupdate_programmatic(self):
         # The update the example asks for itself, which needs no licence

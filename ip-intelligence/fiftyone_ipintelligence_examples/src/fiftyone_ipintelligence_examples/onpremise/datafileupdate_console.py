@@ -96,7 +96,7 @@ CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=exampl
 # The product type passed to the 51Degrees distributor. This identifies the
 # IP intelligence Enterprise product and may need to be adjusted to match
 # the product your license entitles you to.
-DATA_UPDATE_PRODUCT_TYPE = "V4Enterprise"
+DATA_UPDATE_PRODUCT_TYPE = "IPIV4Enterprise"
 
 DEFAULT_DATA_FILENAME = os.path.join(
     os.path.expanduser("~"), ENTERPRISE_DATAFILE_NAME)

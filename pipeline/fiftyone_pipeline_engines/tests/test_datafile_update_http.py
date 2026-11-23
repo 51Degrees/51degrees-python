@@ -24,6 +24,7 @@ import datetime
 import gzip
 import hashlib
 import http.server
+import json
 import os
 import random
 import shutil
@@ -33,9 +34,11 @@ import traceback
 import unittest
 from email.utils import formatdate
 from unittest import mock
+from urllib.parse import parse_qsl, urlsplit
 
 import requests
 
+from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 from fiftyone_pipeline_engines import datafile_update_service
 from fiftyone_pipeline_engines.datafile_update_service import DataFileUpdateService
 from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
@@ -1349,6 +1352,264 @@ class StartUpCheckErrorTests(UpdateServiceTestCase):
         self.assertEqual(
             [UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR,
              UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+
+
+# The products the license key of the fake Distributor holds, in the order
+# it offers them, and the data it serves for the second.
+HELD_PRODUCTS = ("IPIV4Enterprise", "V4TAC")
+TAC_DATA = b"tac data"
+
+# What the Distributor says with the URIs it offers.
+SEVERAL_PRODUCTS = (
+    "There are multiple products associated with this license key. Please "
+    "use the URI returned in the Location header.")
+
+
+def offer(url, products=HELD_PRODUCTS):
+    """The body of the answer of status 300 that offers each product at the
+    URL asked for, as the Distributor writes it."""
+    return json.dumps({
+        "AvailableUris": [
+            url + "&LicenceKeys=&Product=" + product for product in products],
+        "Error": SEVERAL_PRODUCTS}).encode("utf-8")
+
+
+def products_offered(url, ending):
+    """The error for a check that could not choose one of the products
+    offered at the URL, which is written here with its key masked."""
+    return ("Data update service at '" + url + "' offers the products "
+            "'IPIV4Enterprise', 'V4TAC' for engine 'FakeEngine', " + ending)
+
+
+class FakeDistributorHandler(http.server.BaseHTTPRequestHandler):
+    """Answers as the Distributor does for a license key that holds two
+    products. A request that names no product is answered 300 with the URI
+    of each product, one for V4TAC is answered 200 with the data, and one
+    for any other product is answered 403. The server keeps the path of
+    each request."""
+
+    def do_GET(self):
+        self.server.paths.append(self.path)
+        product = dict(parse_qsl(urlsplit(self.path).query)).get("Product")
+        if product is None:
+            here = ("http://127.0.0.1:" +
+                    str(self.server.server_address[1]) + self.path)
+            self.answer(300, offer(here))
+        elif product == "V4TAC":
+            self.answer(200, TAC_DATA)
+        else:
+            self.answer(403, json.dumps({
+                "Error": "The license key provided does not contain the "
+                         "requested product."}).encode("utf-8"))
+
+    def answer(self, status, body):
+        self.send_response(status)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format, *args):
+        pass
+
+
+class ProductDataFile(HttpDataFile):
+    """Stands in for the data file of an engine that names the product its
+    data file is of, as the on-premise data files do."""
+
+    def __init__(self, product):
+        super(ProductDataFile, self).__init__()
+        self.product = product
+
+    def get_data_update_product(self):
+        return self.product
+
+
+# A license key can hold several products. A request that names none is
+# then answered with status 300 and the URI of each product, and the check
+# carries on at the URI of the product the data file in use is of. When none
+# of them is that product the error names the products offered. No message
+# holds the license key in full.
+class SeveralProductsTests(UpdateServiceTestCase):
+
+    def serve(self):
+        """Starts a fake Distributor and returns it."""
+        server = http.server.ThreadingHTTPServer(
+            ("127.0.0.1", 0), FakeDistributorHandler)
+        server.paths = []
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(server.server_close)
+        self.addCleanup(server.shutdown)
+        return server
+
+    def update_url(self, server):
+        """The update URL of the fake Distributor, which names the license
+        key and the type and no product."""
+        return ("http://127.0.0.1:" + str(server.server_address[1]) +
+                "/api/v2/download?LicenseKeys=" + KEY + "&Type=HashV41")
+
+    def assertNoKey(self, text):
+        self.assertNotIn(KEY[:8], text)
+
+    def testTheProductOfTheDataFileInUseIsDownloaded(self):
+        server = self.serve()
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = self.update_url(server)
+
+        self.assertTrue(self.service.update_data_file(self.data_file))
+
+        self.assertEqual([TAC_DATA], self.data_file.refreshed)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+        # The first request is the one made for a key that holds one
+        # product, and the second names the product.
+        self.assertEqual(2, len(server.paths), server.paths)
+        first = dict(parse_qsl(urlsplit(server.paths[0]).query))
+        second = dict(parse_qsl(urlsplit(server.paths[1]).query))
+        self.assertEqual({"LicenseKeys": KEY, "Type": "HashV41"}, first)
+        self.assertEqual(
+            {"LicenseKeys": KEY, "Type": "HashV41", "Product": "V4TAC"},
+            second)
+
+    def testTheSecondRequestIsLoggedWithTheKeyMasked(self):
+        server = self.serve()
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = self.update_url(server)
+
+        self.service.update_data_file(self.data_file)
+
+        self.assertTrue(self.pipeline.logs)
+        for level, message in self.pipeline.logs:
+            self.assertNoKey(message)
+        followed = mask_licence_keys_in_text(
+            self.data_file.url + "&LicenceKeys=&Product=V4TAC")
+        self.assertNoKey(followed)
+        self.assertIn(
+            ("info",
+             "The license key holds several products. Checking for update "
+             "to product 'V4TAC' from '" + followed + "' for Engine "
+             "'FakeEngine'"),
+            self.pipeline.logs)
+        self.assertIn(
+            ("info",
+             "Downloaded new data from '" + followed + "' for Engine "
+             "'FakeEngine'"),
+            self.pipeline.logs)
+
+    def testTheProductIsMatchedWhateverItsCase(self):
+        server = self.serve()
+        self.data_file = ProductDataFile("v4tac")
+        self.data_file.url = self.update_url(server)
+
+        self.assertTrue(self.service.update_data_file(self.data_file))
+
+        self.assertEqual([TAC_DATA], self.data_file.refreshed)
+
+    def testIfModifiedSinceIsSentWithBothRequests(self):
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = KEYED_URL
+        self.get(response(300, offer(KEYED_URL)))
+
+        # The stand-in answers 300 both times, so the second answer ends
+        # the check, as an answer of any other status does.
+        self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+            "HTTP status code '300' from data update service at '" +
+            MASKED_URL + "&LicenceKeys=&Product=V4TAC' for engine "
+            "'FakeEngine'")
+
+        self.assertEqual(2, len(self.sent))
+        for headers in self.sent:
+            self.assertEqual(
+                "Tue, 03 Nov 2026 10:30:00 GMT",
+                headers["If-Modified-Since"])
+
+    def testAProductTheKeyDoesNotHoldNamesTheProductsOffered(self):
+        self.data_file = ProductDataFile("V4Enterprise")
+        self.data_file.url = KEYED_URL
+        self.get(response(300, offer(KEYED_URL)))
+
+        error = self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+            products_offered(
+                MASKED_URL,
+                "and the data file in use is of the product 'V4Enterprise', "
+                "which is not one of them."))
+
+        self.assertNoKey("".join(traceback.format_exception(
+            type(error), error, error.__traceback__)))
+        self.assertEqual(1, len(self.sent))
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
+        self.assertEqual([], self.data_file.refreshed)
+
+    def testADataFileThatNamesNoProductNamesTheProductsOffered(self):
+        # A data file that has no way to name its product, and one whose
+        # engine has loaded no data file yet.
+        for name, data_file in (
+                ("no name", HttpDataFile()),
+                ("none loaded", ProductDataFile(None))):
+            with self.subTest(name):
+                self.statuses.clear()
+                self.data_file = data_file
+                self.data_file.url = KEYED_URL
+                self.get(response(300, offer(KEYED_URL)))
+
+                self.assertCheckFails(
+                    UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+                    products_offered(
+                        MASKED_URL,
+                        "which has not named the product of its data file. "
+                        "Set the product to request to one of them."))
+
+                self.assertEqual(1, len(self.sent))
+                self.assertEqual(
+                    [UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
+
+    def testAPolledCheckLogsTheProductsOfferedWithTheKeyMasked(self):
+        self.data_file = ProductDataFile("V4Enterprise")
+        self.data_file.url = KEYED_URL
+        self.get(response(300, offer(KEYED_URL)))
+
+        self.poll()
+
+        for level, message in self.pipeline.logs:
+            self.assertNoKey(message)
+        self.assertIn(
+            ("error",
+             CHECK_ERROR + products_offered(
+                 MASKED_URL,
+                 "and the data file in use is of the product "
+                 "'V4Enterprise', which is not one of them.")),
+            self.pipeline.logs)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
+
+    def testAnAnswerThatOffersNoProductIsReportedByItsStatus(self):
+        # An answer of status 300 that lists no URIs, as from a source that
+        # is not the Distributor, ends the check as any other status does.
+        self.data_file = ProductDataFile("V4TAC")
+        for name, content in (
+                ("not JSON", b"new"),
+                ("no list", json.dumps({"Error": "no"}).encode("utf-8")),
+                ("empty list",
+                 json.dumps({"AvailableUris": []}).encode("utf-8")),
+                ("no product", json.dumps(
+                    {"AvailableUris": [URL + "?Type=HashV41"]}
+                ).encode("utf-8"))):
+            with self.subTest(name):
+                self.get(response(300, content))
+                self.assertCheckFails(
+                    UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+                    "HTTP status code '300' from data update service at '" +
+                    URL + "' for engine 'FakeEngine'")
+                self.assertEqual(1, len(self.sent))
+
+    def testAKeyThatHoldsOneProductIsAskedOnce(self):
+        self.data_file = ProductDataFile("V4TAC")
+        self.get(response(200))
+
+        self.assertTrue(self.service.update_data_file(self.data_file))
+
+        self.assertEqual(1, len(self.sent))
+        self.assertEqual([b"new"], self.data_file.refreshed)
 
 
 if __name__ == "__main__":
