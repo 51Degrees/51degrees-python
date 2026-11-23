@@ -122,6 +122,8 @@
   var LEVELS = ["High", "Medium", "Low"];
   // The values HumanConfidence takes before it is sealed.
   var PLAIN = LEVELS.concat(["Unknown"]);
+  // How long to wait for the browser tests' sealed value.
+  var ACTIVE_LIMIT_MS = 30000;
   var CLASSES = { High: "c-eg-status--pass", Medium: "c-eg-status--part",
     Low: "c-eg-status--fail" };
 
@@ -328,6 +330,18 @@
     });
   };
   document.head.appendChild(script);
+
+  // The browser tests take a few seconds. If no sealed value has come back
+  // by then, the answers didn't reach the cloud, so the timer stops and the
+  // row says so rather than running on, or showing a level for tests that
+  // didn't run. A sealed value that arrives later still replaces it.
+  setTimeout(function () {
+    if (shown.active) { return; }
+    shown.active = true;
+    var element = document.getElementById("active");
+    element.textContent = "No result";
+    element.className = "hc-level c-eg-status c-eg-status--none";
+  }, ACTIVE_LIMIT_MS);
 })();
 </script>
 </body>
