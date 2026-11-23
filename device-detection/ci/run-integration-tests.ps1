@@ -1,9 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    # The secrets, which common-ci passes on. No key is read from them: each
-    # is read from the environment under its _51DEGREES_ name.
-    [Hashtable]$Keys = @{},
     # False, from the root select-options.ps1, on every entry of a pull
     # request but one, so the browser contract runs once.
     [bool]$SeleniumContract = $true
@@ -46,7 +43,7 @@ if ($env:GITHUB_JOB -eq "Test") {
 # _51DEGREES_LICENSE_KEY, which common-ci exports. It is left as it is.
 
 try {
-    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages
 } finally {
     $env:PYTEST_ADDOPTS = $addopts
 }

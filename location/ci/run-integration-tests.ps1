@@ -1,9 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
-    [string]$RepoName,
-    # The secrets, which common-ci passes on. No key is read from them: each
-    # is read from the environment under its _51DEGREES_ name.
-    [Hashtable]$Keys = @{}
+    [string]$RepoName
 )
 
 # Without a resource key the tests that need one, which are marked live, are
@@ -17,7 +14,7 @@ if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
 }
 
 try {
-    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages . -Keys $Keys
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages .
 } finally {
     $env:PYTEST_ADDOPTS = $addopts
 }

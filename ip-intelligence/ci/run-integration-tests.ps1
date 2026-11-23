@@ -1,9 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
-    [string]$RepoName,
-    # The secrets, which common-ci passes on. No key is read from them: each
-    # is read from the environment under its _51DEGREES_ name.
-    [Hashtable]$Keys = @{}
+    [string]$RepoName
 )
 
 if ($IsWindows) {
@@ -42,7 +39,7 @@ if ($env:GITHUB_JOB -eq "Test") {
 }
 
 try {
-    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages
 } finally {
     $env:PYTEST_ADDOPTS = $addopts
 }

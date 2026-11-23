@@ -36,8 +36,7 @@ BeforeAll {
     $script:StandIn = @'
 param (
     [Parameter(Mandatory=$true)][string]$RepoName,
-    [Parameter(Mandatory=$true)][string[]]$Packages,
-    [Parameter(Mandatory=$true)][hashtable]$Keys
+    [Parameter(Mandatory=$true)][string[]]$Packages
 )
 @{
     Product = Split-Path $RepoName -Leaf
@@ -95,7 +94,7 @@ Context 'with no _51DEGREES_RESOURCE_KEY_BESPOKE' {
     BeforeEach {
         $env:PYTEST_ADDOPTS = $null
         $script:Output = Invoke-ProductStep 'run-integration-tests' $script:Repo `
-            @{ RepoName = $script:Repo; Keys = @{} } $script:Products *>&1 |
+            @{ RepoName = $script:Repo } $script:Products *>&1 |
             Out-String
     }
 
@@ -152,7 +151,7 @@ Context 'with no _51DEGREES_RESOURCE_KEY_BESPOKE and options a caller set' {
     It 'adds the selection to the options, and puts them back after' {
         $env:PYTEST_ADDOPTS = '-p no:cacheprovider'
         Invoke-ProductStep 'run-integration-tests' $script:Repo `
-            @{ RepoName = $script:Repo; Keys = @{} } $script:Products *>&1 |
+            @{ RepoName = $script:Repo } $script:Products *>&1 |
             Out-Null
 
         foreach ($product in $script:Products) {
@@ -172,7 +171,6 @@ Context 'with _51DEGREES_RESOURCE_KEY_BESPOKE set' {
         $env:_51DEGREES_RESOURCE_KEY_BESPOKE = 'key'
         Invoke-ProductStep 'run-integration-tests' $script:Repo @{
             RepoName = $script:Repo
-            Keys = @{}
             SeleniumContract = $false
         } 'device-detection', 'location' *>&1 | Out-Null
 

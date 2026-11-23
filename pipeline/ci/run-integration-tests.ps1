@@ -1,9 +1,6 @@
 param (
     [Parameter(Mandatory=$true)]
-    [string]$RepoName,
-    # The secrets, which common-ci passes on. No key is read from them: each
-    # is read from the environment under its _51DEGREES_ name.
-    [Hashtable]$Keys = @{}
+    [string]$RepoName
 )
 
 # The examples call the cloud service, so they are integration tests rather
@@ -39,7 +36,7 @@ try {
         Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. fiftyone_pipeline_did runs only live tests here, so it is skipped. common-ci exports it from the organization secret of that name."
         $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
     }
-    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages
     if ($LASTEXITCODE -ne 0) { $failed = $true }
 
     if ($env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
@@ -52,7 +49,7 @@ try {
         }
         & "$PSScriptRoot/copy-owid-source.ps1" -RepoRoot $RepoName
         $env:PYTEST_ADDOPTS = '-m "live and not tier"'
-        ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages "fiftyone_pipeline_did" -Keys $Keys
+        ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages "fiftyone_pipeline_did"
         if ($LASTEXITCODE -ne 0) { $failed = $true }
     }
 } finally {
