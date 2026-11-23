@@ -29,6 +29,7 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 from .classes.constants import *
+from .classes.endpoint import expected_endpoint
 
 
 class TestCloudResponse(CloudRequestEngineTestsBase):
@@ -123,7 +124,9 @@ class TestCloudResponse(CloudRequestEngineTestsBase):
                 "http_client": self.http_client,
             })
 
-        self.assertEqual(Constants.noDataKeyMessageComplete, context.exception.message)
+        self.assertEqual(
+            Constants.noDataKeyMessageComplete(expected_endpoint()),
+            context.exception.message)
 
     def test_validate_error_handling_noerror_nosuccess(self):
         """ 
@@ -137,4 +140,6 @@ class TestCloudResponse(CloudRequestEngineTestsBase):
                 "http_client": self.http_client,
             })
 
-        self.assertEqual(Constants.noErrorNoSuccessMessage, context.exception.message)
+        self.assertEqual(
+            Constants.noErrorNoSuccessMessage(expected_endpoint()),
+            context.exception.message)

@@ -30,6 +30,7 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 from .classes.accepteverykeyelement import AcceptEveryKeyElement
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
+from .classes.endpoint import expected_endpoint
 
 RESOURCE_KEY = "resource_key"
 LICENSE_KEY = "a-licence-key"
@@ -135,7 +136,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
 
         request_type, url, content = self.data_request(requests)
         self.assertEqual("POST", request_type)
-        self.assertEqual(Constants.BASE_URL_DEFAULT + "json", url)
+        self.assertEqual(expected_endpoint() + "json", url)
         self.assertNotIn(Constants.RESOURCE_PARAMETER, content)
         self.assertEqual(LICENSE_KEY, content[Constants.LICENSE_PARAMETER])
         self.assertEqual(
@@ -166,7 +167,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
         request_type, url, content = properties_requests[0]
         self.assertEqual("POST", request_type)
         self.assertEqual(
-            Constants.BASE_URL_DEFAULT + "accessibleProperties", url)
+            expected_endpoint() + "accessibleProperties", url)
         self.assertEqual({Constants.LICENSE_PARAMETER: LICENSE_KEY}, content)
 
     def test_licence_key_without_properties_is_refused(self):
