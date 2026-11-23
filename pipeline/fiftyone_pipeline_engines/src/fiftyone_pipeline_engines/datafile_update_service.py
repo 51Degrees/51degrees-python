@@ -311,7 +311,7 @@ class DataFileUpdateService():
         # any other status does, as it does for a second request.
         if response.status_code == 300 and not self._names_product(url):
             offered = self._offered_products(response)
-            if offered is not None:
+            if offered:
                 product = self._offered_product(
                     data_file, offered, shown_url, engine)
                 self._log(

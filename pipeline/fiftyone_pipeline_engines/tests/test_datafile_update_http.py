@@ -1771,25 +1771,10 @@ class SeveralProductsTests(UpdateServiceTestCase):
              if level == "error"])
         self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
 
-    def testAListThatOffersNoProductNamesNoneOffered(self):
-        # An answer of status 300 whose list holds no URI that names a
-        # product offers none, so no product is chosen.
-        self.data_file = ProductDataFile("V4TAC")
-        for name, uris in (
-                ("empty list", []),
-                ("no product", [URL + "?Type=HashV41"])):
-            with self.subTest(name):
-                self.get(response(
-                    300, json.dumps({"AvailableUris": uris}).encode("utf-8")))
-                self.assertCheckFails(
-                    UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
-                    not_offered("V4TAC", URL, ""))
-                self.assertEqual(1, len(self.sent))
-
-    def testAnAnswerWithNoListIsReportedByItsStatus(self):
-        # An answer of status 300 that is not JSON with a list of URIs, as
-        # from a source that is not the Distributor, ends the check as any
-        # other status does.
+    def testAnAnswerThatOffersNoProductIsReportedByItsStatus(self):
+        # An answer of status 300 that is not JSON with a list of URIs, or
+        # whose list names no product, as from a source that is not the
+        # Distributor, ends the check as any other status does.
         self.data_file = ProductDataFile("V4TAC")
         for name, content in (
                 ("not JSON", b"new"),
@@ -1797,6 +1782,11 @@ class SeveralProductsTests(UpdateServiceTestCase):
                 ("no list", json.dumps({"Error": "no"}).encode("utf-8")),
                 ("not a list", json.dumps(
                     {"AvailableUris": URL + "?Product=V4TAC"}
+                ).encode("utf-8")),
+                ("empty list",
+                 json.dumps({"AvailableUris": []}).encode("utf-8")),
+                ("no product", json.dumps(
+                    {"AvailableUris": [URL + "?Type=HashV41"]}
                 ).encode("utf-8"))):
             with self.subTest(name):
                 self.get(response(300, content))
