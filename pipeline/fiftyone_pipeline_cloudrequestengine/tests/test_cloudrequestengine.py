@@ -106,6 +106,32 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         })
         self.assertEqual(Constants.BASE_URL_DEFAULT, cloud_request_engine.baseURL)
 
+    def testConfigEndPoint_BlankEnvironmentVariable(self):
+        """!
+        Check that an empty environment variable is treated as not set,
+        so the default value is used
+        """
+
+        os.environ[Constants.CLOUD_ENDPOINT] = ""
+        cloud_request_engine = CloudRequestEngine({
+            "resource_key": TestCloudRequestEngine.testResourceKey,
+            "http_client": self.mock_http()
+        })
+        self.assertEqual(Constants.BASE_URL_DEFAULT, cloud_request_engine.baseURL)
+
+    def testConfigEndPoint_EnvironmentVariableWithoutSlash(self):
+        """!
+        Check that an environment variable without a trailing slash is
+        used with one added
+        """
+
+        os.environ[Constants.CLOUD_ENDPOINT] = \
+            TestCloudRequestEngine.testEnvVarEndPoint.rstrip("/")
+        cloud_request_engine = self.new_engine()
+        self.assertEqual(
+            TestCloudRequestEngine.testEnvVarEndPoint,
+            cloud_request_engine.baseURL)
+
     def testOneConstantNamesAnEnvironmentVariable(self):
         """!
         Check that the only constant holding the name of an environment
