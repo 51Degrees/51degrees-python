@@ -164,11 +164,17 @@ class UpdateServiceTestCase(unittest.TestCase):
         self.pending = []
 
     def get(self, reply):
-        """Replaces the HTTP request and keeps the headers it was sent."""
+        """Replaces the HTTP request and keeps the headers it was sent, and
+        the URL each request was made to. A list of replies answers one
+        request each, in order, and no more requests than it holds."""
         self.sent = []
+        self.requested = []
 
         def fake_get(url, headers=None, **kwargs):
             self.sent.append(headers)
+            self.requested.append(url)
+            if isinstance(reply, list):
+                return reply[len(self.sent) - 1]
             if isinstance(reply, Exception):
                 raise reply
             return reply
@@ -1364,46 +1370,116 @@ SEVERAL_PRODUCTS = (
     "There are multiple products associated with this license key. Please "
     "use the URI returned in the Location header.")
 
+# The path of the update URL of the fake Distributor, and the path of the
+# URIs it offers, which no request is to be made to.
+UPDATE_PATH = "/api/v2/download"
+OFFERED_PATH = "/offered"
+
+# The path of the URL the fake Distributor gives in the Location header of
+# an answer of status 300, when it is set to send one, and the data it
+# serves there, which is that of the first product it offers. No request is
+# to be made there either.
+LOCATION_PATH = "/located"
+FIRST_PRODUCT_DATA = b"first product data"
+
+# The If-Modified-Since header of a request for the stand-in data files,
+# which is their publication date.
+SINCE = "Tue, 03 Nov 2026 10:30:00 GMT"
+
 
 def offer(url, products=HELD_PRODUCTS):
-    """The body of the answer of status 300 that offers each product at the
-    URL asked for, as the Distributor writes it."""
+    """The body of the answer of status 300 that offers each product, as the
+    Distributor writes it. Each URI is on the host of the URL asked for but
+    at another path, and has no key and no Download parameter, so it is not
+    the request the data file update service is to make."""
+    parts = urlsplit(url)
+    there = parts.scheme + "://" + parts.netloc + OFFERED_PATH
     return json.dumps({
         "AvailableUris": [
-            url + "&LicenceKeys=&Product=" + product for product in products],
+            there + "?LicenceKeys=&Type=HashV41&Product=" + product
+            for product in products],
         "Error": SEVERAL_PRODUCTS}).encode("utf-8")
 
 
-def products_offered(url, ending):
-    """The error for a check that could not choose one of the products
-    offered at the URL, which is written here with its key masked."""
-    return ("Data update service at '" + url + "' offers the products "
-            "'IPIV4Enterprise', 'V4TAC' for engine 'FakeEngine', " + ending)
+def not_offered(product, url, offered="IPIV4Enterprise,V4TAC"):
+    """The error for a check whose product is not one of those offered at
+    the URL of the first request, which is written here with its key
+    masked."""
+    return ("Product '" + product + "' is not offered by data update "
+            "service at '" + url + "' for engine 'FakeEngine'. Products "
+            "offered: '" + offered + "'")
+
+
+def requesting(product, url):
+    """The entry logged before the request that names the product, which
+    gives the URL of the first request, written here with its key masked."""
+    return ("info",
+            "Requesting product '" + product + "' from '" + url +
+            "' for Engine 'FakeEngine'")
 
 
 class FakeDistributorHandler(http.server.BaseHTTPRequestHandler):
     """Answers as the Distributor does for a license key that holds two
-    products. A request that names no product is answered 300 with the URI
-    of each product, one for V4TAC is answered 200 with the data, and one
-    for any other product is answered 403. The server keeps the path of
-    each request."""
+    products. A request that names no product is answered 300 with a URI
+    for each product. A request that names a product after one that named
+    none has to be that request again, at the same path with the same
+    parameters and the same If-Modified-Since header, with the Product
+    parameter added after them, or it is answered 400. A request that
+    names a product when none before it named none is one made with a
+    product configured, and has to name one product. A request that names
+    a product is answered 200 with the data for V4TAC and 403 for any
+    other product, or 300 again when the server is set to offer the
+    products every time. A request to any other path, as one to a URI
+    offered would be, is answered 404. The server keeps the path and the
+    If-Modified-Since header of each request."""
 
     def do_GET(self):
-        self.server.paths.append(self.path)
-        product = dict(parse_qsl(urlsplit(self.path).query)).get("Product")
-        if product is None:
-            here = ("http://127.0.0.1:" +
-                    str(self.server.server_address[1]) + self.path)
-            self.answer(300, offer(here))
-        elif product == "V4TAC":
+        since = self.headers.get("If-Modified-Since")
+        self.server.requests.append((self.path, since))
+        parts = urlsplit(self.path)
+        parameters = parse_qsl(parts.query, keep_blank_values=True)
+        products = [value for name, value in parameters if name == "Product"]
+        here = ("http://127.0.0.1:" + str(self.server.server_address[1]) +
+                self.path)
+        if parts.path == LOCATION_PATH:
+            # Only a client that follows the Location header of an answer
+            # of status 300 asks here, and it is served the first product.
+            self.answer(200, FIRST_PRODUCT_DATA)
+        elif parts.path != UPDATE_PATH:
+            self.answer(404, b"")
+        elif not products:
+            self.server.first = (parameters, since)
+            self.answer(300, offer(here), self.location())
+        elif len(products) != 1:
+            self.answer(400, b"")
+        elif self.server.first is not None and (
+                parameters[-1][0] != "Product" or
+                self.server.first != (parameters[:-1], since)):
+            self.answer(400, b"")
+        elif self.server.several_again:
+            self.answer(300, offer(here), self.location())
+        elif products[0] == "V4TAC":
             self.answer(200, TAC_DATA)
         else:
             self.answer(403, json.dumps({
                 "Error": "The license key provided does not contain the "
                          "requested product."}).encode("utf-8"))
 
-    def answer(self, status, body):
+    def location(self):
+        """The Location header of an answer of status 300, when the server
+        is set to send one, as the Distributor does. It gives a URL for the
+        first product offered, which is not the product of the data file
+        the tests use."""
+        if not self.server.location:
+            return None
+        return ("http://127.0.0.1:" + str(self.server.server_address[1]) +
+                LOCATION_PATH + "?LicenceKeys=&Type=HashV41&Product=" +
+                HELD_PRODUCTS[0])
+
+    def answer(self, status, body, location=None):
         self.send_response(status)
+        if location is not None:
+            self.send_header("Location", location)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -1425,33 +1501,53 @@ class ProductDataFile(HttpDataFile):
 
 
 # A license key can hold several products. A request that names none is
-# then answered with status 300 and the URI of each product, and the check
-# carries on at the URI of the product the data file in use is of. When none
-# of them is that product the error names the products offered. No message
-# holds the license key in full.
+# then answered with status 300 and a URI for each product, as the License
+# Keys with several products section of the data updates specification
+# says. Only the name of the product is read from the answer. The first
+# request is made again, to the same URL with the product of the data file
+# in use named and with the same If-Modified-Since header, and no request
+# is made to a URI offered. Another answer of status 300 is not followed.
+# When none of the products offered is that of the data file the error
+# names the product and the products offered. The two requests are one
+# check, which is reported once. No message holds the license key in full.
 class SeveralProductsTests(UpdateServiceTestCase):
 
     def serve(self):
         """Starts a fake Distributor and returns it."""
         server = http.server.ThreadingHTTPServer(
             ("127.0.0.1", 0), FakeDistributorHandler)
-        server.paths = []
+        server.requests = []
+        server.first = None
+        server.several_again = False
+        server.location = False
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         self.addCleanup(server.server_close)
         self.addCleanup(server.shutdown)
         return server
 
+    # The parameters of the update URL of the fake Distributor, which name
+    # the license key and the type and no product.
+    QUERY = "LicenseKeys=" + KEY + "&Type=HashV41&Download=True"
+
     def update_url(self, server):
-        """The update URL of the fake Distributor, which names the license
-        key and the type and no product."""
+        """The update URL of the fake Distributor."""
         return ("http://127.0.0.1:" + str(server.server_address[1]) +
-                "/api/v2/download?LicenseKeys=" + KEY + "&Type=HashV41")
+                UPDATE_PATH + "?" + self.QUERY)
 
     def assertNoKey(self, text):
         self.assertNotIn(KEY[:8], text)
 
-    def testTheProductOfTheDataFileInUseIsDownloaded(self):
+    def several(self, product, *later):
+        """Sets a data file of the product to be checked at the URL that
+        carries a license key. The first request is answered 300 with the
+        products offered, and each request after it with the next of the
+        later replies."""
+        self.data_file = ProductDataFile(product)
+        self.data_file.url = KEYED_URL
+        self.get([response(300, offer(KEYED_URL))] + list(later))
+
+    def testTheFirstRequestIsMadeAgainWithTheProductNamed(self):
         server = self.serve()
         self.data_file = ProductDataFile("V4TAC")
         self.data_file.url = self.update_url(server)
@@ -1459,81 +1555,170 @@ class SeveralProductsTests(UpdateServiceTestCase):
         self.assertTrue(self.service.update_data_file(self.data_file))
 
         self.assertEqual([TAC_DATA], self.data_file.refreshed)
+        # The two requests are one check, which is reported once.
         self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
         # The first request is the one made for a key that holds one
-        # product, and the second names the product.
-        self.assertEqual(2, len(server.paths), server.paths)
-        first = dict(parse_qsl(urlsplit(server.paths[0]).query))
-        second = dict(parse_qsl(urlsplit(server.paths[1]).query))
-        self.assertEqual({"LicenseKeys": KEY, "Type": "HashV41"}, first)
+        # product. The second is the same request, to the update URL and
+        # with the same If-Modified-Since header, with the product added.
         self.assertEqual(
-            {"LicenseKeys": KEY, "Type": "HashV41", "Product": "V4TAC"},
-            second)
+            [(UPDATE_PATH + "?" + self.QUERY, SINCE),
+             (UPDATE_PATH + "?" + self.QUERY + "&Product=V4TAC", SINCE)],
+            server.requests)
 
-    def testTheSecondRequestIsLoggedWithTheKeyMasked(self):
+    def testNoRequestIsMadeToAUriOffered(self):
         server = self.serve()
         self.data_file = ProductDataFile("V4TAC")
         self.data_file.url = self.update_url(server)
 
         self.service.update_data_file(self.data_file)
 
-        self.assertTrue(self.pipeline.logs)
-        for level, message in self.pipeline.logs:
-            self.assertNoKey(message)
-        followed = mask_licence_keys_in_text(
-            self.data_file.url + "&LicenceKeys=&Product=V4TAC")
-        self.assertNoKey(followed)
-        self.assertIn(
-            ("info",
-             "The license key holds several products. Checking for update "
-             "to product 'V4TAC' from '" + followed + "' for Engine "
-             "'FakeEngine'"),
-            self.pipeline.logs)
-        self.assertIn(
-            ("info",
-             "Downloaded new data from '" + followed + "' for Engine "
-             "'FakeEngine'"),
-            self.pipeline.logs)
+        self.assertEqual(2, len(server.requests), server.requests)
+        for path, since in server.requests:
+            self.assertEqual(UPDATE_PATH, urlsplit(path).path)
 
-    def testTheProductIsMatchedWhateverItsCase(self):
+    def testTheLocationHeaderOfAnAnswerOfStatus300IsNotFollowed(self):
+        # The Distributor gives the first URI it offers in a Location
+        # header. A client that followed it would never see the answer of
+        # status 300, and would be served the first product offered, which
+        # is not the product of the data file in use.
         server = self.serve()
-        self.data_file = ProductDataFile("v4tac")
+        server.location = True
+        self.data_file = ProductDataFile("V4TAC")
         self.data_file.url = self.update_url(server)
 
         self.assertTrue(self.service.update_data_file(self.data_file))
 
         self.assertEqual([TAC_DATA], self.data_file.refreshed)
+        self.assertEqual(
+            [(UPDATE_PATH + "?" + self.QUERY, SINCE),
+             (UPDATE_PATH + "?" + self.QUERY + "&Product=V4TAC", SINCE)],
+            server.requests)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
 
-    def testIfModifiedSinceIsSentWithBothRequests(self):
+    def testTheLocationHeaderOfASecondAnswerOfStatus300IsNotFollowed(self):
+        server = self.serve()
+        server.location = True
+        server.several_again = True
         self.data_file = ProductDataFile("V4TAC")
-        self.data_file.url = KEYED_URL
-        self.get(response(300, offer(KEYED_URL)))
+        self.data_file.url = self.update_url(server)
 
-        # The stand-in answers 300 both times, so the second answer ends
-        # the check, as an answer of any other status does.
         self.assertCheckFails(
             UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
             "HTTP status code '300' from data update service at '" +
-            MASKED_URL + "&LicenceKeys=&Product=V4TAC' for engine "
-            "'FakeEngine'")
+            mask_licence_keys_in_text(self.data_file.url) +
+            "&Product=V4TAC' for engine 'FakeEngine'")
+
+        self.assertEqual(2, len(server.requests), server.requests)
+        for path, since in server.requests:
+            self.assertEqual(UPDATE_PATH, urlsplit(path).path)
+        self.assertEqual([], self.data_file.refreshed)
+
+    def testAnotherAnswerOfStatus300IsNotFollowed(self):
+        server = self.serve()
+        server.several_again = True
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = self.update_url(server)
+
+        # The answer to the second request ends the check, as an answer of
+        # any other status does.
+        self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+            "HTTP status code '300' from data update service at '" +
+            mask_licence_keys_in_text(self.data_file.url) +
+            "&Product=V4TAC' for engine 'FakeEngine'")
+
+        self.assertEqual(
+            [(UPDATE_PATH + "?" + self.QUERY, SINCE),
+             (UPDATE_PATH + "?" + self.QUERY + "&Product=V4TAC", SINCE)],
+            server.requests)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
+        self.assertEqual([], self.data_file.refreshed)
+
+    def testEachActionIsLoggedWithTheKeyMasked(self):
+        self.several("V4TAC", response(200))
+
+        self.service.update_data_file(self.data_file)
+
+        for level, message in self.pipeline.logs:
+            self.assertNoKey(message)
+        self.assertEqual([
+            ("info", "Checking for update"),
+            ("info",
+             "Checking for update from '" + MASKED_URL + "' for Engine "
+             "'FakeEngine'"),
+            requesting("V4TAC", MASKED_URL),
+            ("info",
+             "Downloaded new data from '" + MASKED_URL + "&Product=V4TAC' "
+             "for Engine 'FakeEngine'"),
+            ("info",
+             "Attempting to refresh Engine 'FakeEngine' with new data"),
+        ], self.pipeline.logs)
+
+    def testTheProductIsMatchedWhateverItsCase(self):
+        self.several("v4tac", response(200))
+
+        self.assertTrue(self.service.update_data_file(self.data_file))
+
+        # The product is named as the answer wrote it.
+        self.assertEqual(
+            [KEYED_URL, KEYED_URL + "&Product=V4TAC"], self.requested)
+        self.assertIn(requesting("V4TAC", MASKED_URL), self.pipeline.logs)
+        self.assertEqual([b"new"], self.data_file.refreshed)
+
+    def testIfModifiedSinceIsSentWithBothRequests(self):
+        self.several("V4TAC", response(304))
+
+        self.assertFalse(self.service.update_data_file(self.data_file))
+
+        self.assertEqual(
+            [KEYED_URL, KEYED_URL + "&Product=V4TAC"], self.requested)
+        self.assertEqual(
+            [SINCE, SINCE],
+            [headers["If-Modified-Since"] for headers in self.sent])
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_NOT_NEEDED], self.statuses)
+
+    def testNeitherRequestHasIfModifiedSinceWhenDisabled(self):
+        self.several("V4TAC", response(304))
+        self.data_file.verify_if_modified_since = False
+
+        self.service.update_data_file(self.data_file)
 
         self.assertEqual(2, len(self.sent))
         for headers in self.sent:
-            self.assertEqual(
-                "Tue, 03 Nov 2026 10:30:00 GMT",
-                headers["If-Modified-Since"])
+            self.assertNotIn("If-Modified-Since", headers)
 
-    def testAProductTheKeyDoesNotHoldNamesTheProductsOffered(self):
-        self.data_file = ProductDataFile("V4Enterprise")
-        self.data_file.url = KEYED_URL
-        self.get(response(300, offer(KEYED_URL)))
+    def testAUriThatNamesNoProductIsIgnored(self):
+        self.data_file = ProductDataFile("V4TAC")
+        self.get([
+            response(300, json.dumps({"AvailableUris": [
+                URL + "?Type=HashV41",
+                7,
+                URL + "?Type=HashV41&Product=V4TAC"]}).encode("utf-8")),
+            response(200)])
+
+        self.assertTrue(self.service.update_data_file(self.data_file))
+
+        self.assertEqual([URL, URL + "?Product=V4TAC"], self.requested)
+
+    def testAnAnswerOfStatus403ToTheSecondRequestIsAccessDenied(self):
+        self.several("V4TAC", response(403))
+
+        self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_ERR_403_FORBIDDEN,
+            "Access denied to data update service at '" + MASKED_URL +
+            "&Product=V4TAC' for engine 'FakeEngine'")
+
+        self.assertEqual(2, len(self.sent))
+        self.assertEqual(
+            [UpdateStatus.AUTO_UPDATE_ERR_403_FORBIDDEN], self.statuses)
+
+    def testAProductThatIsNotOfferedNamesTheProductsOffered(self):
+        self.several("V4Enterprise")
 
         error = self.assertCheckFails(
             UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
-            products_offered(
-                MASKED_URL,
-                "and the data file in use is of the product 'V4Enterprise', "
-                "which is not one of them."))
+            not_offered("V4Enterprise", MASKED_URL))
 
         self.assertNoKey("".join(traceback.format_exception(
             type(error), error, error.__traceback__)))
@@ -1541,9 +1726,21 @@ class SeveralProductsTests(UpdateServiceTestCase):
         self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
         self.assertEqual([], self.data_file.refreshed)
 
+    def testTheErrorIsWrittenExactly(self):
+        # Written out in full, so a change to any character fails.
+        self.several("V4Enterprise")
+
+        self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+            "Product 'V4Enterprise' is not offered by data update service "
+            "at 'https://example.com/update?licenseKeys=********IJKL&"
+            "Type=HashV41' for engine 'FakeEngine'. Products offered: "
+            "'IPIV4Enterprise,V4TAC'")
+
     def testADataFileThatNamesNoProductNamesTheProductsOffered(self):
         # A data file that has no way to name its product, and one whose
-        # engine has loaded no data file yet.
+        # engine has loaded no data file yet. The product in the error is
+        # then empty.
         for name, data_file in (
                 ("no name", HttpDataFile()),
                 ("none loaded", ProductDataFile(None))):
@@ -1555,40 +1752,37 @@ class SeveralProductsTests(UpdateServiceTestCase):
 
                 self.assertCheckFails(
                     UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
-                    products_offered(
-                        MASKED_URL,
-                        "which has not named the product of its data file. "
-                        "Set the product to request to one of them."))
+                    not_offered("", MASKED_URL))
 
                 self.assertEqual(1, len(self.sent))
                 self.assertEqual(
                     [UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
 
     def testAPolledCheckLogsTheProductsOfferedWithTheKeyMasked(self):
-        self.data_file = ProductDataFile("V4Enterprise")
-        self.data_file.url = KEYED_URL
-        self.get(response(300, offer(KEYED_URL)))
+        self.several("V4Enterprise")
 
         self.poll()
 
         for level, message in self.pipeline.logs:
             self.assertNoKey(message)
-        self.assertIn(
-            ("error",
-             CHECK_ERROR + products_offered(
-                 MASKED_URL,
-                 "and the data file in use is of the product "
-                 "'V4Enterprise', which is not one of them.")),
-            self.pipeline.logs)
+        self.assertEqual(
+            [CHECK_ERROR + not_offered("V4Enterprise", MASKED_URL)],
+            [message for level, message in self.pipeline.logs
+             if level == "error"])
         self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
 
     def testAnAnswerThatOffersNoProductIsReportedByItsStatus(self):
-        # An answer of status 300 that lists no URIs, as from a source that
-        # is not the Distributor, ends the check as any other status does.
+        # An answer of status 300 that is not JSON with a list of URIs, or
+        # whose list names no product, as from a source that is not the
+        # Distributor, ends the check as any other status does.
         self.data_file = ProductDataFile("V4TAC")
         for name, content in (
                 ("not JSON", b"new"),
+                ("not an object", json.dumps([1]).encode("utf-8")),
                 ("no list", json.dumps({"Error": "no"}).encode("utf-8")),
+                ("not a list", json.dumps(
+                    {"AvailableUris": URL + "?Product=V4TAC"}
+                ).encode("utf-8")),
                 ("empty list",
                  json.dumps({"AvailableUris": []}).encode("utf-8")),
                 ("no product", json.dumps(
@@ -1610,6 +1804,115 @@ class SeveralProductsTests(UpdateServiceTestCase):
 
         self.assertEqual(1, len(self.sent))
         self.assertEqual([b"new"], self.data_file.refreshed)
+
+    # A product is named in the update URL only when one is configured.
+    # Every request is made to that URL, so with a product configured every
+    # request names it, the first included, and no request is made again.
+    # With none configured the first request has no Product parameter.
+
+    def testWithNoProductConfiguredTheFirstRequestNamesNoProduct(self):
+        server = self.serve()
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = self.update_url(server)
+
+        self.service.update_data_file(self.data_file)
+
+        path, since = server.requests[0]
+        self.assertEqual(UPDATE_PATH + "?" + self.QUERY, path)
+        # No parameter of the first request is Product, empty or not.
+        self.assertEqual(
+            [], [name for name, value in parse_qsl(
+                urlsplit(path).query, keep_blank_values=True)
+                if name.lower() == "product"])
+
+    def testAConfiguredProductIsNamedInTheFirstRequest(self):
+        server = self.serve()
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = self.update_url(server) + "&Product=V4TAC"
+
+        self.assertTrue(self.service.update_data_file(self.data_file))
+
+        # The one request names the product, so the products are not
+        # offered and nothing is asked a second time.
+        self.assertEqual(
+            [(UPDATE_PATH + "?" + self.QUERY + "&Product=V4TAC", SINCE)],
+            server.requests)
+        self.assertEqual([TAC_DATA], self.data_file.refreshed)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], self.statuses)
+        self.assertNotIn(
+            "Requesting product",
+            "".join(message for level, message in self.pipeline.logs))
+
+    def testAConfiguredProductIsNamedInEveryRequest(self):
+        server = self.serve()
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = self.update_url(server) + "&Product=V4TAC"
+
+        self.service.update_data_file(self.data_file)
+        self.service.update_data_file(self.data_file)
+
+        self.assertEqual(
+            [(UPDATE_PATH + "?" + self.QUERY + "&Product=V4TAC", SINCE)] * 2,
+            server.requests)
+
+    def testAConfiguredProductIsNamedWhateverTheDataFileInUse(self):
+        # The product configured is the one asked for, and the product of
+        # the data file in use is not read.
+        server = self.serve()
+        self.data_file = ProductDataFile("V4Enterprise")
+        self.data_file.url = self.update_url(server) + "&Product=V4TAC"
+
+        self.assertTrue(self.service.update_data_file(self.data_file))
+
+        self.assertEqual(
+            [(UPDATE_PATH + "?" + self.QUERY + "&Product=V4TAC", SINCE)],
+            server.requests)
+
+    def testAnAnswerOfStatus300ToAConfiguredProductIsNotFollowed(self):
+        server = self.serve()
+        server.several_again = True
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = self.update_url(server) + "&Product=V4TAC"
+
+        # The request already names a product, so it is not made again and
+        # the answer ends the check as an answer of any other status does.
+        self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+            "HTTP status code '300' from data update service at '" +
+            mask_licence_keys_in_text(self.data_file.url) +
+            "' for engine 'FakeEngine'")
+
+        self.assertEqual(
+            [(UPDATE_PATH + "?" + self.QUERY + "&Product=V4TAC", SINCE)],
+            server.requests)
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_HTTPS_ERR], self.statuses)
+        self.assertEqual([], self.data_file.refreshed)
+
+    def testAConfiguredProductTheKeyDoesNotHoldIsAccessDenied(self):
+        server = self.serve()
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = (
+            self.update_url(server) + "&Product=V4Enterprise")
+
+        self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_ERR_403_FORBIDDEN,
+            "Access denied to data update service at '" +
+            mask_licence_keys_in_text(self.data_file.url) +
+            "' for engine 'FakeEngine'")
+
+        self.assertEqual(1, len(server.requests), server.requests)
+
+    def testTheNameOfTheProductParameterIsReadWhateverItsCase(self):
+        self.data_file = ProductDataFile("V4TAC")
+        self.data_file.url = KEYED_URL + "&product=V4TAC"
+        self.get(response(300, offer(KEYED_URL)))
+
+        self.assertCheckFails(
+            UpdateStatus.AUTO_UPDATE_HTTPS_ERR,
+            "HTTP status code '300' from data update service at '" +
+            MASKED_URL + "&product=V4TAC' for engine 'FakeEngine'")
+
+        self.assertEqual(1, len(self.sent))
 
 
 if __name__ == "__main__":

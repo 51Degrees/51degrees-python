@@ -31,7 +31,7 @@ import os
 import random
 import threading
 import time
-from urllib.parse import parse_qsl, urljoin, urlsplit
+from urllib.parse import parse_qsl, quote, urlsplit, urlunsplit
 import warnings
 import zlib
 import requests
@@ -296,21 +296,30 @@ class DataFileUpdateService():
 
         # A request that names no product, made with a license key that
         # holds several, is answered with status 300 and a URI for each
-        # product. The check carries on at the URI of the product the data
-        # file in use is of. A key that holds one product never gets this
-        # answer, so its check is the one request it always was.
-        if response.status_code == 300:
+        # product, as the License Keys with several products section of the
+        # data updates specification says. Only the name of the product is
+        # read from the answer. The request is then made again, to the same
+        # URL with that product named and with the same headers, so it
+        # still goes to the data update URL the data file gives. The answer
+        # to it is handled as the answer to a first request is, so another
+        # 300 is not followed and ends the check as any other status does.
+        # A key that holds one product never gets this answer, so its check
+        # is the one request it always was.
+        # When a product is configured, the data update URL names it, so
+        # every request carries it, the first included. Such a request is
+        # never made again. An answer of status 300 to it ends the check as
+        # any other status does, as it does for a second request.
+        if response.status_code == 300 and not self._names_product(url):
             offered = self._offered_products(response)
             if offered:
-                product, uri = self._offered_product(
+                product = self._offered_product(
                     data_file, offered, shown_url, engine)
-                url = urljoin(url, uri)
-                shown_url = mask_licence_keys_in_text(url)
                 self._log(
                     "info",
-                    "The license key holds several products. Checking for "
-                    "update to product '" + product + "' from '" +
+                    "Requesting product '" + product + "' from '" +
                     shown_url + "' for Engine '" + engine + "'")
+                url = self._with_product(url, product)
+                shown_url = mask_licence_keys_in_text(url)
                 response = self._request(url, headers, shown_url, engine)
 
         if response.status_code == 304:
@@ -448,17 +457,18 @@ class DataFileUpdateService():
 
     @staticmethod
     def _offered_products(response):
-        # The products an answer of status 300 offers, each with its URI,
-        # in the order given. The answer lists the URIs as AvailableUris,
-        # and each URI names its product in its Product parameter. Empty
-        # when the answer lists none, as from a source that is not the
-        # Distributor.
+        # The names of the products an answer of status 300 offers, in the
+        # order given. The answer is JSON that lists a URI for each product
+        # as AvailableUris, and each URI names its product in its Product
+        # parameter. A URI that names no product is ignored. Nothing else
+        # is read from a URI. None when the answer is not JSON with that
+        # list, as from a source that is not the Distributor.
         try:
             uris = json.loads(response.content).get("AvailableUris")
         except (AttributeError, TypeError, ValueError):
-            return []
+            return None
         if not isinstance(uris, list):
-            return []
+            return None
         offered = []
         for uri in uris:
             if not isinstance(uri, str):
@@ -469,32 +479,48 @@ class DataFileUpdateService():
                 continue
             for name, value in parameters:
                 if name.lower() == "product" and value:
-                    offered.append((value, uri))
+                    offered.append(value)
                     break
         return offered
 
     def _offered_product(self, data_file, offered, shown_url, engine):
-        # The product, with its URI, that the data file in use is of. When
-        # none of the products offered is that one, or the data file names
-        # no product, the check fails with an error that names the products
-        # offered. The URIs hold the license key, so the error names the
-        # products alone.
+        # The name, as the answer wrote it, of the product offered that the
+        # data file in use is of, whatever the case of either. When none of
+        # the products offered is that one, or the data file names no
+        # product, the check fails with the message and status of that row
+        # of the errors table, which names the product needed, empty when
+        # there is none, and the products offered.
         wanted = self._data_update_product(data_file)
         if wanted is not None:
-            for product, uri in offered:
+            for product in offered:
                 if product.lower() == wanted.lower():
-                    return product, uri
-        names = ", ".join("'" + product + "'" for product, uri in offered)
-        message = ("Data update service at '" + shown_url +
-                   "' offers the products " + names + " for engine '" +
-                   engine + "', ")
-        if wanted is None:
-            message += ("which has not named the product of its data file. "
-                        "Set the product to request to one of them.")
-        else:
-            message += ("and the data file in use is of the product '" +
-                        wanted + "', which is not one of them.")
-        raise DataUpdateException(message, UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+                    return product
+        raise DataUpdateException(
+            "Product '" + (wanted or "") + "' is not offered by data update "
+            "service at '" + shown_url + "' for engine '" + engine +
+            "'. Products offered: '" + ",".join(offered) + "'",
+            UpdateStatus.AUTO_UPDATE_HTTPS_ERR)
+
+    @staticmethod
+    def _names_product(url):
+        # Whether the URL already names a product in its query, as the data
+        # update URL does when a product is configured. The name of the
+        # parameter is matched whatever its case.
+        try:
+            parameters = parse_qsl(
+                urlsplit(url).query, keep_blank_values=True)
+        except ValueError:
+            return False
+        return any(name.lower() == "product" for name, value in parameters)
+
+    @staticmethod
+    def _with_product(url, product):
+        # The URL with the product named in its query, after the parameters
+        # it already has, which are left as they are.
+        parts = urlsplit(url)
+        named = "Product=" + quote(product, safe="")
+        query = parts.query + "&" + named if parts.query else named
+        return urlunsplit(parts._replace(query=query))
 
     @staticmethod
     def _data_update_product(data_file):

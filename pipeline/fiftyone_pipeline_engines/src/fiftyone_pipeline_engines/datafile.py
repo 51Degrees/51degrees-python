@@ -130,7 +130,8 @@ class DataFile():
         the data update service names it. A license key can hold several
         products, and the data update service then asks which one is wanted
         by answering with the products it offers. The data file update
-        service picks the one this function returns.
+        service then makes its request again with the one this function
+        returns named in it.
         @returns string: Name of the product, or None when the data file
         names none, which is the default
         """

@@ -153,6 +153,8 @@ class DeviceDetectionOnPremise(Engine):
         @param use_predictive_graph: True if the predictive optimized graph should be used for processing
         @param data_update_use_url_formatter: This must be set to false to prevent the API from appending the query string parameters that are required when calling the 51Degrees Distributor service.
         @type data_update_use_url_formatter: bool
+        @param data_update_product_type: The product to ask the 51Degrees Distributor for, such as V4TAC. When one is given, every request for a data file names it. When none is given, no request names a product unless the Distributor asks which of several is wanted, and the product of the data file in use is then named.
+        @type data_update_product_type: string
 
         """
 

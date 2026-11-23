@@ -85,7 +85,7 @@ python -m fiftyone_ipintelligence_examples.onpremise.countries_console [data-fil
 python -m fiftyone_ipintelligence_examples.onpremise.offlineprocessing [data-file [evidence-file]]
 python -m fiftyone_ipintelligence_examples.onpremise.performance_console [-d data-file] [-e evidence-file]
 python -m fiftyone_ipintelligence_examples.onpremise.compare_console [-d data-file] [-t truth-file]
-python -m fiftyone_ipintelligence_examples.onpremise.datafileupdate_console [license-key [data-file]]
+python -m fiftyone_ipintelligence_examples.onpremise.datafileupdate_console [license-key [data-file [product]]]
 python -m fiftyone_ipintelligence_examples.onpremise.mixed_console [hash-file [ipi-file]]
 python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_web
 ```
