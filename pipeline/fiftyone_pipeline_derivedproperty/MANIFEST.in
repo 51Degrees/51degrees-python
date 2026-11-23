@@ -1,3 +1,0 @@
-include src/fiftyone_pipeline_derivedproperty/derived-properties/scripts/*.yaml
-include version.txt
-include readme.md

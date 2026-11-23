@@ -1,4 +1,0 @@
-recursive-include src/fiftyone_ipintelligence_onpremise/cxx/src *.hpp
-recursive-include src/fiftyone_ipintelligence_onpremise/cxx/src *.h
-recursive-include src/fiftyone_ipintelligence_onpremise/cxx/src *.i
-include version.txt
