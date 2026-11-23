@@ -27,8 +27,10 @@ Each example must say so in one line, with tagged links to create a key that
 carries it and to contact us, and end normally without asking for a lookup.
 When the stand-in fails the accessible properties request instead, each
 example must end with that failure and never say the key lacks the lookup.
-The stand-in answers as the cloud service does, so these tests need no key
-and no network.
+When the key carries the lookup and the lookup matches no device, each
+example must say so under each heading and end normally. The stand-in
+answers as the cloud service does, so these tests need no key and no
+network.
 """
 
 import http.server
@@ -66,6 +68,67 @@ ACCESSIBLE_PROPERTIES = {
         }
     }
 }
+
+# The cloud service's answer to the accessible properties request for a
+# resource key with the hardware lookup, cut down to Profiles with the three
+# properties the examples print, and one device property.
+ACCESSIBLE_PROPERTIES_WITH_HARDWARE = {
+    "Products": {
+        "device": {
+            "DataTier": "CloudV5Bespoke",
+            "Properties": [
+                {
+                    "Name": "IsMobile",
+                    "Type": "Boolean",
+                    "Category": "Device",
+                    "DelayExecution": False
+                }
+            ]
+        },
+        "hardware": {
+            "DataTier": "CloudV5Bespoke",
+            "Properties": [
+                {
+                    "Name": "Profiles",
+                    "Type": "Array",
+                    "Category": "",
+                    "ItemProperties": [
+                        {
+                            "Name": "HardwareVendor",
+                            "Type": "String",
+                            "Category": "Name",
+                            "DelayExecution": False,
+                            "EvidenceProperties": []
+                        },
+                        {
+                            "Name": "HardwareModel",
+                            "Type": "String",
+                            "Category": "Name",
+                            "DelayExecution": False,
+                            "EvidenceProperties": []
+                        },
+                        {
+                            "Name": "HardwareName",
+                            "Type": "Array",
+                            "Category": "Name",
+                            "DelayExecution": False,
+                            "EvidenceProperties": []
+                        }
+                    ],
+                    "DelayExecution": False,
+                    "EvidenceProperties": []
+                }
+            ]
+        }
+    }
+}
+
+# The cloud service's answer to a lookup that matches no device.
+NO_DEVICES = {"hardware": {"profiles": []}}
+
+# The values each example looks up.
+TACS = ("35925406", "86386802")
+NATIVE_MODELS = ("SC-03L", "iPhone11,8")
 
 # Some of the evidence keys the cloud service accepts, with the TAC and the
 # native model the examples look up.
@@ -113,9 +176,10 @@ def no_hardware_lookup(example):
 
 class StandInHandler(http.server.BaseHTTPRequestHandler):
     """Answers the accessible properties and evidence keys requests as the
-    cloud service does for a key without the hardware lookup, and anything
-    else with 404. The accessible properties request is answered with the
-    server's failing status instead when it has one. The method and path of
+    cloud service does, with the server's accessible properties, and
+    anything else with 404. The accessible properties request is answered
+    with the server's failing status instead when it has one, and a lookup
+    with the server's lookup answer when it has one. The method and path of
     each request are kept."""
 
     def do_GET(self):
@@ -126,7 +190,7 @@ class StandInHandler(http.server.BaseHTTPRequestHandler):
                 self.answer(self.server.failing,
                             {"errors": ["The service is failing."]})
             else:
-                self.answer(200, ACCESSIBLE_PROPERTIES)
+                self.answer(200, self.server.accessible_properties)
         elif path.endswith("/evidencekeys"):
             self.answer(200, EVIDENCE_KEYS)
         else:
@@ -137,7 +201,11 @@ class StandInHandler(http.server.BaseHTTPRequestHandler):
         # The body is read before answering, so the client is not cut off
         # while it is still sending.
         self.rfile.read(int(self.headers.get("Content-Length") or 0))
-        self.answer(404, {"errors": ["Not found."]})
+        path = self.path.split("?", 1)[0].lower()
+        if path.endswith(".json") and self.server.lookup is not None:
+            self.answer(200, self.server.lookup)
+        else:
+            self.answer(404, {"errors": ["Not found."]})
 
     def answer(self, status, body):
         content = json.dumps(body).encode("utf-8")
@@ -152,13 +220,17 @@ class StandInHandler(http.server.BaseHTTPRequestHandler):
 
 
 @contextmanager
-def stand_in_cloud(failing=None):
+def stand_in_cloud(failing=None,
+                   accessible_properties=ACCESSIBLE_PROPERTIES, lookup=None):
     """A stand-in for the cloud service on a free port of this machine.
     failing is the status to answer the accessible properties request with,
-    or None to answer it as the cloud service does."""
+    or None to answer it with accessible_properties. lookup is the answer
+    to each lookup request, or None to answer it with 404."""
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), StandInHandler)
     server.requests = []
     server.failing = failing
+    server.accessible_properties = accessible_properties
+    server.lookup = lookup
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -264,6 +336,43 @@ class LookupsWithoutHardwareTests(unittest.TestCase):
 
     def test_nativemodellookup_console_when_the_cloud_fails(self):
         self.assert_ends_with_the_failure(nativemodellookup_console.main)
+
+
+class LookupsMatchingNoDeviceTests(unittest.TestCase):
+
+    def assert_says_no_device_matches(self, main, kind, values):
+        """The key carries the lookup and each lookup matches no device, so
+        under each value's heading the example must say so in one line."""
+        with stand_in_cloud(
+                accessible_properties=ACCESSIBLE_PROPERTIES_WITH_HARDWARE,
+                lookup=NO_DEVICES) as server:
+            printed, records, raised = run_against(server, main)
+
+        self.assertIsNone(raised, printed)
+        lines = printed.split("\n")
+        for value in values:
+            heading = f"Which devices are associated with the {kind} '{value}'?"
+            self.assertIn(heading, lines, printed)
+            self.assertEqual(
+                f"\tNo devices are associated with this {kind}.",
+                lines[lines.index(heading) + 1], printed)
+        self.assertNotIn(NO_HARDWARE_LOOKUP, printed)
+        self.assertIn("Find out more:", printed)
+        self.assertNotIn("Traceback", printed)
+        self.assertEqual(
+            [], [record.getMessage() for record in records
+                 if record.levelno >= logging.ERROR])
+        self.assertEqual(len(values), len(lookup_requests(server)),
+                         server.requests)
+
+    def test_taclookup_console(self):
+        self.assert_says_no_device_matches(
+            taclookup_console.main, "TAC", TACS)
+
+    def test_nativemodellookup_console(self):
+        self.assert_says_no_device_matches(
+            nativemodellookup_console.main, "native model name",
+            NATIVE_MODELS)
 
 
 if __name__ == "__main__":
