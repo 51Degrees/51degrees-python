@@ -31,6 +31,14 @@ Bespoke products offer it, and the Bespoke key gets Passive, as no browser
 tests have run. The Basic product does not offer HumanConfidenceSource, so
 a Basic key gets no source.
 
+The production cloud does not serve HumanConfidenceSource yet, so the two
+tests that check it are marked staging and call the staging cloud that
+CLOUD_STAGING_ENDPOINT names, with the Bespoke key in
+RESOURCE_KEY_BESPOKE_STAGING and the Basic key in
+_51DEGREES_RESOURCE_KEY_BASIC. Only the Cloud Human Confidence workflow sets
+the two staging names, and without them these tests skip. The other tests
+call the cloud _51DEGREES_CLOUD_ENDPOINT names.
+
 Only the passive step is run here. The active step needs the browser tests,
 which only a browser runs.
 """
@@ -57,6 +65,14 @@ LEVELS = ("High", "Medium", "Low", "Unknown")
 
 # The variable holding a resource key of the Basic product.
 BASIC_KEY_NAME = "_51DEGREES_RESOURCE_KEY_BASIC"
+
+# The variable holding the staging cloud's API base, ending /api/v4/. Only
+# CI sets it, and there is no default, so a staging test never calls the
+# production cloud.
+STAGING_ENDPOINT_NAME = "CLOUD_STAGING_ENDPOINT"
+
+# The variable holding a Bespoke resource key the staging cloud knows.
+STAGING_KEY_NAME = "RESOURCE_KEY_BESPOKE_STAGING"
 
 # The properties the passive tests name in their request, so the answer
 # carries both whatever the key's own list of properties holds.
@@ -104,6 +120,32 @@ def client(key, api):
         key, ExampleUtils.get_license_key(), api).test_client()
 
 
+@pytest.fixture(scope="module")
+def staging_api():
+    endpoint = read_environment(STAGING_ENDPOINT_NAME)
+    if not endpoint:
+        pytest.skip(
+            f"{STAGING_ENDPOINT_NAME} is not set. Set it to the staging "
+            "cloud's API base to run the tests the production cloud cannot "
+            "answer yet.")
+    return example.api_base(endpoint)
+
+
+@pytest.fixture(scope="module")
+def staging_client(staging_api):
+    staging_key = read_environment(STAGING_KEY_NAME)
+    if not staging_key:
+        pytest.skip(
+            f"{STAGING_KEY_NAME} is not set. Set it to a Bespoke resource "
+            "key the staging cloud knows.")
+    if not example.carries_human_confidence(staging_api, staging_key):
+        pytest.skip(
+            f"The key in {STAGING_KEY_NAME} does not carry HumanConfidence "
+            "on the staging cloud.")
+    # The passive step never uses the License Key.
+    return example.create_app(staging_key, None, staging_api).test_client()
+
+
 def test_page_is_served_and_never_kept(client, key):
     response = client.get("/", headers=HEADERS)
     assert response.status_code == 200
@@ -111,15 +153,17 @@ def test_page_is_served_and_never_kept(client, key):
     assert key in response.get_data(as_text=True)
 
 
+@pytest.mark.staging
 def test_passive_source_and_level_come_from_the_cloud(
-        client, naming_the_properties):
-    answer = client.get("/passive", headers=HEADERS).get_json()
+        staging_client, naming_the_properties):
+    answer = staging_client.get("/passive", headers=HEADERS).get_json()
     assert "error" not in answer, answer
     assert answer["source"] == "Passive", answer
     assert answer["humanConfidence"] in LEVELS
 
 
-def test_a_basic_key_gets_no_source(api, naming_the_properties):
+@pytest.mark.staging
+def test_a_basic_key_gets_no_source(staging_api, naming_the_properties):
     """The Basic product does not offer HumanConfidenceSource."""
     basic = read_environment(BASIC_KEY_NAME)
     if not basic:
@@ -127,7 +171,7 @@ def test_a_basic_key_gets_no_source(api, naming_the_properties):
             f"{BASIC_KEY_NAME} is not set. The Basic product does not offer "
             "HumanConfidenceSource. Set the variable to a Basic resource "
             "key to check that such a key gets no source.")
-    client = example.create_app(basic, None, api).test_client()
+    client = example.create_app(basic, None, staging_api).test_client()
     answer = client.get("/passive", headers=HEADERS).get_json()
     assert "error" not in answer, "The cloud refused the request."
     assert answer["source"] is None, answer

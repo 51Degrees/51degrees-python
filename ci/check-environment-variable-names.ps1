@@ -4,7 +4,8 @@
 # line that reads or sets an environment variable under another name.
 #
 # A name that GitHub, the operating system or a tool defines is used as it
-# is. $PlatformNames lists the ones this repository uses.
+# is. $PlatformNames lists the ones this repository uses. The few names only
+# CI uses, which no customer sets, are in $CiNames.
 #
 # Only a name written out where a variable is read or set is checked. A
 # pipeline setting, a builder parameter and a request's own environ are not
@@ -32,6 +33,10 @@ $script:PlatformNames = @(
     'FLASK_APP', 'PATH', 'PSModulePath', 'PYTEST_ADDOPTS', 'PYTHONPATH',
     'TEMP', 'TMP', 'TMPDIR')
 $script:PlatformPrefixes = @('GITHUB_')
+
+# The names only CI uses. No customer sets them, so they have no _51DEGREES_
+# prefix, and each name says what it holds.
+$script:CiNames = @('CLOUD_STAGING_ENDPOINT', 'RESOURCE_KEY_BESPOKE_STAGING')
 
 $name = '(?<name>[A-Za-z0-9_]+)'
 $quoted = "['`"]$name['`"]"
@@ -62,10 +67,13 @@ $script:ReadOrSetPatterns = @(
 # "NAME: value".
 $script:WorkflowKeyPattern = [regex]::new('^\s+(?<name>[A-Z_][A-Z0-9_]*):(?:\s|$)')
 
-# Whether a name may be read or set: one this repository defines, or one the
-# platform does.
+# Whether a name may be read or set: one this repository defines, one only CI
+# uses, or one the platform does.
 function Test-EnvironmentName([string]$Name) {
     if ($Name.StartsWith($script:Prefix, [StringComparison]::Ordinal)) {
+        return $true
+    }
+    if ($script:CiNames -ccontains $Name) {
         return $true
     }
     if ($script:PlatformNames -contains $Name) {
@@ -144,9 +152,10 @@ Write-Output ("$read paths read, $($skipped.Count) skipped as not files: " +
 if ($found.Count -gt 0) {
     Write-Output $found
     throw ("$($found.Count) environment variables are read or set under a " +
-        "name that does not start with $($script:Prefix) and is not one the " +
-        'platform defines.')
+        "name that does not start with $($script:Prefix) and is not one only " +
+        'CI uses or one the platform defines.')
 }
 
 Write-Output ('Every environment variable a tracked file reads or sets ' +
-    "starts with $($script:Prefix) or is one the platform defines.")
+    "starts with $($script:Prefix), is one only CI uses or is one the " +
+    'platform defines.')

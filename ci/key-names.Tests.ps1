@@ -12,6 +12,12 @@
 # name. It
 # downloads every data file with _51DEGREES_LICENSE_KEY, which is the data
 # license and not a cloud license. No key reaches a script as an option.
+#
+# Two names only CI uses have no _51DEGREES_ prefix. CLOUD_STAGING_ENDPOINT,
+# an organization variable, names the staging cloud, and
+# RESOURCE_KEY_BESPOKE_STAGING, an organization secret, is a Bespoke key it
+# knows. Only the Cloud Human Confidence workflow sets them, for the tests
+# marked staging, which check what the production cloud does not serve yet.
 
 BeforeDiscovery {
     $script:DiscoveryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -80,6 +86,80 @@ foreach ($asset in $Assets) { Set-Content -LiteralPath "assets/$asset" '' }
         $null = [IO.Directory]::CreateDirectory((Join-Path $repo 'cxx' 'data' 'device-detection'))
         $null = [IO.Directory]::CreateDirectory((Join-Path $repo 'cxx' 'data' 'ip-intelligence'))
         return Join-Path $repo $Product
+    }
+
+    # The run script of the step called $Step in the workflow file $Workflow,
+    # without its indent.
+    function Get-StepScript([string]$Workflow, [string]$Step) {
+        $lines = @(Get-Content (Join-Path $script:Root '.github/workflows' $Workflow))
+        $name = ($lines | Select-String -SimpleMatch "- name: $Step" |
+            Select-Object -First 1).LineNumber
+        $start = $lines | Select-Object -Skip $name |
+            Select-String -Pattern '^(\s*)run: \|\s*$' | Select-Object -First 1
+        $indent = $start.Matches[0].Groups[1].Value.Length
+        foreach ($line in $lines[($name + $start.LineNumber)..($lines.Count - 1)]) {
+            if ($line.Trim() -and $line -notmatch "^\s{$($indent + 1),}") { break }
+            if ($line.Length -gt $indent + 2) { $line.Substring($indent + 2) } else { '' }
+        }
+    }
+
+    # Runs the Cloud Human Confidence workflow's test step in its own process
+    # and folder, with the names given set and no others, and python replaced
+    # by a function that writes $Report as the junit report. Gives the exit
+    # code and the output.
+    function Invoke-StagingStep([hashtable]$Names, [string]$Report) {
+        $folder = Join-Path $TestDrive ([Guid]::NewGuid().ToString())
+        $null = New-Item -ItemType Directory $folder
+        $stepFile = Join-Path $folder 'step.ps1'
+        $python = @(
+            'function python {'
+            '    Write-Output "pytest ran"'
+            '    $path = "$($args | Where-Object { "$_" -like "--junit-xml=*" })" -replace "^--junit-xml=", ""'
+            "    if (`$path) { Set-Content `$path '$Report' }"
+            '    $global:LASTEXITCODE = 0'
+            '}'
+        )
+        @($python + @(Get-StepScript 'cloud-human-confidence.yml' 'Human Confidence tests against the staging cloud')) |
+            Set-Content $stepFile
+        $all = 'CLOUD_STAGING_ENDPOINT', 'RESOURCE_KEY_BESPOKE_STAGING',
+            '_51DEGREES_RESOURCE_KEY_BASIC'
+        $saved = @{}
+        foreach ($name in $all) {
+            $saved[$name] = [Environment]::GetEnvironmentVariable($name)
+            [Environment]::SetEnvironmentVariable($name, $Names[$name])
+        }
+        Push-Location $folder
+        try {
+            $output = & (Get-Process -Id $PID).Path -NoProfile -File $stepFile 2>&1 | Out-String
+            return [pscustomobject]@{ ExitCode = $LASTEXITCODE; Output = $output }
+        } finally {
+            Pop-Location
+            foreach ($name in $all) {
+                [Environment]::SetEnvironmentVariable($name, $saved[$name])
+            }
+        }
+    }
+
+    # Every name the staging step needs, set to a stand-in.
+    $script:StagingNames = @{
+        CLOUD_STAGING_ENDPOINT = 'https://cloud.example.test/api/v4/'
+        RESOURCE_KEY_BESPOKE_STAGING = 'staging-bespoke-key'
+        _51DEGREES_RESOURCE_KEY_BASIC = 'basic-key'
+    }
+
+    # A junit report of the two staging tests, as pytest writes it.
+    function New-JunitReport([int]$Tests, [int]$Skipped) {
+        $cases = for ($i = 0; $i -lt $Tests; $i++) {
+            if ($i -lt $Skipped) {
+                "<testcase classname=`"t`" name=`"test_$i`"><skipped type=`"pytest.skip`" message=`"CLOUD_STAGING_ENDPOINT is not set.`" /></testcase>"
+            } else {
+                "<testcase classname=`"t`" name=`"test_$i`" />"
+            }
+        }
+        return ('<?xml version="1.0" encoding="utf-8"?><testsuites>' +
+            "<testsuite name=`"pytest`" errors=`"0`" failures=`"0`" " +
+            "skipped=`"$Skipped`" tests=`"$Tests`">$($cases -join '')" +
+            '</testsuite></testsuites>')
     }
 }
 
@@ -399,6 +479,66 @@ Describe 'Keys under their _51DEGREES_ names' {
             $exitCode | Should -Not -Be 0
             $output | Should -Match '_51DEGREES_RESOURCE_KEY_51DID'
             $output | Should -Not -Match 'tox ran'
+        }
+
+        # Only the workflow that runs the tests marked staging sets the
+        # staging names, so no other workflow's tests call the staging cloud.
+        It 'are given <Variable> from the organization <Kind> of the same name by the Cloud Human Confidence workflow alone' -ForEach @(
+            @{ Variable = 'CLOUD_STAGING_ENDPOINT'; Kind = 'variable'; Context = 'vars' }
+            @{ Variable = 'RESOURCE_KEY_BESPOKE_STAGING'; Kind = 'secret'; Context = 'secrets' }
+        ) {
+            $lines = @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Include *.yml, *.yaml -Recurse |
+                Select-String -Pattern "\b$Variable\b" |
+                Where-Object { $_.Line.Trim() -notmatch '^#' } |
+                ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" })
+            $lines | Where-Object { $_ -notmatch '^cloud-human-confidence\.yml:' } |
+                Should -BeNullOrEmpty
+            $given = @($lines | Where-Object { $_ -match ":\s*$Variable\s*:" })
+            $given.Count | Should -Be 1
+            $given[0] | Should -Match ":\s*$Variable\s*:\s*\$\{\{\s*$Context\.$Variable\s*\}\}\s*$"
+        }
+
+        It 'read the staging cloud and its key from CLOUD_STAGING_ENDPOINT and RESOURCE_KEY_BESPOKE_STAGING in the Human Confidence live test' {
+            $text = Get-Content -Raw (Join-Path $script:Root 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/test_cloud_humanconfidence_web.py')
+            $text | Should -Match '"CLOUD_STAGING_ENDPOINT"'
+            $text | Should -Match '"RESOURCE_KEY_BESPOKE_STAGING"'
+            $text | Should -Match '@pytest\.mark\.staging'
+        }
+
+        It 'fail the Cloud Human Confidence step, naming <Missing>, when it is empty, before any test runs' -ForEach @(
+            @{ Missing = 'CLOUD_STAGING_ENDPOINT' }
+            @{ Missing = 'RESOURCE_KEY_BESPOKE_STAGING' }
+            @{ Missing = '_51DEGREES_RESOURCE_KEY_BASIC' }
+        ) {
+            $names = $script:StagingNames.Clone()
+            $names[$Missing] = $null
+            $result = Invoke-StagingStep $names (New-JunitReport 2 0)
+
+            $result.ExitCode | Should -Not -Be 0
+            $result.Output | Should -Match "$Missing is empty or missing"
+            $result.Output | Should -Not -Match 'pytest ran'
+        }
+
+        It 'fail the Cloud Human Confidence step when a staging test skipped' {
+            $result = Invoke-StagingStep $script:StagingNames (New-JunitReport 2 1)
+
+            $result.ExitCode | Should -Not -Be 0
+            $result.Output | Should -Match 'pytest ran'
+            $result.Output | Should -Match 'test_0 skipped'
+        }
+
+        It 'fail the Cloud Human Confidence step when no staging test ran' {
+            $result = Invoke-StagingStep $script:StagingNames (New-JunitReport 0 0)
+
+            $result.ExitCode | Should -Not -Be 0
+            $result.Output | Should -Match 'No staging test ran'
+        }
+
+        It 'pass the Cloud Human Confidence step when every staging test ran' {
+            $result = Invoke-StagingStep $script:StagingNames (New-JunitReport 2 0)
+
+            $result.ExitCode | Should -Be 0
+            $result.Output | Should -Match 'pytest ran'
         }
     }
 

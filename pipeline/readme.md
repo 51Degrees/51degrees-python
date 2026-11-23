@@ -51,7 +51,7 @@ and examples that are available. To run tests:
 * Go to each directory (for example `fiftyone_pipeline_core`)
 * Run `tox -e py`
 
-The tests that call the 51Degrees cloud service need a resource key. The cloud request engine's tests and its examples' tests read it from the `_51DEGREES_RESOURCE_KEY_BESPOKE` environment variable, and the 51Did tests from `_51DEGREES_RESOURCE_KEY_51DID`. Without one, those tests skip.
+The tests that call the 51Degrees cloud service need a resource key. The cloud request engine's tests and its examples' tests read it from the `_51DEGREES_RESOURCE_KEY_BESPOKE` environment variable, and the 51Did tests from `_51DEGREES_RESOURCE_KEY_51DID`. Without one, those tests skip. The Human Confidence example tests marked `staging` call the staging cloud that `CLOUD_STAGING_ENDPOINT` names instead, with the key in `RESOURCE_KEY_BESPOKE_STAGING`. Only CI sets those names, and without them those tests skip.
 
 ## Examples
 
