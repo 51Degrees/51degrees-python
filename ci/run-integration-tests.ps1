@@ -1,6 +1,5 @@
 param (
     [Parameter(Mandatory)][string]$RepoName,
-    [Parameter(Mandatory)][hashtable]$Keys,
     # The branch a pull request merges into, which its changes are measured
     # against.
     [string]$Branch = 'main',

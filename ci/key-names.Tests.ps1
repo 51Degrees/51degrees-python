@@ -41,7 +41,7 @@ BeforeAll {
         $null = [IO.Directory]::CreateDirectory((Join-Path $path 'python'))
         $null = [IO.Directory]::CreateDirectory((Join-Path $path 'steps'))
         Set-Content (Join-Path $path 'python' 'run-integration-tests.ps1') @'
-param ([string]$RepoName, [string[]]$Packages, [hashtable]$Keys)
+param ([string]$RepoName, [string[]]$Packages)
 @{
     Resource = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
     Example = $env:_51DEGREES_RESOURCE_KEY
@@ -121,7 +121,7 @@ Describe 'Keys under their _51DEGREES_ names' {
             Push-Location $script:CommonCi
             try {
                 & (Join-Path $repoName 'ci' 'run-integration-tests.ps1') `
-                    -RepoName $repoName -Keys @{} @Extra
+                    -RepoName $repoName @Extra
             } finally {
                 Pop-Location
             }
@@ -143,10 +143,8 @@ Describe 'Keys under their _51DEGREES_ names' {
             $env:_51DEGREES_LICENSE_KEY = 'data-license'
             Push-Location $script:CommonCi
             try {
-                # A secret passed as an option, as a caller passing every
-                # secret might, must change nothing.
                 & (Join-Path $repoName 'ci' 'run-integration-tests.ps1') `
-                    -RepoName $repoName -Keys @{ AnotherLicense = 'other-license'; AnotherKey = 'other-key' } @Extra
+                    -RepoName $repoName @Extra
             } finally {
                 Pop-Location
             }
@@ -166,7 +164,7 @@ Describe 'Keys under their _51DEGREES_ names' {
             Push-Location $script:CommonCi
             try {
                 $output = & (Join-Path $repoName 'ci' 'run-integration-tests.ps1') `
-                    -RepoName $repoName -Keys @{} @Extra *>&1 | Out-String
+                    -RepoName $repoName @Extra *>&1 | Out-String
             } finally {
                 Pop-Location
             }
