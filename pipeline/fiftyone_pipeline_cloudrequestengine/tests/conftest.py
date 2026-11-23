@@ -29,11 +29,17 @@ from pathlib import Path
 import pytest
 
 TEST_CLOUDENGINE = Path(__file__).resolve().parent / "test_cloudengine.py"
+TEST_HUMAN_CONFIDENCE_LIVE = (
+    Path(__file__).resolve().parent / "test_human_confidence_live.py")
 
 
-# CloudEngineTests needs a resource key for each of its tests, in setUp.
+# CloudEngineTests needs a resource key for each of its tests, in setUp,
+# and so does every test of the live Human Confidence file.
 def _is_live(item):
-    return (Path(item.path).resolve() == TEST_CLOUDENGINE and
+    path = Path(item.path).resolve()
+    if path == TEST_HUMAN_CONFIDENCE_LIVE:
+        return True
+    return (path == TEST_CLOUDENGINE and
             getattr(item, "cls", None) is not None and
             item.cls.__name__ == "CloudEngineTests")
 

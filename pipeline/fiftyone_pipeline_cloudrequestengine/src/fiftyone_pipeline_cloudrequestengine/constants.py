@@ -142,6 +142,9 @@ class Constants:
     # licence key alone.
     LICENSE_DATA_PATH = "json"
 
+    # What a value that no error or warning may hold is shown as.
+    HIDDEN_VALUE = "********"
+
     # Logged when evidence is left out of a request because its key is one
     # the service reads its credentials or requested properties from. The
     # value is not included, as it may be a credential.

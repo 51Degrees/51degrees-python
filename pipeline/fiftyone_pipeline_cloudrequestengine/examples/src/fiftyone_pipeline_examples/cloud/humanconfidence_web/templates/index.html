@@ -114,8 +114,12 @@
   var API = {{ api|tojson }};
   var API_ORIGIN = new URL(API).origin;
   var MODE = {{ mode|tojson }};
-  // This server's redeem route, which holds the License Key.
-  var REDEEM = location.origin + "/redeem";
+  // This server's route for the active level, whose cloud request engine
+  // redeems the sealed value with the License Key.
+  var ACTIVE = location.origin + "/active";
+  // The challenge this server gave the page, which the 51Degrees script
+  // sends to the cloud, and the page value the sealed value goes back with.
+  var HC = {{ hc|tojson }};
   // Server side, the script's calls to the cloud go to
   // /hc/cloud/<host>/<path> here.
   var FORWARD = /^https?:\/\/[^\/]+\/hc\/cloud\/([^\/]+)\/(.*)$/;
@@ -170,8 +174,10 @@
       active: function (url, pairs) {
         return "$v = (" + post("curl.exe", url, pairs) +
           " | ConvertFrom-Json).derived.humanconfidence; \"Active \" + (" +
-          "curl.exe -s -X POST \"" + REDEEM + "\" --data-urlencode " +
-          "\"value=$v\" | ConvertFrom-Json).humanConfidence";
+          "curl.exe -s -X POST \"" + ACTIVE + "\" --data-urlencode " +
+          "\"humanconfidence=$v\" --data \"humanconfidencepage=" +
+          encode(HC.humanconfidencepage) +
+          "\" | ConvertFrom-Json).humanConfidence";
       }
     },
     sh: {
@@ -182,7 +188,9 @@
       active: function (url, pairs) {
         return "v=$(" + post("curl", url, pairs) + " | " + PY +
           "['derived']['humanconfidence'])\"); printf 'Active '; " +
-          "curl -s -X POST \"" + REDEEM + "\" --data-urlencode \"value=$v\"" +
+          "curl -s -X POST \"" + ACTIVE + "\" --data-urlencode " +
+          "\"humanconfidence=$v\" --data \"humanconfidencepage=" +
+          encode(HC.humanconfidencepage) + "\"" +
           " | " + PY + "['humanConfidence'])\"";
       }
     }
@@ -285,19 +293,18 @@
     return originalFetch.apply(this, arguments);
   };
 
-  // Active. Each new sealed value goes to this server to redeem, and only
-  // the answer for the newest one is shown.
-  var seen = null, latest = 0;
+  // Active. The first sealed value goes to this server with the page
+  // value, as the challenge it was sealed to is used once, and the level
+  // that comes back is shown.
+  var seen = null;
   function redeem(value) {
-    var mine = ++latest;
     var body = new URLSearchParams();
-    body.set("value", value);
-    originalFetch("redeem", { method: "POST", body: body })
+    body.set("humanconfidence", value);
+    body.set("humanconfidencepage", HC.humanconfidencepage);
+    originalFetch("active", { method: "POST", body: body })
       .then(function (r) { return r.json(); })
-      .then(function (answer) {
-        if (mine === latest) { show("active", answer.humanConfidence); }
-      })
-      .catch(function () { if (mine === latest) { show("active", null); } });
+      .then(function (answer) { show("active", answer.humanConfidence); })
+      .catch(function () { show("active", null); });
   }
 
   // The script's third party cookie check calls window.fodTpcEndpoint, or
@@ -310,7 +317,10 @@
   // server side. Its result comes back through fod.onChange.
   var script = document.createElement("script");
   script.async = true;
-  script.src = MODE === "server" ? "hc/script.js" : API + RESOURCE + ".js";
+  // The script is asked for with the challenge, which the cloud seals the
+  // result to.
+  script.src = (MODE === "server" ? "hc/script.js" : API + RESOURCE + ".js")
+    + "?challenge=" + encodeURIComponent(HC.challenge);
   script.onerror = function () { show("active", null); };
   script.onload = function () {
     if (!window.fod || typeof window.fod.onChange !== "function") {
@@ -323,7 +333,7 @@
       // run, and its HumanConfidence is then a plain level. Only a sealed
       // value is redeemed: redeeming a plain level answers unreadable,
       // which would show Active Low for tests that haven't run yet.
-      if (value && PLAIN.indexOf(value) < 0 && value !== seen) {
+      if (value && PLAIN.indexOf(value) < 0 && seen === null) {
         seen = value;
         redeem(value);
       }

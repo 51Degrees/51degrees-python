@@ -34,12 +34,12 @@
 # 1. Passive. This server asks the cloud with the visitor's request headers
 #    and IP address, and gets a plain level.
 # 2. Active. The 51Degrees client script runs the browser tests and sends
-#    the answers to the cloud, which answers with a sealed value. This
-#    server redeems the sealed value with the License Key, which the
-#    browser never sees, and gets the level. Redeeming needs a cloud that
-#    offers the redeem call (POST hc/redeem). A sealed value that can't be
-#    redeemed gives Active Low, and if no sealed value arrives within 30
-#    seconds the page says No result.
+#    the answers to the cloud, which answers with a sealed value. The page
+#    sends the sealed value to this server, where the cloud request engine
+#    redeems it with the License Key, which the browser never sees. The
+#    example reads HumanConfidence and HumanConfidenceSource and nothing
+#    more. A sealed value that can't be redeemed gives Active Low, and if
+#    no sealed value arrives within 30 seconds the page says No result.
 #
 # The Resource Key is put in the page, as the 51Degrees client script is
 # loaded with it. The License Key stays on this server.
@@ -83,6 +83,7 @@ import requests
 from flask import Flask, Response, abort, jsonify, make_response
 from flask import render_template, request
 
+from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
     CloudRequestEngine
 from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import \
@@ -102,9 +103,6 @@ TIMEOUT = 10
 # The two modes, the default first, and the cookie that keeps the choice.
 MODES = ("client", "server")
 MODE_COOKIE = "hc_mode"
-
-# The levels, highest first. A level the cloud doesn't give is the last.
-LEVELS = ("High", "Medium", "Low")
 
 # The 51Degrees cloud hosts. The host of the endpoint in use, such as a
 # private cloud in Docker, counts as a cloud host too.
@@ -220,6 +218,25 @@ def create_app(resource_key, license_key, api):
     pipeline = PipelineBuilder({"add_javascript_builder": False}).add(
         engine).build()
 
+    # A second pipeline for the active level, whose engine carries the
+    # License Key, so only this pipeline sends it. It takes what the first
+    # engine discovered, so building it asks the cloud nothing more. Its
+    # engine gives each page a challenge and redeems the sealed value the
+    # page sends back. The cloud engine for "derived" gives the two
+    # properties the page shows.
+    active_engine = CloudRequestEngine({
+        "resource_key": resource_key,
+        "license_key": license_key,
+        "cloud_endpoint": api,
+        "timeout_seconds": TIMEOUT,
+        "discovery_state": engine.discovery_state()})
+    derived = CloudEngine()
+    derived.datakey = "derived"
+    active_pipeline = PipelineBuilder({
+        "add_javascript_builder": False,
+        "suppress_process_exceptions": True}).add(active_engine).add(
+            derived).build()
+
     def visitor_headers():
         # The request headers the cloud reads, from the evidence keys the
         # engine was given. Only these are passed on, so headers such as
@@ -273,8 +290,12 @@ def create_app(resource_key, license_key, api):
             mode = request.cookies.get(MODE_COOKIE)
         if mode not in MODES:
             mode = MODES[0]
+        # Each page load gets its own challenge, which the page sends to
+        # the cloud with the browser tests, and a page value it sends back
+        # with the sealed value.
         response = make_response(render_template(
-            "index.html", resource_key=resource_key, api=api, mode=mode))
+            "index.html", resource_key=resource_key, api=api, mode=mode,
+            hc=active_engine.human_confidence_page_values()))
         response.set_cookie(MODE_COOKIE, mode, samesite="Lax")
         # The page must never come from a cache, as each load runs the
         # tests.
@@ -295,27 +316,28 @@ def create_app(resource_key, license_key, api):
         except Exception as error:
             return jsonify(error=str(error))
 
-    # Redeem: the page, or a terminal, sends a sealed value, and this server
-    # redeems it with the License Key. Only the level goes back. A value
-    # that doesn't redeem gives Low, as nothing then shows a person is
-    # there. The cloud's own answer is never sent back.
-    @app.route("/redeem", methods=["POST"])
-    def redeem():
+    # Active: the page, or a terminal, sends the sealed value as
+    # humanconfidence, with its page value as humanconfidencepage. The
+    # cloud request engine redeems it, and the example reads the two
+    # properties. A sealed value that doesn't redeem gives Low.
+    @app.route("/active", methods=["POST"])
+    def active():
 
-        sealed = request.form.get("value", "")
-        fields = {"value": sealed}
-        if license_key:
-            fields["license"] = license_key
-        level = None
-        try:
-            answer = requests.request(
-                "POST", api + "hc/redeem", data=fields, timeout=TIMEOUT)
-            level = read(answer.json(), "humanConfidence")
-        except (requests.RequestException, ValueError):
-            pass
-        if level not in LEVELS:
-            level = LEVELS[-1]
-        return jsonify(humanConfidence=level)
+        if not request.form.get("humanconfidence"):
+            abort(400)
+        flowdata = active_pipeline.create_flowdata()
+        for name, value in visitor_headers().items():
+            if name != "client-ip":
+                flowdata.evidence.add("header." + name, value)
+        for name in ("humanconfidence", "humanconfidencepage"):
+            flowdata.evidence.add(
+                "query." + name, request.form.get(name, ""))
+        flowdata.process()
+        derived = flowdata.get("derived")
+        return jsonify(
+            humanConfidence=derived.get("humanconfidence").value(),
+            humanConfidenceSource=derived.get(
+                "humanconfidencesource").value())
 
     # Server mode: the client script, fetched from the cloud for this
     # visitor, with every cloud address in it pointed at this server.
@@ -324,6 +346,10 @@ def create_app(resource_key, license_key, api):
 
         try:
             query = {}
+            # The page's challenge, which the cloud seals the result to.
+            challenge = request.args.get("challenge")
+            if challenge:
+                query["challenge"] = challenge
             address = public_ip(request.remote_addr)
             if address:
                 query["client-ip"] = address
