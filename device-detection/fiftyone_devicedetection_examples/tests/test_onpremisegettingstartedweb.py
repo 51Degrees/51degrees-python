@@ -34,7 +34,6 @@ class OnPremiseGettingStartedWebTests(flask_unittest.ClientTestCase):
     # Assign the `Flask` app object
     #data_file = ExampleUtils.find_file("51Degrees-LiteV4.1.hash")
 
-    user_agents_file = ExampleUtils.find_file("20000 User Agents.csv")
     logger = Logger()
     config = GettingStartedWeb.build_config()
     app = GettingStartedWeb().build(config, logger).app

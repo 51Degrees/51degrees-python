@@ -39,16 +39,15 @@ from unittest import mock
 
 import pytest
 
-from .live_cloud import answered_without, find_resource_key, no_resource_key
+from .live_cloud import (
+    RESOURCE_KEY_VARIABLE, answered_without, find_resource_key,
+    no_resource_key)
 
 EXAMPLE = Path(__file__).resolve().parents[1] / "examples" / "cloud" / "web.py"
 
 NO_KEY = no_resource_key(
     "the location product",
     "the country at a latitude and longitude", several=True)
-
-# The variable the example reads its resource key from.
-RESOURCE_KEY_VARIABLE = "_51DEGREES_RESOURCE_KEY"
 
 # What the page's script posts once the browser gives it a position, which
 # is in Reading, in the United Kingdom.

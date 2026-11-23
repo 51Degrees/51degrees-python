@@ -20,8 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-"""Checks that the constants of the example helper that name a variable keep
-their values, including those that hold a name that is no longer read.
+"""Checks the names of the variables the example helper reads.
 """
 
 import unittest
@@ -30,26 +29,26 @@ import unittest
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 
 
-# Each constant that names a variable, with the value it has to hold. The
-# ones that held an old name hold it still, although it is no longer read.
+# Each constant that names a variable, with the value it has to hold.
 CONSTANTS = {
     "CLOUD_RESOURCE_KEY_ENV_VAR": "_51DEGREES_RESOURCE_KEY",
-    "RESOURCE_KEY_ENV_VAR": "resource_key",
     "LICENSE_KEY_ENV_VAR": "_51DEGREES_LICENSE_KEY",
-    "LEGACY_LICENSE_KEY_ENV_VAR": "license_key",
     "CLOUD_ENDPOINT_ENV_VAR": "_51DEGREES_CLOUD_ENDPOINT",
-    "ENDPOINT_ENV_VAR": "cloud_endpoint",
     "IPI_PATH_ENV_VAR": "_51DEGREES_IPI_PATH",
-    "DATA_FILE_ENV_VAR": "IPINTELLIGENCEDATAFILE",
 }
 
 
 class ConstantTests(unittest.TestCase):
 
-    def test_constants_hold_the_old_and_the_new_names(self):
+    def test_constants_hold_the_names(self):
         for constant, value in CONSTANTS.items():
             with self.subTest(constant=constant):
                 self.assertEqual(value, getattr(ExampleUtils, constant))
+
+    def test_no_other_constant_names_a_variable(self):
+        named = sorted(
+            name for name in vars(ExampleUtils) if name.endswith("_ENV_VAR"))
+        self.assertEqual(sorted(CONSTANTS), named)
 
 
 if __name__ == "__main__":

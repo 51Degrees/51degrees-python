@@ -122,12 +122,14 @@ class GettingStartedWeb():
 
     def run(self):
 
-        # The port can be set with the PORT environment variable, as it can
-        # for the cloud example, so the example can run next to other services.
+        # The port can be set with the _51DEGREES_EXAMPLE_HTTP_PORTS
+        # environment variable, as it can for the cloud example, so the
+        # example can run next to other services.
         # The pipeline lives as long as the app, and is closed when the server
         # stops, which releases the native data it holds.
         with GettingStartedWeb.pipeline:
-            GettingStartedWeb.app.run(port=int(os.environ.get("PORT", 5151)))
+            GettingStartedWeb.app.run(port=int(os.environ.get(
+                "_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)))
 
     # First we make a JSON route that will be called from the client side and will return
     # a JSON encoded property database using any additional evidence provided by the client.

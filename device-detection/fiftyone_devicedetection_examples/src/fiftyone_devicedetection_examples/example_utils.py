@@ -43,35 +43,18 @@ class ExampleUtils:
     # resource key variable starts with "_51DEGREES_RESOURCE_KEY".
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    # Deprecated. Use RESOURCE_KEY_ENV_VAR. The name the resource key
-    # variable had before, which is no longer read.
-    LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
-
     # The environment variable the data file update example reads a licence
     # key from.
     LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
-
-    # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
-    # variable had before, which is no longer read.
-    LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
 
     # The environment variable naming a cloud service other than the public
     # one.
     CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
 
-    # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
-    # before, which is no longer read.
-    ENDPOINT_ENV_VAR = "cloud_endpoint"
-
     # The environment variable an on-premise example reads the path of its
     # device detection data file from, when one is given, in place of the
     # file named in its configuration.
     DD_PATH_ENV_VAR = "_51DEGREES_DD_PATH"
-
-    # Deprecated. Use DD_PATH_ENV_VAR. The name that variable had before,
-    # which is no longer read. A POSIX shell cannot set it,
-    # because it starts with a digit.
-    DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"
 
     # The data repository's device detection folder, from the root of a
     # checkout of this repository. Each file the data repository links to
@@ -225,6 +208,31 @@ class ExampleUtils:
         """
 
         return os.environ.get(name) or ""
+
+    # The key an evidence record gives its User-Agent under.
+    USER_AGENT_KEY = "header.user-agent:"
+
+    @staticmethod
+    def read_user_agents(evidence_file):
+        """!
+        The User-Agent of each record of a YAML evidence file that has one,
+        in the order of the file. A record gives its User-Agent on a line
+        of its own, and quotes around the whole value are taken off.
+        """
+
+        key = ExampleUtils.USER_AGENT_KEY
+        user_agents = []
+        with open(evidence_file, encoding="utf-8") as file:
+            for line in file:
+                if line[:len(key)].lower() != key:
+                    continue
+                value = line[len(key):].strip()
+                if len(value) > 1 and value[0] == value[-1] \
+                        and value[0] in "'\"":
+                    value = value[1:-1]
+                if value:
+                    user_agents.append(value)
+        return user_agents
 
     # Find the specified file. A path to a file that exists is returned as
     # it is. Next, the data repository's folder is checked in the working

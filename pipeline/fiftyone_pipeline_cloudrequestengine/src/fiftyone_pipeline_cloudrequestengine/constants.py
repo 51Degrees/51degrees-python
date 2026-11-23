@@ -24,10 +24,6 @@ class Constants:
     # Environment variable to set cloud end point
     CLOUD_ENDPOINT = "_51DEGREES_CLOUD_ENDPOINT"
 
-    # @deprecated Use Constants.CLOUD_ENDPOINT. This holds the old name of
-    # the cloud end point environment variable, which is no longer read.
-    FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"
-
     # Default cloud end point
     BASE_URL_DEFAULT = "https://cloud.51degrees.com/api/v4/"
 

@@ -58,8 +58,8 @@
 # ```
 # python -m fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web
 # ```
-# and open http://localhost:5151, or the port named by the PORT environment
-# variable. Use the form on the page, or add ?client-ip=8.8.8.8 to the
+# and open http://localhost:5151, or the port named by the
+# _51DEGREES_EXAMPLE_HTTP_PORTS environment variable. Use the form on the page, or add ?client-ip=8.8.8.8 to the
 # address, to look up an IP address other than your own.
 #
 # Results are also available to the page's own JavaScript through the `fod`
@@ -491,7 +491,8 @@ def main(argv):
         print_find_out_more()
         sys.exit(1)
 
-    create_app(pipeline).run(port=int(os.environ.get("PORT", 5151)))
+    create_app(pipeline).run(port=int(os.environ.get(
+        "_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)))
 
 
 if __name__ == "__main__":

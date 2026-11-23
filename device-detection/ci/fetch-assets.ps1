@@ -1,4 +1,4 @@
-# The TAC data file and the CSV come from the Distributor with the data
+# The TAC data file and the property CSV come from the Distributor with the data
 # license, which common-ci's steps/fetch-assets.ps1 reads from
 # _51DEGREES_LICENSE_KEY. No key is passed to it.
 $ErrorActionPreference = 'Stop'
@@ -12,7 +12,7 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
 $data = "$PSScriptRoot/../../cxx/data"
 $deviceDetectionData = "$data/device-detection"
 
-$assets = '51Degrees-LiteV4.1.hash', '20000 Evidence Records.yml', '20000 User Agents.csv',
+$assets = '51Degrees-LiteV4.1.hash', '20000 Evidence Records.yml',
     'TAC-HashV41.hash', '51Degrees.csv'
 
 ./steps/fetch-assets.ps1 -Assets $assets

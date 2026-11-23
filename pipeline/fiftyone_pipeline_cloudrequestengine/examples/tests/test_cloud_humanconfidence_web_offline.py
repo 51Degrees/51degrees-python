@@ -52,7 +52,7 @@ SETTINGS = [
     ExampleUtils.RESOURCE_KEY_ENV_VAR,
     ExampleUtils.LICENSE_KEY_ENV_VAR,
     ExampleUtils.CLOUD_ENDPOINT_ENV_VAR,
-    "PORT",
+    "_51DEGREES_EXAMPLE_HTTP_PORTS",
 ]
 
 # A 51degrees.com link.
@@ -378,12 +378,12 @@ def test_cloud_address_defaults_to_the_public_cloud():
 
 
 @pytest.mark.parametrize("named", [
-    "https://cloud-staging.51degrees.com/api/v4",
-    "https://cloud-staging.51degrees.com/api/v4/",
-    " https://cloud-staging.51degrees.com/api/v4// "])
+    "https://cloud.example.test/api/v4",
+    "https://cloud.example.test/api/v4/",
+    " https://cloud.example.test/api/v4// "])
 def test_cloud_address_named_ends_in_one_slash(named):
     assert example.api_base(named) == \
-        "https://cloud-staging.51degrees.com/api/v4/"
+        "https://cloud.example.test/api/v4/"
 
 
 # Before the flow.
@@ -455,7 +455,8 @@ def test_starts_when_the_key_carries_human_confidence(cloud, start, capsys):
 
 def test_listens_on_the_port_named(cloud, start):
     cloud()
-    given = start(PORT="8080", **{
+    given = start(**{
+        "_51DEGREES_EXAMPLE_HTTP_PORTS": "8080",
         ExampleUtils.RESOURCE_KEY_ENV_VAR: RESOURCE_KEY})
 
     assert given["run"] == {"port": 8080}

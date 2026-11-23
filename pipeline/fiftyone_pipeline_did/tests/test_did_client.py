@@ -174,11 +174,9 @@ class ClientConstructionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             DidClient(None)
 
-    # The two names of the endpoint environment variable, written out so
-    # that these tests pin the names themselves. The old one is no longer
-    # read.
+    # The name of the endpoint environment variable, written out so that
+    # these tests pin the name itself.
     NEW_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
-    OLD_VARIABLE = "FOD_CLOUD_API_URL"
 
     def setUp(self):
         # Each test starts with the variable not set, and what it sets is
@@ -202,26 +200,20 @@ class ClientConstructionTests(unittest.TestCase):
         self.assertEqual(ENDPOINT, DidClient(
             RESOURCE, endpoint="https://cloud.example/api/v4//").endpoint)
 
-    def test_old_constant_keeps_its_old_value(self):
-        # Code that passes ENDPOINT_VARIABLE to the environment has to keep
-        # reading the variable it read before.
-        self.assertEqual(self.OLD_VARIABLE, did_client.ENDPOINT_VARIABLE)
-
-    def test_old_constant_is_given_by_dir_and_a_star_import(self):
-        # The old constant is a plain attribute of the module, so every
-        # way of finding it still does.
-        self.assertIn("ENDPOINT_VARIABLE", dir(did_client))
+    def test_constant_holds_the_name(self):
         self.assertEqual(
-            self.OLD_VARIABLE, vars(did_client).get("ENDPOINT_VARIABLE"))
+            self.NEW_VARIABLE, did_client.CLOUD_ENDPOINT_VARIABLE)
+
+    def test_constant_is_given_by_a_star_import(self):
         names = {}
         exec("from fiftyone_pipeline_did.did_client import *", names)
-        self.assertEqual(self.OLD_VARIABLE, names.get("ENDPOINT_VARIABLE"))
         self.assertEqual(
             self.NEW_VARIABLE, names.get("CLOUD_ENDPOINT_VARIABLE"))
 
-    def test_new_constant_holds_the_new_name(self):
-        self.assertEqual(
-            self.NEW_VARIABLE, did_client.CLOUD_ENDPOINT_VARIABLE)
+    def test_one_constant_names_the_endpoint_variable(self):
+        named = [name for name in vars(did_client)
+                 if name.endswith("_VARIABLE")]
+        self.assertEqual(["CLOUD_ENDPOINT_VARIABLE"], named)
 
 
 #: The layout names the did_client module held, which it still gives with
@@ -260,7 +252,6 @@ DID_CLIENT_STAR_NAMES = (
     "IdType",
     "DEFAULT_ENDPOINT",
     "CLOUD_ENDPOINT_VARIABLE",
-    "ENDPOINT_VARIABLE",
     "KEY_LIST_MAX_AGE",
     "SUPPORTED_VERSION",
     "DEFAULT_TIMEOUT",

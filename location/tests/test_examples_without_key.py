@@ -37,7 +37,7 @@ from unittest import mock
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples" / "cloud"
 
 # Every name a key can be read from, which a fresh clone does not set.
-KEY_SETTINGS = ["_51DEGREES_RESOURCE_KEY", "resource_key", "RESOURCE_KEY"]
+KEY_SETTINGS = ["_51DEGREES_RESOURCE_KEY"]
 
 # A link to the page where a resource key is created, with the campaign
 # tags every example's links carry.

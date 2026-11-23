@@ -37,11 +37,10 @@ RUN_PERFORMANCE_TESTS = "_51DEGREES_RUN_PERFORMANCE_TESTS"
 
 
 class DeviceDetectionExampleTests(unittest.TestCase):
-    # Init method - Set data file for hash examples and aditionally a
-    # User-Agents file for the performance example.
+    # Init method - Set data file for hash examples and the evidence file
+    # for the offline processing example.
     def setUp(self):
         self.data_file = ExampleUtils.find_file("51Degrees-LiteV4.1.hash")
-        self.user_agents_file = ExampleUtils.find_file("20000 User Agents.csv")
         self.evidence_file = ExampleUtils.find_file("20000 Evidence Records.yml")
         self.logger = Logger()
 

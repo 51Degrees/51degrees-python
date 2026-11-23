@@ -21,10 +21,10 @@
 # *********************************************************************
 
 """
-Each web example listens on port 5151 by default. The examples that read
-the PORT environment variable still do, because that is how the CI starts
-them on ports of its own. The checks read the examples' source, so they
-start no server and need no data file and no network.
+Each web example listens on port 5151 by default. Three of them read the
+_51DEGREES_EXAMPLE_HTTP_PORTS environment variable, because that is how the
+CI starts them on ports of its own. The checks read the examples' source, so
+they start no server and need no data file and no network.
 """
 
 import ast
@@ -40,7 +40,8 @@ WEB_EXAMPLES = [
     os.path.join(EXAMPLES, "onpremise", "gettingstarted_web", "app.py"),
     os.path.join(EXAMPLES, "onpremise", "useragentclienthints_web", "app.py"),
 ]
-# The examples whose port the PORT environment variable sets.
+# The examples whose port the environment variable sets.
+PORT_VARIABLE = "_51DEGREES_EXAMPLE_HTTP_PORTS"
 PORT_FROM_ENVIRONMENT = WEB_EXAMPLES[:3]
 
 
@@ -79,10 +80,10 @@ class WebExamplePortTests(unittest.TestCase):
             with self.subTest(example=path):
                 self.assertEqual(5151, port_setting(path)[0])
 
-    def test_the_port_environment_variable_still_sets_the_port(self):
+    def test_the_environment_variable_sets_the_port(self):
         for path in PORT_FROM_ENVIRONMENT:
             with self.subTest(example=path):
-                self.assertEqual("PORT", port_setting(path)[1])
+                self.assertEqual(PORT_VARIABLE, port_setting(path)[1])
 
 
 if __name__ == "__main__":

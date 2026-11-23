@@ -60,7 +60,7 @@ SECTION_LINK = re.compile(
 REPOSITORY = "https://github.com/51Degrees/51degrees-python/tree/main/location"
 
 # The settings that let an example get past its early end.
-SETTINGS = ["_51DEGREES_RESOURCE_KEY", "resource_key", "RESOURCE_KEY"]
+SETTINGS = ["_51DEGREES_RESOURCE_KEY"]
 
 
 def slug(path):
