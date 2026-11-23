@@ -68,5 +68,40 @@ class DataUpdateProductTests(unittest.TestCase):
                     data_file(flow_element).get_data_update_product())
 
 
+def formatted(product):
+    """The update URL the URL formatter writes for a data file that is
+    configured with the product."""
+    return DeviceDetectionDataFile(
+        flow_element=SimpleNamespace(), identifier="HashV41",
+        path="not-read.hash", data_update_use_url_formatter=True,
+        update_url_params={
+            "base_url": "https://example.com/update",
+            "type": "HashV41",
+            "license_keys": "ABCDEFGHIJKL",
+            "product": product}).get_update_url()
+
+
+# A product is named in the update URL only when one is configured. Every
+# request is made to that URL, so with a product configured every request
+# names it, the first included, and with none configured the first request
+# has no Product parameter at all.
+class ConfiguredProductTests(unittest.TestCase):
+
+    def test_a_configured_product_is_named_in_the_update_url(self):
+        self.assertEqual(
+            "https://example.com/update?Type=HashV41&"
+            "licenseKeys=ABCDEFGHIJKL&Product=V4TAC",
+            formatted("V4TAC"))
+
+    def test_no_product_is_named_when_none_is_configured(self):
+        for name, product in (("none", None), ("empty", "")):
+            with self.subTest(name):
+                url = formatted(product)
+                self.assertEqual(
+                    "https://example.com/update?Type=HashV41&"
+                    "licenseKeys=ABCDEFGHIJKL", url)
+                self.assertNotIn("product", url.lower())
+
+
 if __name__ == "__main__":
     unittest.main()

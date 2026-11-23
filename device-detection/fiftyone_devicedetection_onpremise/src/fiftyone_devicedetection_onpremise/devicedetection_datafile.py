@@ -58,10 +58,14 @@ class DeviceDetectionDataFile(DataFile):
         if not self._data_update_use_url_formatter:
             return self.update_url_params["base_url"]
 
+        # A product is named only when one is configured, and then every
+        # request carries it. With none configured the URL has no Product
+        # parameter at all, so a license key that holds one product is
+        # served that product.
         query_params = {
             "Type": self.update_url_params["type"],
             "licenseKeys": self.update_url_params.get("license_keys"),
-            "Product": self.update_url_params.get("product")
+            "Product": self.update_url_params.get("product") or None
         }
 
         # Remove keys with None values

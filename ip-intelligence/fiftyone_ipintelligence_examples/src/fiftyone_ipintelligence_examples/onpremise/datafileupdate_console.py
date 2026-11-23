@@ -93,10 +93,12 @@ UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
 
-# The product type passed to the 51Degrees distributor. This identifies the
-# IP intelligence Enterprise product and may need to be adjusted to match
-# the product your license entitles you to.
-DATA_UPDATE_PRODUCT_TYPE = "IPIV4Enterprise"
+# The product asked of the 51Degrees distributor when none is given as the
+# third command line argument. It is None, so no product is named and the
+# distributor serves the product the license key holds. A license key that
+# holds several products needs the one wanted to be given, such as
+# IPIV4Enterprise for the Enterprise data file.
+DATA_UPDATE_PRODUCT_TYPE = None
 
 DEFAULT_DATA_FILENAME = os.path.join(
     os.path.expanduser("~"), ENTERPRISE_DATAFILE_NAME)
@@ -212,7 +214,7 @@ class DataFileUpdateConsole():
         finally:
             shutil.rmtree(directory, ignore_errors=True)
 
-    def run(self, data_file, license_key, interactive, logger, output):
+    def run(self, data_file, license_key, interactive, logger, output, product = None):
         logger.log("info", "Starting example")
 
         # Try to find a license key in the environment if not supplied.
@@ -282,7 +284,11 @@ class DataFileUpdateConsole():
             auto_update = True,
             # Reload automatically when the data file on disk changes.
             file_system_watcher = True,
-            data_update_product_type = DATA_UPDATE_PRODUCT_TYPE,
+            # The product the 51Degrees distributor is asked for, which is
+            # named only when this example is given one. With none given no
+            # product is named, and the distributor serves the product the
+            # license key holds.
+            data_update_product_type = product if product else DATA_UPDATE_PRODUCT_TYPE,
             # Usage sharing is off for this example. In production turn it on,
             # because the requests shared improve the data every user gets.
             usage_sharing = False).add_logger(logger).build()
@@ -330,11 +336,14 @@ class DataFileUpdateConsole():
 def main(argv):
     license_key = argv[0] if len(argv) > 0 else None
     data_file = argv[1] if len(argv) > 1 else None
+    # The product to ask for, which a license key that holds several
+    # products needs. With none given, no product is named.
+    product = argv[2] if len(argv) > 2 else None
 
     # Configure a logger to output to the console.
     logger = Logger(min_level="info")
 
-    DataFileUpdateConsole().run(data_file, license_key, True, logger, print)
+    DataFileUpdateConsole().run(data_file, license_key, True, logger, print, product)
 
     # Printed however the example ended, whether it updated the data file,
     # had no licence key, or was stopped before the download.
