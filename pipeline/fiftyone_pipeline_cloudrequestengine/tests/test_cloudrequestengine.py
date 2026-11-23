@@ -119,6 +119,19 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         })
         self.assertEqual(Constants.BASE_URL_DEFAULT, cloud_request_engine.baseURL)
 
+    def testConfigEndPoint_EnvironmentVariableWithoutSlash(self):
+        """!
+        Check that an environment variable without a trailing slash is
+        used with one added
+        """
+
+        os.environ[Constants.CLOUD_ENDPOINT] = \
+            TestCloudRequestEngine.testEnvVarEndPoint.rstrip("/")
+        cloud_request_engine = self.new_engine()
+        self.assertEqual(
+            TestCloudRequestEngine.testEnvVarEndPoint,
+            cloud_request_engine.baseURL)
+
     def testOneConstantNamesAnEnvironmentVariable(self):
         """!
         Check that the only constant holding the name of an environment
