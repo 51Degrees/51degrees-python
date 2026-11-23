@@ -24,10 +24,8 @@
 
 import html
 import re
-import urllib.parse
 
 import pytest
-import requests
 
 from live_cloud import find_resource_key, no_resource_key, read_environment
 
@@ -69,28 +67,6 @@ def credentials(keys):
     if "resource_key" in keys and not keys["resource_key"]:
         pytest.skip(NO_KEY)
     return keys
-
-
-def key_carries(api, resource_key, name):
-    """
-    Whether the resource key carries the property, from the cloud's own
-    list of the properties the key carries. A test asserts on a value only
-    when the key carries its property, because the cloud leaves out a
-    property the key does not carry.
-    """
-
-    answer = requests.request(
-        "GET",
-        api + "accessibleproperties?resource=" +
-        urllib.parse.quote(resource_key, safe=""),
-        timeout=30)
-    if answer.status_code != 200:
-        raise ValueError(f"HTTP {answer.status_code}: {answer.text[:200]}")
-    products = answer.json().get("Products") or {}
-    return any(
-        str(item.get("Name", "")).lower() == name.lower()
-        for product in products.values()
-        for item in (product or {}).get("Properties") or [])
 
 
 def cell_after(page, label):
