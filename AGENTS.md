@@ -268,7 +268,9 @@ there.
 `_51DEGREES_RESOURCE_KEY` is the name a person running a cloud example sets.
 The tests that call the cloud service read `_51DEGREES_RESOURCE_KEY_BESPOKE`,
 and a test of an example gives the example that key under
-`_51DEGREES_RESOURCE_KEY`. Cloud tests and examples call the service
+`_51DEGREES_RESOURCE_KEY`. The Basic Human Confidence test and the 51Did
+tier test read `_51DEGREES_RESOURCE_KEY_BASIC`, an organization variable,
+and skip naming it when it is not set. Cloud tests and examples call the service
 `_51DEGREES_CLOUD_ENDPOINT` names, or the public one when it is not set.
 
 ## Products keep their own CI scripts
