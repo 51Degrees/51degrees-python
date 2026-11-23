@@ -139,34 +139,6 @@ class ExampleUtils:
         return f"Unknown ({reason})"
 
     @staticmethod
-    def get_profiles(hardware):
-        """!
-        Read the list of hardware profiles from the "hardware" element data.
-
-        An empty list is returned when the resource key has no access to the
-        hardware aspect at all, because reading a property that is not there
-        raises rather than returning an empty list.
-        """
-
-        try:
-            profiles = hardware.profiles
-        except Exception:
-            return []
-
-        return profiles if isinstance(profiles, list) else []
-
-    @staticmethod
-    def get_no_profiles_message():
-        """!
-        The line printed when a lookup returned no device profiles at all.
-        """
-
-        return ("\tNo device profiles were returned. The current resource "
-                "key does not include the hardware properties this example "
-                "needs. See "
-                "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-example_utils.py&utm_term=no-profiles")
-
-    @staticmethod
     def get_resource_key():
         return ExampleUtils.__get_env_variable(
             ExampleUtils.RESOURCE_KEY_ENV_VAR)
