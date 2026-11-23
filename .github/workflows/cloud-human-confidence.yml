@@ -1,0 +1,130 @@
+name: Cloud Human Confidence Tests
+
+# Runs the Human Confidence web example's tests marked staging
+# (pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/
+# test_cloud_humanconfidence_web.py) against the staging cloud, because the
+# production cloud does not serve HumanConfidenceSource yet. The Bespoke key
+# must get the source Passive, and the Basic key no source.
+#
+# CLOUD_STAGING_ENDPOINT, the staging cloud's API base, is an organization
+# variable, and RESOURCE_KEY_BESPOKE_STAGING, a Bespoke key the staging cloud
+# knows, is an organization secret. Only this workflow uses them. common-ci
+# passes on only _51DEGREES_ names and its own list of CI secrets, so in the
+# shared integration tests the staging tests skip, and the other Human
+# Confidence tests run there against the cloud _51DEGREES_CLOUD_ENDPOINT
+# names. _51DEGREES_RESOURCE_KEY_BASIC is an organization secret that both
+# clouds know.
+#
+# The run fails when a name is empty, and when a test skipped or none ran,
+# because a cloud test that passes without calling the cloud has proved
+# nothing. A pull request from a fork gets no secrets, so run this workflow
+# from a branch in this repository.
+
+on:
+  workflow_dispatch:
+  # Nightly as well, so a change in what the staging cloud answers is found
+  # the next morning.
+  schedule:
+    - cron: '50 6 * * *'
+  pull_request:
+    branches: [main, rc]
+    paths:
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/humanconfidence_web/**'
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/conftest.py'
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/test_cloud_humanconfidence_web.py'
+      - '.github/workflows/cloud-human-confidence.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  cloud-human-confidence:
+    name: Cloud Human Confidence
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          # The package versions written below come from the release tags.
+          fetch-depth: 0
+
+      # ci/write-package-versions.ps1 works out the versions with common-ci's
+      # release plan.
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          path: .common-ci
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the example and the packages it uses
+        env:
+          _51DEGREES_COMMON_CI_DIR: ${{ github.workspace }}/.common-ci
+        run: |
+          # A pip install that fails stops the step here, rather than
+          # leaving the tests to fail on a missing module.
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m pip install --upgrade pip pytest
+          # A package installed from this checkout is 0.0.0 without the
+          # version.txt this writes, which is below the versions the packages
+          # here require of each other, so pip would refuse them.
+          ./ci/write-package-versions.ps1
+          python -m pip install `
+            -e pipeline/fiftyone_pipeline_core `
+            -e pipeline/fiftyone_pipeline_engines `
+            -e pipeline/fiftyone_pipeline_cloudrequestengine `
+            -e pipeline/fiftyone_pipeline_cloudrequestengine/examples
+
+      - name: Human Confidence tests against the staging cloud
+        working-directory: pipeline/fiftyone_pipeline_cloudrequestengine/examples
+        env:
+          CLOUD_STAGING_ENDPOINT: ${{ vars.CLOUD_STAGING_ENDPOINT }}
+          RESOURCE_KEY_BESPOKE_STAGING: ${{ secrets.RESOURCE_KEY_BESPOKE_STAGING }}
+          _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}
+        run: |
+          # Each name, with where it comes from.
+          $names = [ordered]@{
+            CLOUD_STAGING_ENDPOINT = 'organization variable'
+            RESOURCE_KEY_BESPOKE_STAGING = 'organization secret'
+            _51DEGREES_RESOURCE_KEY_BASIC = 'organization secret'
+          }
+          $missing = $false
+          foreach ($name in $names.Keys) {
+            if (-not [Environment]::GetEnvironmentVariable($name)) {
+              Write-Host ("::error::$name is empty or missing. It comes " +
+                "from the $($names[$name]) of the same name.")
+              $missing = $true
+            }
+          }
+          if ($missing) { exit 1 }
+
+          $report = 'cloud-human-confidence.xml'
+          Remove-Item $report -ErrorAction SilentlyContinue
+          python -m pytest -m staging -p no:cacheprovider -v -rs `
+            "--junit-xml=$report"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if (-not (Test-Path $report)) {
+            Write-Host '::error::The staging tests did not run.'
+            exit 1
+          }
+          $suite = ([xml](Get-Content -Raw $report)).SelectSingleNode(
+            '//testsuite')
+          if ([int]$suite.tests -eq 0) {
+            Write-Host '::error::No staging test ran.'
+            exit 1
+          }
+          if ([int]$suite.skipped -gt 0) {
+            foreach ($skipped in $suite.SelectNodes('testcase[skipped]')) {
+              Write-Host ("::error::$($skipped.name) skipped, so it proved " +
+                "nothing. $($skipped.skipped.message)")
+            }
+            exit 1
+          }

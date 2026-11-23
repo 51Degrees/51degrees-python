@@ -263,15 +263,28 @@ that GitHub, the operating system or a tool defines, such as `GITHUB_JOB` or
 [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1)
 reads every tracked file and fails on a variable read or set under any other
 name. It lists the platform names it lets through, so a new one is added
-there.
+there, and the names only CI uses, which have no prefix because no customer
+sets them.
+
+Two names are CI only. `CLOUD_STAGING_ENDPOINT`, an organization variable,
+is the staging cloud's API base, ending `/api/v4/`, and
+`RESOURCE_KEY_BESPOKE_STAGING`, an organization secret, is a Bespoke key the
+staging cloud knows. Only
+[`.github/workflows/cloud-human-confidence.yml`](.github/workflows/cloud-human-confidence.yml)
+sets them, for the Human Confidence tests marked `staging`, which check what
+the production cloud does not serve yet. common-ci passes on only
+`_51DEGREES_` names and its own list of CI secrets, so in the shared
+integration tests those tests skip. A staging test never falls back to
+`_51DEGREES_CLOUD_ENDPOINT` or a default address.
 
 `_51DEGREES_RESOURCE_KEY` is the name a person running a cloud example sets.
 The tests that call the cloud service read `_51DEGREES_RESOURCE_KEY_BESPOKE`,
 and a test of an example gives the example that key under
-`_51DEGREES_RESOURCE_KEY`. The Basic Human Confidence test and the 51Did
-tier test read `_51DEGREES_RESOURCE_KEY_BASIC`, an organization secret,
-and skip naming it when it is not set. Cloud tests and examples call the service
-`_51DEGREES_CLOUD_ENDPOINT` names, or the public one when it is not set.
+`_51DEGREES_RESOURCE_KEY`. The Basic Human Confidence test, which calls the
+staging cloud, and the 51Did tier test read `_51DEGREES_RESOURCE_KEY_BASIC`,
+an organization secret, and skip naming it when it is not set. Cloud tests
+and examples call the service `_51DEGREES_CLOUD_ENDPOINT` names, or the
+public one when it is not set.
 
 ## Products keep their own CI scripts
 
