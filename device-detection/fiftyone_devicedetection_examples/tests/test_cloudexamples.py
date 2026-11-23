@@ -35,6 +35,7 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.cloud.gettingstarted_console import GettingStartedConsole
 from fiftyone_devicedetection_examples.cloud.configurator_console import ConfiguratorConsole
 
+from .hardware_lookup_output import lookup_fault
 from .live_cloud import find_resource_key, no_resource_key
 
 NO_KEY = no_resource_key(
@@ -54,63 +55,9 @@ FAULT_MARKERS = [
     "Unknown (None)"
 ]
 
-# What the TAC and native model examples print in place of their lookups
-# when the resource key does not carry the hardware lookup.
-NO_HARDWARE_LOOKUP = "does not include HardwarePlatform.Profiles"
-
 # The values the TAC and native model examples look up.
 TACS = ("35925406", "86386802")
 NATIVE_MODELS = ("SC-03L", "iPhone11,8")
-
-# What ExampleUtils.get_human_readable gives for a property with no value,
-# alone or followed by the reason in parentheses.
-NO_VALUE = "Unknown"
-
-
-def is_value(text):
-    """Whether the text is a value rather than empty or the rendering of a
-    property with no value."""
-    return (text != "" and text != NO_VALUE
-            and not text.startswith(NO_VALUE + " ("))
-
-
-def vendor_and_model(line):
-    """The vendor and model of a device line, which has the form
-    '<vendor> <name> (<model>)', or None when the line has another form.
-    The vendor is the text before the first space, and the model the text
-    inside the final parentheses, which may hold parentheses of their own
-    when it has no value and gives the reason."""
-    text = line.strip()
-    if not text.endswith(")"):
-        return None
-    depth = 0
-    for index in range(len(text) - 1, -1, -1):
-        if text[index] == ")":
-            depth += 1
-        elif text[index] == "(":
-            depth -= 1
-            if depth == 0:
-                break
-    else:
-        return None
-    before = text[:index].strip()
-    if before == "":
-        return None
-    return before.split(" ", 1)[0], text[index + 1:-1].strip()
-
-
-def lines_under(output, heading):
-    """The tab-indented lines printed straight after the heading, or None
-    when the heading was not printed."""
-    lines = output.split("\n")
-    if heading not in lines:
-        return None
-    under = []
-    for line in lines[lines.index(heading) + 1:]:
-        if not line.startswith("\t"):
-            break
-        under.append(line)
-    return under
 
 
 class DeviceDetectionExampleTests(unittest.TestCase):
@@ -145,28 +92,14 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
     def assert_lists_devices(self, output, lookup, kind, values):
         """!
-        Fail unless the TAC or native model example listed, for each value
-        it looked up, at least one device with a vendor and a model. lookup
-        names the lookup for the message when the resource key does not
-        carry it, and kind names what each value is, as the example's
-        heading does.
+        Fail, followed by the output, unless the TAC or native model example
+        listed, for each value it looked up, at least one device with a
+        vendor and a model, as lookup_fault says.
         """
 
-        if NO_HARDWARE_LOOKUP in output:
-            self.fail(
-                "The resource key in _51DEGREES_RESOURCE_KEY_BESPOKE does "
-                "not include HardwarePlatform.Profiles, which the "
-                f"{lookup} needs.\n{output}")
-
-        for value in values:
-            heading = f"Which devices are associated with the {kind} '{value}'?"
-            devices = [vendor_and_model(line)
-                       for line in lines_under(output, heading) or []]
-            if not any(device and is_value(device[0]) and is_value(device[1])
-                       for device in devices):
-                self.fail(
-                    "No device with a vendor and a model was listed for the "
-                    f"{kind} '{value}'.\n{output}")
+        fault = lookup_fault(output, lookup, kind, values)
+        if fault:
+            self.fail(f"{fault}\n{output}")
 
     def test_cloud_getting_started_console(self):
         example = GettingStartedConsole()

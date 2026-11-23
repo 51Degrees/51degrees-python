@@ -28,7 +28,9 @@ carries it and to contact us, and end normally without asking for a lookup.
 When the stand-in fails the accessible properties request instead, each
 example must end with that failure and never say the key lacks the lookup.
 When the key carries the lookup and the lookup matches no device, each
-example must say so under each heading and end normally. The stand-in
+example must say so under each heading and end normally. When the first
+accessible properties request fails and the next succeeds, each example
+must ask again and act on the answer it then gets. The stand-in
 answers as the cloud service does, so these tests need no key and no
 network.
 """
@@ -178,19 +180,22 @@ class StandInHandler(http.server.BaseHTTPRequestHandler):
     """Answers the accessible properties and evidence keys requests as the
     cloud service does, with the server's accessible properties, and
     anything else with 404. The accessible properties request is answered
-    with the server's failing status instead when it has one, and a lookup
-    with the server's lookup answer when it has one. The method and path of
-    each request are kept."""
+    with the server's failing status instead while it has failures left,
+    and a lookup with the server's lookup answer when it has one. The method
+    and path of each request are kept."""
 
     def do_GET(self):
-        self.server.requests.append(f"GET {self.path}")
+        server = self.server
+        server.requests.append(f"GET {self.path}")
         path = self.path.split("?", 1)[0].lower()
         if path.endswith("/accessibleproperties"):
-            if self.server.failing:
-                self.answer(self.server.failing,
+            if server.failing and server.failures != 0:
+                if server.failures is not None:
+                    server.failures -= 1
+                self.answer(server.failing,
                             {"errors": ["The service is failing."]})
             else:
-                self.answer(200, self.server.accessible_properties)
+                self.answer(200, server.accessible_properties)
         elif path.endswith("/evidencekeys"):
             self.answer(200, EVIDENCE_KEYS)
         else:
@@ -220,15 +225,17 @@ class StandInHandler(http.server.BaseHTTPRequestHandler):
 
 
 @contextmanager
-def stand_in_cloud(failing=None,
+def stand_in_cloud(failing=None, failures=None,
                    accessible_properties=ACCESSIBLE_PROPERTIES, lookup=None):
     """A stand-in for the cloud service on a free port of this machine.
     failing is the status to answer the accessible properties request with,
-    or None to answer it with accessible_properties. lookup is the answer
-    to each lookup request, or None to answer it with 404."""
+    or None to answer it with accessible_properties. failures is how many
+    of those requests fail, the first ones, or None for every one. lookup is
+    the answer to each lookup request, or None to answer it with 404."""
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), StandInHandler)
     server.requests = []
     server.failing = failing
+    server.failures = failures
     server.accessible_properties = accessible_properties
     server.lookup = lookup
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -285,10 +292,19 @@ def lookup_requests(server):
     return [request for request in server.requests if ".json" in request]
 
 
+def accessible_properties_requests(server):
+    """The accessible properties requests the stand-in received."""
+    return [request for request in server.requests
+            if "/accessibleproperties" in request.lower()]
+
+
 class LookupsWithoutHardwareTests(unittest.TestCase):
 
-    def assert_says_the_key_lacks_the_lookup(self, main, example):
-        with stand_in_cloud() as server:
+    def assert_says_the_key_lacks_the_lookup(self, main, example, **cloud):
+        """The key does not carry the lookup, so the example must say so in
+        one line and end normally. cloud is given to stand_in_cloud, and the
+        stand-in is returned for further checks."""
+        with stand_in_cloud(**cloud) as server:
             printed, records, raised = run_against(server, main)
 
         self.assertIsNone(raised, printed)
@@ -306,9 +322,9 @@ class LookupsWithoutHardwareTests(unittest.TestCase):
         # The example decided from the stand-in's accessible properties, and
         # asked for no lookup, which is a request for a .json resource.
         self.assertTrue(
-            any("/accessibleproperties" in request.lower()
-                for request in server.requests), server.requests)
+            accessible_properties_requests(server), server.requests)
         self.assertEqual([], lookup_requests(server))
+        return server
 
     def assert_ends_with_the_failure(self, main):
         """A failed accessible properties request leaves the hardware
@@ -337,15 +353,34 @@ class LookupsWithoutHardwareTests(unittest.TestCase):
     def test_nativemodellookup_console_when_the_cloud_fails(self):
         self.assert_ends_with_the_failure(nativemodellookup_console.main)
 
+    def assert_asks_again_after_one_failure(self, main, example):
+        """The first accessible properties request fails and the next gives
+        the answer for a key without the lookup, so the example must ask
+        again and then say the key lacks the lookup."""
+        server = self.assert_says_the_key_lacks_the_lookup(
+            main, example, failing=SERVER_ERROR, failures=1)
+        self.assertEqual(2, len(accessible_properties_requests(server)),
+                         server.requests)
+
+    def test_taclookup_console_when_the_cloud_fails_once(self):
+        self.assert_asks_again_after_one_failure(
+            taclookup_console.main, "taclookup_console")
+
+    def test_nativemodellookup_console_when_the_cloud_fails_once(self):
+        self.assert_asks_again_after_one_failure(
+            nativemodellookup_console.main, "nativemodellookup_console")
+
 
 class LookupsMatchingNoDeviceTests(unittest.TestCase):
 
-    def assert_says_no_device_matches(self, main, kind, values):
+    def assert_says_no_device_matches(self, main, kind, values, **cloud):
         """The key carries the lookup and each lookup matches no device, so
-        under each value's heading the example must say so in one line."""
+        under each value's heading the example must say so in one line.
+        cloud is given to stand_in_cloud, and the stand-in is returned for
+        further checks."""
         with stand_in_cloud(
                 accessible_properties=ACCESSIBLE_PROPERTIES_WITH_HARDWARE,
-                lookup=NO_DEVICES) as server:
+                lookup=NO_DEVICES, **cloud) as server:
             printed, records, raised = run_against(server, main)
 
         self.assertIsNone(raised, printed)
@@ -364,6 +399,7 @@ class LookupsMatchingNoDeviceTests(unittest.TestCase):
                  if record.levelno >= logging.ERROR])
         self.assertEqual(len(values), len(lookup_requests(server)),
                          server.requests)
+        return server
 
     def test_taclookup_console(self):
         self.assert_says_no_device_matches(
@@ -371,6 +407,25 @@ class LookupsMatchingNoDeviceTests(unittest.TestCase):
 
     def test_nativemodellookup_console(self):
         self.assert_says_no_device_matches(
+            nativemodellookup_console.main, "native model name",
+            NATIVE_MODELS)
+
+    def assert_asks_again_after_one_failure(self, main, kind, values):
+        """The first accessible properties request fails and the next gives
+        the hardware lookup, so the example must ask again and run its
+        lookups, rather than take the failure for a key without the
+        lookup."""
+        server = self.assert_says_no_device_matches(
+            main, kind, values, failing=SERVER_ERROR, failures=1)
+        self.assertEqual(2, len(accessible_properties_requests(server)),
+                         server.requests)
+
+    def test_taclookup_console_when_the_cloud_fails_once(self):
+        self.assert_asks_again_after_one_failure(
+            taclookup_console.main, "TAC", TACS)
+
+    def test_nativemodellookup_console_when_the_cloud_fails_once(self):
+        self.assert_asks_again_after_one_failure(
             nativemodellookup_console.main, "native model name",
             NATIVE_MODELS)
 
