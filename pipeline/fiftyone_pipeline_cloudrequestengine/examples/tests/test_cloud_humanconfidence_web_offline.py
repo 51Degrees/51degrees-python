@@ -162,6 +162,19 @@ class StubCloud:
                 "header.user-agent", "header.sec-ch-ua", "query.client-ip"],
                 url=url)
 
+        if bare == RESOURCE_KEY + ".json" and "humanconfidence" in data:
+            # A sealed value redeems once, with a challenge and the License
+            # Key, and gives the level as HumanConfidence.
+            sealed = data["humanconfidence"]
+            if (sealed in self.redeemed or not data.get("challenge")
+                    or data.get("license") != LICENSE_KEY):
+                return StubResponse({"derived": {
+                    "humanconfidence": None,
+                    "humanconfidencenullreason": "Not redeemed."}}, url=url)
+            self.redeemed.add(sealed)
+            return StubResponse(
+                {"derived": {"humanconfidence": "High"}}, url=url)
+
         if bare == RESOURCE_KEY + ".json":
             return StubResponse({"derived": {
                 "humanconfidence": "Medium",
@@ -170,14 +183,6 @@ class StubCloud:
         if bare == RESOURCE_KEY + ".js":
             return StubResponse(self.script, url=url, headers=[
                 ("Content-Type", "application/javascript")])
-
-        if bare == "hc/redeem":
-            if data.get("value") in self.redeemed:
-                return StubResponse({"result": "replayed"}, url=url)
-            self.redeemed.add(data.get("value"))
-            return StubResponse({
-                "humanConfidence": "High", "secondsSinceVerified": 2},
-                url=url)
 
         return StubResponse("Not Found", 404, url=url)
 
@@ -217,7 +222,9 @@ def test_page_carries_the_resource_key_and_the_cloud_address(cloud):
     assert f'var RESOURCE = "{RESOURCE_KEY}";' in html
     assert f'var API = "{API}";' in html
     assert '<link rel="stylesheet" href="/css/examples-main.min.css">' in html
-    assert client.get("/css/examples-main.min.css").status_code == 200
+    stylesheet = client.get("/css/examples-main.min.css")
+    stylesheet.close()
+    assert stylesheet.status_code == 200
 
 
 def test_page_is_never_kept_by_a_cache(cloud):
@@ -519,76 +526,130 @@ def test_passive_answers_when_the_cloud_cannot_be_reached(cloud):
     assert "cannot be reached" in response.get_json()["error"]
 
 
-# Redeem.
+# Active.
 
-def test_redeem_sends_the_sealed_value_with_the_license_key(cloud):
-    stub = cloud()
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
-
-    assert response.status_code == 200
-    assert response.headers["Content-Type"].startswith("application/json")
-    # Only the level goes back.
-    assert response.get_json() == {"humanConfidence": "High"}
-    method, url, data = stub.requests[-1]
-    assert method == "POST"
-    assert url == API + "hc/redeem"
-    assert data == {"value": "a-sealed-value", "license": LICENSE_KEY}
+SEALED = "a-sealed-value"
 
 
-def test_second_redeem_of_the_same_value_gives_low(cloud):
+def page_values(client, mode="client"):
+    """The challenge and page value the page was given."""
+    html = client.get("/?mode=" + mode).get_data(as_text=True)
+    found = re.search(r"var HC = (\{[^;]*\});", html)
+    assert found, "The page holds no challenge"
+    return json.loads(found.group(1))
+
+
+def post_active(client, values, sealed=SEALED):
+    return client.post("/active", data={
+        "humanconfidence": sealed,
+        "humanconfidencepage": values["humanconfidencepage"]})
+
+
+def test_page_is_given_a_new_challenge_each_time(cloud):
     cloud()
     client = client_for()
-    first = client.post("/redeem", data={"value": "a-sealed-value"})
-    second = client.post("/redeem", data={"value": "a-sealed-value"})
+    first, second = page_values(client), page_values(client)
 
-    assert first.get_json() == {"humanConfidence": "High"}
-    assert second.get_json() == {"humanConfidence": "Low"}
+    assert set(first) == {"challenge", "humanconfidencepage"}
+    assert first["challenge"] != second["challenge"]
+    assert first["humanconfidencepage"] != second["humanconfidencepage"]
 
 
-def test_redeem_without_a_license_key_sends_none(cloud):
+def test_page_asks_for_the_script_with_its_challenge(cloud):
+    cloud()
+    html = client_for().get("/").get_data(as_text=True)
+
+    assert '+ "?challenge=" + encodeURIComponent(HC.challenge);' in html
+
+
+def test_active_reads_the_two_properties_the_engine_gives(cloud):
     stub = cloud()
-    client_for(license_key="").post(
-        "/redeem", data={"value": "a-sealed-value"})
+    client = client_for()
+    values = page_values(client)
+    response = post_active(client, values)
 
-    assert stub.requests[-1][2] == {"value": "a-sealed-value"}
+    assert response.status_code == 200
+    assert response.get_json() == {
+        "humanConfidence": "High", "humanConfidenceSource": "Active"}
+    # The cloud request engine redeemed the sealed value through its JSON
+    # call, with the challenge the page was given and the License Key.
+    method, url, data = stub.requests[-1]
+    assert method == "POST"
+    assert url.split("?")[0] == API + RESOURCE_KEY + ".json"
+    assert data["humanconfidence"] == SEALED
+    assert data["challenge"] == values["challenge"]
+    assert data["license"] == LICENSE_KEY
+    assert "humanconfidencepage" not in data
+    assert stub.sent_to("hc/redeem") == []
+
+
+def test_second_post_of_the_same_page_gives_low(cloud):
+    cloud()
+    client = client_for()
+    values = page_values(client)
+    first = post_active(client, values)
+    second = post_active(client, values)
+
+    assert first.get_json()["humanConfidence"] == "High"
+    assert second.get_json() == {
+        "humanConfidence": "Low", "humanConfidenceSource": "Active"}
+
+
+def test_active_without_a_license_key_gives_low(cloud):
+    stub = cloud()
+    client = client_for(license_key="")
+    response = post_active(client, page_values(client))
+
+    assert response.get_json() == {
+        "humanConfidence": "Low", "humanConfidenceSource": "Active"}
+    assert "humanconfidence" not in stub.requests[-1][2]
+
+
+def test_active_without_a_sealed_value_is_refused(cloud):
+    cloud()
+    client = client_for()
+
+    assert post_active(client, page_values(client), "").status_code == 400
 
 
 @pytest.mark.parametrize("answer", [
-    StubResponse('{"result":"expired"}', 400),
-    StubResponse('{"result":"unreadable"}', 400),
+    StubResponse('{"errors":["The sealed value was not redeemed."]}', 400),
     StubResponse("Not Found", 404),
-    StubResponse('{"humanConfidence":"Unknown"}'),
-    StubResponse('{"humanConfidence":"a-sealed-value"}'),
+    StubResponse({"derived": {"humanconfidence": "Unknown"}}),
+    StubResponse({"derived": {"humanconfidence": SEALED}}),
+    StubResponse({"device": {"ismobile": False}}),
     requests.exceptions.ConnectionError(
         "The stand-in service cannot be reached."),
     requests.exceptions.Timeout("The stand-in service took too long."),
-], ids=["expired", "unreadable", "not-offered", "unknown", "not-a-level",
+], ids=["refused", "not-found", "unknown", "not-a-level", "no-derived",
         "unreachable", "timeout"])
 def test_value_that_does_not_redeem_gives_low(cloud, answer):
     stub = cloud()
-    stub.instead["hc/redeem"] = answer
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
+    client = client_for()
+    values = page_values(client)
+    stub.instead[".json"] = answer
+    response = post_active(client, values)
 
     assert response.status_code == 200
-    assert response.get_json() == {"humanConfidence": "Low"}
+    assert response.get_json() == {
+        "humanConfidence": "Low", "humanConfidenceSource": "Active"}
 
 
 @pytest.mark.parametrize("answer", [
     None,
-    StubResponse('{"result":"expired"}', 400),
+    StubResponse('{"errors":["The sealed value was not redeemed."]}', 400),
     requests.exceptions.ConnectionError(
         "The stand-in service cannot be reached.")],
-    ids=["redeemed", "expired", "unreachable"])
+    ids=["redeemed", "refused", "unreachable"])
 def test_routes_write_nothing_to_the_console(cloud, capsys, answer):
     stub = cloud()
+    client = client_for()
+    values = page_values(client)
     if answer is not None:
-        stub.instead["hc/redeem"] = answer
         stub.instead[".js"] = answer
         stub.instead[".json"] = answer
-    client = client_for()
-    client.get("/")
     client.get("/passive")
-    client.post("/redeem", data={"value": "a-sealed-value"})
+    post_active(client, values)
     client.get("/hc/script.js")
     client.post("/hc/cloud/cloud.example/api/v4/" + RESOURCE_KEY + ".json",
                 data={"fod-test": "an-answer"})
@@ -599,11 +660,20 @@ def test_routes_write_nothing_to_the_console(cloud, capsys, answer):
     assert printed.err == ""
 
 
-def test_redeem_waits_the_example_timeout(cloud):
+def test_active_waits_the_example_timeout(cloud):
     stub = cloud()
-    client_for().post("/redeem", data={"value": "a-sealed-value"})
+    client = client_for()
+    post_active(client, page_values(client))
 
     assert stub.calls[-1]["timeout"] == example.TIMEOUT
+
+
+def test_script_is_asked_for_with_the_pages_challenge(cloud):
+    stub = cloud()
+    client_for().get("/hc/script.js?challenge=a-challenge",
+                     **from_address(LOCAL_ADDRESS))
+
+    assert stub.calls[-1]["params"] == {"challenge": "a-challenge"}
 
 
 # Server mode: the client script.

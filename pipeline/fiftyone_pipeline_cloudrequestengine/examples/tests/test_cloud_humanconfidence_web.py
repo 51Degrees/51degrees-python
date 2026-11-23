@@ -30,9 +30,13 @@ The passive tests check that the example gives a level from the cloud's
 answer, and describes the request it sent. A Basic key, whose product does
 not offer HumanConfidenceSource, is checked the same way.
 
-Only the passive step is run here. The active step needs the browser tests,
-which only a browser runs.
+A sealed value is made only by the browser tests, which only a browser
+runs, so the active step is checked with a value the cloud did not seal,
+which gives Active Low.
 """
+
+import json
+import re
 
 import pytest
 import requests
@@ -133,6 +137,24 @@ def test_a_basic_key_gets_a_passive_level(api, naming_the_properties):
     assert answer["humanConfidence"] in LEVELS + (None,)
 
 
+def post_unsealed(client):
+    """Serves the page, then sends back a value the cloud did not seal,
+    with the page's own page value."""
+    html = client.get("/", headers=HEADERS).get_data(as_text=True)
+    values = json.loads(re.search(r"var HC = (\{[^;]*\});", html).group(1))
+    return client.post("/active", headers=HEADERS, data={
+        "humanconfidence": "a-value-the-cloud-did-not-seal",
+        "humanconfidencepage": values["humanconfidencepage"]})
+
+
+def test_a_value_that_does_not_redeem_gives_active_low(client):
+    answer = post_unsealed(client).get_json()
+    assert answer["humanConfidence"] in LEVELS
+    assert answer["humanConfidenceSource"] in ("Active", "Passive")
+    assert answer == {
+        "humanConfidence": "Low", "humanConfidenceSource": "Active"}
+
+
 def test_license_key_never_reaches_the_browser(client):
     license_key = ExampleUtils.get_license_key()
     if not license_key:
@@ -142,5 +164,5 @@ def test_license_key_never_reaches_the_browser(client):
     for response in (client.get("/?mode=client", headers=HEADERS),
                      client.get("/?mode=server", headers=HEADERS),
                      client.get("/passive", headers=HEADERS),
-                     client.post("/redeem", data={"value": "not-sealed"})):
+                     post_unsealed(client)):
         assert license_key.encode() not in response.data

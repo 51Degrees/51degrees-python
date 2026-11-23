@@ -43,6 +43,8 @@ from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 from .requestclient import RequestClient
 from .cloudrequestexception import CloudRequestException
 from .constants import Constants
+from .humanconfidence import HumanConfidenceChallenges
+from .humanconfidence import HumanConfidenceNames
 
 try:
     #python2
@@ -109,6 +111,10 @@ class CloudRequestEngine(Engine):
         the same credentials, as its discovery_state() gives it, either
         the JSON text or the dictionary it holds. The engine then makes
         no discovery request when it is built.
+        7) human_confidence_challenges, where the engine keeps the
+        challenge it gives each page for Human Confidence, an object with
+        the issue and take methods of HumanConfidenceChallenges. Each
+        engine keeps its own in memory when this is missing.
 
         See the Credentials section of the cloud request engine
         specification for the combinations that are accepted:
@@ -200,6 +206,12 @@ class CloudRequestEngine(Engine):
             self.cloud_request_origin = None
 
         self.exclude_from_messages = True
+
+        # The challenges given to pages for Human Confidence. See
+        # human_confidence_page_values.
+        self._challenges = settings.get("human_confidence_challenges")
+        if self._challenges is None:
+            self._challenges = HumanConfidenceChallenges()
 
         # The evidence key filter, with the key list it was made from. See
         # get_evidence_key_filter.
@@ -590,6 +602,7 @@ class CloudRequestEngine(Engine):
         self,
         cloud_response: requests.Response,
         check_for_error_messages=True,
+        hidden=(),
     ):
         """!
         Validate the JSON response from the cloud service. Each entry in
@@ -598,6 +611,9 @@ class CloudRequestEngine(Engine):
 
         @type: Response
         @param: Response returned from the cloud service.
+        @type hidden: tuple
+        @param hidden: values no error or warning may hold, each shown as
+        asterisks in full, as masked says
         @raise CloudRequestException: where the response is not JSON, holds
         errors, has no data, or has a status other than 200
         """
@@ -614,12 +630,12 @@ class CloudRequestEngine(Engine):
                 raise CloudRequestException(self.masked(
                     f'Cloud request engine properties list request returned code "{cloud_response.status_code}"'
                     f' with non-JSON content "{cloud_response.text}"'
-                ), cloud_response.status_code)
+                    , hidden), cloud_response.status_code)
             except Exception as e:
                 raise CloudRequestException(self.masked(
                     f'Cloud request engine properties list request returned code "{cloud_response.status_code}"'
                     f' with content "{cloud_response.text}".\nError: "{type(e).__name__}: {e}"'
-                ), cloud_response.status_code)
+                    , hidden), cloud_response.status_code)
 
             has_errors = "errors" in json_response and len(json_response["errors"])
             has_data = len(json_response) > (1 if has_errors else 0)
@@ -630,7 +646,7 @@ class CloudRequestEngine(Engine):
                     entry if isinstance(entry, str) else json.dumps(entry)
                     for entry in json_response["errors"])
 
-            self._warn_response_warnings(json_response)
+            self._warn_response_warnings(json_response, hidden)
 
         # If there were no errors but there was also no other data
         # in the response then add an explanation to the list of
@@ -658,7 +674,8 @@ class CloudRequestEngine(Engine):
         # one raised.
         errors = [
             CloudRequestException(
-                self.masked(Constants.EXCEPTION_CLOUD_ERROR.format(message)),
+                self.masked(Constants.EXCEPTION_CLOUD_ERROR.format(message),
+                            hidden),
                 cloud_response.status_code,
                 cloud_response.headers,
             )
@@ -673,26 +690,35 @@ class CloudRequestEngine(Engine):
             errors,
         )
 
-    def masked(self, text):
+    def masked(self, text, hidden=()):
 
         """!
         Text from or about a cloud answer with the licence key in use shown
         only as its last four characters. The cloud service names the key in
         some of its errors, and a URL may carry it in its query.
+
+        Each value in hidden is shown as asterisks in full, being the
+        sealed value, the challenge and the License Key of a request that
+        redeems a sealed Human Confidence value, as "What a package never
+        exposes" in the Human Confidence page of the specification says.
         """
 
+        text = str(text)
+        for value in hidden:
+            if value:
+                text = text.replace(value, Constants.HIDDEN_VALUE)
         text = mask_licence_keys_in_text(text)
         if self.license_key != "":
             text = text.replace(
                 self.license_key, mask_licence_key(self.license_key))
         return text
 
-    def _warn_response_warnings(self, json_response):
+    def _warn_response_warnings(self, json_response, hidden=()):
 
         """!
         Give each entry in the warnings list of a cloud answer as a
-        warning, with the licence key masked. An answer with no such list
-        gives none.
+        warning, with the licence key masked and each value in hidden shown
+        as asterisks. An answer with no such list gives none.
         """
 
         if not isinstance(json_response, dict):
@@ -701,27 +727,38 @@ class CloudRequestEngine(Engine):
         if not isinstance(entries, list):
             return
         for entry in entries:
-            warnings.warn(self.masked(str(entry)))
+            warnings.warn(self.masked(str(entry), hidden))
 
-    def make_cloud_request(self, type, url, content = None):
+    def make_cloud_request(self, type, url, content = None, hidden=()):
 
-        """!    
+        """!
         @type url: string
         @param url
-        
+        @type hidden: tuple
+        @param hidden: values no error or warning may hold, as masked says
+
         @rtype: dict
         @return Returns dict with data and error properties error contains any errors from the request, data contains the response
         """
 
-        if _takes_timeout(self.http_client):
-            cloudResponse = self.http_client.request(
-                type, url, content, self.cloud_request_origin,
-                timeout_seconds=self.timeout_seconds)
-        else:
-            cloudResponse = self.http_client.request(
-                type, url, content, self.cloud_request_origin)
+        try:
+            if _takes_timeout(self.http_client):
+                cloudResponse = self.http_client.request(
+                    type, url, content, self.cloud_request_origin,
+                    timeout_seconds=self.timeout_seconds)
+            else:
+                cloudResponse = self.http_client.request(
+                    type, url, content, self.cloud_request_origin)
+        except Exception as error:
+            # An error that names a hidden value is raised again with the
+            # value shown as asterisks. Any other is raised as it is.
+            text = str(error)
+            if any(value and value in text for value in hidden):
+                raise CloudRequestException(
+                    self.masked(text, hidden)) from None
+            raise
 
-        self.validate_response(cloudResponse)
+        self.validate_response(cloudResponse, hidden=hidden)
 
         return cloudResponse.text           
 
@@ -743,16 +780,12 @@ class CloudRequestEngine(Engine):
 
         """
 
-        self._complete_discovery()
+        sealed = self.sealed_human_confidence(flowdata)
+        if sealed is not None:
+            self._process_sealed(flowdata, sealed)
+            return
 
-        # A resource key names the route. A licence key
-        # alone has no resource key to put there, so it uses the data
-        # endpoint that takes none and travels in the body with the list
-        # of properties wanted.
-        if self.resource_key != "":
-            url = self.baseURL + self.resource_key + ".json?"
-        else:
-            url = self.baseURL + Constants.LICENSE_DATA_PATH
+        self._complete_discovery()
 
         content = self.get_content(flowdata)
         content.update(self.get_credentials())
@@ -760,7 +793,7 @@ class CloudRequestEngine(Engine):
             content[Constants.VALUES_PARAMETER] = ",".join(
                 self.requested_properties)
 
-        result = self.make_cloud_request('POST', url, content)
+        result = self.make_cloud_request('POST', self._data_url(), content)
 
         if len(self.requested_properties) > 0:
             self.report_properties_not_covered(result)
@@ -770,6 +803,152 @@ class CloudRequestEngine(Engine):
         flowdata.set_element_data(data)
 
         return
+
+    def _data_url(self):
+
+        """!
+        The address of the JSON call. A resource key names the route. A
+        licence key alone has no resource key to put there, so it uses the
+        data endpoint that takes none and travels in the body with the list
+        of properties wanted.
+        """
+
+        if self.resource_key != "":
+            return self.baseURL + self.resource_key + ".json?"
+        return self.baseURL + Constants.LICENSE_DATA_PATH
+
+    def human_confidence_page_values(self):
+
+        """!
+        The values a page that asks for Human Confidence is given, each by
+        the name the page sends it under. The page sends the challenge to
+        the cloud service when it asks for Human Confidence, and sends the
+        page value back with the sealed value, so the engine redeems the
+        sealed value with the challenge it kept for that page. Each call
+        gives a new challenge, used once.
+
+        See "The challenge" in the Human Confidence page of the
+        specification.
+
+        @rtype: dict
+        @return: the values, by name
+        """
+
+        page, challenge = self._challenges.issue()
+        return {HumanConfidenceNames.CHALLENGE_PARAMETER: challenge,
+                HumanConfidenceNames.PAGE_PARAMETER: page}
+
+    @staticmethod
+    def _evidence_value(flowdata, key):
+
+        """!
+        The text of the evidence under key, in any letter case, whether an
+        element accepted it or not, or None where there is none.
+        """
+
+        evidence = flowdata.evidence
+        unaccepted = getattr(evidence, "get_unaccepted", dict)()
+        for source in (evidence.get_all(), unaccepted):
+            for name, value in source.items():
+                if str(name).lower() == key and value is not None:
+                    return str(value)
+        return None
+
+    def sealed_human_confidence(self, flowdata):
+
+        """!
+        The sealed Human Confidence value a request carries, being the
+        evidence query.humanconfidence where it is not empty, or None.
+
+        @type flowdata: FlowData
+        @param flowdata: the FlowData being processed
+        @rtype: str
+        @return: the sealed value, or None
+        """
+
+        value = self._evidence_value(
+            flowdata, HumanConfidenceNames.SEALED_EVIDENCE)
+        return value if value else None
+
+    def _process_sealed(self, flowdata, sealed):
+
+        """!
+        Process a request that carries a sealed Human Confidence value. The
+        sealed value is redeemed through the JSON call, with the challenge
+        kept for the page and the License Key, and the answer gives
+        HumanConfidence as the level it redeemed for and
+        HumanConfidenceSource as Active. A sealed value that is not
+        redeemed gives Low and Active. An error of the call is still raised,
+        after the data is set, so the pipeline records it as it records
+        any other.
+
+        See "Redeeming through the JSON call" in the Human Confidence page
+        of the specification.
+        """
+
+        challenge = self._challenges.take(self._evidence_value(
+            flowdata, HumanConfidenceNames.PAGE_EVIDENCE))
+        redeem = challenge is not None and self.license_key != ""
+        hidden = (sealed, challenge, self.license_key)
+
+        result = None
+        try:
+            self._complete_discovery()
+
+            # The challenge sent is only ever the one kept, so every other
+            # is left out. The sealed value is sent exactly as it arrived,
+            # and only where the engine can redeem it.
+            left_out = (HumanConfidenceNames.CHALLENGE_PARAMETER,
+                        HumanConfidenceNames.SEALED_PARAMETER)
+            content = self.get_content(
+                flowdata, left_out=left_out, hidden=hidden)
+            if redeem:
+                content[HumanConfidenceNames.SEALED_PARAMETER] = sealed
+                content[HumanConfidenceNames.CHALLENGE_PARAMETER] = challenge
+            content.update(self.get_credentials())
+            names = list(self.requested_properties)
+            if (redeem and
+                    HumanConfidenceNames.REQUESTED_PROPERTY not in names):
+                names.append(HumanConfidenceNames.REQUESTED_PROPERTY)
+            if len(names) > 0:
+                content[Constants.VALUES_PARAMETER] = ",".join(names)
+
+            result = self.make_cloud_request(
+                'POST', self._data_url(), content, hidden=hidden)
+        finally:
+            flowdata.set_element_data(AspectDataDictionary(
+                self, {"cloud": self._with_human_confidence(
+                    result, redeem)}))
+
+    @staticmethod
+    def _with_human_confidence(result, redeemed):
+
+        """!
+        The JSON text of an answer with HumanConfidence set to the level
+        the sealed value redeemed for, or Low where it was not redeemed,
+        and HumanConfidenceSource set to Active. An answer that is missing
+        or cannot be read as a JSON object gives these two alone.
+        """
+
+        names = HumanConfidenceNames
+        try:
+            answer = json.loads(result) if result is not None else {}
+        except (JSONDecodeError, TypeError, ValueError):
+            answer = {}
+        if not isinstance(answer, dict):
+            answer = {}
+        section = answer.get(names.SECTION)
+        if not isinstance(section, dict):
+            section = {}
+        level = section.get(names.LEVEL) if redeemed else None
+        if level not in names.LEVELS:
+            level = names.NOT_REDEEMED
+        for member in (names.LEVEL, names.SOURCE):
+            section.pop(member + "nullreason", None)
+        section[names.LEVEL] = level
+        section[names.SOURCE] = names.ACTIVE
+        answer[names.SECTION] = section
+        return json.dumps(answer)
 
     def process(self, flowdata):
 
@@ -785,14 +964,20 @@ class CloudRequestEngine(Engine):
         @param flowdata: the FlowData to process
         """
 
-        result = super(CloudRequestEngine, self).process(flowdata)
-
-        # FlowData keeps each element's data under its datakey in lower case.
-        data = flowdata.data.get(self.datakey.lower())
-        if data is not None:
-            flowdata.data[Constants.RESPONSE_DATA_KEY] = data
-
-        return result
+        try:
+            # A request that carries a sealed Human Confidence value is
+            # neither served from the cache nor stored in it, as the
+            # caching page of the specification says.
+            if self.sealed_human_confidence(flowdata) is not None:
+                return self.process_internal(flowdata)
+            return super(CloudRequestEngine, self).process(flowdata)
+        finally:
+            # FlowData keeps each element's data under its datakey in lower
+            # case. The data is given under cloud-response even when the
+            # request failed after setting it.
+            data = flowdata.data.get(self.datakey.lower())
+            if data is not None:
+                flowdata.data[Constants.RESPONSE_DATA_KEY] = data
 
     def is_cacheable(self, data):
 
@@ -876,7 +1061,7 @@ class CloudRequestEngine(Engine):
                        else Constants.MESSAGE_PROPERTIES_NOT_KNOWN)
             warnings.warn(message.format(", ".join(not_covered)))
 
-    def get_content(self, flowData):
+    def get_content(self, flowData, left_out=(), hidden=()):
 
         """!
         Generate the Content to send in the POST request. One name under
@@ -893,21 +1078,29 @@ class CloudRequestEngine(Engine):
         evidence is important to continued optimization. The reserved names
         and the web request view are left out.
 
+        The page value of Human Confidence is never sent, and the names in
+        left_out are not sent either, under any prefix and in any letter
+        case. Neither is warned about.
+
         @param: flowData: FlowData
+        @param left_out: further names, in lower case, not to send
+        @param hidden: values no warning may hold, as masked says
         @return: Evidence Dictionary
         """
 
         queryData = {}
+        left_out = (HumanConfidenceNames.PAGE_PARAMETER,) + tuple(left_out)
 
         evidence = self.sendable_evidence(flowData.evidence)
-        # Add the other evidence lowest precedence first.
-        self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_OTHER))
-        # Add cookie evidence.
-        self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_COOKIE_PREFIX))
-        # Add header evidence.
-        self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_HTTPHEADER_PREFIX))
-        # Add query evidence.
-        self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_QUERY_PREFIX))
+        # Lowest precedence first: other, cookie, header, then query.
+        for prefix in (Constants.EVIDENCE_OTHER,
+                       Constants.EVIDENCE_COOKIE_PREFIX,
+                       Constants.EVIDENCE_HTTPHEADER_PREFIX,
+                       Constants.EVIDENCE_QUERY_PREFIX):
+            self.add_query_data(
+                queryData, evidence,
+                self.get_selected_evidence(evidence, prefix),
+                left_out=left_out, hidden=hidden)
         return queryData
 
     def sendable_evidence(self, evidence):
@@ -932,7 +1125,8 @@ class CloudRequestEngine(Engine):
                     sendable[key] = value
         return sendable
 
-    def add_query_data(self, query_data, all_evidence, evidence):
+    def add_query_data(self, query_data, all_evidence, evidence,
+                       left_out=(), hidden=()):
 
         """!
         Add query data to the evidence.
@@ -941,7 +1135,9 @@ class CloudRequestEngine(Engine):
         @param all_evidence: All evidence in the flow data. This is used to report which evidence
         keys are conflicting.
         @param evidence: Evidence to add to the query Data.
-        """        
+        @param left_out: names, in lower case, not to send, with no warning
+        @param hidden: values no warning may hold, as masked says
+        """
 
         for evidenceKey, evidenceValue in evidence.items():
 
@@ -953,6 +1149,9 @@ class CloudRequestEngine(Engine):
             if not separator:
                 suffix = evidenceKey
             prefix = prefix.lower()
+
+            if suffix.lower() in left_out:
+                continue
 
             # The service reads its credentials and the list of requested
             # properties from these names, so evidence carrying one of them
@@ -994,7 +1193,9 @@ class CloudRequestEngine(Engine):
                                 for key, value in conflicts.items())
                     
                     if conflictStr:
-                        warnings.warn(warningMessage + conflictStr)
+                        warnings.warn(self.masked(
+                            warningMessage + conflictStr, hidden)
+                            if hidden else warningMessage + conflictStr)
                     
                 # Overwrite the existing queryParameter value.
                 del query_data[existing]
