@@ -23,7 +23,7 @@ $packages = "fiftyone_devicedetection_cloud", "fiftyone_devicedetection_examples
 # The selection is added to any options a caller set in PYTEST_ADDOPTS.
 $addopts = $env:PYTEST_ADDOPTS
 if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
-    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization secret of that name."
+    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization variable of that name."
     $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 # The cloud package runs without the CSV file too, because only its property
