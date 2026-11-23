@@ -57,6 +57,15 @@ FIND_OUT_MORE = [
      "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
 ]
 
+# Printed in place of the lookups when the resource key does not carry them.
+NO_HARDWARE_LOOKUP = (
+    "The resource key does not include HardwarePlatform.Profiles, the "
+    "hardware lookup this example needs, so no devices are listed. Create a "
+    "resource key that includes it at "
+    "https://51degrees.com/configure/QKyYH5XT?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=no-hardware-lookup, "
+    "or contact us about it at "
+    "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-cloud-nativemodellookup_console.py&utm_term=no-hardware-lookup.")
+
 class NativeModelLookupConsole():
     def run(self, resource_key, logger, output, cloudEndPoint = ""):
 
@@ -89,6 +98,20 @@ class NativeModelLookupConsole():
         # Create the pipeline using the engines.
         pipeline = PipelineBuilder().add_logger(logger).add(cloudEngine).add(propertyKeyedEngine).build()
 
+        # The hardware engine's properties come from the cloud service's
+        # accessible properties for the resource key. Reading those from the
+        # cloud request engine asks the cloud service again when the request
+        # made while the pipeline was built failed, and raises if it fails
+        # again, so a failed request is never taken for a key without the
+        # hardware lookup. After that, Profiles is among the hardware
+        # engine's properties only when the key carries the lookup.
+        cloudEngine.flow_element_properties
+        if not any(name.lower() == "profiles"
+                   for name in propertyKeyedEngine.get_properties()):
+            output(NO_HARDWARE_LOOKUP)
+            ExampleUtils.print_find_out_more(FIND_OUT_MORE, output)
+            return
+
         # Pass a native model into the pipeline and list the matching devices.
         self.analyseModel(self._nativeModel1, pipeline, output)
         # Repeat for an alternative native model name.
@@ -103,17 +126,15 @@ class NativeModelLookupConsole():
         data.evidence.add(Constants.EVIDENCE_QUERY_NATIVE_MODEL_KEY, nativemodel)
         # Process the supplied evidence.
         data.process()
-        # Get result data from the flow data.
-        result = data.hardware
         output("Which devices are associated with the " +
             f"native model name '{nativemodel}'?")
-        # The 'hardware.profiles' object contains one or more devices.
+        # The 'hardware.profiles' list holds one entry for each device.
         # This is the same interface used for standard device detection, so we have
         # access to all the same properties.
-        profiles = ExampleUtils.get_profiles(result)
+        profiles = data.hardware.profiles
 
         if len(profiles) == 0:
-            output(ExampleUtils.get_no_profiles_message())
+            output("\tNo devices are associated with this native model name.")
             return
 
         for device in profiles:

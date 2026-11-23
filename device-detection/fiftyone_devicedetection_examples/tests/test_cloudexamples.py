@@ -54,6 +54,64 @@ FAULT_MARKERS = [
     "Unknown (None)"
 ]
 
+# What the TAC and native model examples print in place of their lookups
+# when the resource key does not carry the hardware lookup.
+NO_HARDWARE_LOOKUP = "does not include HardwarePlatform.Profiles"
+
+# The values the TAC and native model examples look up.
+TACS = ("35925406", "86386802")
+NATIVE_MODELS = ("SC-03L", "iPhone11,8")
+
+# What ExampleUtils.get_human_readable gives for a property with no value,
+# alone or followed by the reason in parentheses.
+NO_VALUE = "Unknown"
+
+
+def is_value(text):
+    """Whether the text is a value rather than empty or the rendering of a
+    property with no value."""
+    return (text != "" and text != NO_VALUE
+            and not text.startswith(NO_VALUE + " ("))
+
+
+def vendor_and_model(line):
+    """The vendor and model of a device line, which has the form
+    '<vendor> <name> (<model>)', or None when the line has another form.
+    The vendor is the text before the first space, and the model the text
+    inside the final parentheses, which may hold parentheses of their own
+    when it has no value and gives the reason."""
+    text = line.strip()
+    if not text.endswith(")"):
+        return None
+    depth = 0
+    for index in range(len(text) - 1, -1, -1):
+        if text[index] == ")":
+            depth += 1
+        elif text[index] == "(":
+            depth -= 1
+            if depth == 0:
+                break
+    else:
+        return None
+    before = text[:index].strip()
+    if before == "":
+        return None
+    return before.split(" ", 1)[0], text[index + 1:-1].strip()
+
+
+def lines_under(output, heading):
+    """The tab-indented lines printed straight after the heading, or None
+    when the heading was not printed."""
+    lines = output.split("\n")
+    if heading not in lines:
+        return None
+    under = []
+    for line in lines[lines.index(heading) + 1:]:
+        if not line.startswith("\t"):
+            break
+        under.append(line)
+    return under
+
 
 class DeviceDetectionExampleTests(unittest.TestCase):
 
@@ -85,24 +143,30 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
         return output
 
-    def assert_device_lines_are_meaningful(self, output):
+    def assert_lists_devices(self, output, lookup, kind, values):
         """!
-        Every device line the TAC and native model examples print must say
-        something useful. Either it names a device, or it says the property
-        has no value and gives the reason the cloud service supplied.
+        Fail unless the TAC or native model example listed, for each value
+        it looked up, at least one device with a vendor and a model. lookup
+        names the lookup for the message when the resource key does not
+        carry it, and kind names what each value is, as the example's
+        heading does.
         """
 
-        # The links of the section the example ends with are left out,
-        # because they are indented as device lines are.
-        devices = output.split("Find out more:")[0]
-        lines = [line for line in devices.split("\n")
-                 if line.startswith("\t")]
+        if NO_HARDWARE_LOOKUP in output:
+            self.fail(
+                "The resource key in _51DEGREES_RESOURCE_KEY_BESPOKE does "
+                "not include HardwarePlatform.Profiles, which the "
+                f"{lookup} needs.\n{output}")
 
-        self.assertGreater(len(lines), 0,
-            "The example listed no devices and gave no reason for it")
-
-        for line in lines:
-            self.assertNotEqual("", line.strip(), "A device line is empty")
+        for value in values:
+            heading = f"Which devices are associated with the {kind} '{value}'?"
+            devices = [vendor_and_model(line)
+                       for line in lines_under(output, heading) or []]
+            if not any(device and is_value(device[0]) and is_value(device[1])
+                       for device in devices):
+                self.fail(
+                    "No device with a vendor and a model was listed for the "
+                    f"{kind} '{value}'.\n{output}")
 
     def test_cloud_getting_started_console(self):
         example = GettingStartedConsole()
@@ -123,10 +187,8 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         output = self.run_example(
             lambda out: example.run(self.resource_key, self.logger, out))
 
-        self.assertIn(
-            "Which devices are associated with the native model name "
-            "'SC-03L'?", output)
-        self.assert_device_lines_are_meaningful(output)
+        self.assert_lists_devices(
+            output, "native model lookup", "native model name", NATIVE_MODELS)
         self.assertIn("Find out more:", output)
 
     def test_cloud_taclookup_console(self):
@@ -138,9 +200,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         output = self.run_example(
             lambda out: example.run(config, self.logger, out))
 
-        self.assertIn(
-            "Which devices are associated with the TAC '35925406'?", output)
-        self.assert_device_lines_are_meaningful(output)
+        self.assert_lists_devices(output, "TAC lookup", "TAC", TACS)
         self.assertIn("Find out more:", output)
 
     def test_cloud_metadata_console(self):
