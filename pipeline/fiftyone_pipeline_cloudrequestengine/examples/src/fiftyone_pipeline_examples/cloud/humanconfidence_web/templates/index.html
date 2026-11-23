@@ -112,6 +112,7 @@
   var RESOURCE = {{ resource_key|tojson }};
   // The cloud API base ending in /api/v4/, as the server read it.
   var API = {{ api|tojson }};
+  var API_ORIGIN = new URL(API).origin;
   var MODE = {{ mode|tojson }};
   // This server's redeem route, which holds the License Key.
   var REDEEM = location.origin + "/redeem";
@@ -255,7 +256,11 @@
       pairs = pairs.filter(function (p) {
         return p[0] !== "resource" && p[0] !== "values"; });
     }
-    if (!/51degrees\.com\//.test(absolute) || !pairs.length) { return; }
+    // Only posts to the cloud in use, or a 51Degrees cloud host, carry the
+    // test answers.
+    var toCloud = absolute.indexOf(API_ORIGIN + "/") === 0 ||
+      /^https:\/\/cloud[a-z0-9-]*\.51degrees\.com\//.test(absolute);
+    if (!toCloud || !pairs.length) { return; }
     setCommand("active", absolute, pairs);
   }
   var open = XMLHttpRequest.prototype.open;

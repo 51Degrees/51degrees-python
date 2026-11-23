@@ -97,11 +97,21 @@ MODE_COOKIE = "hc_mode"
 # The levels, highest first. A level the cloud doesn't give is the last.
 LEVELS = ("High", "Medium", "Low")
 
-# Cloud addresses in the client script. In server mode each one is pointed
-# at this server.
-CLOUD_URL = re.compile(
-    r"https://(cloud[a-z0-9-]*\.51degrees\.com)/([^\"'\s\\)]*)")
-CLOUD_HOST = re.compile(r"cloud[a-z0-9-]*\.51degrees\.com")
+# The 51Degrees cloud hosts. The host of the endpoint in use, such as a
+# private cloud in Docker, counts as a cloud host too.
+CLOUD_HOSTS = r"cloud[a-z0-9-]*\.51degrees\.com"
+
+
+def cloud_patterns(api):
+
+    """!
+    The cloud hosts for the endpoint api, and the cloud addresses in the
+    client script, which in server mode are each pointed at this server.
+    """
+
+    hosts = CLOUD_HOSTS + "|" + re.escape(urllib.parse.urlsplit(api).netloc)
+    return (re.compile(hosts),
+            re.compile(r"(https?)://(" + hosts + r")/([^\"'\s\\)]*)"))
 
 # Headers the cloud lists that are never sent on as HTTP headers, because
 # they belong to this server's own connection to the cloud.
@@ -186,6 +196,8 @@ def create_app(resource_key, license_key, api):
     # Serve the files in the static folder from the root, so the stylesheet
     # is at /css, as in the other web examples.
     app = Flask(__name__, static_url_path="")
+    cloud_host, cloud_url = cloud_patterns(api)
+    endpoint = urllib.parse.urlsplit(api)
 
     # The request headers the cloud reads, from its own list, fetched once.
     # Only these are passed on, so headers such as Authorization stay here.
@@ -321,8 +333,8 @@ def create_app(resource_key, license_key, api):
                 "console.log(" + repr(str(error)) + ");", status=502,
                 content_type="application/javascript")
         here = request.host_url + "hc/cloud/"
-        text = CLOUD_URL.sub(
-            lambda m: here + m.group(1) + "/" + m.group(2), answer.text)
+        text = cloud_url.sub(
+            lambda m: here + m.group(2) + "/" + m.group(3), answer.text)
         response = Response(
             text, status=answer.status_code,
             content_type="application/javascript")
@@ -336,7 +348,7 @@ def create_app(resource_key, license_key, api):
     @app.route("/hc/cloud/<host>/<path:path>", methods=["GET", "POST"])
     def forward(host, path):
 
-        if not CLOUD_HOST.fullmatch(host):
+        if not cloud_host.fullmatch(host):
             abort(404)
         if request.method == "POST":
             try:
@@ -346,7 +358,10 @@ def create_app(resource_key, license_key, api):
             response = jsonify(answer)
             response.headers["Cache-Control"] = "no-store"
             return response
-        url = "https://" + host + "/" + path
+        # The endpoint's own host keeps the endpoint's scheme, as a private
+        # cloud may be plain http.
+        scheme = endpoint.scheme if host == endpoint.netloc else "https"
+        url = scheme + "://" + host + "/" + path
         headers = passed_on(visitor_headers())
         cookies = "; ".join(
             f"{name}={value}" for name, value in request.cookies.items()
