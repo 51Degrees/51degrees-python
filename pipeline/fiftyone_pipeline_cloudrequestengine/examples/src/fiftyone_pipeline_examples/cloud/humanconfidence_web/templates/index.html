@@ -120,6 +120,8 @@
   // /hc/cloud/<host>/<path> here.
   var FORWARD = /^https?:\/\/[^\/]+\/hc\/cloud\/([^\/]+)\/(.*)$/;
   var LEVELS = ["High", "Medium", "Low"];
+  // The values HumanConfidence takes before it is sealed.
+  var PLAIN = LEVELS.concat(["Unknown"]);
   var CLASSES = { High: "c-eg-status--pass", Medium: "c-eg-status--part",
     Low: "c-eg-status--fail" };
 
@@ -315,7 +317,11 @@
     }
     window.fod.onChange(function (data) {
       var value = data && data.derived && data.derived.humanconfidence;
-      if (value && value !== seen) {
+      // The script's first result comes before the browser tests have
+      // run, and its HumanConfidence is then a plain level. Only a sealed
+      // value is redeemed: redeeming a plain level answers unreadable,
+      // which would show Active Low for tests that haven't run yet.
+      if (value && PLAIN.indexOf(value) < 0 && value !== seen) {
         seen = value;
         redeem(value);
       }
