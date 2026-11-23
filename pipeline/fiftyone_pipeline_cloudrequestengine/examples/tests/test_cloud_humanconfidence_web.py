@@ -59,7 +59,7 @@ def key():
     resource_key = find_resource_key()
     if not resource_key:
         pytest.skip(
-            f"None of {', '.join(RESOURCE_KEY_NAMES)} is set. Set one to a "
+            f"{', '.join(RESOURCE_KEY_NAMES)} is not set. Set it to a "
             "resource key that carries HumanConfidence to run the Human "
             "Confidence cloud tests.")
     return resource_key

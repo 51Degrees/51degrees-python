@@ -30,19 +30,16 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import CloudRequ
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
-from .live_cloud import read_environment
+from .live_cloud import find_resource_key, no_resource_key
 
 
 class CloudEngineTests(unittest.TestCase):
     def setUp(self):
-        self.resource_key = read_environment(
-            "_51DEGREES_RESOURCE_KEY")
+        self.resource_key = find_resource_key()
 
         if not self.resource_key:
-            self.skipTest(
-                "_51DEGREES_RESOURCE_KEY is not set. Set it to a resource "
-                "key from https://51degrees.com/configure that includes the "
-                "IsMobile property to run this test.")
+            self.skipTest(no_resource_key(
+                "the device product", "the IsMobile property"))
 
     def test_cloud_engine(self):
         """!

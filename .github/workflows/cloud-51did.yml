@@ -78,6 +78,9 @@ jobs:
           # license key of the account whose resource key sealed it. The tests
           # read it from _51DEGREES_LICENSE_KEY_51DID.
           _51DEGREES_LICENSE_KEY_51DID: ${{ secrets._51DEGREES_LICENSE_KEY_51DID }}
+          # The cloud service the tests call. The DidClient uses the public
+          # one when this is empty.
+          _51DEGREES_CLOUD_ENDPOINT: ${{ vars._51DEGREES_CLOUD_ENDPOINT }}
         # The tests skip without a key, so the run fails here instead,
         # naming the variable. -rs lists any test that skipped, and none
         # should.
@@ -92,6 +95,7 @@ jobs:
         if: ${{ !cancelled() }}
         env:
           _51DEGREES_RESOURCE_KEY_BASIC: ${{ vars._51DEGREES_RESOURCE_KEY_BASIC }}
+          _51DEGREES_CLOUD_ENDPOINT: ${{ vars._51DEGREES_CLOUD_ENDPOINT }}
         shell: pwsh
         run: |
           if (-not $env:_51DEGREES_RESOURCE_KEY_BASIC) {

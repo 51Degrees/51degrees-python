@@ -48,11 +48,6 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
     testEndPoint = "http://testEndPoint/"
     testEnvVarEndPoint = "http://testEnvVarEndPoint/"
 
-    # The name the endpoint environment variable had before
-    # Constants.CLOUD_ENDPOINT, which is no longer read, written out so that
-    # the test of the deprecated constant that holds it does not depend on it.
-    oldEndPointVariable = "FOD_CLOUD_API_URL"
-
     def setUp(self):
         # Each test starts with the endpoint variable not set, and what it
         # sets is put back afterwards.
@@ -111,23 +106,20 @@ class TestCloudRequestEngine(CloudRequestEngineTestsBase):
         })
         self.assertEqual(Constants.BASE_URL_DEFAULT, cloud_request_engine.baseURL)
 
-    def testOldEndPointConstant(self):
+    def testOneConstantNamesAnEnvironmentVariable(self):
         """!
-        Check that the constant the old name was held in is still there
-        with its old value, as a plain attribute of its class, so that
-        every way of reading it gives the old name
+        Check that the only constant holding the name of an environment
+        variable is the one for the cloud end point
         """
 
-        self.assertEqual(
-            self.oldEndPointVariable, Constants.FOD_CLOUD_API_URL)
-        self.assertEqual(
-            self.oldEndPointVariable,
-            vars(Constants).get("FOD_CLOUD_API_URL"))
-        self.assertIn("FOD_CLOUD_API_URL", dir(Constants))
+        named = [name for name, value in vars(Constants).items()
+                 if isinstance(value, str) and not name.startswith("_")
+                 and value.isupper() and "://" not in value]
+        self.assertEqual(["CLOUD_ENDPOINT"], named)
 
     def testEndPointConstant(self):
         """!
-        Check that the constant for the new name holds the new name
+        Check the name of the cloud end point environment variable
         """
 
         self.assertEqual(

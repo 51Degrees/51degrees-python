@@ -9,13 +9,18 @@ BeforeAll {
     $script:Script = Join-Path $PSScriptRoot '..' 'device-detection' 'ci' `
         'run-performance-tests.ps1'
 
-    # The name of the file given to the console benchmark as --data_file.
-    function Get-DataFileArgument([object[]]$Arguments) {
-        $index = [Array]::IndexOf($Arguments, '--data_file')
+    # The name of the file given to the console benchmark as an option.
+    function Get-FileArgument([object[]]$Arguments, [string]$Option) {
+        $index = [Array]::IndexOf($Arguments, $Option)
         if ($index -lt 0) {
             return $null
         }
         return Split-Path -Leaf $Arguments[$index + 1]
+    }
+
+    # The name of the file given to the console benchmark as --data_file.
+    function Get-DataFileArgument([object[]]$Arguments) {
+        return Get-FileArgument $Arguments '--data_file'
     }
 }
 
@@ -28,7 +33,7 @@ BeforeEach {
         (Join-Path $script:CommonCi 'assets')
     $script:Product = (New-Item -ItemType Directory -Force `
         (Join-Path $script:CommonCi 'device-detection')).FullName
-    foreach ($name in '51Degrees-LiteV4.1.hash', '20000 User Agents.csv') {
+    foreach ($name in '51Degrees-LiteV4.1.hash', '20000 Evidence Records.yml') {
         Set-Content (Join-Path $script:Assets $name) ''
     }
 
@@ -71,6 +76,20 @@ It 'measures on the TAC file when it is there' {
         (Get-DataFileArgument $args) -eq 'TAC-HashV41.hash'
     }
     $output | Should -Match 'on TAC-HashV41\.hash'
+}
+
+It 'gives both benchmarks the YAML evidence' {
+    & $script:Script -RepoName $script:Product -Name 'test' | Out-Null
+
+    # The console benchmark takes the evidence as an option.
+    Should -Invoke python -Times 1 -Exactly -ParameterFilter {
+        (Get-FileArgument $args '--evidence_file') -eq '20000 Evidence Records.yml'
+    }
+    # The web benchmark takes the data file and then the evidence.
+    Should -Invoke python -Times 1 -Exactly -ParameterFilter {
+        $args -contains '--output' -and
+            (Split-Path -Leaf $args[2]) -eq '20000 Evidence Records.yml'
+    }
 }
 
 It 'runs nothing when performance is turned off' {

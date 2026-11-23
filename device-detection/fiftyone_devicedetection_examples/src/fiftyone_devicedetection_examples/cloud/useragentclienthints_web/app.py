@@ -101,7 +101,8 @@ class UserAgentClientHintsWeb():
         return self
 
     def run(self):
-        UserAgentClientHintsWeb.app.run(port=int(os.environ.get("PORT", 5151)))
+        UserAgentClientHintsWeb.app.run(port=int(os.environ.get(
+            "_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)))
 
     # The main route performs device detection and renders the results. On the
     # second request, any additional client hints headers requested via the

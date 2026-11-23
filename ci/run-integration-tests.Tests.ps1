@@ -9,14 +9,15 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot 'dispatch.ps1')
 
-    # common-ci checked out beside this repository, or wherever COMMON_CI says.
-    $commonCi = $env:COMMON_CI
+    # common-ci checked out beside this repository, or wherever
+    # _51DEGREES_COMMON_CI_DIR says.
+    $commonCi = $env:_51DEGREES_COMMON_CI_DIR
     if ([string]::IsNullOrEmpty($commonCi) -eq $true) {
         $commonCi = Join-Path $PSScriptRoot '..' '..' 'common-ci'
     }
     $script:Steps = Join-Path $commonCi 'steps'
     if ((Test-Path (Join-Path $script:Steps 'run-script.ps1')) -eq $false) {
-        throw "common-ci not found at '$commonCi'; set COMMON_CI to a checkout of it"
+        throw "common-ci not found at '$commonCi'; set _51DEGREES_COMMON_CI_DIR to a checkout of it"
     }
 
     $script:Repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path

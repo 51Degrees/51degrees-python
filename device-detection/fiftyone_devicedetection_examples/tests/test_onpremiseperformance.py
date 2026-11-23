@@ -22,15 +22,13 @@
 
 """!
 Runs the on-premise performance example as a person runs it, with python -m,
-once with no arguments and otherwise with its -d, -u and -j options, on the free Lite data file and a short file
-of User-Agents so that it takes seconds. Its work is done under
-if __name__ == "__main__", in a separate process for each processor, so it
-runs in a process of its own here.
+once with no arguments and otherwise with its -d, -e and -j options, on the
+free Lite data file and a short file of evidence records so that it takes
+seconds. Its work is done under if __name__ == "__main__", in a separate
+process for each processor, so it runs in a process of its own here.
 """
 
 import ast
-import csv
-import itertools
 import json
 import multiprocessing
 import os
@@ -42,7 +40,7 @@ import unittest
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.onpremise import performance
 from fiftyone_devicedetection_shared.example_constants import \
-    LITE_DATAFILE_NAME, UA_FILE_NAME
+    EVIDENCE_FILE_NAME, LITE_DATAFILE_NAME
 
 MODULE = "fiftyone_devicedetection_examples.onpremise.performance"
 
@@ -56,8 +54,7 @@ HANG_TIMEOUT_SECONDS = 300
 
 # The settings a fresh clone does not have, left out of the run with no
 # arguments.
-SETTINGS = ("_51DEGREES_DD_PATH", "_51DEGREES_LICENSE_KEY", "license_key",
-            "LICENSE_KEY")
+SETTINGS = ("_51DEGREES_DD_PATH", "_51DEGREES_LICENSE_KEY")
 
 # The example prints its counts on a line starting with this, followed by a
 # dictionary of them.
@@ -77,11 +74,11 @@ class OnPremisePerformanceTests(unittest.TestCase):
 
     def setUp(self):
         self.data_file = ExampleUtils.find_file(LITE_DATAFILE_NAME)
-        self.user_agents_file = ExampleUtils.find_file(UA_FILE_NAME)
+        self.evidence_file = ExampleUtils.find_file(EVIDENCE_FILE_NAME)
         self.assertIsNotNone(
             self.data_file, f"{LITE_DATAFILE_NAME} was not found")
         self.assertIsNotNone(
-            self.user_agents_file, f"{UA_FILE_NAME} was not found")
+            self.evidence_file, f"{EVIDENCE_FILE_NAME} was not found")
         folder = tempfile.TemporaryDirectory()
         self.addCleanup(folder.cleanup)
         self.folder = folder.name
@@ -90,17 +87,19 @@ class OnPremisePerformanceTests(unittest.TestCase):
 
     def run_example(self, count):
         """Runs the example on the first count User-Agents of the free
-        file, copied as they are, and returns what it printed and the path
-        of the JSON results it wrote."""
-        user_agents = os.path.join(self.folder, "user-agents.csv")
-        with open(self.user_agents_file, "rb") as source, \
-                open(user_agents, "wb") as target:
-            target.writelines(itertools.islice(source, count))
+        evidence file, each written as a record of its own, and returns
+        what it printed and the path of the JSON results it wrote."""
+        user_agents = ExampleUtils.read_user_agents(self.evidence_file)
+        self.assertGreaterEqual(len(user_agents), count)
+        evidence = os.path.join(self.folder, "evidence.yml")
+        with open(evidence, "w", encoding="utf-8") as target:
+            for user_agent in user_agents[:count]:
+                target.write(f"---\nheader.user-agent: {user_agent}\n")
         results = os.path.join(self.folder, "results.json")
 
         finished = subprocess.run(
             [sys.executable, "-m", MODULE,
-             "-d", self.data_file, "-u", user_agents, "-j", results],
+             "-d", self.data_file, "-e", evidence, "-j", results],
             capture_output=True, text=True, timeout=HANG_TIMEOUT_SECONDS)
 
         output = finished.stdout + finished.stderr
@@ -123,7 +122,7 @@ class OnPremisePerformanceTests(unittest.TestCase):
 
     def test_runs_with_no_arguments(self):
         # As someone runs it from a fresh clone, so it finds the free Lite
-        # file and the free file of User-Agents for itself.
+        # file and the free file of evidence records for itself.
         environment = {name: value for name, value in os.environ.items()
                        if name not in SETTINGS}
         finished = subprocess.run(
@@ -133,8 +132,8 @@ class OnPremisePerformanceTests(unittest.TestCase):
 
         output = finished.stdout + finished.stderr
         self.assertEqual(0, finished.returncode, output)
-        with open(self.user_agents_file, newline="") as file:
-            count = sum(1 for _ in csv.reader(file))
+        count = len(ExampleUtils.read_user_agents(self.evidence_file))
+        self.assertGreater(count, 0)
         self.assertIn(f"Processing {count} user agents", output)
         self.assertEqual(count, sum((counts(output) or {}).values()), output)
         self.assertIn(
@@ -153,6 +152,50 @@ class OnPremisePerformanceTests(unittest.TestCase):
 
         self.assertIn(f"Processing {count} user agents", output)
         self.assertEqual(count, sum((counts(output) or {}).values()), output)
+
+
+class ReadUserAgentsTests(unittest.TestCase):
+    """How the example reads the User-Agent of each evidence record. These
+    need no data file."""
+
+    def read(self, text):
+        folder = tempfile.TemporaryDirectory()
+        self.addCleanup(folder.cleanup)
+        path = os.path.join(folder.name, "evidence.yml")
+        with open(path, "w", encoding="utf-8") as file:
+            file.write(text)
+        return ExampleUtils.read_user_agents(path)
+
+    def test_gives_the_user_agent_of_each_record_in_order(self):
+        self.assertEqual(
+            ["First/1.0 (a; b)", "Second/2.0"],
+            self.read(
+                "---\n"
+                "header.user-agent: First/1.0 (a; b)\n"
+                "header.sec-ch-ua-mobile: ?0\n"
+                "---\n"
+                "header.user-agent: Second/2.0\n"))
+
+    def test_leaves_out_a_record_with_no_user_agent(self):
+        self.assertEqual(
+            ["Only/1.0"],
+            self.read(
+                "---\n"
+                "header.sec-ch-ua-mobile: ?1\n"
+                "---\n"
+                "header.user-agent: Only/1.0\n"))
+
+    def test_takes_the_quotes_off_a_quoted_user_agent(self):
+        self.assertEqual(
+            ["Quoted/1.0: yes", "Double/1.0"],
+            self.read(
+                "---\n"
+                "header.user-agent: 'Quoted/1.0: yes'\n"
+                "---\n"
+                'header.User-Agent: "Double/1.0"\n'))
+
+    def test_no_records_gives_an_empty_list(self):
+        self.assertEqual([], self.read(""))
 
 
 if __name__ == "__main__":

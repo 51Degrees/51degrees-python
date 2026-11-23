@@ -44,8 +44,7 @@ from fiftyone_ipintelligence_shared.example_constants import \
 CLIENT_IP = "8.8.8.8"
 
 # The settings a fresh clone does not have, left out of the run of main.
-SETTINGS = ("_51DEGREES_IPI_PATH", "_51DEGREES_LICENSE_KEY", "license_key",
-            "LICENSE_KEY")
+SETTINGS = ("_51DEGREES_IPI_PATH", "_51DEGREES_LICENSE_KEY")
 
 # What the example shows for a property its data file does not have.
 NOT_FOUND = "Property not found in data file"

@@ -193,7 +193,6 @@ from datetime import datetime
 
 from fiftyone_devicedetection.devicedetection_pipelinebuilder import DeviceDetectionPipelineBuilder
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
-from fiftyone_devicedetection_shared.key_utils import KeyUtils
 from fiftyone_pipeline_core.logger import Logger
 from fiftyone_devicedetection_shared.example_constants import ENTERPRISE_DATAFILE_NAME
 from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
@@ -203,9 +202,6 @@ from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 # The environment variable checked for the licence key when none is given
 # on the command line.
 UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
-# Deprecated. Use UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE. The name that
-# variable had before, which is no longer read.
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR
 # Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"

@@ -24,20 +24,13 @@ if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
     $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 
-# The tests and examples read the resource key from _51DEGREES_RESOURCE_KEY,
-# which common-ci fills from _51DEGREES_RESOURCE_KEY_BESPOKE. It is filled
-# here too when it is empty, and never replaced.
-if (!$env:_51DEGREES_RESOURCE_KEY) {
-    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
-}
-
-# Says what that key is entitled to, so a run with no IP data is read as an
+# Says what the key is entitled to, so a run with no IP data is read as an
 # entitlement gap rather than as broken code. Prints product names and tiers
 # only, never the key. Found through this script's own folder, because
 # common-ci runs it from the common-ci checkout, where
 # './ci/report-key-products.ps1' does not exist.
-if ($env:_51DEGREES_RESOURCE_KEY) {
-    & (Join-Path $PSScriptRoot 'report-key-products.ps1') -ResourceKey $env:_51DEGREES_RESOURCE_KEY
+if ($env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
+    & (Join-Path $PSScriptRoot 'report-key-products.ps1') -ResourceKey $env:_51DEGREES_RESOURCE_KEY_BESPOKE
 }
 
 # nightly-publish-main workflow doesn't create the examples package, so

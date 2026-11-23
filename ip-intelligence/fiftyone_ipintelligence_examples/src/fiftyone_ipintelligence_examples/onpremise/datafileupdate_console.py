@@ -89,10 +89,6 @@ from fiftyone_pipeline_engines.datafile_update_service import UpdateStatus
 # a command line argument.
 UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
 
-# Deprecated. Use UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE. The name that
-# variable had before, which is no longer read.
-UPDATE_EXAMPLE_LICENSE_KEY_NAME = ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR
-
 # Where to ask for a licence key and a copy of the Enterprise data file, tagged with this
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
