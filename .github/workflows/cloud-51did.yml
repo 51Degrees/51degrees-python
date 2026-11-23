@@ -69,7 +69,7 @@ jobs:
           # to be a key of the same account as _51DEGREES_LICENSE_KEY_51DID.
           # With the Bespoke key in its place, the licensed redeem came back
           # unreadable.
-          _51DEGREES_RESOURCE_KEY_51DID: ${{ secrets._51DEGREES_RESOURCE_KEY_51DID }}
+          _51DEGREES_RESOURCE_KEY_51DID: ${{ vars._51DEGREES_RESOURCE_KEY_51DID }}
           # The redemption tests check a sealed result reads back only with a
           # license key, and the service only opens a sealed result for a
           # license key of the account whose resource key sealed it. The tests
@@ -88,7 +88,7 @@ jobs:
       - name: Cloud 51Did tier test with the Basic key
         if: ${{ !cancelled() }}
         env:
-          _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}
+          _51DEGREES_RESOURCE_KEY_BASIC: ${{ vars._51DEGREES_RESOURCE_KEY_BASIC }}
         shell: pwsh
         run: |
           if (-not $env:_51DEGREES_RESOURCE_KEY_BASIC) {
