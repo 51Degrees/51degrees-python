@@ -363,13 +363,13 @@ class ShareUsage(Engine):
             max_workers=1, thread_name_prefix='ShareUsage')
 
     def __del__(self):
+        # The garbage collector calls this on whichever thread it runs, and
+        # that thread may hold a lock the sending thread needs to end, so
+        # this never waits for it. A message already going out finishes on
+        # the sending thread, which the interpreter waits for at exit.
         thread_pool = getattr(self, "thread_pool", None)
         if thread_pool is not None:
-            closing = getattr(self, "_closing", None)
-            # Closing has already given sending all the time it is allowed,
-            # so waiting again here would undo that bound.
-            thread_pool.shutdown(
-                wait=closing is None or not closing.is_set())
+            thread_pool.shutdown(wait=False)
 
     def close(self):
 
