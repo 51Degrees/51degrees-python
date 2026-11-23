@@ -46,23 +46,23 @@ class SharedTests(unittest.TestCase):
         finally:
             del os.environ["_51DEGREES_TEST_NAMED_KEY"]
 
-    def test_get_named_key_reads_the_name_in_upper_case(self):
-        # The upper case form of a name is still read when the name as
-        # given is not set.
+    def test_get_named_key_warns_of_nothing(self):
         import os
-        os.environ.pop("_51degrees_test_named_key", None)
+        import warnings
         os.environ["_51DEGREES_TEST_NAMED_KEY"] = "value"
         try:
-            self.assertEqual(
-                KeyUtils.get_named_key("_51degrees_test_named_key"), "value")
+            with warnings.catch_warnings():
+                warnings.simplefilter("error")
+                self.assertEqual(
+                    KeyUtils.get_named_key("_51DEGREES_TEST_NAMED_KEY"),
+                    "value")
         finally:
             del os.environ["_51DEGREES_TEST_NAMED_KEY"]
 
     def test_get_named_key_without_a_key_gives_none(self):
         import os
-        os.environ.pop("_51degrees_test_named_key", None)
         os.environ.pop("_51DEGREES_TEST_NAMED_KEY", None)
-        self.assertIsNone(KeyUtils.get_named_key("_51degrees_test_named_key"))
+        self.assertIsNone(KeyUtils.get_named_key("_51DEGREES_TEST_NAMED_KEY"))
 
 
 if __name__ == "__main__":

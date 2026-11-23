@@ -42,33 +42,17 @@ class ExampleUtils:
     # to use when running examples.
     CLOUD_RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    # Deprecated. Use CLOUD_RESOURCE_KEY_ENV_VAR. The name the resource key
-    # variable had before, which is no longer read.
-    RESOURCE_KEY_ENV_VAR = "resource_key"
-
     # The environment variable the data file update example reads a licence
     # key from.
     LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
-
-    # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
-    # variable had before, which is no longer read.
-    LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
 
     # The environment variable naming a cloud service other than the public
     # one.
     CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
 
-    # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
-    # before, which is no longer read.
-    ENDPOINT_ENV_VAR = "cloud_endpoint"
-
     # The default environment variable used to get the data file path
     # to use when running examples.
     IPI_PATH_ENV_VAR = "_51DEGREES_IPI_PATH"
-
-    # Deprecated. Use IPI_PATH_ENV_VAR. The name that variable had before,
-    # which is no longer read.
-    DATA_FILE_ENV_VAR = "IPINTELLIGENCEDATAFILE"
 
     # The data repository's IP intelligence folder, from the root of a
     # checkout of this repository. Each file the data repository links to

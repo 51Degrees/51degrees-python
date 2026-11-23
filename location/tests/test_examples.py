@@ -25,17 +25,23 @@ import sys
 import unittest
 from pathlib import Path
 
-from .live_cloud import read_environment
+from unittest import mock
+
+from .live_cloud import (
+    RESOURCE_KEY_VARIABLE, find_resource_key, no_resource_key)
 
 
 class LocationExampleTests(unittest.TestCase):
     def test_cloud_getting_started(self):
-        if read_environment("_51DEGREES_RESOURCE_KEY"):
-            # this is required to import the example code,
-            # since pytest sets sys.path to the test directory
-            sys.path.append(str(Path(__file__).parent.parent.absolute() / "examples"))
+        resource_key = find_resource_key()
+        if not resource_key:
+            self.skipTest(no_resource_key(
+                "the location product",
+                "the country at a latitude and longitude"))
+        # this is required to import the example code,
+        # since pytest sets sys.path to the test directory
+        sys.path.append(str(Path(__file__).parent.parent.absolute() / "examples"))
+        # The example reads its key when it is imported.
+        with mock.patch.dict(
+                os.environ, {RESOURCE_KEY_VARIABLE: resource_key}):
             import cloud.gettingstarted
-        else:
-            self.skipTest(
-                "_51DEGREES_RESOURCE_KEY is not set. Set it to a 51Degrees "
-                "cloud resource key to run the cloud example.")

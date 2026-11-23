@@ -61,8 +61,19 @@ class ReadTests(unittest.TestCase):
             os.environ.pop(name, None)
 
     def test_resource_key_is_found(self):
-        os.environ["_51DEGREES_RESOURCE_KEY"] = "new-key"
+        os.environ["_51DEGREES_RESOURCE_KEY_BESPOKE"] = "new-key"
         self.assertEqual("new-key", live_cloud.find_resource_key())
+
+    def test_resource_key_is_read_from_one_name(self):
+        self.assertEqual(
+            ("_51DEGREES_RESOURCE_KEY_BESPOKE",),
+            live_cloud.RESOURCE_KEY_NAMES)
+        os.environ["_51DEGREES_RESOURCE_KEY"] = "example-key"
+        self.assertIsNone(live_cloud.find_resource_key())
+
+    def test_examples_are_given_the_key_under_the_name_they_read(self):
+        self.assertEqual(
+            "_51DEGREES_RESOURCE_KEY", live_cloud.RESOURCE_KEY_VARIABLE)
 
     def test_no_resource_key_gives_none(self):
         self.assertIsNone(live_cloud.find_resource_key())

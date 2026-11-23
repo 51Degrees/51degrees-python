@@ -40,7 +40,7 @@ from fiftyone_devicedetection_examples.onpremise import (
     profile_metadata_console)
 
 # The settings the examples read, which a fresh clone does not have.
-SETTINGS = ["_51DEGREES_LICENSE_KEY", "license_key", "LICENSE_KEY"]
+SETTINGS = ["_51DEGREES_LICENSE_KEY"]
 
 
 def run_example(main):

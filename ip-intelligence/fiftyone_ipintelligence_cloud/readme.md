@@ -33,8 +33,7 @@ print(flowdata.ip.registeredname.value())
   translated country names cloud engine (`CountriesTranslationCloud`) and the
   pipeline builder.
 - `tests` - unit tests. These mock the cloud service so no resource key is
-  required; set the `_51DEGREES_RESOURCE_KEY` environment variable to also run the live
-  cloud integration test.
+  required.
 
 ## Find out more
 

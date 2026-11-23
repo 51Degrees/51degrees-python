@@ -1,10 +1,15 @@
 # Tests that the CI scripts, the tox configurations and the cloud tests read
-# each key under its _51DEGREES_ name, and never under an old name.
+# each key under its _51DEGREES_ name, and fill no name from another.
 #
-# common-ci exports every _51DEGREES_ secret under its own name before any of
-# this repository's scripts run, and fills _51DEGREES_RESOURCE_KEY from
-# _51DEGREES_RESOURCE_KEY_BESPOKE. The Cloud 51Did workflow takes
-# _51DEGREES_RESOURCE_KEY_51DID from the secret of the same name. It
+# common-ci exports every _51DEGREES_ secret and organization variable under
+# its own name before any of this repository's scripts run. The resource
+# keys are organization variables and the license keys organization secrets.
+# The tests that need every property read _51DEGREES_RESOURCE_KEY_BESPOKE.
+# _51DEGREES_RESOURCE_KEY is the name a person running an example sets, and
+# only an example's own test sets it, for that example. The Cloud 51Did
+# workflow takes _51DEGREES_RESOURCE_KEY_51DID and
+# _51DEGREES_RESOURCE_KEY_BASIC from the organization variable of the same
+# name. It
 # downloads every data file with _51DEGREES_LICENSE_KEY, which is the data
 # license and not a cloud license. No key reaches a script as an option.
 
@@ -19,7 +24,7 @@ BeforeAll {
     # back after it.
     $script:Saved = @(
         '_51DEGREES_RESOURCE_KEY', '_51DEGREES_RESOURCE_KEY_BESPOKE',
-        '_51DEGREES_LICENSE_KEY', 'PAID_RESOURCE_KEY', 'TEMP', 'GITHUB_ENV',
+        '_51DEGREES_LICENSE_KEY', 'TEMP', 'GITHUB_ENV',
         'GITHUB_JOB', 'PYTEST_ADDOPTS')
 
     function New-TempFolder {
@@ -38,7 +43,8 @@ BeforeAll {
         Set-Content (Join-Path $path 'python' 'run-integration-tests.ps1') @'
 param ([string]$RepoName, [string[]]$Packages, [hashtable]$Keys)
 @{
-    Resource = $env:_51DEGREES_RESOURCE_KEY
+    Resource = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
+    Example = $env:_51DEGREES_RESOURCE_KEY
     License = $env:_51DEGREES_LICENSE_KEY
 } | ConvertTo-Json | Set-Content (Join-Path $PSScriptRoot '..' 'seen.json')
 $global:LASTEXITCODE = 0
@@ -46,19 +52,14 @@ $global:LASTEXITCODE = 0
         Set-Content (Join-Path $path 'steps' 'fetch-assets.ps1') @'
 param (
     [Parameter(Mandatory)][string[]]$Assets,
-    [string]$LicenseKey,
-    [string]$DeviceDetection,
-    [string]$DeviceDetectionUrl,
-    [string]$IpIntelligence,
-    [string]$IpIntelligenceUrl,
-    [string]$CsvUrl
+    [Parameter(ValueFromRemainingArguments)][object[]]$Others
 )
 $log = Join-Path $PSScriptRoot '..' 'fetch.json'
 $calls = @()
 if (Test-Path $log) { $calls = @(Get-Content -Raw $log | ConvertFrom-Json) }
 $calls += [pscustomobject]@{
     Assets = @($Assets)
-    Old = @($PSBoundParameters.Keys | Where-Object { $_ -notin 'Assets', 'LicenseKey' })
+    Others = @($Others | ForEach-Object { "$_" })
 }
 ConvertTo-Json -InputObject @($calls) -Depth 4 | Set-Content $log
 $null = [IO.Directory]::CreateDirectory((Join-Path $PWD 'assets'))
@@ -108,7 +109,7 @@ Describe 'Keys under their _51DEGREES_ names' {
             Remove-Item -Recurse -Force $script:CommonCi
         }
 
-        It 'takes the resource key from _51DEGREES_RESOURCE_KEY_BESPOKE in <Product>, with no key option' -ForEach @(
+        It 'leaves the resource key under _51DEGREES_RESOURCE_KEY_BESPOKE in <Product>, and gives the tests no other name for it' -ForEach @(
             @{ Product = 'device-detection'; Extra = @{ SeleniumContract = $false } }
             @{ Product = 'ip-intelligence'; Extra = @{} }
             @{ Product = 'location'; Extra = @{} }
@@ -127,6 +128,8 @@ Describe 'Keys under their _51DEGREES_ names' {
 
             $seen = Get-Content -Raw (Join-Path $script:CommonCi 'seen.json') | ConvertFrom-Json
             $seen.Resource | Should -Be 'bespoke-resource-key'
+            $seen.Example | Should -BeNullOrEmpty
+            $env:_51DEGREES_RESOURCE_KEY | Should -BeNullOrEmpty
         }
 
         It 'leaves the data license common-ci exported as it was in <Product>' -ForEach @(
@@ -140,10 +143,10 @@ Describe 'Keys under their _51DEGREES_ names' {
             $env:_51DEGREES_LICENSE_KEY = 'data-license'
             Push-Location $script:CommonCi
             try {
-                # An old key option, as a caller passing every secret might, must
-                # change nothing.
+                # A secret passed as an option, as a caller passing every
+                # secret might, must change nothing.
                 & (Join-Path $repoName 'ci' 'run-integration-tests.ps1') `
-                    -RepoName $repoName -Keys @{ DeviceDetection = 'old-license'; TestResourceKey = 'old-key' } @Extra
+                    -RepoName $repoName -Keys @{ AnotherLicense = 'other-license'; AnotherKey = 'other-key' } @Extra
             } finally {
                 Pop-Location
             }
@@ -193,13 +196,12 @@ Describe 'Keys under their _51DEGREES_ names' {
             @{ Script = 'device-detection/ci/fetch-assets.ps1' }
             @{ Script = 'ip-intelligence/ci/fetch-assets.ps1' }
         ) {
-            $parameters = (Get-Command (Join-Path $script:Root $Script)).Parameters.Keys
-            $parameters | Should -Not -Contain 'DeviceDetection'
-            $parameters | Should -Not -Contain 'IpIntelligence'
-            $parameters | Should -Not -Contain 'IpIntelligenceUrl'
+            $parameters = @((Get-Command (Join-Path $script:Root $Script)).Parameters.Keys)
+            $parameters | Where-Object { $_ -match 'Key|License|Url' } |
+                Should -BeNullOrEmpty
         }
 
-        It 'asks common-ci for the TAC data file and the CSV with no key option, in device-detection' {
+        It 'asks common-ci for the TAC data file and the property CSV with no key option, in device-detection' {
             $repoName = New-ProductRepo 'device-detection' 'fetch-assets.ps1'
             Push-Location $script:CommonCi
             try {
@@ -211,7 +213,13 @@ Describe 'Keys under their _51DEGREES_ names' {
             $calls = @(Get-Content -Raw (Join-Path $script:CommonCi 'fetch.json') | ConvertFrom-Json)
             $calls.Assets | Should -Contain 'TAC-HashV41.hash'
             $calls.Assets | Should -Contain '51Degrees.csv'
-            @($calls.Old | Where-Object { $_ }) | Should -BeNullOrEmpty
+            $calls.Assets | Should -Contain '20000 Evidence Records.yml'
+            # The evidence is the YAML file, and the only CSV is the
+            # property CSV.
+            @($calls.Assets | Where-Object {
+                    $_ -notmatch '\.(hash|yml)$' -and $_ -ne '51Degrees.csv' }) |
+                Should -BeNullOrEmpty
+            @($calls.Others | Where-Object { $_ }) | Should -BeNullOrEmpty
         }
 
         It 'asks common-ci for the Enterprise data file with no key or address, and points the tests at it, in ip-intelligence' {
@@ -226,14 +234,14 @@ Describe 'Keys under their _51DEGREES_ names' {
 
             $calls = @(Get-Content -Raw (Join-Path $script:CommonCi 'fetch.json') | ConvertFrom-Json)
             $calls.Assets | Should -Contain '51Degrees-EnterpriseIpiV41.ipi'
-            @($calls.Old | Where-Object { $_ }) | Should -BeNullOrEmpty
+            @($calls.Others | Where-Object { $_ }) | Should -BeNullOrEmpty
             Get-Content $env:GITHUB_ENV | Should -Match '^_51DEGREES_IPI_PATH=.*51Degrees-EnterpriseIpiV41\.ipi$'
         }
     }
 
     Describe 'The CI scripts' {
 
-        It 'read no key under an old name in <Path>' -ForEach @(
+        It 'read no key from the secrets passed to them, and pass none on to the asset download, in <Path>' -ForEach @(
             Get-ChildItem $script:DiscoveryRoot -Recurse -Filter *.ps1 |
                 Where-Object {
                     $_.FullName -match '[\\/]ci[\\/]' -and
@@ -243,9 +251,8 @@ Describe 'Keys under their _51DEGREES_ names' {
                 ForEach-Object { @{ Path = [IO.Path]::GetRelativePath($script:DiscoveryRoot, $_.FullName); Full = $_.FullName } }
         ) {
             $text = Get-Content -Raw $Full
-            $text | Should -Not -Match 'TestResourceKey'
-            $text | Should -Not -Match '\$Keys\.(DeviceDetection|IpIntelligence)'
-            $text | Should -Not -Match '-(DeviceDetection|IpIntelligence|IpIntelligenceUrl)\b'
+            $text | Should -Not -Match '\$Keys\s*(\.|\[)'
+            $text | Should -Not -Match 'fetch-assets\.ps1[^\r\n]*\s-(?!Assets\b)[A-Za-z]'
         }
     }
 
@@ -320,25 +327,25 @@ Describe 'Keys under their _51DEGREES_ names' {
         # The 51Did license key unseals only results made with the resource
         # key of its own account. Filled from the Bespoke key, the licensed
         # redeem comes back unreadable.
-        It 'are given _51DEGREES_RESOURCE_KEY_51DID from the secret of the same name by every workflow' {
+        It 'are given _51DEGREES_RESOURCE_KEY_51DID from the organization variable of the same name by every workflow' {
             $lines = @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Filter *.yml |
                 Select-String -Pattern '^\s*_51DEGREES_RESOURCE_KEY_51DID\s*:' |
                 ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" })
             $lines | Should -Not -BeNullOrEmpty
             $lines | Where-Object {
-                $_ -notmatch ':\s*\$\{\{\s*secrets\._51DEGREES_RESOURCE_KEY_51DID\s*\}\}\s*$'
+                $_ -notmatch ':\s*\$\{\{\s*vars\._51DEGREES_RESOURCE_KEY_51DID\s*\}\}\s*$'
             } | Should -BeNullOrEmpty
         }
 
         # The Basic tier tests need a key on CloudV5Basic alone. Filled from
         # the FREE key, test_non_marketing_usage_gets_a_51did failed.
-        It 'are given _51DEGREES_RESOURCE_KEY_BASIC from the secret of the same name by every workflow' {
+        It 'are given _51DEGREES_RESOURCE_KEY_BASIC from the organization variable of the same name by every workflow' {
             $lines = @(Get-ChildItem (Join-Path $script:Root '.github/workflows') -Filter *.yml |
                 Select-String -Pattern '^\s*_51DEGREES_RESOURCE_KEY_BASIC\s*:' |
                 ForEach-Object { "$($_.Filename):$($_.LineNumber): $($_.Line.Trim())" })
             $lines | Should -Not -BeNullOrEmpty
             $lines | Where-Object {
-                $_ -notmatch ':\s*\$\{\{\s*secrets\._51DEGREES_RESOURCE_KEY_BASIC\s*\}\}\s*$'
+                $_ -notmatch ':\s*\$\{\{\s*vars\._51DEGREES_RESOURCE_KEY_BASIC\s*\}\}\s*$'
             } | Should -BeNullOrEmpty
         }
 
@@ -349,8 +356,8 @@ Describe 'Keys under their _51DEGREES_ names' {
         }
 
         # With the license key set and the _51DEGREES_RESOURCE_KEY_51DID
-        # secret missing, the licensed redeem would never run and the job
-        # would still pass. So the step fails, naming the missing secret. The
+        # variable missing, the licensed redeem would never run and the job
+        # would still pass. So the step fails, naming the missing variable. The
         # step's script runs in its own process, with tox replaced by a
         # function that records it was called.
         It 'fail the Cloud 51Did step, naming _51DEGREES_RESOURCE_KEY_51DID, when only the 51Did license key is set' {
@@ -414,7 +421,7 @@ Describe 'Keys under their _51DEGREES_ names' {
         ) {
             $text = Get-Content -Raw (Join-Path $script:Root $Path)
             $text | Should -Match 'skip'
-            $text | Should -Match '_51DEGREES_RESOURCE_KEY|RESOURCE_KEY_ENV_VAR'
+            $text | Should -Match 'no_resource_key\('
         }
 
         It 'says in live_cloud.py that a test without a key skips, in <Path>' -ForEach @(

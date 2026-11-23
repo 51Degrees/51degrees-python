@@ -256,16 +256,20 @@ example logs an error that names the variable and the configurator.
 
 ## Environment variable names
 
-[common-ci's list of environment variable names](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.md)
-holds every environment variable name that the packages, tests, examples and
-CI scripts of every language read, with what each name holds and the
-deprecated names each replaced. The list decides. Use the names it gives, and
-when a change needs a new name, or reads an old name again, change
-[`environment-variables.json`](https://github.com/51Degrees/common-ci/blob/d8a9c596eabf69dd5581a08e9360cdd1c9b3d9e8/environment-variables.json)
-in common-ci in the same piece of work. This repository's own name
-check, [`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1), still keeps a
-list of its own. Where the two differ, common-ci's list is the one to
-follow.
+Every environment variable the packages, tests, examples and CI scripts
+define is named `_51DEGREES_<NAME>`, and each name holds one thing. A name
+that GitHub, the operating system or a tool defines, such as `GITHUB_JOB` or
+`PYTEST_ADDOPTS`, is used as it is.
+[`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1)
+reads every tracked file and fails on a variable read or set under any other
+name. It lists the platform names it lets through, so a new one is added
+there.
+
+`_51DEGREES_RESOURCE_KEY` is the name a person running a cloud example sets.
+The tests that call the cloud service read `_51DEGREES_RESOURCE_KEY_BESPOKE`,
+and a test of an example gives the example that key under
+`_51DEGREES_RESOURCE_KEY`. Cloud tests and examples call the service
+`_51DEGREES_CLOUD_ENDPOINT` names, or the public one when it is not set.
 
 ## Products keep their own CI scripts
 

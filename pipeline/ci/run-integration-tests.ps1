@@ -31,23 +31,15 @@ param (
 # a key that is passed but does not reach it is not missed. The selection is
 # added to any options a caller set in PYTEST_ADDOPTS.
 $packages = "fiftyone_pipeline_cloudrequestengine", "fiftyone_pipeline_cloudrequestengine/examples"
-$pipelineKeys = $Keys.Clone()
-$pipelineKeys.Remove('DeviceDetection')
-# The tests and examples read the resource key from _51DEGREES_RESOURCE_KEY,
-# which common-ci fills from _51DEGREES_RESOURCE_KEY_BESPOKE. It is filled
-# here too when it is empty, and never replaced.
-if (!$env:_51DEGREES_RESOURCE_KEY) {
-    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
-}
 
 $failed = $false
 $addopts = $env:PYTEST_ADDOPTS
 try {
     if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
-        Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. fiftyone_pipeline_did runs only live tests here, so it is skipped. common-ci exports it from the organization secret of that name."
+        Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. fiftyone_pipeline_did runs only live tests here, so it is skipped. common-ci exports it from the organization variable of that name."
         $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
     }
-    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $pipelineKeys
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
     if ($LASTEXITCODE -ne 0) { $failed = $true }
 
     if ($env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
@@ -60,7 +52,7 @@ try {
         }
         & "$PSScriptRoot/copy-owid-source.ps1" -RepoRoot $RepoName
         $env:PYTEST_ADDOPTS = '-m "live and not tier"'
-        ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages "fiftyone_pipeline_did" -Keys $pipelineKeys
+        ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages "fiftyone_pipeline_did" -Keys $Keys
         if ($LASTEXITCODE -ne 0) { $failed = $true }
     }
 } finally {

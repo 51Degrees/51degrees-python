@@ -54,7 +54,7 @@
 #   to redeem
 # - _51DEGREES_CLOUD_ENDPOINT, the API base including the /api/v4/
 #   segment, defaults to https://cloud.51degrees.com/api/v4/
-# - PORT, the port to listen on, defaults to 5151
+# - _51DEGREES_EXAMPLE_HTTP_PORTS, the port to listen on, defaults to 5151
 #
 # See readme.md beside this file for the steps and what to expect.
 #
@@ -300,9 +300,9 @@ def main(argv):
               "unreadable.")
 
     app = create_app(resource_key, license_key, api)
-    print("Human Confidence demo on "
-          f"http://localhost:{os.environ.get('PORT', 5151)}/, using {api}")
-    app.run(port=int(os.environ.get("PORT", 5151)))
+    port = os.environ.get("_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)
+    print(f"Human Confidence demo on http://localhost:{port}/, using {api}")
+    app.run(port=int(os.environ.get("_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)))
 
 
 if __name__ == "__main__":

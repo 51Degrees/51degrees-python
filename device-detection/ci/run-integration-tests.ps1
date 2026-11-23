@@ -23,7 +23,7 @@ $packages = "fiftyone_devicedetection_cloud", "fiftyone_devicedetection_examples
 # The selection is added to any options a caller set in PYTEST_ADDOPTS.
 $addopts = $env:PYTEST_ADDOPTS
 if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
-    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization secret of that name."
+    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization variable of that name."
     $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 # The cloud package runs without the CSV file too, because only its property
@@ -40,12 +40,8 @@ if ($env:GITHUB_JOB -eq "Test") {
     pip install $RepoName/fiftyone_devicedetection_examples || $(throw "pip install failed")
 }
 
-# The tests and examples read the resource key from _51DEGREES_RESOURCE_KEY,
-# which common-ci fills from _51DEGREES_RESOURCE_KEY_BESPOKE. It is filled
-# here too when it is empty, and never replaced.
-if (!$env:_51DEGREES_RESOURCE_KEY) {
-    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
-}
+# The tests read the resource key from _51DEGREES_RESOURCE_KEY_BESPOKE, and
+# give it to each example they run under the name the example reads.
 # The data file update example's test reads the data license from
 # _51DEGREES_LICENSE_KEY, which common-ci exports. It is left as it is.
 
@@ -97,11 +93,9 @@ if (-not (Test-Path selenium-api-tests)) {
     if ($LASTEXITCODE -ne 0) { throw "failed to clone selenium-api-tests" }
 }
 
-# Settings the suite reads whichever example it drives. CLOUD_ROOT_URL is read
-# when the suite starts, so it is needed for the on-premise run too.
-$env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
-$env:PAID_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
-$env:EXAMPLE_LANG = 'python'
+# The language of the examples, which the suite reads whichever example it
+# drives.
+$env:_51DEGREES_EXAMPLE_LANG = 'python'
 
 # The examples run from their own virtual environment, created once here so a
 # running example never holds a file the second setup would need to replace.
@@ -130,7 +124,7 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
     try {
         Push-Location $examplesDir
         try {
-            $env:PORT = $Port
+            $env:_51DEGREES_EXAMPLE_HTTP_PORTS = $Port
             $example = & $py -m $Module 2>&1 &
         } finally { Pop-Location }
 
@@ -150,7 +144,7 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
             return "the $Name example did not answer on $url (job state $($example.State))"
         }
 
-        $env:EXAMPLE_URL = $url
+        $env:_51DEGREES_EXAMPLE_URL = $url
         # Output goes to the host, so that only a failure is returned.
         dotnet test selenium-api-tests -c Release --filter TestCategory=Contract `
             --results-directory $resultsDir --logger "trx;LogFileName=selenium-$Name.trx" `
@@ -168,12 +162,18 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
     }
 }
 
-# The cloud example, pointed at the live cloud, with the resource key set
-# above.
+# The cloud example, which reads its resource key from
+# _51DEGREES_RESOURCE_KEY, the name a person running it sets. It is given the
+# key for this run only. The example calls the cloud service that
+# _51DEGREES_CLOUD_ENDPOINT names, or the public one when that is not set.
 if ($runCloud) {
-    $env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
-    $failures += Test-Example -Name 'cloud' `
-        -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097
+    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
+    try {
+        $failures += Test-Example -Name 'cloud' `
+            -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097
+    } finally {
+        Remove-Item Env:_51DEGREES_RESOURCE_KEY
+    }
 }
 
 # The on-premise example. The contract tests need the device type and the

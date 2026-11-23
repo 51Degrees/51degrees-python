@@ -36,35 +36,19 @@ class ExampleUtils:
     # "_51DEGREES_RESOURCE_KEY".
     RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"
 
-    # Deprecated. Use RESOURCE_KEY_ENV_VAR. The name the resource key
-    # variable had before, which is no longer read.
-    LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"
-
     # The environment variable the examples read a licence key from, to use
     # in place of a resource key.
     LICENSE_KEY_ENV_VAR = "_51DEGREES_LICENSE_KEY"
-
-    # Deprecated. Use LICENSE_KEY_ENV_VAR. The name the licence key
-    # variable had before, which is no longer read.
-    LEGACY_LICENSE_KEY_ENV_VAR = "license_key"
 
     # The environment variable naming a cloud service other than the public
     # one, for example one hosted privately. The value includes the api/v4
     # path, as in https://cloud.51degrees.com/api/v4/.
     CLOUD_ENDPOINT_ENV_VAR = "_51DEGREES_CLOUD_ENDPOINT"
 
-    # Deprecated. Use CLOUD_ENDPOINT_ENV_VAR. The name that variable had
-    # before, which is no longer read.
-    ENDPOINT_ENV_VAR = "cloud_endpoint"
-
     # The environment variable holding the origin to send with each request
     # to the cloud service, for a resource key limited to particular
     # domains, which only answers a request whose origin is one of them.
     CLOUD_REQUEST_ORIGIN_ENV_VAR = "_51DEGREES_CLOUD_REQUEST_ORIGIN"
-
-    # Deprecated. Use CLOUD_REQUEST_ORIGIN_ENV_VAR. The name that variable
-    # had before, which is no longer read.
-    ORIGIN_ENV_VAR = "cloud_request_origin"
 
     # The text shown for a value the results do not hold.
     UNKNOWN = "Unknown"

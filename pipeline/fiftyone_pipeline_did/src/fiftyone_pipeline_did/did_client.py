@@ -102,10 +102,6 @@ DEFAULT_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
 #: base, honoured here when no endpoint argument is given.
 CLOUD_ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"
 
-#: Deprecated. Use :data:`CLOUD_ENDPOINT_VARIABLE`. This holds the name that
-#: variable had before, which is no longer read.
-ENDPOINT_VARIABLE = "FOD_CLOUD_API_URL"
-
 def _endpoint_from_environment() -> Optional[str]:
     """The API base :data:`CLOUD_ENDPOINT_VARIABLE` gives, or None when it is
     unset or empty.

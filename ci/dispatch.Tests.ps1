@@ -8,14 +8,15 @@
 BeforeAll {
     . (Join-Path $PSScriptRoot 'dispatch.ps1')
 
-    # common-ci checked out beside this repository, or wherever COMMON_CI says.
-    $commonCi = $env:COMMON_CI
+    # common-ci checked out beside this repository, or wherever
+    # _51DEGREES_COMMON_CI_DIR says.
+    $commonCi = $env:_51DEGREES_COMMON_CI_DIR
     if ([string]::IsNullOrEmpty($commonCi) -eq $true) {
         $commonCi = Join-Path $PSScriptRoot '..' '..' 'common-ci'
     }
     $script:RunScript = Join-Path $commonCi 'steps' 'run-script.ps1'
     if ((Test-Path $script:RunScript) -eq $false) {
-        throw "common-ci not found at '$commonCi'; set COMMON_CI to a checkout of it"
+        throw "common-ci not found at '$commonCi'; set _51DEGREES_COMMON_CI_DIR to a checkout of it"
     }
     # The whole steps folder is copied, because ci/packages.ps1 loads the
     # release plan from the common-ci checkout that holds this repository's
@@ -185,7 +186,7 @@ Describe 'Invoke-ProductStep' {
         Set-ProductStep $script:Repo 'beta' 'run-integration-tests' 'Write-Output ok'
 
         { Invoke-ProductStep 'run-integration-tests' $script:Repo @{
-            RepoName = $script:Repo; Keys = @{ TestResourceKey = 'x' } } } |
+            RepoName = $script:Repo; Keys = @{ AnySecret = 'x' } } } |
             Should -Not -Throw
     }
 }

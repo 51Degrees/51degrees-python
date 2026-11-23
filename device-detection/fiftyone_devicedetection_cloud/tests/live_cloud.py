@@ -26,20 +26,20 @@ fail with when the answer lacks what they asked for. Also how a test reads a set
 environment variable.
 
 The same file is in each test folder whose tests read a setting from the
-environment. A test with no key skips, naming each variable it reads,
+environment. A test with no key skips, naming the variable it reads,
 and never fails for want of one. CI checks that the key is set before
 it runs them, so a run that called nothing is not taken for a pass.
 """
 
 import os
 
-# Tried in this order. _51DEGREES_RESOURCE_KEY is first because the Cloud
-# 51Did workflow sets it to each key in turn, and each product's
-# integration test script sets it too.
-RESOURCE_KEY_NAMES = (
-    "_51DEGREES_RESOURCE_KEY",
-    "_51DEGREES_RESOURCE_KEY_BESPOKE",
-)
+# The key that carries every property, which a test reads unless it names
+# another.
+RESOURCE_KEY_NAMES = ("_51DEGREES_RESOURCE_KEY_BESPOKE",)
+
+# The name a person running an example sets. A test of an example gives the
+# example its key under this name.
+RESOURCE_KEY_VARIABLE = "_51DEGREES_RESOURCE_KEY"
 
 ACCESSIBLE_PROPERTIES_URL = (
     "https://cloud.51degrees.com/api/v4/accessibleproperties?resource=<key>")
@@ -61,7 +61,7 @@ def is_set(name):
 
 
 def find_resource_key(names=RESOURCE_KEY_NAMES):
-    """The first resource key set under any of the names, or None."""
+    """The resource key set under the names, or None."""
     for name in names:
         value = os.environ.get(name, "").strip()
         if value:
@@ -86,8 +86,8 @@ def no_resource_key(product, asks_for, several=False,
                    "it needs a resource key")
         asker = "the test asks"
     return (
-        f"{opening} and there is nothing to fall back on. None of "
-        f"{', '.join(names)} is set, tried in that order. The key has to "
+        f"{opening} and there is nothing to fall back on. "
+        f"{', '.join(names)} is not set. The key has to "
         f"carry {product}, because {asker} the service for {asks_for}. To "
         f"see the products a key carries, open {ACCESSIBLE_PROPERTIES_URL}. "
         f"Create a key at {CREATE_KEY_URL}.")

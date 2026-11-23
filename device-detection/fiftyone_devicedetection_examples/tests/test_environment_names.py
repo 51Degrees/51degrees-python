@@ -20,61 +20,62 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-"""Checks that the constants of the example helper that name a variable keep
-their values, including those that hold a name that is no longer read.
+"""Checks the names of the variables the example helper reads, and that the
+shared key helper reads a key from the name it is given and no other.
 """
 
 import os
 import unittest
+import warnings
 from unittest import mock
 
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_shared.key_utils import KeyUtils
 
-# Each constant that names a variable, with the value it has to hold. The
-# ones that held an old name hold it still, although it is no longer read.
+# Each constant that names a variable, with the value it has to hold.
 CONSTANTS = {
     "RESOURCE_KEY_ENV_VAR": "_51DEGREES_RESOURCE_KEY",
-    "LEGACY_RESOURCE_KEY_ENV_VAR": "resource_key",
     "LICENSE_KEY_ENV_VAR": "_51DEGREES_LICENSE_KEY",
-    "LEGACY_LICENSE_KEY_ENV_VAR": "license_key",
     "CLOUD_ENDPOINT_ENV_VAR": "_51DEGREES_CLOUD_ENDPOINT",
-    "ENDPOINT_ENV_VAR": "cloud_endpoint",
     "DD_PATH_ENV_VAR": "_51DEGREES_DD_PATH",
-    "DATA_FILE_ENV_VAR": "51DEGREES_DD_PATH",
 }
 
 
 class ConstantTests(unittest.TestCase):
 
-    def test_constants_hold_the_old_and_the_new_names(self):
+    def test_constants_hold_the_names(self):
         for constant, value in CONSTANTS.items():
             with self.subTest(constant=constant):
                 self.assertEqual(value, getattr(ExampleUtils, constant))
 
+    def test_no_other_constant_names_a_variable(self):
+        named = sorted(
+            name for name in vars(ExampleUtils) if name.endswith("_ENV_VAR"))
+        self.assertEqual(sorted(CONSTANTS), named)
+
 
 class KeyUtilsTests(unittest.TestCase):
 
-    LOWER = "_51degrees_test_named_key"
-    UPPER = "_51DEGREES_TEST_NAMED_KEY"
+    NAME = "_51DEGREES_TEST_NAMED_KEY"
 
     def setUp(self):
         environment = mock.patch.dict(os.environ)
         environment.start()
         self.addCleanup(environment.stop)
-        os.environ.pop(self.LOWER, None)
-        os.environ.pop(self.UPPER, None)
+        os.environ.pop(self.NAME, None)
 
     def test_key_is_read_from_the_name_given(self):
-        os.environ[self.LOWER] = "value"
-        self.assertEqual("value", KeyUtils.get_named_key(self.LOWER))
+        os.environ[self.NAME] = "value"
+        self.assertEqual("value", KeyUtils.get_named_key(self.NAME))
 
-    def test_key_is_read_from_the_name_in_upper_case(self):
-        os.environ[self.UPPER] = "value"
-        self.assertEqual("value", KeyUtils.get_named_key(self.LOWER))
+    def test_reading_a_key_warns_of_nothing(self):
+        os.environ[self.NAME] = "value"
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            self.assertEqual("value", KeyUtils.get_named_key(self.NAME))
 
     def test_missing_key_gives_none(self):
-        self.assertIsNone(KeyUtils.get_named_key(self.LOWER))
+        self.assertIsNone(KeyUtils.get_named_key(self.NAME))
 
 
 if __name__ == "__main__":

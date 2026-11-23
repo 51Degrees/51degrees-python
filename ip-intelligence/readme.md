@@ -120,8 +120,8 @@ cd fiftyone_ipintelligence_examples && python -m pytest tests
 ```
 
 - The cloud tests run against a mocked cloud service, so no resource
-  key is required. Set the `_51DEGREES_RESOURCE_KEY` environment variable to also
-  exercise the live cloud service.
+  key is required. Set the `_51DEGREES_RESOURCE_KEY_BESPOKE` environment
+  variable for the examples' tests to also exercise the live cloud service.
 - The on-premise tests require a data file (see Data files above). Set
   the `_51DEGREES_IPI_PATH` environment variable to use a data file
   from a custom location.
