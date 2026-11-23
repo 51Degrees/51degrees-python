@@ -89,8 +89,13 @@ class TacLookupConsole():
         pipeline = PipelineBuilder().add_logger(logger).build_from_configuration(config)
 
         # The hardware engine's properties come from the cloud service's
-        # accessible properties for the resource key, so Profiles is among
-        # them only when the key carries the hardware lookup.
+        # accessible properties for the resource key. Reading those from the
+        # cloud request engine asks the cloud service again when the request
+        # made while the pipeline was built failed, and raises if it fails
+        # again, so a failed request is never taken for a key without the
+        # hardware lookup. After that, Profiles is among the hardware
+        # engine's properties only when the key carries the lookup.
+        pipeline.get_element("cloud").flow_element_properties
         hardware = pipeline.get_element("hardware")
         if not any(name.lower() == "profiles"
                    for name in hardware.get_properties()):

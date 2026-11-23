@@ -25,6 +25,8 @@ Runs the TAC and native model lookup examples against a stand-in for the
 cloud service, with a resource key that does not carry the hardware lookup.
 Each example must say so in one line, with tagged links to create a key that
 carries it and to contact us, and end normally without asking for a lookup.
+When the stand-in fails the accessible properties request instead, each
+example must end with that failure and never say the key lacks the lookup.
 The stand-in answers as the cloud service does, so these tests need no key
 and no network.
 """
@@ -36,8 +38,12 @@ import logging
 import os
 import threading
 import unittest
+import warnings
 from contextlib import contextmanager, redirect_stdout
 from unittest import mock
+
+from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import \
+    CloudRequestException
 
 from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.cloud import nativemodellookup_console
@@ -84,6 +90,13 @@ CONTACT_LINK = (
 # The start of each heading a lookup prints.
 LOOKUP_HEADING = "Which devices are associated"
 
+# What the line printed in place of the lookups starts with.
+NO_HARDWARE_LOOKUP = (
+    "The resource key does not include HardwarePlatform.Profiles")
+
+# The answer of a cloud service that is failing.
+SERVER_ERROR = 500
+
 
 def no_hardware_lookup(example):
     """The line the example prints in place of its lookups, with the tags of
@@ -92,8 +105,8 @@ def no_hardware_lookup(example):
             f"fiftyone_devicedetection_examples-cloud-{example}.py"
             "&utm_term=no-hardware-lookup")
     return (
-        "The resource key does not include HardwarePlatform.Profiles, the "
-        "hardware lookup this example needs, so no devices are listed. "
+        f"{NO_HARDWARE_LOOKUP}, the hardware lookup this example needs, so "
+        "no devices are listed. "
         f"Create a resource key that includes it at {CONFIGURE_LINK}{tags}, "
         f"or contact us about it at {CONTACT_LINK}{tags}.")
 
@@ -101,13 +114,19 @@ def no_hardware_lookup(example):
 class StandInHandler(http.server.BaseHTTPRequestHandler):
     """Answers the accessible properties and evidence keys requests as the
     cloud service does for a key without the hardware lookup, and anything
-    else with 404. The method and path of each request are kept."""
+    else with 404. The accessible properties request is answered with the
+    server's failing status instead when it has one. The method and path of
+    each request are kept."""
 
     def do_GET(self):
         self.server.requests.append(f"GET {self.path}")
         path = self.path.split("?", 1)[0].lower()
         if path.endswith("/accessibleproperties"):
-            self.answer(200, ACCESSIBLE_PROPERTIES)
+            if self.server.failing:
+                self.answer(self.server.failing,
+                            {"errors": ["The service is failing."]})
+            else:
+                self.answer(200, ACCESSIBLE_PROPERTIES)
         elif path.endswith("/evidencekeys"):
             self.answer(200, EVIDENCE_KEYS)
         else:
@@ -133,10 +152,13 @@ class StandInHandler(http.server.BaseHTTPRequestHandler):
 
 
 @contextmanager
-def stand_in_cloud():
-    """A stand-in for the cloud service on a free port of this machine."""
+def stand_in_cloud(failing=None):
+    """A stand-in for the cloud service on a free port of this machine.
+    failing is the status to answer the accessible properties request with,
+    or None to answer it as the cloud service does."""
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), StandInHandler)
     server.requests = []
+    server.failing = failing
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
@@ -159,30 +181,45 @@ class Recorder(logging.Handler):
 
 def run_against(server, main):
     """Runs an example with the stand-in as its cloud service and a resource
-    key in the environment, as a person runs it, and returns what it printed
-    and the records it logged."""
+    key in the environment, as a person runs it, and returns what it printed,
+    the records it logged and the exception it ended with, or None when it
+    ended normally. The warning the cloud request engine gives when a
+    request fails while the pipeline is built is kept out of the test's
+    output."""
     printed = io.StringIO()
     recorder = Recorder()
     root = logging.getLogger()
     root.addHandler(recorder)
+    raised = None
     try:
-        with mock.patch.dict(os.environ), redirect_stdout(printed):
+        with mock.patch.dict(os.environ), redirect_stdout(printed), \
+                warnings.catch_warnings(record=True):
             os.environ.pop(ExampleUtils.LICENSE_KEY_ENV_VAR, None)
             os.environ[ExampleUtils.RESOURCE_KEY_ENV_VAR] = RESOURCE_KEY
             os.environ[ExampleUtils.CLOUD_ENDPOINT_ENV_VAR] = (
                 f"http://127.0.0.1:{server.server_address[1]}/api/v4/")
-            main([])
+            try:
+                main([])
+            except Exception as error:
+                raised = error
     finally:
         root.removeHandler(recorder)
-    return printed.getvalue(), recorder.records
+    return printed.getvalue(), recorder.records, raised
+
+
+def lookup_requests(server):
+    """The lookup requests the stand-in received, each being a request for a
+    .json resource."""
+    return [request for request in server.requests if ".json" in request]
 
 
 class LookupsWithoutHardwareTests(unittest.TestCase):
 
     def assert_says_the_key_lacks_the_lookup(self, main, example):
         with stand_in_cloud() as server:
-            printed, records = run_against(server, main)
+            printed, records, raised = run_against(server, main)
 
+        self.assertIsNone(raised, printed)
         lines = printed.split("\n")
         self.assertIn(no_hardware_lookup(example), lines, printed)
         self.assertEqual(
@@ -199,9 +236,20 @@ class LookupsWithoutHardwareTests(unittest.TestCase):
         self.assertTrue(
             any("/accessibleproperties" in request.lower()
                 for request in server.requests), server.requests)
-        self.assertEqual(
-            [], [request for request in server.requests
-                 if ".json" in request])
+        self.assertEqual([], lookup_requests(server))
+
+    def assert_ends_with_the_failure(self, main):
+        """A failed accessible properties request leaves the hardware
+        engine with no properties, as a key without the lookup does, so the
+        example must end with the failure rather than blame the key."""
+        with stand_in_cloud(failing=SERVER_ERROR) as server:
+            printed, _, raised = run_against(server, main)
+
+        self.assertIsInstance(raised, CloudRequestException, printed)
+        self.assertEqual(SERVER_ERROR, raised.httpStatusCode, printed)
+        self.assertNotIn(NO_HARDWARE_LOOKUP, printed)
+        self.assertNotIn(LOOKUP_HEADING, printed)
+        self.assertEqual([], lookup_requests(server))
 
     def test_taclookup_console(self):
         self.assert_says_the_key_lacks_the_lookup(
@@ -210,6 +258,12 @@ class LookupsWithoutHardwareTests(unittest.TestCase):
     def test_nativemodellookup_console(self):
         self.assert_says_the_key_lacks_the_lookup(
             nativemodellookup_console.main, "nativemodellookup_console")
+
+    def test_taclookup_console_when_the_cloud_fails(self):
+        self.assert_ends_with_the_failure(taclookup_console.main)
+
+    def test_nativemodellookup_console_when_the_cloud_fails(self):
+        self.assert_ends_with_the_failure(nativemodellookup_console.main)
 
 
 if __name__ == "__main__":

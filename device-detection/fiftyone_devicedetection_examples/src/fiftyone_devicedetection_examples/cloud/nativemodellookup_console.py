@@ -99,8 +99,13 @@ class NativeModelLookupConsole():
         pipeline = PipelineBuilder().add_logger(logger).add(cloudEngine).add(propertyKeyedEngine).build()
 
         # The hardware engine's properties come from the cloud service's
-        # accessible properties for the resource key, so Profiles is among
-        # them only when the key carries the hardware lookup.
+        # accessible properties for the resource key. Reading those from the
+        # cloud request engine asks the cloud service again when the request
+        # made while the pipeline was built failed, and raises if it fails
+        # again, so a failed request is never taken for a key without the
+        # hardware lookup. After that, Profiles is among the hardware
+        # engine's properties only when the key carries the lookup.
+        cloudEngine.flow_element_properties
         if not any(name.lower() == "profiles"
                    for name in propertyKeyedEngine.get_properties()):
             output(NO_HARDWARE_LOOKUP)
