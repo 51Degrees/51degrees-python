@@ -36,7 +36,13 @@
 # 2. Active. The 51Degrees client script runs the browser tests and sends
 #    the answers to the cloud, which answers with a sealed value. This
 #    server redeems the sealed value with the License Key, which the
-#    browser never sees, and gets the level.
+#    browser never sees, and gets the level. Redeeming needs a cloud that
+#    offers the redeem call (POST hc/redeem). A sealed value that can't be
+#    redeemed gives Active Low, and if no sealed value arrives within 30
+#    seconds the page says No result.
+#
+# The Resource Key is put in the page, as the 51Degrees client script is
+# loaded with it. The License Key stays on this server.
 #
 # The page works in two modes, chosen with ?mode=client or ?mode=server
 # and kept in a cookie.
@@ -67,6 +73,7 @@
 
 import ipaddress
 import json
+import logging
 import os
 import re
 import sys
@@ -78,6 +85,8 @@ from flask import render_template, request
 
 from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
     CloudRequestEngine
+from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import \
+    CloudRequestException
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
@@ -199,46 +208,41 @@ def create_app(resource_key, license_key, api):
     cloud_host, cloud_url = cloud_patterns(api)
     endpoint = urllib.parse.urlsplit(api)
 
-    # The request headers the cloud reads, from its own list, fetched once.
-    # Only these are passed on, so headers such as Authorization stay here.
-    fetched = []
-
-    def cloud_headers():
-        if not fetched:
-            answer = requests.request(
-                "GET", api + "evidencekeys", timeout=TIMEOUT)
-            if answer.status_code != 200:
-                raise ValueError(
-                    f"HTTP {answer.status_code}: {trim(answer.text)}")
-            fetched.append({
-                key[len("header."):].lower() for key in answer.json()
-                if key.lower().startswith("header.")})
-        return fetched[0]
-
-    def visitor_headers():
-        names = cloud_headers()
-        return {name.lower(): value for name, value in request.headers.items()
-                if name.lower() in names}
-
     # The cloud request engine, which sends this server's requests for data
     # to the cloud: the passive level, and in server mode the browser's
-    # test answers. The page's own script is served by this server, so the
-    # pipeline needs no JavaScript of its own.
+    # test answers. It asks the cloud for the properties the key carries
+    # and the evidence it reads when it is built. The page's own script is
+    # served by this server, so the pipeline needs no JavaScript of its
+    # own.
+    engine = CloudRequestEngine({"resource_key": resource_key,
+                                 "cloud_endpoint": api,
+                                 "timeout_seconds": TIMEOUT})
     pipeline = PipelineBuilder({"add_javascript_builder": False}).add(
-        CloudRequestEngine({"resource_key": resource_key,
-                            "cloud_endpoint": api})).build()
+        engine).build()
+
+    def visitor_headers():
+        # The request headers the cloud reads, from the evidence keys the
+        # engine was given. Only these are passed on, so headers such as
+        # Authorization stay here.
+        names = {key[len("header."):].lower() for key in engine.evidence_keys
+                 if key.lower().startswith("header.")}
+        return {name.lower(): value for name, value in request.headers.items()
+                if name.lower() in names}
 
     def ask_cloud(fields):
         """The cloud's answer for the visitor's headers and IP address and
         the form fields given, sent through the cloud request engine, with
         what was sent described for the page's curl command."""
+        # The visitor's address is the connection's own address, sent when
+        # it is a public one. A Client-IP request header is not passed on,
+        # so with a local or private connection the cloud reads this
+        # server's public address.
         evidence = {"header." + name: value
-                    for name, value in visitor_headers().items()}
+                    for name, value in visitor_headers().items()
+                    if name != "client-ip"}
         for name, value in fields:
-            if name.lower() not in ("resource", "values"):
+            if name.lower() not in ("resource", "values", "client-ip"):
                 evidence["query." + name] = value
-        # Behind a load balancer or CDN, use the visitor's address it
-        # passes on. Set last, so no header can replace it.
         address = public_ip(request.remote_addr)
         if address:
             evidence["query.client-ip"] = address
@@ -249,14 +253,16 @@ def create_app(resource_key, license_key, api):
         if flowdata.errors:
             raise ValueError("; ".join(
                 str(error) for error in flowdata.errors.values()))
-        answer = flowdata.get("cloud").get("cloud")
+        answer = flowdata.get("cloud-response").get("cloud")
         if isinstance(answer, str):
             answer = json.loads(answer)
+        # The form fields as the engine sends them, apart from the Resource
+        # Key, which the address carries.
         sent = {
             "method": "POST",
             "url": api + resource_key + ".json",
-            "form": [[key.split(".", 1)[1], value]
-                     for key, value in evidence.items()]}
+            "form": [[name, value] for name, value
+                     in engine.get_content(flowdata).items()]}
         return answer, sent
 
     @app.route("/")
@@ -292,7 +298,7 @@ def create_app(resource_key, license_key, api):
     # Redeem: the page, or a terminal, sends a sealed value, and this server
     # redeems it with the License Key. Only the level goes back. A value
     # that doesn't redeem gives Low, as nothing then shows a person is
-    # there. The cloud's own answer is logged here, never sent back.
+    # there. The cloud's own answer is never sent back.
     @app.route("/redeem", methods=["POST"])
     def redeem():
 
@@ -300,19 +306,15 @@ def create_app(resource_key, license_key, api):
         fields = {"value": sealed}
         if license_key:
             fields["license"] = license_key
-        level, outcome = None, None
+        level = None
         try:
             answer = requests.request(
                 "POST", api + "hc/redeem", data=fields, timeout=TIMEOUT)
-            body = answer.json()
-            level = read(body, "humanConfidence")
-            outcome = read(body, "result") or (
-                "redeemed" if level else f"HTTP {answer.status_code}")
-        except (requests.RequestException, ValueError) as error:
-            outcome = type(error).__name__
+            level = read(answer.json(), "humanConfidence")
+        except (requests.RequestException, ValueError):
+            pass
         if level not in LEVELS:
             level = LEVELS[-1]
-        print(f"redeem: {level} ({outcome})", flush=True)
         return jsonify(humanConfidence=level)
 
     # Server mode: the client script, fetched from the cloud for this
@@ -328,10 +330,12 @@ def create_app(resource_key, license_key, api):
             answer = requests.request(
                 "GET", api + resource_key + ".js", params=query,
                 headers=passed_on(visitor_headers()), timeout=TIMEOUT)
-        except (requests.RequestException, ValueError) as error:
+        except (requests.RequestException, CloudRequestException,
+                ValueError):
+            # An empty script with a failing status, so the page's script
+            # element fails and the page shows Active Low.
             return Response(
-                "console.log(" + repr(str(error)) + ");", status=502,
-                content_type="application/javascript")
+                "", status=502, content_type="application/javascript")
         here = request.host_url + "hc/cloud/"
         text = cloud_url.sub(
             lambda m: here + m.group(2) + "/" + m.group(3), answer.text)
@@ -362,17 +366,17 @@ def create_app(resource_key, license_key, api):
         # cloud may be plain http.
         scheme = endpoint.scheme if host == endpoint.netloc else "https"
         url = scheme + "://" + host + "/" + path
-        headers = passed_on(visitor_headers())
         cookies = "; ".join(
             f"{name}={value}" for name, value in request.cookies.items()
             if name.lower().startswith(COOKIE_PREFIX))
-        if cookies:
-            headers["Cookie"] = cookies
         try:
+            headers = passed_on(visitor_headers())
+            if cookies:
+                headers["Cookie"] = cookies
             answer = requests.request(
                 "GET", url, params=request.args, headers=headers,
                 timeout=TIMEOUT)
-        except requests.RequestException as error:
+        except (requests.RequestException, CloudRequestException) as error:
             return jsonify(error=str(error)), 502
         response = Response(
             answer.content, status=answer.status_code,
@@ -465,6 +469,20 @@ def trim(text):
     return text[:200]
 
 
+def without_key(text, resource_key):
+
+    """!
+    The text with the Resource Key, as given and as an address holds it,
+    shown as <Resource Key>. An error from the requests library names the
+    address it asked for, which holds the key.
+    """
+
+    for form in {resource_key, urllib.parse.quote(resource_key, safe="")}:
+        if form:
+            text = text.replace(form, "<Resource Key>")
+    return text
+
+
 def main(argv):
 
     # A Resource Key given on the command line is used as it is. Otherwise
@@ -486,7 +504,7 @@ def main(argv):
     try:
         carried = carries_human_confidence(api, resource_key)
     except (requests.RequestException, ValueError) as error:
-        print(error)
+        print(without_key(str(error), resource_key))
         print_find_out_more()
         sys.exit(1)
     if not carried:
@@ -502,6 +520,9 @@ def main(argv):
 
     app = create_app(resource_key, license_key, api)
     port = os.environ.get("_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)
+    # The web server writes a line for each request unless told not to.
+    # The example writes only the line below.
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
     print(f"Human Confidence demo on http://localhost:{port}/, using {api}")
     # Threaded, so the page's calls in server mode don't wait on each other.
     app.run(port=int(port), threaded=True)

@@ -37,27 +37,39 @@ APP = os.path.join(
 
 
 def run_port():
-    # The expression the example passes to run as its port.
+    # The expression the example passes to run as its port, and the value
+    # last given to each name before that call.
     with open(APP, encoding="utf-8") as source:
         tree = ast.parse(source.read())
+    names = {}
     for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    names[target.id] = node.value
         if (isinstance(node, ast.Call)
                 and isinstance(node.func, ast.Attribute)
                 and node.func.attr == "run"):
             for keyword in node.keywords:
                 if keyword.arg == "port":
-                    return keyword.value
-    return None
+                    return keyword.value, names
+    return None, names
 
 
 class CloudHumanConfidenceWebPortTests(unittest.TestCase):
 
     def test_listens_on_5151_unless_port_names_another(self):
-        port = run_port()
-        # int() of the variable read from os.environ, or of 5151.
+        port, names = run_port()
+        # int() of the variable read from os.environ, or of 5151, either
+        # given directly or through a name assigned it.
         self.assertIsInstance(port, ast.Call)
+        self.assertEqual("int", port.func.id)
         get = port.args[0]
+        if isinstance(get, ast.Name):
+            get = names[get.id]
+        self.assertIsInstance(get, ast.Call)
         self.assertEqual("get", get.func.attr)
+        self.assertEqual("environ", get.func.value.attr)
         self.assertEqual(
             ["_51DEGREES_EXAMPLE_HTTP_PORTS", 5151],
             [arg.value for arg in get.args])

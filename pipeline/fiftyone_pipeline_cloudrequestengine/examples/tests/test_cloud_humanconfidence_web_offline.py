@@ -23,11 +23,13 @@
 """
 Runs the Human Confidence web example against a stand-in for the cloud
 service, so each step is checked with known values and without a key. The
-stand-in answers in the shapes the example reads, and keeps the requests it
-was sent, so the tests see what the example passed on.
+stand-in answers in the shapes the example and the cloud request engine
+read, and keeps the requests it was sent, so the tests see what was passed
+on.
 """
 
 import json
+import logging
 import re
 
 import pytest
@@ -40,8 +42,14 @@ from fiftyone_pipeline_examples.example_utils import ExampleUtils
 import test_cloud_humanconfidence_web as live
 
 API = "https://cloud.example/api/v4/"
+# A private cloud, such as one in Docker, on plain http.
+PRIVATE_API = "http://127.0.0.1:18081/api/v4/"
 RESOURCE_KEY = "a-resource-key"
-LICENCE_KEY = "a-licence-key"
+LICENSE_KEY = "a-license-key"
+
+# A public address, and the address the test client connects from.
+PUBLIC_ADDRESS = "81.2.69.142"
+LOCAL_ADDRESS = "127.0.0.1"
 
 DESKTOP_CHROME = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -66,11 +74,35 @@ TAGS = (
     "fiftyone_pipeline_examples-cloud-humanconfidence_web-app.py&utm_term=")
 
 
+class StubHeaders(dict):
+    """Response headers, with getlist as urllib3 gives it."""
+
+    def __init__(self, items=()):
+        super().__init__()
+        self.items_list = list(items)
+        for name, value in self.items_list:
+            self[name] = value
+
+    def getlist(self, name):
+        return [value for key, value in self.items_list
+                if key.lower() == name.lower()]
+
+
+class StubRaw:
+
+    def __init__(self, headers):
+        self.headers = headers
+
+
 class StubResponse:
 
-    def __init__(self, body, status_code=200):
+    def __init__(self, body, status_code=200, headers=(), url=""):
         self.status_code = status_code
         self.text = body if isinstance(body, str) else json.dumps(body)
+        self.content = self.text.encode()
+        self.headers = StubHeaders(headers)
+        self.raw = StubRaw(self.headers)
+        self.url = url
 
     def json(self):
         return json.loads(self.text)
@@ -80,72 +112,96 @@ class StubCloud:
     """
     Answers as the cloud service does for a key carrying the named
     properties, and keeps the requests it was sent as method, address and
-    form fields.
+    form fields. The other arguments of each request are kept in calls.
     """
 
-    def __init__(self, properties):
+    def __init__(self, properties, api=API):
         self.properties = properties
+        self.api = api
         self.requests = []
+        self.calls = []
         # The sealed values already redeemed, as each redeems once.
         self.redeemed = set()
         # An answer to give in place of the usual one, by the end of the
         # address, as a StubResponse or an exception to raise.
         self.instead = {}
+        # The client script the cloud serves for the Resource Key.
+        self.script = "/* client script */"
 
     def sent_to(self, ending):
-        """The requests sent to the addresses with the ending."""
-        return [sent for sent in self.requests if sent[1].endswith(ending)]
+        """The requests sent to the addresses with the ending, the query
+        left out."""
+        return [sent for sent in self.requests
+                if sent[1].split("?")[0].endswith(ending)]
 
-    def request(self, method, url, data=None, headers=None, timeout=None):
+    def request(self, method, url, data=None, headers=None, timeout=None,
+                params=None, **others):
         data = dict(data or {})
         self.requests.append((method, url, data))
-        assert url.startswith(API), url
-        path = url[len(API):]
+        self.calls.append({"method": method, "url": url, "data": data,
+                           "headers": dict(headers or {}),
+                           "timeout": timeout, "params": params})
+        path = url[len(self.api):] if url.startswith(self.api) else url
+        bare = path.split("?")[0]
 
         for ending, answer in self.instead.items():
-            if path.endswith(ending):
+            if path.endswith(ending) or bare.endswith(ending):
                 if isinstance(answer, BaseException):
                     raise answer
                 return answer
 
-        if path.startswith("accessibleproperties"):
+        # The example asks in lower case, the cloud request engine in
+        # camel case. The cloud service takes either.
+        if bare.lower() == "accessibleproperties":
             return StubResponse({"Products": {"derived": {"Properties": [
                 {"Name": name, "Type": "String"}
-                for name in self.properties]}}})
+                for name in self.properties]}}}, url=url)
 
-        if path == "evidencekeys":
+        if bare == "evidencekeys":
             return StubResponse([
-                "header.user-agent", "header.sec-ch-ua", "query.client-ip"])
+                "header.user-agent", "header.sec-ch-ua", "query.client-ip"],
+                url=url)
 
-        if path == RESOURCE_KEY + ".json":
+        if bare == RESOURCE_KEY + ".json":
             return StubResponse({"derived": {
                 "humanconfidence": "Medium",
-                "humanconfidencesource": "Passive"}})
+                "humanconfidencesource": "Passive"}}, url=url)
 
-        if path == "hc/redeem":
+        if bare == RESOURCE_KEY + ".js":
+            return StubResponse(self.script, url=url, headers=[
+                ("Content-Type", "application/javascript")])
+
+        if bare == "hc/redeem":
             if data.get("value") in self.redeemed:
-                return StubResponse({"result": "replayed"})
+                return StubResponse({"result": "replayed"}, url=url)
             self.redeemed.add(data.get("value"))
             return StubResponse({
-                "humanConfidence": "High", "secondsSinceVerified": 2})
+                "humanConfidence": "High", "secondsSinceVerified": 2},
+                url=url)
 
-        return StubResponse("Not Found", 404)
+        return StubResponse("Not Found", 404, url=url)
 
 
 @pytest.fixture
 def cloud(monkeypatch):
     """Makes a stand-in for the cloud service answer every request."""
 
-    def stand_in(properties=("HumanConfidence", "HumanConfidenceSource")):
-        stub = StubCloud(properties)
+    def stand_in(properties=("HumanConfidence", "HumanConfidenceSource"),
+                 api=API):
+        stub = StubCloud(properties, api)
         monkeypatch.setattr(requests, "request", stub.request)
         return stub
 
     return stand_in
 
 
-def client_for(license_key=LICENCE_KEY):
-    return example.create_app(RESOURCE_KEY, license_key, API).test_client()
+def client_for(license_key=LICENSE_KEY, api=API):
+    return example.create_app(RESOURCE_KEY, license_key, api).test_client()
+
+
+def from_address(address):
+    """The arguments that make the test client connect from address."""
+    return {"environ_base": {"REMOTE_ADDR": address}}
 
 
 # The page.
@@ -169,15 +225,29 @@ def test_page_is_never_kept_by_a_cache(cloud):
     assert client_for().get("/").headers["Cache-Control"] == "no-store"
 
 
-def test_page_is_served_without_asking_the_cloud(cloud):
+def test_building_the_app_asks_the_cloud_what_the_key_carries(cloud):
     stub = cloud()
-    client_for().get("/")
-    assert stub.requests == []
+    client_for()
+
+    assert [(method, url) for method, url, _ in stub.requests] == [
+        ("GET", API + "accessibleProperties?resource=" + RESOURCE_KEY),
+        ("GET", API + "evidencekeys")]
 
 
-def test_licence_key_never_reaches_the_page(cloud):
+def test_page_is_served_without_asking_the_cloud_again(cloud):
+    stub = cloud()
+    client = client_for()
+    asked = len(stub.requests)
+    client.get("/")
+
+    assert len(stub.requests) == asked
+
+
+def test_license_key_never_reaches_the_page(cloud):
     cloud()
-    assert LICENCE_KEY not in client_for().get("/").get_data(as_text=True)
+    for mode in ("client", "server"):
+        html = client_for().get("/?mode=" + mode).get_data(as_text=True)
+        assert LICENSE_KEY not in html
 
 
 def test_page_ends_with_its_find_out_more_section(cloud):
@@ -192,20 +262,57 @@ def test_page_ends_with_its_find_out_more_section(cloud):
         assert "-humanconfidence_web-templates-index.html&" in link
 
 
-# Step 1, passive.
+def test_page_redeems_only_a_sealed_value_and_waits_30_seconds(cloud):
+    cloud()
+    html = client_for().get("/").get_data(as_text=True)
+
+    assert 'var PLAIN = LEVELS.concat(["Unknown"]);' in html
+    assert "PLAIN.indexOf(value) < 0" in html
+    assert "var ACTIVE_LIMIT_MS = 30000;" in html
+
+
+# The mode.
+
+def test_mode_is_client_side_by_default_and_kept_in_a_cookie(cloud):
+    cloud()
+    response = client_for().get("/")
+
+    assert 'var MODE = "client";' in response.get_data(as_text=True)
+    assert "hc_mode=client" in response.headers["Set-Cookie"]
+
+
+def test_mode_named_is_used_and_kept(cloud):
+    cloud()
+    client = client_for()
+    named = client.get("/?mode=server")
+    kept = client.get("/")
+
+    assert 'var MODE = "server";' in named.get_data(as_text=True)
+    assert "hc_mode=server" in named.headers["Set-Cookie"]
+    assert 'var MODE = "server";' in kept.get_data(as_text=True)
+
+
+def test_mode_not_known_gives_the_default(cloud):
+    cloud()
+    html = client_for().get("/?mode=other").get_data(as_text=True)
+
+    assert 'var MODE = "client";' in html
+
+
+# Passive.
 
 def test_passive_is_read_from_the_answer_of_the_cloud(cloud):
     cloud()
     response = client_for().get(
         "/passive", headers={"User-Agent": DESKTOP_CHROME})
+    answer = response.get_json()
 
     assert response.status_code == 200
-    assert response.get_json() == {
-        "source": "Passive", "humanConfidence": "Medium"}
+    assert answer["humanConfidence"] == "Medium"
+    assert set(answer) == {"humanConfidence", "sent"}
 
 
-def test_passive_passes_on_the_headers_the_cloud_lists_and_the_address(
-        cloud):
+def test_passive_goes_through_the_cloud_request_engine(cloud):
     stub = cloud()
     client_for().get("/passive", headers={
         "User-Agent": DESKTOP_CHROME,
@@ -215,57 +322,158 @@ def test_passive_passes_on_the_headers_the_cloud_lists_and_the_address(
 
     method, url, data = stub.requests[-1]
     assert method == "POST"
-    assert url == API + RESOURCE_KEY + ".json"
+    assert url.split("?")[0] == API + RESOURCE_KEY + ".json"
     # The values as the browser sent them, under the names the cloud
-    # lists, with the address of the connection. Nothing else is sent.
+    # lists, with the Resource Key the engine adds. Nothing else is sent.
     assert data == {
         "user-agent": DESKTOP_CHROME,
         "sec-ch-ua": '"Chromium";v="120"',
-        "client-ip": "127.0.0.1"}
+        "resource": RESOURCE_KEY}
 
 
-def test_address_of_the_connection_replaces_one_a_header_names(cloud):
+def test_passive_describes_what_was_sent(cloud):
+    cloud()
+    sent = client_for().get(
+        "/passive", headers={"User-Agent": DESKTOP_CHROME},
+        **from_address(PUBLIC_ADDRESS)).get_json()["sent"]
+
+    assert sent["method"] == "POST"
+    assert sent["url"] == API + RESOURCE_KEY + ".json"
+    assert dict(sent["form"]) == {
+        "user-agent": DESKTOP_CHROME, "client-ip": PUBLIC_ADDRESS}
+
+
+def test_public_address_of_the_connection_is_sent(cloud):
+    stub = cloud()
+    client_for().get(
+        "/passive", headers={"User-Agent": DESKTOP_CHROME},
+        **from_address(PUBLIC_ADDRESS))
+
+    assert stub.requests[-1][2]["client-ip"] == PUBLIC_ADDRESS
+
+
+def test_ipv4_address_written_as_ipv6_is_sent_as_ipv4(cloud):
+    stub = cloud()
+    client_for().get(
+        "/passive", headers={"User-Agent": DESKTOP_CHROME},
+        **from_address("::ffff:" + PUBLIC_ADDRESS))
+
+    assert stub.requests[-1][2]["client-ip"] == PUBLIC_ADDRESS
+
+
+def test_public_address_replaces_one_a_header_names(cloud):
     stub = cloud()
     stub.instead["evidencekeys"] = StubResponse(
         ["header.user-agent", "header.client-ip"])
-    client_for().get("/passive", headers={
-        "User-Agent": DESKTOP_CHROME, "Client-IP": "203.0.113.9"})
+    client_for().get(
+        "/passive",
+        headers={"User-Agent": DESKTOP_CHROME, "Client-IP": "203.0.113.9"},
+        **from_address(PUBLIC_ADDRESS))
 
-    assert stub.requests[-1][2]["client-ip"] == "127.0.0.1"
+    assert stub.requests[-1][2]["client-ip"] == PUBLIC_ADDRESS
 
 
-def test_list_of_headers_is_asked_for_once(cloud):
+def test_local_connection_sends_no_address(cloud):
+    stub = cloud()
+    stub.instead["evidencekeys"] = StubResponse(
+        ["header.user-agent", "header.client-ip"])
+    sent = client_for().get(
+        "/passive",
+        headers={"User-Agent": DESKTOP_CHROME, "Client-IP": "203.0.113.9"},
+        **from_address(LOCAL_ADDRESS)).get_json()["sent"]
+
+    assert stub.requests[-1][2] == {
+        "user-agent": DESKTOP_CHROME, "resource": RESOURCE_KEY}
+    assert sent["form"] == [["user-agent", DESKTOP_CHROME]]
+
+
+def test_address_comes_only_from_the_connection(cloud):
+    stub = cloud()
+    client_for().post(
+        "/hc/cloud/cloud.example/api/v4/" + RESOURCE_KEY + ".json",
+        headers={"User-Agent": DESKTOP_CHROME},
+        data={"client-ip": "203.0.113.9", "fod-test": "an-answer"},
+        **from_address(PUBLIC_ADDRESS))
+
+    assert stub.requests[-1][2]["client-ip"] == PUBLIC_ADDRESS
+
+
+def test_described_form_is_what_the_engine_sent(cloud):
+    stub = cloud()
+    stub.instead["evidencekeys"] = StubResponse(
+        ["header.user-agent", "header.client-ip", "header.sec-ch-ua"])
+    sent = client_for().get(
+        "/passive",
+        headers={"User-Agent": DESKTOP_CHROME, "Client-IP": "203.0.113.9",
+                 "Sec-CH-UA": '"Chromium";v="120"'},
+        **from_address(PUBLIC_ADDRESS)).get_json()["sent"]
+
+    names = [name for name, _ in sent["form"]]
+    assert len(names) == len(set(names))
+    engine_sent = dict(stub.requests[-1][2])
+    del engine_sent["resource"]
+    assert dict(sent["form"]) == engine_sent
+
+
+def test_list_of_headers_is_the_one_the_engine_was_given(cloud):
     stub = cloud()
     client = client_for()
     client.get("/passive")
     client.get("/passive")
+    client.get("/hc/script.js")
 
     assert len(stub.sent_to("evidencekeys")) == 1
+    assert len(stub.sent_to("accessibleProperties")) == 1
     assert len(stub.sent_to(".json")) == 2
 
 
-def test_passive_never_sends_the_licence_key(cloud):
+def test_engine_waits_the_example_timeout(cloud):
+    stub = cloud()
+    client_for().get("/passive")
+
+    engine_calls = [call for call in stub.calls
+                    if "accessibleProperties" in call["url"]
+                    or call["url"].endswith("evidencekeys")
+                    or call["url"].split("?")[0].endswith(".json")]
+    assert len(engine_calls) == 3
+    for call in engine_calls:
+        assert call["timeout"] == example.TIMEOUT
+
+
+def test_list_of_headers_the_cloud_cannot_give_is_an_error(cloud):
+    stub = cloud()
+    stub.instead["evidencekeys"] = StubResponse("Unavailable", 503)
+    with pytest.warns(UserWarning):
+        client = client_for()
+
+    assert "error" in client.get("/passive").get_json()
+    assert client.get("/hc/script.js").status_code == 502
+    assert client.get(
+        "/hc/cloud/cloud.example/api/v4/3pc").status_code == 502
+
+
+def test_passive_never_sends_the_license_key(cloud):
     stub = cloud()
     client_for().get("/passive")
 
     for _, url, data in stub.requests:
-        assert LICENCE_KEY not in url
-        assert LICENCE_KEY not in data.values()
+        assert LICENSE_KEY not in url
+        assert LICENSE_KEY not in data.values()
 
 
-def test_passive_without_the_properties_returns_neither(cloud):
+def test_passive_without_the_property_returns_no_level(cloud):
     stub = cloud()
     stub.instead[".json"] = StubResponse({"device": {"ismobile": False}})
 
-    assert client_for().get("/passive").get_json() == {
-        "source": None, "humanConfidence": None}
+    assert client_for().get("/passive").get_json()["humanConfidence"] is None
 
 
 # The Basic product does not offer HumanConfidenceSource, so a Basic key is
 # answered with no source, and with or without a level. The example gives
-# what the cloud gave and makes up neither.
+# the level the cloud gave and makes up none.
 @pytest.mark.parametrize("level", [None, "Medium"])
-def test_passive_for_a_basic_key_returns_no_source(cloud, level):
+def test_passive_for_a_basic_key_gives_the_level_the_cloud_gave(
+        cloud, level):
     stub = cloud()
     derived = {
         "humanconfidence": level,
@@ -277,22 +485,19 @@ def test_passive_for_a_basic_key_returns_no_source(cloud, level):
             "The key does not give this property a value.")
     stub.instead[".json"] = StubResponse({"derived": derived})
 
-    assert client_for().get("/passive").get_json() == {
-        "source": None, "humanConfidence": level}
+    assert client_for().get("/passive").get_json()["humanConfidence"] == \
+        level
 
 
-# With no Basic key set, the live test skips, naming the variable it reads
-# and what a Basic key is there to check.
+# With no Basic key set, the live test skips, naming the variable it reads.
 def test_the_live_basic_key_test_skips_naming_its_variable(monkeypatch):
     monkeypatch.delenv(live.BASIC_KEY_NAME, raising=False)
 
     with pytest.raises(pytest.skip.Exception) as skipped:
-        live.test_a_basic_key_gets_no_source(API, None)
+        live.test_a_basic_key_gets_a_passive_level(API, None)
 
     assert live.BASIC_KEY_NAME == "_51DEGREES_RESOURCE_KEY_BASIC"
     assert f"{live.BASIC_KEY_NAME} is not set" in str(skipped.value)
-    assert ("The Basic product does not offer HumanConfidenceSource"
-            in str(skipped.value))
 
 
 def test_passive_says_what_the_cloud_refused(cloud):
@@ -301,7 +506,6 @@ def test_passive_says_what_the_cloud_refused(cloud):
         '{"errors":["The resource key is not valid."]}', 400)
     answer = client_for().get("/passive").get_json()
 
-    assert answer["error"].startswith("HTTP 400: ")
     assert "The resource key is not valid." in answer["error"]
 
 
@@ -315,33 +519,33 @@ def test_passive_answers_when_the_cloud_cannot_be_reached(cloud):
     assert "cannot be reached" in response.get_json()["error"]
 
 
-# Step 3, redeem.
+# Redeem.
 
-def test_redeem_sends_the_sealed_value_with_the_licence_key(cloud):
+def test_redeem_sends_the_sealed_value_with_the_license_key(cloud):
     stub = cloud()
     response = client_for().post("/redeem", data={"value": "a-sealed-value"})
 
     assert response.status_code == 200
     assert response.headers["Content-Type"].startswith("application/json")
-    assert response.get_json() == {
-        "humanConfidence": "High", "secondsSinceVerified": 2}
+    # Only the level goes back.
+    assert response.get_json() == {"humanConfidence": "High"}
     method, url, data = stub.requests[-1]
     assert method == "POST"
     assert url == API + "hc/redeem"
-    assert data == {"value": "a-sealed-value", "license": LICENCE_KEY}
+    assert data == {"value": "a-sealed-value", "license": LICENSE_KEY}
 
 
-def test_second_redeem_of_the_same_value_is_replayed(cloud):
+def test_second_redeem_of_the_same_value_gives_low(cloud):
     cloud()
     client = client_for()
     first = client.post("/redeem", data={"value": "a-sealed-value"})
     second = client.post("/redeem", data={"value": "a-sealed-value"})
 
-    assert first.get_json()["humanConfidence"] == "High"
-    assert second.get_json() == {"result": "replayed"}
+    assert first.get_json() == {"humanConfidence": "High"}
+    assert second.get_json() == {"humanConfidence": "Low"}
 
 
-def test_redeem_without_a_licence_key_sends_none(cloud):
+def test_redeem_without_a_license_key_sends_none(cloud):
     stub = cloud()
     client_for(license_key="").post(
         "/redeem", data={"value": "a-sealed-value"})
@@ -349,32 +553,216 @@ def test_redeem_without_a_licence_key_sends_none(cloud):
     assert stub.requests[-1][2] == {"value": "a-sealed-value"}
 
 
-def test_redeem_gives_the_answer_as_the_cloud_gave_it(cloud):
+@pytest.mark.parametrize("answer", [
+    StubResponse('{"result":"expired"}', 400),
+    StubResponse('{"result":"unreadable"}', 400),
+    StubResponse("Not Found", 404),
+    StubResponse('{"humanConfidence":"Unknown"}'),
+    StubResponse('{"humanConfidence":"a-sealed-value"}'),
+    requests.exceptions.ConnectionError(
+        "The stand-in service cannot be reached."),
+    requests.exceptions.Timeout("The stand-in service took too long."),
+], ids=["expired", "unreadable", "not-offered", "unknown", "not-a-level",
+        "unreachable", "timeout"])
+def test_value_that_does_not_redeem_gives_low(cloud, answer):
     stub = cloud()
-    stub.instead["hc/redeem"] = StubResponse('{"result":"expired"}', 400)
+    stub.instead["hc/redeem"] = answer
     response = client_for().post("/redeem", data={"value": "a-sealed-value"})
 
-    assert response.status_code == 400
-    assert response.get_data(as_text=True) == '{"result":"expired"}'
+    assert response.status_code == 200
+    assert response.get_json() == {"humanConfidence": "Low"}
 
 
-def test_redeem_says_when_the_service_does_not_redeem(cloud):
+@pytest.mark.parametrize("answer", [
+    None,
+    StubResponse('{"result":"expired"}', 400),
+    requests.exceptions.ConnectionError(
+        "The stand-in service cannot be reached.")],
+    ids=["redeemed", "expired", "unreachable"])
+def test_routes_write_nothing_to_the_console(cloud, capsys, answer):
     stub = cloud()
-    stub.instead["hc/redeem"] = StubResponse("Not Found", 404)
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
+    if answer is not None:
+        stub.instead["hc/redeem"] = answer
+        stub.instead[".js"] = answer
+        stub.instead[".json"] = answer
+    client = client_for()
+    client.get("/")
+    client.get("/passive")
+    client.post("/redeem", data={"value": "a-sealed-value"})
+    client.get("/hc/script.js")
+    client.post("/hc/cloud/cloud.example/api/v4/" + RESOURCE_KEY + ".json",
+                data={"fod-test": "an-answer"})
+    client.get("/hc/cloud/cloud.example/api/v4/3pc")
 
-    assert response.get_json() == {
-        "error": f"The service at {API} doesn't redeem Human Confidence."}
+    printed = capsys.readouterr()
+    assert printed.out == ""
+    assert printed.err == ""
 
 
-def test_redeem_answers_502_when_the_cloud_cannot_be_reached(cloud):
+def test_redeem_waits_the_example_timeout(cloud):
     stub = cloud()
-    stub.instead["hc/redeem"] = requests.exceptions.ConnectionError(
+    client_for().post("/redeem", data={"value": "a-sealed-value"})
+
+    assert stub.calls[-1]["timeout"] == example.TIMEOUT
+
+
+# Server mode: the client script.
+
+def test_script_points_each_cloud_address_at_this_server(cloud):
+    stub = cloud()
+    stub.script = (
+        'a("' + API + RESOURCE_KEY + '.json");'
+        'b("https://cloud.51degrees.com/api/v4/3pc");'
+        'c("https://cloud-eu.51degrees.com/api/v4/x");'
+        'd("https://example.com/x");')
+    response = client_for().get("/hc/script.js")
+    text = response.get_data(as_text=True)
+
+    assert response.status_code == 200
+    assert response.headers["Content-Type"].startswith(
+        "application/javascript")
+    assert response.headers["Cache-Control"] == "no-store"
+    assert ('a("http://localhost/hc/cloud/cloud.example/api/v4/' +
+            RESOURCE_KEY + '.json");') in text
+    assert ('b("http://localhost/hc/cloud/cloud.51degrees.com/api/v4/3pc");'
+            in text)
+    assert ('c("http://localhost/hc/cloud/cloud-eu.51degrees.com/api/v4/x");'
+            in text)
+    assert 'd("https://example.com/x");' in text
+
+
+def test_script_is_asked_for_with_the_visitors_headers(cloud):
+    stub = cloud()
+    client_for().get(
+        "/hc/script.js",
+        headers={"User-Agent": DESKTOP_CHROME, "Cookie": "session=a-secret",
+                 "Authorization": "Bearer a-secret"},
+        **from_address(PUBLIC_ADDRESS))
+    call = stub.calls[-1]
+
+    assert call["method"] == "GET"
+    assert call["url"] == API + RESOURCE_KEY + ".js"
+    assert call["params"] == {"client-ip": PUBLIC_ADDRESS}
+    assert call["headers"] == {"user-agent": DESKTOP_CHROME}
+
+
+def test_script_from_a_local_connection_names_no_address(cloud):
+    stub = cloud()
+    client_for().get("/hc/script.js", **from_address(LOCAL_ADDRESS))
+
+    assert stub.calls[-1]["params"] == {}
+
+
+def test_script_from_a_private_http_cloud_is_pointed_here(cloud):
+    stub = cloud(api=PRIVATE_API)
+    stub.script = 'a("' + PRIVATE_API + RESOURCE_KEY + '.json");'
+    text = client_for(api=PRIVATE_API).get("/hc/script.js").get_data(
+        as_text=True)
+
+    assert ('a("http://localhost/hc/cloud/127.0.0.1:18081/api/v4/' +
+            RESOURCE_KEY + '.json");') in text
+
+
+def test_script_the_cloud_cannot_give_answers_502_with_no_script(cloud):
+    stub = cloud()
+    stub.instead[".js"] = requests.exceptions.ConnectionError(
         "The stand-in service cannot be reached.")
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
+    response = client_for().get("/hc/script.js")
 
     assert response.status_code == 502
-    assert "cannot be reached" in response.get_json()["error"]
+    assert response.get_data(as_text=True) == ""
+
+
+# Server mode: the calls the client script makes.
+
+def test_test_answers_go_through_the_cloud_request_engine(cloud):
+    stub = cloud()
+    response = client_for().post(
+        "/hc/cloud/cloud.example/api/v4/" + RESOURCE_KEY + ".json",
+        headers={"User-Agent": DESKTOP_CHROME},
+        data={"resource": "another-key", "values": "x",
+              "fod-test": "an-answer"})
+
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.get_json()["derived"]["humanconfidence"] == "Medium"
+    method, url, data = stub.requests[-1]
+    assert method == "POST"
+    assert url.split("?")[0] == API + RESOURCE_KEY + ".json"
+    # The engine sets the Resource Key. The browser's own resource and
+    # values fields are left out.
+    assert data == {"user-agent": DESKTOP_CHROME, "fod-test": "an-answer",
+                    "resource": RESOURCE_KEY}
+
+
+def test_call_to_a_host_that_is_not_a_cloud_host_is_not_found(cloud):
+    stub = cloud()
+    client = client_for()
+    asked = len(stub.requests)
+
+    for method in ("get", "post"):
+        response = getattr(client, method)("/hc/cloud/example.com/x")
+        assert response.status_code == 404
+    assert len(stub.requests) == asked
+
+
+def test_get_to_a_cloud_host_is_sent_on_over_https(cloud):
+    stub = cloud()
+    stub.instead["https://cloud.51degrees.com/api/v4/3pc"] = StubResponse(
+        '{"tpc":true}', headers=[("Content-Type", "application/json")])
+    response = client_for().get(
+        "/hc/cloud/cloud.51degrees.com/api/v4/3pc?a=1",
+        headers={"User-Agent": DESKTOP_CHROME})
+
+    assert response.status_code == 200
+    assert response.get_json() == {"tpc": True}
+    call = stub.calls[-1]
+    assert call["url"] == "https://cloud.51degrees.com/api/v4/3pc"
+    assert dict(call["params"]) == {"a": "1"}
+
+
+def test_get_to_a_private_http_cloud_keeps_its_scheme(cloud):
+    stub = cloud(api=PRIVATE_API)
+    stub.instead["3pc"] = StubResponse("{}")
+    response = client_for(api=PRIVATE_API).get(
+        "/hc/cloud/127.0.0.1:18081/api/v4/3pc")
+
+    assert response.status_code == 200
+    assert stub.calls[-1]["url"] == "http://127.0.0.1:18081/api/v4/3pc"
+
+
+def test_get_passes_on_only_the_cloud_cookies(cloud):
+    stub = cloud()
+    stub.instead["3pc"] = StubResponse("{}")
+    client = client_for()
+    client.set_cookie("51D_id", "one")
+    client.set_cookie("session", "a-secret")
+    client.get("/hc/cloud/cloud.example/api/v4/3pc",
+               headers={"User-Agent": DESKTOP_CHROME})
+
+    assert stub.calls[-1]["headers"] == {
+        "user-agent": DESKTOP_CHROME, "Cookie": "51D_id=one"}
+
+
+def test_get_gives_the_cloud_cookies_for_this_server(cloud):
+    stub = cloud()
+    stub.instead["3pc"] = StubResponse("{}", headers=[
+        ("Set-Cookie",
+         "51D_tpc=1; Domain=51degrees.com; Path=/; Secure; SameSite=None"),
+        ("Set-Cookie", "51D_two=2; Path=/")])
+    response = client_for().get("/hc/cloud/cloud.example/api/v4/3pc")
+
+    assert response.headers.getlist("Set-Cookie") == [
+        "51D_tpc=1; Path=/", "51D_two=2; Path=/"]
+
+
+def test_get_the_cloud_cannot_answer_gives_502(cloud):
+    stub = cloud()
+    stub.instead["3pc"] = requests.exceptions.ConnectionError(
+        "The stand-in service cannot be reached.")
+    response = client_for().get("/hc/cloud/cloud.example/api/v4/3pc")
+
+    assert response.status_code == 502
 
 
 # The cloud address.
@@ -393,6 +781,33 @@ def test_cloud_address_named_ends_in_one_slash(named):
         "https://cloud.example.test/api/v4/"
 
 
+@pytest.mark.parametrize("host,matched", [
+    ("cloud.51degrees.com", True),
+    ("cloud-eu.51degrees.com", True),
+    ("127.0.0.1:18081", True),
+    ("51degrees.com", False),
+    ("cloud.51degrees.com.example", False),
+    ("example.com", False)])
+def test_cloud_hosts_are_51degrees_hosts_and_the_endpoint_host(
+        host, matched):
+    hosts, _ = example.cloud_patterns(PRIVATE_API)
+    assert bool(hosts.fullmatch(host)) == matched
+
+
+@pytest.mark.parametrize("address,public", [
+    ("81.2.69.142", "81.2.69.142"),
+    ("::ffff:81.2.69.142", "81.2.69.142"),
+    ("127.0.0.1", None),
+    ("10.1.2.3", None),
+    ("192.168.1.2", None),
+    ("::1", None),
+    ("", None),
+    (None, None),
+    ("not-an-address", None)])
+def test_public_ip_gives_only_a_public_address(address, public):
+    assert example.public_ip(address) == public
+
+
 # Before the flow.
 
 class Started(Exception):
@@ -402,14 +817,15 @@ class Started(Exception):
 @pytest.fixture
 def start(monkeypatch):
     """Runs main with the settings given and no others but the address of
-    the stand-in for the cloud service, with a stand-in for the web server,
-    and returns what create_app and run were given, or None when the server
-    was not started."""
+    the stand-in for the cloud service, unless endpoint is None, with a
+    stand-in for the web server, and returns what create_app and run were
+    given, or None when the server was not started."""
 
-    def run_main(argv=(), **settings):
+    def run_main(argv=(), endpoint=API, **settings):
         for name in SETTINGS:
             monkeypatch.delenv(name, raising=False)
-        monkeypatch.setenv(ExampleUtils.CLOUD_ENDPOINT_ENV_VAR, API)
+        if endpoint is not None:
+            monkeypatch.setenv(ExampleUtils.CLOUD_ENDPOINT_ENV_VAR, endpoint)
         for name, value in settings.items():
             monkeypatch.setenv(name, value)
         given = {}
@@ -448,16 +864,37 @@ def test_starts_when_the_key_carries_human_confidence(cloud, start, capsys):
     stub = cloud()
     given = start(**{
         ExampleUtils.RESOURCE_KEY_ENV_VAR: RESOURCE_KEY,
-        ExampleUtils.LICENSE_KEY_ENV_VAR: LICENCE_KEY,
+        ExampleUtils.LICENSE_KEY_ENV_VAR: LICENSE_KEY,
         ExampleUtils.CLOUD_ENDPOINT_ENV_VAR: API.rstrip("/")})
 
-    assert given["create_app"] == (RESOURCE_KEY, LICENCE_KEY, API)
-    assert given["run"] == {"port": 5151}
+    assert given["create_app"] == (RESOURCE_KEY, LICENSE_KEY, API)
+    assert given["run"] == {"port": 5151, "threaded": True}
     # The key was checked with the cloud named, before anything else.
     method, url, _ = stub.requests[0]
     assert method == "GET"
     assert url == API + "accessibleproperties?resource=" + RESOURCE_KEY
     assert f"http://localhost:5151/, using {API}" in capsys.readouterr().out
+
+
+def test_cloud_address_is_the_public_cloud_when_none_is_set(cloud, start):
+    stub = cloud(api=example.DEFAULT_API)
+    given = start(endpoint=None,
+                  **{ExampleUtils.RESOURCE_KEY_ENV_VAR: RESOURCE_KEY})
+
+    assert given["create_app"][2] == example.DEFAULT_API
+    assert stub.requests[0][1].startswith(example.DEFAULT_API)
+
+
+def test_web_server_writes_no_line_for_each_request(cloud, start):
+    cloud()
+    server_log = logging.getLogger("werkzeug")
+    level = server_log.level
+    try:
+        start(**{ExampleUtils.RESOURCE_KEY_ENV_VAR: RESOURCE_KEY})
+        # The web server sets its own level to INFO only when none is set.
+        assert server_log.level == logging.WARNING
+    finally:
+        server_log.setLevel(level)
 
 
 def test_listens_on_the_port_named(cloud, start):
@@ -466,7 +903,7 @@ def test_listens_on_the_port_named(cloud, start):
         "_51DEGREES_EXAMPLE_HTTP_PORTS": "8080",
         ExampleUtils.RESOURCE_KEY_ENV_VAR: RESOURCE_KEY})
 
-    assert given["run"] == {"port": 8080}
+    assert given["run"] == {"port": 8080, "threaded": True}
 
 
 def test_resource_key_can_be_the_first_argument(cloud, start):
@@ -476,7 +913,7 @@ def test_resource_key_can_be_the_first_argument(cloud, start):
     assert given["create_app"][0] == RESOURCE_KEY
 
 
-def test_starts_without_a_licence_key_and_says_so(cloud, start, capsys):
+def test_starts_without_a_license_key_and_says_so(cloud, start, capsys):
     cloud()
     given = start(**{ExampleUtils.RESOURCE_KEY_ENV_VAR: RESOURCE_KEY})
 
@@ -533,6 +970,26 @@ def test_cloud_that_cannot_be_reached_ends_saying_so(cloud, start, capsys):
     printed = capsys.readouterr().out
     assert "cannot be reached" in printed
     assert_ends_with_find_out_more(printed)
+
+
+@pytest.mark.parametrize("failure", [
+    requests.exceptions.ConnectionError(
+        "Max retries exceeded with url: /api/v4/accessibleproperties"
+        "?resource=" + RESOURCE_KEY + " (cannot be reached)"),
+    StubResponse('{"errors":["The resource key ' + RESOURCE_KEY +
+                 ' is not valid."]}', 400)],
+    ids=["unreachable", "refused"])
+def test_start_up_error_shows_the_resource_key_as_its_name(
+        cloud, start, capsys, failure):
+    stub = cloud()
+    stub.instead["accessibleproperties?resource=" + RESOURCE_KEY] = failure
+
+    with pytest.raises(SystemExit):
+        start(**{ExampleUtils.RESOURCE_KEY_ENV_VAR: RESOURCE_KEY})
+
+    printed = capsys.readouterr().out
+    assert RESOURCE_KEY not in printed
+    assert "<Resource Key>" in printed
 
 
 def test_property_is_found_whichever_product_holds_it(cloud):

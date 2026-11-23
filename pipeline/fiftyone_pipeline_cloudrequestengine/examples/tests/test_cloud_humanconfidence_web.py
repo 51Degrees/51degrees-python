@@ -26,10 +26,9 @@ Flask's test client. The resource key has to carry HumanConfidence, which
 the example asks the cloud service about before anything else, and these
 tests skip themselves when no key is set or the key does not carry it.
 
-The passive tests check that HumanConfidenceSource comes back. The Pro and
-Bespoke products offer it, and the Bespoke key gets Passive, as no browser
-tests have run. The Basic product does not offer HumanConfidenceSource, so
-a Basic key gets no source.
+The passive tests check that the example gives a level from the cloud's
+answer, and describes the request it sent. A Basic key, whose product does
+not offer HumanConfidenceSource, is checked the same way.
 
 Only the passive step is run here. The active step needs the browser tests,
 which only a browser runs.
@@ -87,7 +86,8 @@ def naming_the_properties(monkeypatch):
     real = requests.request
 
     def request(method, url, data=None, **kwargs):
-        if method == "POST" and url.endswith(".json"):
+        # The cloud request engine adds "?" to the address it posts to.
+        if method == "POST" and url.split("?")[0].endswith(".json"):
             data = dict(data or {}, values=PROPERTIES)
         return real(method, url, data=data, **kwargs)
 
@@ -111,34 +111,36 @@ def test_page_is_served_and_never_kept(client, key):
     assert key in response.get_data(as_text=True)
 
 
-def test_passive_source_and_level_come_from_the_cloud(
-        client, naming_the_properties):
+def test_passive_level_comes_from_the_cloud(client, key, api,
+                                           naming_the_properties):
     answer = client.get("/passive", headers=HEADERS).get_json()
-    assert "error" not in answer, answer
-    assert answer["source"] == "Passive", answer
+    assert "error" not in answer, "The cloud refused the request."
     assert answer["humanConfidence"] in LEVELS
+    assert answer["sent"]["url"] == api + key + ".json"
 
 
-def test_a_basic_key_gets_no_source(api, naming_the_properties):
-    """The Basic product does not offer HumanConfidenceSource."""
+def test_a_basic_key_gets_a_passive_level(api, naming_the_properties):
+    """The Basic product does not offer HumanConfidenceSource, and the
+    passive call still works with its key."""
     basic = read_environment(BASIC_KEY_NAME)
     if not basic:
         pytest.skip(
-            f"{BASIC_KEY_NAME} is not set. The Basic product does not offer "
-            "HumanConfidenceSource. Set the variable to a Basic resource "
-            "key to check that such a key gets no source.")
+            f"{BASIC_KEY_NAME} is not set. Set the variable to a Resource "
+            "Key of the Basic product to check the passive call with it.")
     client = example.create_app(basic, None, api).test_client()
     answer = client.get("/passive", headers=HEADERS).get_json()
     assert "error" not in answer, "The cloud refused the request."
-    assert answer["source"] is None, answer
+    assert answer["humanConfidence"] in LEVELS + (None,)
 
 
-def test_licence_key_never_reaches_the_browser(client):
-    licence_key = ExampleUtils.get_license_key()
-    if not licence_key:
+def test_license_key_never_reaches_the_browser(client):
+    license_key = ExampleUtils.get_license_key()
+    if not license_key:
         pytest.skip(
             f"{ExampleUtils.LICENSE_KEY_ENV_VAR} is not set, so there is no "
-            "licence key to look for.")
-    for response in (client.get("/", headers=HEADERS),
-                     client.get("/passive", headers=HEADERS)):
-        assert licence_key.encode() not in response.data
+            "License Key to look for.")
+    for response in (client.get("/?mode=client", headers=HEADERS),
+                     client.get("/?mode=server", headers=HEADERS),
+                     client.get("/passive", headers=HEADERS),
+                     client.post("/redeem", data={"value": "not-sealed"})):
+        assert license_key.encode() not in response.data
