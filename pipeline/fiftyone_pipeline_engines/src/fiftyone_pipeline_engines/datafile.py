@@ -124,6 +124,18 @@ class DataFile():
         """
         return datetime.date.today()
 
+    def get_data_update_product(self):
+        """!
+        Function called to get the product the data file in use is of, as
+        the data update service names it. A license key can hold several
+        products, and the data update service then asks which one is wanted
+        by answering with the products it offers. The data file update
+        service picks the one this function returns.
+        @returns string: Name of the product, or None when the data file
+        names none, which is the default
+        """
+        return None
+
     def refresh(self, identifier=None):
         """!
         Function called when datafile has been updated.

@@ -104,6 +104,31 @@ class DeviceDetectionDataFile(DataFile):
         else:
             return datetime.datetime.now()
 
+    # The Distributor's name for a Device Detection product is this, then
+    # the tier of its data file, as in V4TAC for the TAC data file and
+    # V4Enterprise for the Enterprise one.
+    PRODUCT_PREFIX = "V4"
+
+    def get_data_update_product(self):
+
+        """!
+        Get the Distributor's name for the product the data file in use is
+        of, which the data file update service asks for when the license
+        key holds several products
+        @returns string : name of the product, or None when the engine has
+        not loaded a data file
+        """
+
+        engine = getattr(self.flow_element, "engine", None)
+        if engine is None:
+            return None
+        tier = engine.getProduct()
+        if not tier:
+            return None
+        if tier.upper().startswith(self.PRODUCT_PREFIX):
+            return tier
+        return self.PRODUCT_PREFIX + tier
+
     def refresh(self):
 
         """!

@@ -206,6 +206,11 @@ UPDATE_EXAMPLE_LICENSE_KEY_VARIABLE = ExampleUtils.LICENSE_KEY_ENV_VAR
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-datafileupdate_console.py&utm_term=licence-key"
 DEFAULT_DATA_FILENAME = os.path.expanduser("~") + os.path.sep +  ENTERPRISE_DATAFILE_NAME
+# The product asked of the 51Degrees distributor when no other is given,
+# which is the Enterprise data file. A license key for another product needs
+# that product given as the third command line argument, such as V4TAC for
+# the TAC data file.
+DATA_UPDATE_PRODUCT_TYPE = "V4Enterprise"
 
 # Where to go next, printed when the example ends.
 FIND_OUT_MORE = [
@@ -310,7 +315,7 @@ class DataFileUpdateConsole():
 		finally:
 			shutil.rmtree(directory, ignore_errors=True)
 
-	def run(self, data_file, license_key, interactive, logger, output):
+	def run(self, data_file, license_key, interactive, logger, output, product = None):
 		logger.log("info", "Starting example")
 
 		# try to find a license key
@@ -414,7 +419,9 @@ class DataFileUpdateConsole():
 			# Watch the data file on disk and refresh the engine
 			# as soon as that file is updated.
 			file_system_watcher=True,
-			data_update_product_type="V4Enterprise",
+			# The product the license key holds, which the 51Degrees
+			# distributor is asked for.
+			data_update_product_type = product if product else DATA_UPDATE_PRODUCT_TYPE,
 			).add_logger(logger).build()
 
 		# The pipeline is closed at the end of the with block, which stops
@@ -467,11 +474,14 @@ def main(argv):
 	# file that is included in the repository.
 	license_key = argv[0] if len(argv) > 0 else None
 	data_file = argv[1] if len(argv) > 1 else None
+	# The product the license key holds, when it is not the Enterprise
+	# data file.
+	product = argv[2] if len(argv) > 2 else None
 
 	# Configure a logger to output to the console.
 	logger = Logger(min_level="info")
 
-	DataFileUpdateConsole().run(data_file, license_key, True, logger, print)
+	DataFileUpdateConsole().run(data_file, license_key, True, logger, print, product)
 
 	# Printed however the example ended, whether it updated the data file,
 	# had no licence key, or was stopped before the download.
