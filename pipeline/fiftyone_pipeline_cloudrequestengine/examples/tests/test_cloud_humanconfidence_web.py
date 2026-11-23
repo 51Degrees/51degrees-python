@@ -26,9 +26,10 @@ Flask's test client. The resource key has to carry HumanConfidence, which
 the example asks the cloud service about before anything else, and these
 tests skip themselves when no key is set or the key does not carry it.
 
-The passive tests check that HumanConfidenceSource comes back. A key in
-the Bespoke product gets Passive, as no browser tests have run, and a key
-outside it gets no source.
+The passive tests check that HumanConfidenceSource comes back. The Pro and
+Bespoke products offer it, and the Bespoke key gets Passive, as no browser
+tests have run. The Basic product does not offer HumanConfidenceSource, so
+a Basic key gets no source.
 
 Only the passive step is run here. The active step needs the browser tests,
 which only a browser runs.
@@ -54,8 +55,8 @@ HEADERS = {"User-Agent": DESKTOP_CHROME}
 # has too little to rate the request.
 LEVELS = ("High", "Medium", "Low", "Unknown")
 
-# The variable holding a resource key outside the Bespoke product.
-OUTSIDE_BESPOKE_KEY_NAME = "_51DEGREES_RESOURCE_KEY_BASIC"
+# The variable holding a resource key of the Basic product.
+BASIC_KEY_NAME = "_51DEGREES_RESOURCE_KEY_BASIC"
 
 # The properties the passive tests name in their request, so the answer
 # carries both whatever the key's own list of properties holds.
@@ -118,14 +119,15 @@ def test_passive_source_and_level_come_from_the_cloud(
     assert answer["humanConfidence"] in LEVELS
 
 
-def test_a_key_outside_bespoke_gets_no_source(api, naming_the_properties):
-    outside = read_environment(OUTSIDE_BESPOKE_KEY_NAME)
-    if not outside:
+def test_a_basic_key_gets_no_source(api, naming_the_properties):
+    """The Basic product does not offer HumanConfidenceSource."""
+    basic = read_environment(BASIC_KEY_NAME)
+    if not basic:
         pytest.skip(
-            f"{OUTSIDE_BESPOKE_KEY_NAME} is not set. Set it to a resource "
-            "key outside the Bespoke product to check that such a key gets "
-            "no HumanConfidenceSource.")
-    client = example.create_app(outside, None, api).test_client()
+            f"{BASIC_KEY_NAME} is not set. The Basic product does not offer "
+            "HumanConfidenceSource. Set the variable to a Basic resource "
+            "key to check that such a key gets no source.")
+    client = example.create_app(basic, None, api).test_client()
     answer = client.get("/passive", headers=HEADERS).get_json()
     assert "error" not in answer, "The cloud refused the request."
     assert answer["source"] is None, answer
