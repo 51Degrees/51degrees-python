@@ -163,6 +163,22 @@ Describe 'free-threaded-python.yml' {
         }
     }
 
+    It 'sets <Variable> to the restored <File> before the tests run' -ForEach @(
+        @{ Variable = '_51DEGREES_DD_PATH'; File = '51Degrees-LiteV4.1.hash' }
+        @{ Variable = '_51DEGREES_IPI_PATH'; File = '51Degrees-LiteV41.ipi' }
+    ) {
+        $paths = Get-Paths (@(Get-Step $script:Fetching[0] 'actions/cache')[0])
+        $paths | Should -Contain "cxx/data/**/$File"
+        foreach ($testing in $script:Testing) {
+            $text = $script:Jobs[$testing] -join "`n"
+            $set = [regex]::Match($text, ('(?m)^\s+\$env:' + $Variable +
+                    '\s*=\s*\(Resolve-Path cxx/data/[\w-]+/' +
+                    [regex]::Escape($File) + '\)\.Path\s*$'))
+            $set.Success | Should -BeTrue
+            $set.Index | Should -BeLessThan $text.IndexOf('python -m pytest')
+        }
+    }
+
     It 'caches each of the free data files the tests use' {
         $paths = Get-Paths (@(Get-Step $script:Fetching[0] 'actions/cache')[0])
         foreach ($file in '51Degrees-LiteV4.1.hash', '51Degrees-LiteV41.ipi',

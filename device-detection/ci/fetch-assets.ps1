@@ -24,3 +24,8 @@ foreach ($asset in $assets) {
         default {New-Item -ItemType SymbolicLink -Force -Target "$PWD/assets/$_" -Path "$deviceDetectionData/$_"}
     }
 }
+
+# The examples read their data file from this variable. common-ci runs the
+# tests in the same process as this script, so the variable is set in this
+# process, to the Lite file fetched above.
+$env:_51DEGREES_DD_PATH = (Resolve-Path "assets/51Degrees-LiteV4.1.hash").Path

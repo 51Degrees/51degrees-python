@@ -31,7 +31,8 @@ BeforeAll {
     $script:Saved = @(
         '_51DEGREES_RESOURCE_KEY', '_51DEGREES_RESOURCE_KEY_BESPOKE',
         '_51DEGREES_LICENSE_KEY', 'TEMP', 'GITHUB_ENV',
-        'GITHUB_JOB', 'PYTEST_ADDOPTS')
+        'GITHUB_JOB', 'PYTEST_ADDOPTS', '_51DEGREES_IPI_PATH',
+        '_51DEGREES_DD_PATH')
 
     function New-TempFolder {
         $path = Join-Path ([IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
@@ -301,9 +302,23 @@ Describe 'Keys under their _51DEGREES_ names' {
             @($calls.Others | Where-Object { $_ }) | Should -BeNullOrEmpty
         }
 
+        It 'points the examples at the Lite data file it fetched, in device-detection' {
+            $repoName = New-ProductRepo 'device-detection' 'fetch-assets.ps1'
+            Push-Location $script:CommonCi
+            try {
+                & (Join-Path $repoName 'ci' 'fetch-assets.ps1')
+            } finally {
+                Pop-Location
+            }
+
+            # common-ci runs the tests in the same process as the script, so
+            # the variable is set in this process.
+            $env:_51DEGREES_DD_PATH | Should -Be (Join-Path $script:CommonCi 'assets' '51Degrees-LiteV4.1.hash')
+            $env:_51DEGREES_DD_PATH | Should -Exist
+        }
+
         It 'asks common-ci for the Enterprise data file with no key or address, and points the tests at it, in ip-intelligence' {
             $repoName = New-ProductRepo 'ip-intelligence' 'fetch-assets.ps1'
-            $env:GITHUB_ENV = Join-Path $script:CommonCi 'github.env'
             Push-Location $script:CommonCi
             try {
                 & (Join-Path $repoName 'ci' 'fetch-assets.ps1')
@@ -314,7 +329,25 @@ Describe 'Keys under their _51DEGREES_ names' {
             $calls = @(Get-Content -Raw (Join-Path $script:CommonCi 'fetch.json') | ConvertFrom-Json)
             $calls.Assets | Should -Contain '51Degrees-EnterpriseIpiV41.ipi'
             @($calls.Others | Where-Object { $_ }) | Should -BeNullOrEmpty
-            Get-Content $env:GITHUB_ENV | Should -Match '^_51DEGREES_IPI_PATH=.*51Degrees-EnterpriseIpiV41\.ipi$'
+            # common-ci runs the tests in the same process as the script, so
+            # the variable is set in this process, to the file it fetched.
+            $env:_51DEGREES_IPI_PATH | Should -Be (Join-Path $script:CommonCi 'assets' '51Degrees-EnterpriseIpiV41.ipi')
+            $env:_51DEGREES_IPI_PATH | Should -Exist
+        }
+
+        It 'fetches the device detection Lite data file for the mixed examples, and points them at it, in ip-intelligence' {
+            $repoName = New-ProductRepo 'ip-intelligence' 'fetch-assets.ps1'
+            Push-Location $script:CommonCi
+            try {
+                & (Join-Path $repoName 'ci' 'fetch-assets.ps1')
+            } finally {
+                Pop-Location
+            }
+
+            $calls = @(Get-Content -Raw (Join-Path $script:CommonCi 'fetch.json') | ConvertFrom-Json)
+            $calls.Assets | Should -Contain '51Degrees-LiteV4.1.hash'
+            $env:_51DEGREES_DD_PATH | Should -Be (Join-Path $script:CommonCi 'assets' '51Degrees-LiteV4.1.hash')
+            $env:_51DEGREES_DD_PATH | Should -Exist
         }
     }
 

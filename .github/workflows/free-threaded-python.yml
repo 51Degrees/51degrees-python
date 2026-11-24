@@ -195,6 +195,10 @@ jobs:
 
       - name: Run the tests
         run: |
+          # The data file variables name the files restored above, before
+          # any test changes folder.
+          $env:_51DEGREES_DD_PATH = (Resolve-Path cxx/data/device-detection/51Degrees-LiteV4.1.hash).Path
+          $env:_51DEGREES_IPI_PATH = (Resolve-Path cxx/data/ip-intelligence/51Degrees-LiteV41.ipi).Path
           $failed = $false
           foreach ($package in 'device-detection/fiftyone_devicedetection_onpremise', 'ip-intelligence/fiftyone_ipintelligence_onpremise') {
             Write-Host "::group::$package"
