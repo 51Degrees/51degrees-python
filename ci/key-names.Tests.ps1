@@ -317,7 +317,7 @@ Describe 'Keys under their _51DEGREES_ names' {
             $env:_51DEGREES_DD_PATH | Should -Exist
         }
 
-        It 'asks common-ci for the Enterprise data file with no key or address, and points the tests at it, in ip-intelligence' {
+        It 'asks common-ci for the Enterprise data file with no key or address, in ip-intelligence' {
             $repoName = New-ProductRepo 'ip-intelligence' 'fetch-assets.ps1'
             Push-Location $script:CommonCi
             try {
@@ -329,9 +329,23 @@ Describe 'Keys under their _51DEGREES_ names' {
             $calls = @(Get-Content -Raw (Join-Path $script:CommonCi 'fetch.json') | ConvertFrom-Json)
             $calls.Assets | Should -Contain '51Degrees-EnterpriseIpiV41.ipi'
             @($calls.Others | Where-Object { $_ }) | Should -BeNullOrEmpty
+        }
+
+        It 'points the tests at the Lite data file it fetched, in ip-intelligence' {
+            $repoName = New-ProductRepo 'ip-intelligence' 'fetch-assets.ps1'
+            Push-Location $script:CommonCi
+            try {
+                & (Join-Path $repoName 'ci' 'fetch-assets.ps1')
+            } finally {
+                Pop-Location
+            }
+
+            # The tests and examples accept the Lite file, so they use it.
             # common-ci runs the tests in the same process as the script, so
             # the variable is set in this process, to the file it fetched.
-            $env:_51DEGREES_IPI_PATH | Should -Be (Join-Path $script:CommonCi 'assets' '51Degrees-EnterpriseIpiV41.ipi')
+            $calls = @(Get-Content -Raw (Join-Path $script:CommonCi 'fetch.json') | ConvertFrom-Json)
+            $calls.Assets | Should -Contain '51Degrees-LiteIpiV41.ipi'
+            $env:_51DEGREES_IPI_PATH | Should -Be (Join-Path $script:CommonCi 'assets' '51Degrees-LiteIpiV41.ipi')
             $env:_51DEGREES_IPI_PATH | Should -Exist
         }
 

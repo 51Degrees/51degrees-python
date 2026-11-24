@@ -36,8 +36,9 @@ $asn = '51Degrees-IPIV4AsnIpiV41.ipi'
 ./steps/fetch-assets.ps1 -Assets $asn
 Copy-Item "assets/$asn" $ipIntelligenceData
 
-# The tests prefer the Enterprise file, which they find through the
-# environment variable the test suites read. common-ci runs the tests in the
-# same process as this script, so the variable is set in this process.
-$env:_51DEGREES_IPI_PATH = (Resolve-Path "assets/51Degrees-EnterpriseIpiV41.ipi").Path
+# The tests and examples find their data file through the environment
+# variable the test suites read. They accept the Lite file, so it is the one
+# named. common-ci runs the tests in the same process as this script, so the
+# variable is set in this process.
+$env:_51DEGREES_IPI_PATH = (Resolve-Path "assets/51Degrees-LiteIpiV41.ipi").Path
 $env:_51DEGREES_DD_PATH = (Resolve-Path "assets/51Degrees-LiteV4.1.hash").Path

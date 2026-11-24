@@ -55,9 +55,8 @@ class PackageGettingStartedFromRootTests(unittest.TestCase):
         folder = os.getcwd()
         os.chdir(ROOT)
         try:
-            # The free file is the one under test, so a data file named in
-            # the environment, as CI names the Enterprise file, is set
-            # aside.
+            # The free file the example finds itself is the one under test,
+            # so a data file named in the environment is set aside.
             with mock.patch.dict(os.environ):
                 for name in (ExampleUtils.IPI_PATH_ENV_VAR,):
                     os.environ.pop(name, None)
