@@ -271,6 +271,23 @@ def test_page_redeems_only_a_sealed_value_and_waits_30_seconds(cloud):
     assert "var ACTIVE_LIMIT_MS = 30000;" in html
 
 
+def test_page_shows_no_result_for_a_failure_and_unknown_as_given(cloud):
+    cloud()
+    html = client_for().get("/").get_data(as_text=True)
+
+    # Any answer that is not a level, such as an error, a failed call, or
+    # a script that didn't load, shows No result. Unknown shows as Unknown.
+    assert "if (PLAIN.indexOf(level) < 0) { level = null; }" in html
+    assert 'element.textContent = level || "No result";' in html
+    assert 'Unknown: "c-eg-status--none"' in html
+    assert 'script.onerror = function () { show("active", null); };' in html
+    # The page says what Active Low and No result mean.
+    assert 'id="levels-line">Active Low is also given when' in html
+    assert "No result means no level arrived." in html
+    # No result is not shown while a redeem is on its way.
+    assert "if (!shown.active && !redeeming)" in html
+
+
 # The mode.
 
 def test_mode_is_client_side_by_default_and_kept_in_a_cookie(cloud):
@@ -494,10 +511,53 @@ def test_the_live_basic_key_test_skips_naming_its_variable(monkeypatch):
     monkeypatch.delenv(live.BASIC_KEY_NAME, raising=False)
 
     with pytest.raises(pytest.skip.Exception) as skipped:
-        live.test_a_basic_key_gets_a_passive_level(API, None)
+        live.test_a_basic_key_gets_a_passive_level(API, None, None)
 
     assert live.BASIC_KEY_NAME == "_51DEGREES_RESOURCE_KEY_BASIC"
     assert f"{live.BASIC_KEY_NAME} is not set" in str(skipped.value)
+
+
+@pytest.fixture
+def basic_key(cloud, monkeypatch):
+    """Sets the Basic key variable and the address of the stand-in for the
+    cloud service, as the live Basic key test reads them."""
+    monkeypatch.setenv(live.BASIC_KEY_NAME, RESOURCE_KEY)
+    monkeypatch.setenv(ExampleUtils.CLOUD_ENDPOINT_ENV_VAR, API)
+    monkeypatch.delenv(ExampleUtils.LICENSE_KEY_ENV_VAR, raising=False)
+    return cloud
+
+
+# The live Basic key test passes only on a level, or, for a key that does
+# not carry HumanConfidence, on the contact link the example gives.
+def test_the_live_basic_key_test_passes_on_a_level(basic_key, capsys):
+    basic_key()
+
+    live.test_a_basic_key_gets_a_passive_level(API, None, capsys)
+
+
+def test_the_live_basic_key_test_fails_on_no_level(basic_key, capsys):
+    stub = basic_key()
+    stub.instead[".json"] = StubResponse({"derived": {
+        "humanconfidence": None, "humanconfidencesource": None}})
+
+    with pytest.raises(AssertionError):
+        live.test_a_basic_key_gets_a_passive_level(API, None, capsys)
+
+
+def test_the_live_basic_key_test_passes_on_the_contact_link(
+        basic_key, capsys):
+    basic_key(properties=("IsMobile",))
+
+    live.test_a_basic_key_gets_a_passive_level(API, None, capsys)
+
+
+def test_the_live_basic_key_test_fails_on_no_contact_link(
+        basic_key, capsys, monkeypatch):
+    basic_key(properties=("IsMobile",))
+    monkeypatch.setattr(example, "main", lambda argv: None)
+
+    with pytest.raises(pytest.fail.Exception):
+        live.test_a_basic_key_gets_a_passive_level(API, None, capsys)
 
 
 def test_passive_says_what_the_cloud_refused(cloud):

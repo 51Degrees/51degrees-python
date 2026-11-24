@@ -28,7 +28,9 @@ tests skip themselves when no key is set or the key does not carry it.
 
 The passive tests check that the example gives a level from the cloud's
 answer, and describes the request it sent. A Basic key, whose product does
-not offer HumanConfidenceSource, is checked the same way.
+not offer HumanConfidenceSource, gets a level when the cloud says it
+carries HumanConfidence, and is otherwise given the contact link when the
+example starts.
 
 Only the passive step is run here. The active step needs the browser tests,
 which only a browser runs.
@@ -119,18 +121,28 @@ def test_passive_level_comes_from_the_cloud(client, key, api,
     assert answer["sent"]["url"] == api + key + ".json"
 
 
-def test_a_basic_key_gets_a_passive_level(api, naming_the_properties):
-    """The Basic product does not offer HumanConfidenceSource, and the
-    passive call still works with its key."""
+def test_a_basic_key_gets_a_passive_level(api, naming_the_properties,
+                                         capsys):
+    """The Basic product does not offer HumanConfidenceSource. When the
+    cloud says its key carries HumanConfidence, the passive call gives a
+    level. When it says the key does not, the example ends at start with
+    the contact link, as a user running it with that key sees."""
     basic = read_environment(BASIC_KEY_NAME)
     if not basic:
         pytest.skip(
             f"{BASIC_KEY_NAME} is not set. Set the variable to a Resource "
             "Key of the Basic product to check the passive call with it.")
-    client = example.create_app(basic, None, api).test_client()
-    answer = client.get("/passive", headers=HEADERS).get_json()
-    assert "error" not in answer, "The cloud refused the request."
-    assert answer["humanConfidence"] in LEVELS + (None,)
+    if example.carries_human_confidence(api, basic):
+        client = example.create_app(basic, None, api).test_client()
+        answer = client.get("/passive", headers=HEADERS).get_json()
+        assert "error" not in answer, "The cloud refused the request."
+        assert answer["humanConfidence"] in LEVELS
+    else:
+        with pytest.raises(SystemExit) as stopped:
+            example.main([basic])
+        assert stopped.value.code == 1
+        printed = capsys.readouterr().out
+        assert "Contact us: https://51degrees.com/contact-us" in printed
 
 
 def test_license_key_never_reaches_the_browser(client):

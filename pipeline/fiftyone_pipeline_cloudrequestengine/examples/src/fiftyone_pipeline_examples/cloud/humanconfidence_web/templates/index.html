@@ -76,6 +76,8 @@
       </tr>
     </tbody>
   </table>
+  <p class="c-eg-page__lead" id="levels-line">Active Low is also given when
+  the sealed value can't be redeemed. No result means no level arrived.</p>
 
   <p class="c-eg-page__lead">Try it on your own site. <a href="https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-humanconfidence_web-templates-index.html&utm_term=try-it-configurator">Create a Resource Key in the 51Degrees Configurator</a>.</p>
 
@@ -125,7 +127,7 @@
   // How long to wait for the browser tests' sealed value.
   var ACTIVE_LIMIT_MS = 30000;
   var CLASSES = { High: "c-eg-status--pass", Medium: "c-eg-status--part",
-    Low: "c-eg-status--fail" };
+    Low: "c-eg-status--fail", Unknown: "c-eg-status--none" };
 
   // Both rows show from the start, each with a running timer until its
   // level arrives, so it is clear something is happening.
@@ -140,13 +142,15 @@
   }
   tick();
 
-  // Shows a level, Low when there is none to show.
+  // Shows a level as the cloud gave it, Unknown included, or No result
+  // when there is none to show, as when a call failed.
   function show(id, level) {
-    if (LEVELS.indexOf(level) < 0) { level = "Low"; }
+    if (PLAIN.indexOf(level) < 0) { level = null; }
     shown[id] = true;
     var element = document.getElementById(id);
-    element.textContent = level;
-    element.className = "hc-level c-eg-status " + CLASSES[level];
+    element.textContent = level || "No result";
+    element.className = "hc-level c-eg-status " +
+      (level ? CLASSES[level] : "c-eg-status--none");
   }
 
   // Form encoding with every character a shell treats specially escaped,
@@ -287,17 +291,23 @@
 
   // Active. Each new sealed value goes to this server to redeem, and only
   // the answer for the newest one is shown.
-  var seen = null, latest = 0;
+  var seen = null, latest = 0, redeeming = 0;
   function redeem(value) {
     var mine = ++latest;
+    redeeming++;
+    function done() { redeeming--; }
     var body = new URLSearchParams();
     body.set("value", value);
     originalFetch("redeem", { method: "POST", body: body })
       .then(function (r) { return r.json(); })
       .then(function (answer) {
+        done();
         if (mine === latest) { show("active", answer.humanConfidence); }
       })
-      .catch(function () { if (mine === latest) { show("active", null); } });
+      .catch(function () {
+        done();
+        if (mine === latest) { show("active", null); }
+      });
   }
 
   // The script's third party cookie check calls window.fodTpcEndpoint, or
@@ -331,16 +341,13 @@
   };
   document.head.appendChild(script);
 
-  // The browser tests take a few seconds. If no sealed value has come back
-  // by then, the answers didn't reach the cloud, so the timer stops and the
-  // row says so rather than running on, or showing a level for tests that
-  // didn't run. A sealed value that arrives later still replaces it.
+  // The browser tests take a few seconds. If no sealed value has arrived
+  // by then, the timer stops and the row says No result rather than
+  // running on, or showing a level for tests that didn't run. A redeem
+  // still on its way is left to give its level, and a sealed value that
+  // arrives later still replaces No result.
   setTimeout(function () {
-    if (shown.active) { return; }
-    shown.active = true;
-    var element = document.getElementById("active");
-    element.textContent = "No result";
-    element.className = "hc-level c-eg-status c-eg-status--none";
+    if (!shown.active && !redeeming) { show("active", null); }
   }, ACTIVE_LIMIT_MS);
 })();
 </script>

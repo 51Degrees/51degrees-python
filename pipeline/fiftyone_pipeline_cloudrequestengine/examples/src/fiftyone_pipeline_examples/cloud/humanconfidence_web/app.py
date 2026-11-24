@@ -38,8 +38,8 @@
 #    server redeems the sealed value with the License Key, which the
 #    browser never sees, and gets the level. Redeeming needs a cloud that
 #    offers the redeem call (POST hc/redeem). A sealed value that can't be
-#    redeemed gives Active Low, and if no sealed value arrives within 30
-#    seconds the page says No result.
+#    redeemed gives Active Low. When a call fails, or no sealed value
+#    arrives within 30 seconds, the page says No result.
 #
 # The Resource Key is put in the page, as the 51Degrees client script is
 # loaded with it. The License Key stays on this server.
@@ -333,7 +333,7 @@ def create_app(resource_key, license_key, api):
         except (requests.RequestException, CloudRequestException,
                 ValueError):
             # An empty script with a failing status, so the page's script
-            # element fails and the page shows Active Low.
+            # element fails and the page shows No result for Active.
             return Response(
                 "", status=502, content_type="application/javascript")
         here = request.host_url + "hc/cloud/"
