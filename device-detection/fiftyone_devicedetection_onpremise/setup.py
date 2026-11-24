@@ -129,9 +129,9 @@ extra_link_args = []
 # Extra compilation flags for C library
 cflags = []
 
-# Every warning is on and is an error, for the wrapper, the C++ and the C
-# alike. -Wunused-result comes after the flags Python was built with, which
-# can turn it off.
+# The warnings of -Wall -Wextra and /W4 are on and are errors, for the
+# wrapper, the C++ and the C alike. -Wunused-result comes after the flags
+# Python was built with, which can turn it off.
 if sys.platform != "win32":
     extra_compile_args.extend([
         '-fPIC',
@@ -153,14 +153,12 @@ if sys.platform != "win32":
 if sys.platform == "win32":
     extra_compile_args.extend([
         '/std:c++17',
-        '/D_CRT_SECURE_NO_WARNINGS',
         '/D_UNICODE',
         '/DUNICODE',
         '/W4',
         '/WX'
     ])
     cflags.extend([
-        '/D_CRT_SECURE_NO_WARNINGS',
         '/D_UNICODE',
         '/DUNICODE',
         '/W4',
@@ -169,6 +167,13 @@ if sys.platform == "win32":
     extra_link_args.extend([
         '/WX'
     ])
+
+# Given to the cxx C and C++ sources only, not to the wrapper. The cxx sources
+# still call C runtime functions that MSVC deprecates (C4996). Remove this
+# once they no longer do.
+cxx_source_args = []
+if sys.platform == "win32":
+    cxx_source_args = ['/D_CRT_SECURE_NO_WARNINGS']
 
 if sys.platform == "linux":
     extra_link_args.extend([
@@ -202,7 +207,7 @@ cpplib = ('cpplib', {
             # Hash C++
             *glob("src/fiftyone_devicedetection_onpremise/cxx/src/dd/hash/*.cpp"),
             ],
-        'cflags': extra_compile_args
+        'cflags': extra_compile_args + cxx_source_args
     })
 
 clib = ('clib', {
@@ -214,7 +219,7 @@ clib = ('clib', {
             # Hash C
             *glob("src/fiftyone_devicedetection_onpremise/cxx/src/dd/hash/*.c"),
         ],
-        'cflags': cflags
+        'cflags': cflags + cxx_source_args
     })
 
 setup(

@@ -147,9 +147,9 @@ cflags = [
     '-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1',
     '-DFIFTYONE_DEGREES_REDUCED_FILE=1']
 
-# Every warning is on and is an error, for the wrapper, the C++ and the C
-# alike. -Wunused-result comes after the flags Python was built with, which
-# can turn it off.
+# The warnings of -Wall -Wextra and /W4 are on and are errors, for the
+# wrapper, the C++ and the C alike. -Wunused-result comes after the flags
+# Python was built with, which can turn it off.
 if sys.platform != "win32":
     extra_compile_args.extend([
         '-fPIC',
@@ -173,14 +173,12 @@ if sys.platform != "win32":
 if sys.platform == "win32":
     extra_compile_args.extend([
         '/std:c++17',
-        '/D_CRT_SECURE_NO_WARNINGS',
         '/D_UNICODE',
         '/DUNICODE',
         '/W4',
         '/WX'
     ])
     cflags.extend([
-        '/D_CRT_SECURE_NO_WARNINGS',
         '/D_UNICODE',
         '/DUNICODE',
         '/W4',
@@ -189,6 +187,13 @@ if sys.platform == "win32":
     extra_link_args.extend([
         '/WX'
     ])
+
+# Given to the cxx C and C++ sources only, not to the wrapper. The cxx sources
+# still call C runtime functions that MSVC deprecates (C4996). Remove this
+# once they no longer do.
+cxx_source_args = []
+if sys.platform == "win32":
+    cxx_source_args = ['/D_CRT_SECURE_NO_WARNINGS']
 
 if sys.platform == "linux":
     extra_link_args.extend([
@@ -220,7 +225,7 @@ cpplib = ('cpplib', {
             # IP Intelligence C++
             *glob("src/fiftyone_ipintelligence_onpremise/cxx/src/ipi/*.cpp"),
             ],
-        'cflags': extra_compile_args
+        'cflags': extra_compile_args + cxx_source_args
     })
 
 clib = ('clib', {
@@ -232,7 +237,7 @@ clib = ('clib', {
             # IP Graph C
             *glob("src/fiftyone_ipintelligence_onpremise/cxx/src/ipi/graph/*.c"),
         ],
-        'cflags': cflags
+        'cflags': cflags + cxx_source_args
     })
 
 setup(
