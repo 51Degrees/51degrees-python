@@ -20,6 +20,25 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+/* Every compiler warning is on in the wrapper, so SWIG is asked not to turn
+ * off any of its own. SWIG's runtime defines helper functions that a module
+ * may not call. GCC and Clang are told so by SWIG's unused attribute, which
+ * MSVC has no equivalent for, so on MSVC they are inline, as unused inline
+ * functions are expected. The overloads are told apart by the arguments that
+ * differ only (fast dispatch), which also keeps each check in a scope of its
+ * own so no local hides another. */
+%begin %{
+#define SWIG_MSC_UNSUPPRESS_4505
+#define SWIG_NO_CRT_SECURE_NO_DEPRECATE
+#define SWIG_NO_SCL_SECURE_NO_DEPRECATE
+#if defined(_MSC_VER)
+#define SWIGINTERN static inline
+#define SWIGINTERNINLINE static inline
+#define SWIGRUNTIMEINLINE static inline
+#endif
+%}
+%feature("fastdispatch");
+
 %include <pybuffer.i>
 %pybuffer_binary(unsigned char data[], long length);
 %rename(refreshDataFromFile) refreshData(const char *fileName);

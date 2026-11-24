@@ -129,21 +129,24 @@ extra_link_args = []
 # Extra compilation flags for C library
 cflags = []
 
+# Every warning is on and is an error, for the wrapper, the C++ and the C
+# alike. -Wunused-result comes after the flags Python was built with, which
+# can turn it off.
 if sys.platform != "win32":
     extra_compile_args.extend([
         '-fPIC',
         '-std=gnu++17',
         '-Wall',
-        # '-Werror'
+        '-Wextra',
+        '-Wunused-result',
+        '-Werror'
     ])
     cflags.extend([
         '-std=gnu11',
         '-Wall',
-        # '-Werror',
-        '-Wno-strict-prototypes',
-        '-Wno-unused-variable',
-        '-Wno-missing-braces',
-        '-Wno-strict-aliasing'
+        '-Wextra',
+        '-Wunused-result',
+        '-Werror'
     ])
 
 
@@ -154,19 +157,14 @@ if sys.platform == "win32":
         '/D_UNICODE',
         '/DUNICODE',
         '/W4',
-        # '/WX',
-        '/wd4127',
-        '/wd4456',
-        '/wd4701',
-        '/wd4703',
-        '/wd4706'
+        '/WX'
     ])
     cflags.extend([
         '/D_CRT_SECURE_NO_WARNINGS',
         '/D_UNICODE',
         '/DUNICODE',
         '/W4',
-        # '/WX'
+        '/WX'
     ])
     extra_link_args.extend([
         '/WX'
@@ -181,13 +179,6 @@ if sys.platform == 'darwin':
     # This is flaged in CPython
     extra_compile_args.extend([
         '-DGCC_ENABLE_CPP_EXCEPTIONS=YES'
-    ])
-    if sys.version_info[0] == 3 and sys.version_info[1] == 8:
-        extra_compile_args.extend([
-            '-Wno-deprecated-declarations'
-    ])
-    cflags.extend([
-        '-Wno-atomic-alignment'
     ])
 
 DeviceDetectionHashEngineModule = Extension('_DeviceDetectionHashEngineModule',
