@@ -550,6 +550,33 @@ Describe 'Keys under their _51DEGREES_ names' {
             $result.ExitCode | Should -Be 0
             $result.Output | Should -Match 'pytest ran'
         }
+
+        # The workflow runs for a pull request that changes one of its
+        # pull_request paths, so each path it names is a file in this
+        # repository.
+        It 'run for a pull request on files that exist, in the Cloud Human Confidence workflow' {
+            $lines = @(Get-Content (Join-Path $script:Root '.github/workflows/cloud-human-confidence.yml'))
+            $trigger = ($lines | Select-String -Pattern '^(\s*)pull_request:\s*$' |
+                Select-Object -First 1)
+            $trigger | Should -Not -BeNullOrEmpty
+            $indent = $trigger.Matches[0].Groups[1].Value.Length
+            $paths = @()
+            $inPaths = $false
+            foreach ($line in $lines | Select-Object -Skip $trigger.LineNumber) {
+                if (-not $line.Trim() -or $line.Trim().StartsWith('#')) { continue }
+                if ($line -notmatch "^\s{$($indent + 1),}") { break }
+                if ($line -match '^\s*paths:\s*$') { $inPaths = $true; continue }
+                if ($inPaths -and $line -match '^\s*-\s*[''"]?(?<path>[^''"]+?)[''"]?\s*$') {
+                    $paths += $Matches['path']
+                } elseif ($inPaths) {
+                    break
+                }
+            }
+            $paths | Should -Not -BeNullOrEmpty
+            $paths | Where-Object { $_ -notmatch '[*?\[!]' } |
+                Where-Object { -not (Test-Path -LiteralPath (Join-Path $script:Root $_) -PathType Leaf) } |
+                Should -BeNullOrEmpty
+        }
     }
 
     Describe 'The live cloud tests' {

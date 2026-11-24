@@ -39,6 +39,7 @@ on:
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/pyproject.toml'
       - 'ci/write-package-versions.ps1'
       - 'ci/packages.ps1'
+      - 'ci/packages.json'
       - '.github/workflows/cloud-human-confidence.yml'
 
 permissions:
