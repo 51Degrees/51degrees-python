@@ -27,11 +27,13 @@ import sys
 import platform
 from setuptools import setup, Extension
 from setuptools.command import develop
+from setuptools.command.build_clib import build_clib
 from distutils import sysconfig
 from Cython.Distutils import build_ext
 from glob import glob
 import os
 import io
+import re
 import shutil
 
 # Read a text file and return the content as a string.
@@ -72,7 +74,28 @@ def get_version():
     python_version = str(sys.version_info[0])
     return version + python_version
 
+def remove_msvc_warning_level(compiler):
+
+    """Take the warning level that setuptools gives MSVC out of its options,
+    so /W4 below is the only level. cl warns (D9025) when one level overrides
+    another, and /WX does not make that warning an error."""
+    if compiler.compiler_type != "msvc":
+        return
+    if not compiler.initialized:
+        compiler.initialize()
+    for options in (compiler.compile_options, compiler.compile_options_debug):
+        options[:] = [o for o in options if not re.fullmatch(r"/W\d", o)]
+
+class LibraryBuilder(build_clib):
+    def build_libraries(self, libraries):
+        remove_msvc_warning_level(self.compiler)
+        super().build_libraries(libraries)
+
 class NoSuffixBuilder(build_ext):
+    def build_extensions(self):
+        remove_msvc_warning_level(self.compiler)
+        super().build_extensions()
+
     def get_ext_filename(self, ext_name):
         filename = super().get_ext_filename(ext_name)
         suffix = sysconfig.get_config_var('EXT_SUFFIX')
@@ -168,13 +191,6 @@ if sys.platform == "win32":
         '/WX'
     ])
 
-# Given to the cxx C and C++ sources only, not to the wrapper. The cxx sources
-# still call C runtime functions that MSVC deprecates (C4996). Remove this
-# once they no longer do.
-cxx_source_args = []
-if sys.platform == "win32":
-    cxx_source_args = ['/D_CRT_SECURE_NO_WARNINGS']
-
 if sys.platform == "linux":
     extra_link_args.extend([
         '-latomic'
@@ -207,7 +223,7 @@ cpplib = ('cpplib', {
             # Hash C++
             *glob("src/fiftyone_devicedetection_onpremise/cxx/src/dd/hash/*.cpp"),
             ],
-        'cflags': extra_compile_args + cxx_source_args
+        'cflags': extra_compile_args
     })
 
 clib = ('clib', {
@@ -219,11 +235,11 @@ clib = ('clib', {
             # Hash C
             *glob("src/fiftyone_devicedetection_onpremise/cxx/src/dd/hash/*.c"),
         ],
-        'cflags': cflags + cxx_source_args
+        'cflags': cflags
     })
 
 setup(
-    cmdclass={"build_ext": NoSuffixBuilder},
+    cmdclass={"build_ext": NoSuffixBuilder, "build_clib": LibraryBuilder},
     name="fiftyone_devicedetection_onpremise",
     version=read("version.txt"),
     author="51Degrees Engineering",

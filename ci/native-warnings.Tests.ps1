@@ -1,8 +1,9 @@
 # Tests that the two on-premise packages build their native code, the SWIG
 # wrapper, the C++ and the C, with the warnings of -Wall -Wextra and /W4 on and
 # treated as errors, and that nothing turns a warning off: no -Wno-* or /wd
-# flag, no lower warning level, no commented out -Werror or /WX, and no pragma
-# in a wrapper other than those SWIG writes and the interface file lists.
+# flag, no lower warning level, no C runtime define that turns deprecation
+# warnings off, no commented out -Werror or /WX, and no pragma in a wrapper
+# other than those SWIG writes and the interface file lists.
 # setup.py, the interface files and the wrappers are read as text.
 
 BeforeDiscovery {
@@ -39,9 +40,16 @@ Describe '<Name> native build flags' -ForEach $Packages {
 
     It 'turns no warning off and lowers no warning level' {
         $switches = @($script:Code | Where-Object {
-            $_ -match "-Wno-|/wd\d|'-w'|'/w'|'/W[0-3]'"
+            $_ -match "-Wno-|/wd\d|/w[1-4]\d|'-w'|'/w'|'/W[0-3]'|/external:W0"
         })
         $switches | Should -BeNullOrEmpty
+    }
+
+    It 'defines nothing that turns off the C runtime deprecation warnings' {
+        $defines = @($script:Code | Where-Object {
+            $_ -match '_CRT_SECURE_NO_WARNINGS|(?<!SWIG_NO)_CRT_SECURE_NO_DEPRECATE|_CRT_NONSTDC_NO_DEPRECATE'
+        })
+        $defines | Should -BeNullOrEmpty
     }
 
     It 'has no -Werror or /WX commented out' {
@@ -62,19 +70,21 @@ Describe '<Name> native build flags' -ForEach $Packages {
         Get-Count "'/WX'" | Should -BeGreaterOrEqual 3
     }
 
-    It 'gives the wrapper its own flags' {
-        Get-Count '^\s*extra_compile_args=extra_compile_args,' |
+    It 'takes the warning level setuptools gives MSVC out, so /W4 is the only one' {
+        # cl warns (D9025) when /W4 overrides another level, and /WX does not
+        # make that an error.
+        Get-Count '^\s*def remove_msvc_warning_level\(compiler\):' |
+            Should -Be 1
+        Get-Count 'compiler\.compile_options,\s*compiler\.compile_options_debug' |
+            Should -Be 1
+        Get-Count '^\s*remove_msvc_warning_level\(self\.compiler\)' |
+            Should -Be 2
+        Get-Count '^\s*cmdclass=\{"build_ext":\s*NoSuffixBuilder,\s*"build_clib":\s*LibraryBuilder\}' |
             Should -Be 1
     }
 
-    It 'gives the C runtime deprecation define to the cxx sources only' {
-        $define = @($script:Code |
-            Where-Object { $_ -match '_CRT_SECURE_NO_WARNINGS' })
-        $define.Count | Should -Be 1
-        $define[0] | Should -Match '^\s*cxx_source_args\s*=\s*\['
-        Get-Count "'cflags':\s*extra_compile_args\s*\+\s*cxx_source_args" |
-            Should -Be 1
-        Get-Count "'cflags':\s*cflags\s*\+\s*cxx_source_args" |
+    It 'gives the wrapper its own flags' {
+        Get-Count '^\s*extra_compile_args=extra_compile_args,' |
             Should -Be 1
     }
 }
