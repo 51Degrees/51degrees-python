@@ -37,9 +37,10 @@
 #    the answers to the cloud, which answers with a sealed value. This
 #    server redeems the sealed value with the License Key, which the
 #    browser never sees, and gets the level. Redeeming needs a cloud that
-#    offers the redeem call (POST hc/redeem). A sealed value that can't be
-#    redeemed gives Active Low. When a call fails, or no sealed value
-#    arrives within 30 seconds, the page says No result.
+#    offers the redeem call (POST hc/redeem). A sealed value the cloud
+#    refuses gives Active Low. When a call fails, the cloud doesn't offer
+#    redeem, or no sealed value arrives within 30 seconds, the page says No
+#    result.
 #
 # The Resource Key is put in the page, as the 51Degrees client script is
 # loaded with it. The License Key stays on this server.
@@ -103,8 +104,14 @@ TIMEOUT = 10
 MODES = ("client", "server")
 MODE_COOKIE = "hc_mode"
 
-# The levels, highest first. A level the cloud doesn't give is the last.
+# The levels, highest first. A sealed value the cloud refuses gets the
+# last.
 LEVELS = ("High", "Medium", "Low")
+
+# The statuses of a redeem answer that are the cloud's verdict on the
+# sealed value: redeemed, or refused as expired, replayed or unreadable.
+# Any other status means the redeem didn't happen.
+REDEEM_ANSWERED = (200, 400)
 
 # The 51Degrees cloud hosts. The host of the endpoint in use, such as a
 # private cloud in Docker, counts as a cloud host too.
@@ -297,8 +304,10 @@ def create_app(resource_key, license_key, api):
 
     # Redeem: the page, or a terminal, sends a sealed value, and this server
     # redeems it with the License Key. Only the level goes back. A value
-    # that doesn't redeem gives Low, as nothing then shows a person is
-    # there. The cloud's own answer is never sent back.
+    # the cloud refuses gives Low, as nothing then shows a person is there.
+    # When the cloud can't be reached, doesn't offer redeem or gives an
+    # answer that isn't JSON, there is no level, and the page says No
+    # result. The cloud's own answer is never sent back.
     @app.route("/redeem", methods=["POST"])
     def redeem():
 
@@ -306,13 +315,17 @@ def create_app(resource_key, license_key, api):
         fields = {"value": sealed}
         if license_key:
             fields["license"] = license_key
-        level = None
         try:
             answer = requests.request(
                 "POST", api + "hc/redeem", data=fields, timeout=TIMEOUT)
-            level = read(answer.json(), "humanConfidence")
+            if answer.status_code not in REDEEM_ANSWERED:
+                return jsonify(humanConfidence=None)
+            verdict = answer.json()
         except (requests.RequestException, ValueError):
-            pass
+            return jsonify(humanConfidence=None)
+        if not isinstance(verdict, dict):
+            return jsonify(humanConfidence=None)
+        level = read(verdict, "humanConfidence")
         if level not in LEVELS:
             level = LEVELS[-1]
         return jsonify(humanConfidence=level)
@@ -516,7 +529,8 @@ def main(argv):
     if not license_key.strip():
         print(f"No {ExampleUtils.LICENSE_KEY_ENV_VAR} set. The page still "
               "shows Passive and Active, but an account that holds License "
-              "Keys can't redeem without one, so Active will show Low.")
+              "Keys can't redeem without one, so Active will show Low or No "
+              "result.")
 
     app = create_app(resource_key, license_key, api)
     port = os.environ.get("_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)

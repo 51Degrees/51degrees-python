@@ -284,8 +284,11 @@ def test_page_shows_no_result_for_a_failure_and_unknown_as_given(cloud):
     # The page says what Active Low and No result mean.
     assert 'id="levels-line">Active Low is also given when' in html
     assert "No result means no level arrived." in html
-    # No result is not shown while a redeem is on its way.
+    # No result is not shown while a redeem is on its way, and a redeem
+    # that this server doesn't answer in 15 seconds is given up.
     assert "if (!shown.active && !redeeming)" in html
+    assert "var REDEEM_LIMIT_MS = 15000;" in html
+    assert "signal: abort.signal" in html
 
 
 # The mode.
@@ -511,7 +514,7 @@ def test_the_live_basic_key_test_skips_naming_its_variable(monkeypatch):
     monkeypatch.delenv(live.BASIC_KEY_NAME, raising=False)
 
     with pytest.raises(pytest.skip.Exception) as skipped:
-        live.test_a_basic_key_gets_a_passive_level(API, None, None)
+        live.test_a_key_outside_bespoke_gets_no_source(API)
 
     assert live.BASIC_KEY_NAME == "_51DEGREES_RESOURCE_KEY_BASIC"
     assert f"{live.BASIC_KEY_NAME} is not set" in str(skipped.value)
@@ -519,45 +522,60 @@ def test_the_live_basic_key_test_skips_naming_its_variable(monkeypatch):
 
 @pytest.fixture
 def basic_key(cloud, monkeypatch):
-    """Sets the Basic key variable and the address of the stand-in for the
-    cloud service, as the live Basic key test reads them."""
+    """Sets the Basic key variable, as the live Basic key test reads it."""
     monkeypatch.setenv(live.BASIC_KEY_NAME, RESOURCE_KEY)
-    monkeypatch.setenv(ExampleUtils.CLOUD_ENDPOINT_ENV_VAR, API)
-    monkeypatch.delenv(ExampleUtils.LICENSE_KEY_ENV_VAR, raising=False)
     return cloud
 
 
-# The live Basic key test passes only on a level, or, for a key that does
-# not carry HumanConfidence, on the contact link the example gives.
-def test_the_live_basic_key_test_passes_on_a_level(basic_key, capsys):
-    basic_key()
+NO_SOURCE = {
+    "humanconfidence": "Medium",
+    "humanconfidencesource": None,
+    "humanconfidencesourcenullreason":
+        "The key does not give this property a value."}
 
-    live.test_a_basic_key_gets_a_passive_level(API, None, capsys)
 
-
-def test_the_live_basic_key_test_fails_on_no_level(basic_key, capsys):
+def test_the_live_basic_key_test_passes_on_no_source(basic_key):
     stub = basic_key()
-    stub.instead[".json"] = StubResponse({"derived": {
-        "humanconfidence": None, "humanconfidencesource": None}})
+    stub.instead[".json"] = StubResponse({"derived": NO_SOURCE})
 
-    with pytest.raises(AssertionError):
-        live.test_a_basic_key_gets_a_passive_level(API, None, capsys)
+    live.test_a_key_outside_bespoke_gets_no_source(API)
 
-
-def test_the_live_basic_key_test_passes_on_the_contact_link(
-        basic_key, capsys):
-    basic_key(properties=("IsMobile",))
-
-    live.test_a_basic_key_gets_a_passive_level(API, None, capsys)
+    method, url, data = stub.requests[-1]
+    assert (method, url) == ("POST", API + RESOURCE_KEY + ".json")
+    assert data["values"] == live.PROPERTIES
 
 
-def test_the_live_basic_key_test_fails_on_no_contact_link(
-        basic_key, capsys, monkeypatch):
-    basic_key(properties=("IsMobile",))
-    monkeypatch.setattr(example, "main", lambda argv: None)
+# The live Basic key test fails on any answer but a null source with a
+# reason, and never names the key.
+@pytest.mark.parametrize("answer", [
+    StubResponse({"derived": dict(
+        NO_SOURCE, humanconfidencesource="Passive")}),
+    StubResponse({"derived": {"humanconfidence": "Medium"}}),
+    StubResponse({"derived": dict(NO_SOURCE,
+                                  humanconfidencesourcenullreason=None)}),
+    StubResponse({"device": {}}),
+    StubResponse('{"errors":["The key ' + RESOURCE_KEY + ' is not valid."]}',
+                 400),
+], ids=["a-source", "no-source", "no-reason", "no-derived", "refused"])
+def test_the_live_basic_key_test_fails_on_any_other_answer(basic_key, answer):
+    stub = basic_key()
+    stub.instead[".json"] = answer
 
-    with pytest.raises(pytest.fail.Exception):
-        live.test_a_basic_key_gets_a_passive_level(API, None, capsys)
+    with pytest.raises(AssertionError) as failed:
+        live.test_a_key_outside_bespoke_gets_no_source(API)
+
+    assert RESOURCE_KEY not in str(failed.value)
+
+
+def test_the_live_basic_key_test_fails_on_no_answer(basic_key):
+    stub = basic_key()
+    stub.instead[".json"] = requests.exceptions.ConnectionError(
+        "Max retries exceeded with url: /api/v4/" + RESOURCE_KEY + ".json")
+
+    with pytest.raises(pytest.fail.Exception) as failed:
+        live.test_a_key_outside_bespoke_gets_no_source(API)
+
+    assert RESOURCE_KEY not in str(failed.value)
 
 
 def test_passive_says_what_the_cloud_refused(cloud):
@@ -613,24 +631,44 @@ def test_redeem_without_a_license_key_sends_none(cloud):
     assert stub.requests[-1][2] == {"value": "a-sealed-value"}
 
 
+# The cloud answered and refused the sealed value, or answered with no
+# level, so nothing shows a person is there.
 @pytest.mark.parametrize("answer", [
     StubResponse('{"result":"expired"}', 400),
     StubResponse('{"result":"unreadable"}', 400),
-    StubResponse("Not Found", 404),
+    StubResponse('{"result":"replayed"}'),
     StubResponse('{"humanConfidence":"Unknown"}'),
     StubResponse('{"humanConfidence":"a-sealed-value"}'),
-    requests.exceptions.ConnectionError(
-        "The stand-in service cannot be reached."),
-    requests.exceptions.Timeout("The stand-in service took too long."),
-], ids=["expired", "unreadable", "not-offered", "unknown", "not-a-level",
-        "unreachable", "timeout"])
-def test_value_that_does_not_redeem_gives_low(cloud, answer):
+], ids=["expired", "unreadable", "replayed", "unknown", "not-a-level"])
+def test_value_the_cloud_refuses_gives_low(cloud, answer):
     stub = cloud()
     stub.instead["hc/redeem"] = answer
     response = client_for().post("/redeem", data={"value": "a-sealed-value"})
 
     assert response.status_code == 200
     assert response.get_json() == {"humanConfidence": "Low"}
+
+
+# The redeem didn't happen, so there is no level and the page says No
+# result.
+@pytest.mark.parametrize("answer", [
+    StubResponse("Not Found", 404),
+    StubResponse({"errors": ["'redeem' method not found"]}, 404),
+    StubResponse('{"errors":["The service is not available."]}', 503),
+    StubResponse("<html>An error page</html>"),
+    StubResponse('["High"]'),
+    requests.exceptions.ConnectionError(
+        "The stand-in service cannot be reached."),
+    requests.exceptions.Timeout("The stand-in service took too long."),
+], ids=["not-offered", "not-offered-json", "unavailable", "not-json",
+        "not-an-object", "unreachable", "timeout"])
+def test_redeem_that_does_not_happen_gives_no_level(cloud, answer):
+    stub = cloud()
+    stub.instead["hc/redeem"] = answer
+    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
+
+    assert response.status_code == 200
+    assert response.get_json() == {"humanConfidence": None}
 
 
 @pytest.mark.parametrize("answer", [

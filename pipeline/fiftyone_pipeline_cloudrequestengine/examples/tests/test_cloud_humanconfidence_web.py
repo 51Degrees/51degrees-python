@@ -27,10 +27,9 @@ the example asks the cloud service about before anything else, and these
 tests skip themselves when no key is set or the key does not carry it.
 
 The passive tests check that the example gives a level from the cloud's
-answer, and describes the request it sent. A Basic key, whose product does
-not offer HumanConfidenceSource, gets a level when the cloud says it
-carries HumanConfidence, and is otherwise given the contact link when the
-example starts.
+answer, and describes the request it sent. A key outside the Bespoke
+product, read from the Basic key variable, is checked to get no
+HumanConfidenceSource, with the reason the cloud gives.
 
 Only the passive step is run here. The active step needs the browser tests,
 which only a browser runs.
@@ -52,9 +51,8 @@ DESKTOP_CHROME = (
 
 HEADERS = {"User-Agent": DESKTOP_CHROME}
 
-# Every value the property has. Unknown is the one the cloud gives when it
-# has too little to rate the request.
-LEVELS = ("High", "Medium", "Low", "Unknown")
+# The levels a passive answer gives.
+LEVELS = ("High", "Medium", "Low")
 
 # The variable holding a resource key of the Basic product.
 BASIC_KEY_NAME = "_51DEGREES_RESOURCE_KEY_BASIC"
@@ -121,28 +119,44 @@ def test_passive_level_comes_from_the_cloud(client, key, api,
     assert answer["sent"]["url"] == api + key + ".json"
 
 
-def test_a_basic_key_gets_a_passive_level(api, naming_the_properties,
-                                         capsys):
-    """The Basic product does not offer HumanConfidenceSource. When the
-    cloud says its key carries HumanConfidence, the passive call gives a
-    level. When it says the key does not, the example ends at start with
-    the contact link, as a user running it with that key sees."""
+def test_a_key_outside_bespoke_gets_no_source(api):
+    """A key outside the Bespoke product, here a Basic key, is answered
+    with HumanConfidenceSource present and null, and a reason that says
+    why, when the passive call names both properties."""
     basic = read_environment(BASIC_KEY_NAME)
     if not basic:
         pytest.skip(
             f"{BASIC_KEY_NAME} is not set. Set the variable to a Resource "
             "Key of the Basic product to check the passive call with it.")
-    if example.carries_human_confidence(api, basic):
-        client = example.create_app(basic, None, api).test_client()
-        answer = client.get("/passive", headers=HEADERS).get_json()
-        assert "error" not in answer, "The cloud refused the request."
-        assert answer["humanConfidence"] in LEVELS
-    else:
-        with pytest.raises(SystemExit) as stopped:
-            example.main([basic])
-        assert stopped.value.code == 1
-        printed = capsys.readouterr().out
-        assert "Contact us: https://51degrees.com/contact-us" in printed
+
+    def redact(text):
+        return str(text).replace(basic, "<Resource Key>")
+
+    failure = None
+    try:
+        answer = requests.request(
+            "POST", api + basic + ".json",
+            data={"user-agent": DESKTOP_CHROME, "values": PROPERTIES},
+            timeout=example.TIMEOUT)
+    except requests.RequestException as error:
+        failure = "The passive call failed: " + redact(error)
+    if failure:
+        pytest.fail(failure)
+    assert answer.status_code == 200, (
+        "The passive call did not succeed: " + redact(answer.text))
+    derived = answer.json().get("derived")
+    assert isinstance(derived, dict), (
+        "The answer has no derived object: " + redact(answer.text))
+    assert "humanconfidencesource" in derived, (
+        "The answer has no humanconfidencesource at all, so this cloud "
+        "does not serve HumanConfidenceSource: " + redact(derived))
+    assert derived["humanconfidencesource"] is None, (
+        "A key outside the Bespoke product should get a null "
+        "humanconfidencesource, but the answer has " +
+        redact(derived["humanconfidencesource"]) + ".")
+    assert isinstance(derived.get("humanconfidencesourcenullreason"), str), (
+        "The null humanconfidencesource has no string "
+        "humanconfidencesourcenullreason: " + redact(derived))
 
 
 def test_license_key_never_reaches_the_browser(client):
