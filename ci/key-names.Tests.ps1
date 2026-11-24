@@ -105,9 +105,10 @@ foreach ($asset in $Assets) { Set-Content -LiteralPath "assets/$asset" '' }
 
     # Runs the Cloud Human Confidence workflow's test step in its own process
     # and folder, with the names given set and no others, and python replaced
-    # by a function that writes $Report as the junit report. Gives the exit
-    # code and the output.
-    function Invoke-StagingStep([hashtable]$Names, [string]$Report) {
+    # by a function that writes $Report as the junit report and exits with
+    # $PytestExitCode. Gives the step's exit code and the output.
+    function Invoke-StagingStep([hashtable]$Names, [string]$Report,
+            [int]$PytestExitCode = 0) {
         $folder = Join-Path $TestDrive ([Guid]::NewGuid().ToString())
         $null = New-Item -ItemType Directory $folder
         $stepFile = Join-Path $folder 'step.ps1'
@@ -116,7 +117,7 @@ foreach ($asset in $Assets) { Set-Content -LiteralPath "assets/$asset" '' }
             '    Write-Output "pytest ran"'
             '    $path = "$($args | Where-Object { "$_" -like "--junit-xml=*" })" -replace "^--junit-xml=", ""'
             "    if (`$path) { Set-Content `$path '$Report' }"
-            '    $global:LASTEXITCODE = 0'
+            "    `$global:LASTEXITCODE = $PytestExitCode"
             '}'
         )
         @($python + @(Get-StepScript 'cloud-human-confidence.yml' 'Human Confidence tests against the staging cloud')) |
@@ -527,11 +528,20 @@ Describe 'Keys under their _51DEGREES_ names' {
             $result.Output | Should -Match 'test_0 skipped'
         }
 
+        # pytest exits 5 when it selects no test, and still writes the report.
         It 'fail the Cloud Human Confidence step when no staging test ran' {
-            $result = Invoke-StagingStep $script:StagingNames (New-JunitReport 0 0)
+            $result = Invoke-StagingStep $script:StagingNames (New-JunitReport 0 0) 5
 
             $result.ExitCode | Should -Not -Be 0
+            $result.Output | Should -Match 'pytest ran'
             $result.Output | Should -Match 'No staging test ran'
+        }
+
+        It 'fail the Cloud Human Confidence step with pytest''s exit code when a staging test failed' {
+            $result = Invoke-StagingStep $script:StagingNames (New-JunitReport 2 0) 1
+
+            $result.ExitCode | Should -Be 1
+            $result.Output | Should -Not -Match 'No staging test ran'
         }
 
         It 'pass the Cloud Human Confidence step when every staging test ran' {
@@ -539,6 +549,33 @@ Describe 'Keys under their _51DEGREES_ names' {
 
             $result.ExitCode | Should -Be 0
             $result.Output | Should -Match 'pytest ran'
+        }
+
+        # The workflow runs for a pull request that changes one of its
+        # pull_request paths, so each path it names is a file in this
+        # repository.
+        It 'run for a pull request on files that exist, in the Cloud Human Confidence workflow' {
+            $lines = @(Get-Content (Join-Path $script:Root '.github/workflows/cloud-human-confidence.yml'))
+            $trigger = ($lines | Select-String -Pattern '^(\s*)pull_request:\s*$' |
+                Select-Object -First 1)
+            $trigger | Should -Not -BeNullOrEmpty
+            $indent = $trigger.Matches[0].Groups[1].Value.Length
+            $paths = @()
+            $inPaths = $false
+            foreach ($line in $lines | Select-Object -Skip $trigger.LineNumber) {
+                if (-not $line.Trim() -or $line.Trim().StartsWith('#')) { continue }
+                if ($line -notmatch "^\s{$($indent + 1),}") { break }
+                if ($line -match '^\s*paths:\s*$') { $inPaths = $true; continue }
+                if ($inPaths -and $line -match '^\s*-\s*[''"]?(?<path>[^''"]+?)[''"]?\s*$') {
+                    $paths += $Matches['path']
+                } elseif ($inPaths) {
+                    break
+                }
+            }
+            $paths | Should -Not -BeNullOrEmpty
+            $paths | Where-Object { $_ -notmatch '[*?\[!]' } |
+                Where-Object { -not (Test-Path -LiteralPath (Join-Path $script:Root $_) -PathType Leaf) } |
+                Should -BeNullOrEmpty
         }
     }
 

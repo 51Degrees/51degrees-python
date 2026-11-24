@@ -28,10 +28,18 @@ on:
     - cron: '50 6 * * *'
   pull_request:
     branches: [main, rc]
+    # The example and its tests, the files they import, and the files the
+    # install step uses.
     paths:
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/humanconfidence_web/**'
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/example_utils.py'
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/conftest.py'
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/live_cloud.py'
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/test_cloud_humanconfidence_web.py'
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/pyproject.toml'
+      - 'ci/write-package-versions.ps1'
+      - 'ci/packages.ps1'
+      - 'ci/packages.json'
       - '.github/workflows/cloud-human-confidence.yml'
 
 permissions:
@@ -110,6 +118,11 @@ jobs:
           Remove-Item $report -ErrorAction SilentlyContinue
           python -m pytest -m staging -p no:cacheprovider -v -rs `
             "--junit-xml=$report"
+          # pytest exits 5 when it selects no test.
+          if ($LASTEXITCODE -eq 5) {
+            Write-Host '::error::No staging test ran.'
+            exit 1
+          }
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           if (-not (Test-Path $report)) {
             Write-Host '::error::The staging tests did not run.'
@@ -117,10 +130,6 @@ jobs:
           }
           $suite = ([xml](Get-Content -Raw $report)).SelectSingleNode(
             '//testsuite')
-          if ([int]$suite.tests -eq 0) {
-            Write-Host '::error::No staging test ran.'
-            exit 1
-          }
           if ([int]$suite.skipped -gt 0) {
             foreach ($skipped in $suite.SelectNodes('testcase[skipped]')) {
               Write-Host ("::error::$($skipped.name) skipped, so it proved " +
