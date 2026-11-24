@@ -578,6 +578,17 @@ def test_the_live_basic_key_test_fails_on_no_answer(basic_key):
     assert RESOURCE_KEY not in str(failed.value)
 
 
+# The Cloud Human Confidence workflow runs only the tests marked staging,
+# and fails when none runs, so both live tests of the source carry the
+# mark.
+@pytest.mark.parametrize("test", [
+    live.test_passive_source_and_level_come_from_the_cloud,
+    live.test_a_key_outside_bespoke_gets_no_source,
+], ids=["bespoke", "basic"])
+def test_the_live_source_tests_are_marked_staging(test):
+    assert "staging" in [mark.name for mark in test.pytestmark]
+
+
 def test_passive_says_what_the_cloud_refused(cloud):
     stub = cloud()
     stub.instead[".json"] = StubResponse(

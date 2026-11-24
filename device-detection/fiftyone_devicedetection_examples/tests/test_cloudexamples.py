@@ -35,6 +35,7 @@ from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.cloud.gettingstarted_console import GettingStartedConsole
 from fiftyone_devicedetection_examples.cloud.configurator_console import ConfiguratorConsole
 
+from .hardware_lookup_output import lookup_fault
 from .live_cloud import find_resource_key, no_resource_key
 
 NO_KEY = no_resource_key(
@@ -53,6 +54,10 @@ FAULT_MARKERS = [
     "Unknown ()",
     "Unknown (None)"
 ]
+
+# The values the TAC and native model examples look up.
+TACS = ("35925406", "86386802")
+NATIVE_MODELS = ("SC-03L", "iPhone11,8")
 
 
 class DeviceDetectionExampleTests(unittest.TestCase):
@@ -85,24 +90,16 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
         return output
 
-    def assert_device_lines_are_meaningful(self, output):
+    def assert_lists_devices(self, output, lookup, kind, values):
         """!
-        Every device line the TAC and native model examples print must say
-        something useful. Either it names a device, or it says the property
-        has no value and gives the reason the cloud service supplied.
+        Fail, followed by the output, unless the TAC or native model example
+        listed, for each value it looked up, at least one device with a
+        vendor and a model, as lookup_fault says.
         """
 
-        # The links of the section the example ends with are left out,
-        # because they are indented as device lines are.
-        devices = output.split("Find out more:")[0]
-        lines = [line for line in devices.split("\n")
-                 if line.startswith("\t")]
-
-        self.assertGreater(len(lines), 0,
-            "The example listed no devices and gave no reason for it")
-
-        for line in lines:
-            self.assertNotEqual("", line.strip(), "A device line is empty")
+        fault = lookup_fault(output, lookup, kind, values)
+        if fault:
+            self.fail(f"{fault}\n{output}")
 
     def test_cloud_getting_started_console(self):
         example = GettingStartedConsole()
@@ -123,10 +120,8 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         output = self.run_example(
             lambda out: example.run(self.resource_key, self.logger, out))
 
-        self.assertIn(
-            "Which devices are associated with the native model name "
-            "'SC-03L'?", output)
-        self.assert_device_lines_are_meaningful(output)
+        self.assert_lists_devices(
+            output, "native model lookup", "native model name", NATIVE_MODELS)
         self.assertIn("Find out more:", output)
 
     def test_cloud_taclookup_console(self):
@@ -138,9 +133,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
         output = self.run_example(
             lambda out: example.run(config, self.logger, out))
 
-        self.assertIn(
-            "Which devices are associated with the TAC '35925406'?", output)
-        self.assert_device_lines_are_meaningful(output)
+        self.assert_lists_devices(output, "TAC lookup", "TAC", TACS)
         self.assertIn("Find out more:", output)
 
     def test_cloud_metadata_console(self):

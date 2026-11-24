@@ -26,10 +26,20 @@ Flask's test client. The resource key has to carry HumanConfidence, which
 the example asks the cloud service about before anything else, and these
 tests skip themselves when no key is set or the key does not carry it.
 
-The passive tests check that the example gives a level from the cloud's
-answer, and describes the request it sent. A key outside the Bespoke
-product, read from the Basic key variable, is checked to get no
-HumanConfidenceSource, with the reason the cloud gives.
+The passive test checks that the example gives a level from the cloud's
+answer, and describes the request it sent. The example gives no source,
+so the test reads HumanConfidenceSource from the cloud's own answer, and
+the Bespoke key gets Passive, as no browser tests have run. A key outside
+the Bespoke product, read from the Basic key variable, is checked to get
+no HumanConfidenceSource, with the reason the cloud gives.
+
+The production cloud does not serve HumanConfidenceSource yet, so the two
+tests that check it are marked staging and call the staging cloud that
+CLOUD_STAGING_ENDPOINT names, with the Bespoke key in
+RESOURCE_KEY_BESPOKE_STAGING and the Basic key in
+_51DEGREES_RESOURCE_KEY_BASIC. Only the Cloud Human Confidence workflow sets
+the two staging names, and without them these tests skip. The other tests
+call the cloud _51DEGREES_CLOUD_ENDPOINT names.
 
 Only the passive step is run here. The active step needs the browser tests,
 which only a browser runs.
@@ -57,6 +67,14 @@ LEVELS = ("High", "Medium", "Low")
 # The variable holding a resource key of the Basic product.
 BASIC_KEY_NAME = "_51DEGREES_RESOURCE_KEY_BASIC"
 
+# The variable holding the staging cloud's API base, ending /api/v4/. Only
+# CI sets it, and there is no default, so a staging test never calls the
+# production cloud.
+STAGING_ENDPOINT_NAME = "CLOUD_STAGING_ENDPOINT"
+
+# The variable holding a Bespoke resource key the staging cloud knows.
+STAGING_KEY_NAME = "RESOURCE_KEY_BESPOKE_STAGING"
+
 # The properties the passive tests name in their request, so the answer
 # carries both whatever the key's own list of properties holds.
 PROPERTIES = "derived.humanconfidence,derived.humanconfidencesource"
@@ -81,17 +99,25 @@ def api():
 @pytest.fixture
 def naming_the_properties(monkeypatch):
     """Adds the properties to each request the example makes for the
-    passive level, and leaves its evidence as it is."""
+    passive level, and leaves its evidence as it is. Gives the cloud's
+    answers to those requests, in order, so a test can check what the
+    cloud sent as well as what the example made of it."""
 
     real = requests.request
+    answers = []
 
     def request(method, url, data=None, **kwargs):
         # The cloud request engine adds "?" to the address it posts to.
-        if method == "POST" and url.split("?")[0].endswith(".json"):
+        named = method == "POST" and url.split("?")[0].endswith(".json")
+        if named:
             data = dict(data or {}, values=PROPERTIES)
-        return real(method, url, data=data, **kwargs)
+        response = real(method, url, data=data, **kwargs)
+        if named:
+            answers.append(response)
+        return response
 
     monkeypatch.setattr(requests, "request", request)
+    return answers
 
 
 @pytest.fixture(scope="module")
@@ -104,6 +130,37 @@ def client(key, api):
         key, ExampleUtils.get_license_key(), api).test_client()
 
 
+@pytest.fixture(scope="module")
+def staging_api():
+    endpoint = read_environment(STAGING_ENDPOINT_NAME)
+    if not endpoint:
+        pytest.skip(
+            f"{STAGING_ENDPOINT_NAME} is not set. Set it to the staging "
+            "cloud's API base to run the tests the production cloud cannot "
+            "answer yet.")
+    return example.api_base(endpoint)
+
+
+@pytest.fixture(scope="module")
+def staging_key():
+    resource_key = read_environment(STAGING_KEY_NAME)
+    if not resource_key:
+        pytest.skip(
+            f"{STAGING_KEY_NAME} is not set. Set it to a Bespoke resource "
+            "key the staging cloud knows.")
+    return resource_key
+
+
+@pytest.fixture(scope="module")
+def staging_client(staging_api, staging_key):
+    if not example.carries_human_confidence(staging_api, staging_key):
+        pytest.skip(
+            f"The key in {STAGING_KEY_NAME} does not carry HumanConfidence "
+            "on the staging cloud.")
+    # The passive step never uses the License Key.
+    return example.create_app(staging_key, None, staging_api).test_client()
+
+
 def test_page_is_served_and_never_kept(client, key):
     response = client.get("/", headers=HEADERS)
     assert response.status_code == 200
@@ -111,15 +168,28 @@ def test_page_is_served_and_never_kept(client, key):
     assert key in response.get_data(as_text=True)
 
 
-def test_passive_level_comes_from_the_cloud(client, key, api,
-                                           naming_the_properties):
-    answer = client.get("/passive", headers=HEADERS).get_json()
+@pytest.mark.staging
+def test_passive_source_and_level_come_from_the_cloud(
+        staging_client, staging_api, staging_key, naming_the_properties):
+    """The example gives the level from the cloud's answer and describes
+    the request it sent. The example gives no source, so the source is read
+    from the cloud's own answer, and is Passive, as no browser tests have
+    run."""
+    answer = staging_client.get("/passive", headers=HEADERS).get_json()
     assert "error" not in answer, "The cloud refused the request."
-    assert answer["humanConfidence"] in LEVELS
-    assert answer["sent"]["url"] == api + key + ".json"
+    assert answer["humanConfidence"] in LEVELS, answer["humanConfidence"]
+    # Compared apart from the assert, so a failure does not print the key.
+    described = answer["sent"]["url"] == staging_api + staging_key + ".json"
+    assert described, "The example described another address."
+
+    assert naming_the_properties, "The example did not ask the cloud."
+    derived = naming_the_properties[-1].json().get("derived") or {}
+    assert derived.get("humanconfidencesource") == "Passive", (
+        derived.get("humanconfidencesource"))
 
 
-def test_a_key_outside_bespoke_gets_no_source(api):
+@pytest.mark.staging
+def test_a_key_outside_bespoke_gets_no_source(staging_api):
     """A key outside the Bespoke product, here a Basic key, is answered
     with HumanConfidenceSource present and null, and a reason that says
     why, when the passive call names both properties."""
@@ -135,7 +205,7 @@ def test_a_key_outside_bespoke_gets_no_source(api):
     failure = None
     try:
         answer = requests.request(
-            "POST", api + basic + ".json",
+            "POST", staging_api + basic + ".json",
             data={"user-agent": DESKTOP_CHROME, "values": PROPERTIES},
             timeout=example.TIMEOUT)
     except requests.RequestException as error:
