@@ -48,8 +48,8 @@
 #
 # ## Filesystem watcher
 # Configure the pipeline to watch the loaded data file on disk and reload it
-# when it changes (file_system_watcher=True). Useful if you download files
-# yourself and drop them into place.
+# when a file published later is put in its place (file_system_watcher=True).
+# Useful if you download files yourself and drop them into place.
 #
 # ## Daily auto-update
 # Each data file records when the next file is expected. With auto_update
@@ -266,8 +266,9 @@ class DataFileUpdateConsole():
         # Build the pipeline, configuring it for automatic updates.
         pipeline = IpIntelligencePipelineBuilder(
             # The file need not exist when using update on start-up, but its
-            # directory must. Any file present is overwritten, so the engine
-            # is configured to use a temporary copy.
+            # directory must. A file present is overwritten by a download
+            # published later, so the engine is configured to use a temporary
+            # copy.
             data_file_path = data_file,
             create_temp_data_copy = True,
             # The Enterprise data file is large, so the LowMemory profile
@@ -302,12 +303,13 @@ class DataFileUpdateConsole():
             output(f"Update on start-up complete - status - {update_event.status}")
 
             if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
-                output("Modifying downloaded file to trigger reload - please wait "
+                output("Modifying downloaded file to trigger a check - please wait "
                        "for that to complete")
                 update_event.clear()
 
-                # Touching the file metadata triggers the filesystem watcher,
-                # demonstrating reload when a new file is dropped into place.
+                # Touching the file triggers the filesystem watcher. It is the
+                # same file, so the check reports AUTO_UPDATE_NOT_NEEDED, as only
+                # a file published later is loaded.
                 now = datetime.now().timestamp()
                 try:
                     os.utime(data_file, (now, now))

@@ -413,7 +413,15 @@ class DataFileUpdateService():
             # write that failed leaves it with the data it already had and
             # the update ends there, as it does in .NET and
             # 51degrees-node.
-            self._write_data_file(data_file, data)
+            if self._published_date_reader(data_file) is None:
+                self._write_data_file(data_file, data)
+            else:
+                # A download that is not newer than the data in use replaces
+                # neither the data file nor the engine's data.
+                staged = self._stage_data_file(data_file, data, True)
+                if not self._is_newer_or_discard(data_file, staged):
+                    return UpdateStatus.AUTO_UPDATE_NOT_NEEDED
+                self._replace_data_file(data_file, staged)
 
         else:
 
@@ -604,6 +612,17 @@ class DataFileUpdateService():
         # when the data file asks for one. A failure raises a
         # DataUpdateException with the message and status of its row of the
         # errors table, and leaves the file on disk as it was.
+        self._replace_data_file(
+            data_file, self._stage_data_file(data_file, data, False))
+
+    def _stage_data_file(self, data_file, data, apart):
+        # Write new data to the file that replaces the data file, and answer
+        # its path. That is a temporary copy when the data file asks for
+        # one. Otherwise it is a file beside the data file when the data
+        # must be kept apart until it is known to be newer, and the data
+        # file itself when not. A failure raises a DataUpdateException with
+        # the message and status of its row of the errors table, and leaves
+        # the data file as it was.
         if data_file.create_temp_copy:
             if not getattr(data_file, "temp_directory", None):
                 raise DataUpdateException(
@@ -613,6 +632,10 @@ class DataFileUpdateService():
                     UpdateStatus.AUTO_UPDATE_TEMP_PATH_NOT_SET)
             filename = os.path.join(
                 data_file.temp_directory,
+                data_file.identifier + str(time.time()))
+        elif apart:
+            filename = os.path.join(
+                os.path.dirname(data_file.path),
                 data_file.identifier + str(time.time()))
         else:
             filename = data_file.path
@@ -634,8 +657,13 @@ class DataFileUpdateService():
             raise DataUpdateException(
                 self._unhandled_message(data_file),
                 UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR) from e
+        return filename
 
-        if data_file.create_temp_copy:
+    def _replace_data_file(self, data_file, filename):
+        # Put the file written by _stage_data_file in place of the data
+        # file. A failure raises a DataUpdateException with the message and
+        # status of its row of the errors table.
+        if filename != data_file.path:
             try:
                 shutil.move(filename, data_file.path)
             except (OSError, shutil.Error) as e:
@@ -650,6 +678,91 @@ class DataFileUpdateService():
         # load and report again.
         try:
             data_file.last_changed_time = os.stat(data_file.path).st_mtime
+        except OSError:
+            pass
+
+    @staticmethod
+    def _published_date_reader(data_file):
+        # The method of the data file's engine that reads the published date
+        # in a data file's header, or None when the engine has none, and a
+        # new file is then loaded without comparing dates.
+        return getattr(
+            getattr(data_file, "flow_element", None),
+            "get_date_published_from_file", None)
+
+    @staticmethod
+    def _published_day(moment):
+        # The day of a published date, in UTC for a time with a zone. A data
+        # file's header holds a date with no time or zone, so dates are
+        # compared by the day. None for anything that is not a date.
+        if isinstance(moment, datetime.datetime):
+            if moment.tzinfo is not None:
+                moment = moment.astimezone(datetime.timezone.utc)
+            return moment.date()
+        if isinstance(moment, datetime.date):
+            return moment
+        return None
+
+    def _is_newer(self, data_file, path):
+        # Whether the data file at the path was published on a later day
+        # than the data in use, by the date the engine reads in its header.
+        # A file is newer when the engine reads no date from it or no date
+        # is known for the data in use, so it is loaded as it was before
+        # dates could be read. A header that cannot be read raises a
+        # DataUpdateException as any other error.
+        read = self._published_date_reader(data_file)
+        if read is None:
+            return True
+        try:
+            published = self._published_day(read(path))
+        except Exception as e:
+            raise DataUpdateException(
+                self._unhandled_message(data_file),
+                UpdateStatus.AUTO_UPDATE_UNKNOWN_ERROR) from e
+        if published is None:
+            return True
+        in_use = self._published_day_in_use(data_file, read, path)
+        return in_use is None or published > in_use
+
+    def _published_day_in_use(self, data_file, read, path):
+        # The day the data in use was published. Before the engine has
+        # loaded data, as at the update on start-up, it is the day the file
+        # already at the data file's path was published, which is loaded
+        # otherwise. None when neither is known, as when there is no file
+        # there or its header cannot be read.
+        try:
+            in_use = self._published_day(data_file.get_date_published())
+        except Exception:
+            in_use = None
+        if in_use is not None:
+            return in_use
+        local = getattr(data_file, "path", None)
+        if not local or local == path or not os.path.isfile(local):
+            return None
+        try:
+            return self._published_day(read(local))
+        except Exception:
+            return None
+
+    def _is_newer_or_discard(self, data_file, staged):
+        # Whether the file staged for a download is newer than the data in
+        # use. A staged file that is not, or whose header cannot be read, is
+        # deleted, so the data file is left as it was.
+        try:
+            newer = self._is_newer(data_file, staged)
+        except DataUpdateException:
+            self._discard(staged)
+            raise
+        if not newer:
+            self._discard(staged)
+        return newer
+
+    @staticmethod
+    def _discard(path):
+        # Delete a staged download that is not used. One that cannot be
+        # deleted is left, as it holds none of the data in use.
+        try:
+            os.remove(path)
         except OSError:
             pass
 
@@ -989,8 +1102,12 @@ class DataFileUpdateService():
         event. It is first opened for reading, waiting up to
         WATCHED_FILE_WAIT_SECONDS for a copy still being made, and a file
         that does not open is reported as AUTO_UPDATE_TIMEOUT without a log
-        entry. Otherwise the refresh takes the same route as the polling one,
-        so the attempt is logged, a failure carries the errors table's
+        entry. A file whose engine reads a published date in its header that
+        is not later than that of the data in use is not loaded, and is
+        reported as AUTO_UPDATE_NOT_NEEDED without a log entry. A header
+        that cannot be read is any other error, which is logged and
+        reported. Otherwise the refresh takes the same route as the polling
+        one, so the attempt is logged, a failure carries the errors table's
         message and level, and the result is reported to the update complete
         callbacks either way. The next check is scheduled whatever happens,
         so that a later file is still picked up, until the data file is
@@ -1028,13 +1145,15 @@ class DataFileUpdateService():
                 data_file.updating = True
                 try:
                     data_file.last_changed_time = changed_time
-                    if self._wait_until_readable(data_file.path):
-                        self._refresh(data_file)
-                        status = UpdateStatus.AUTO_UPDATE_SUCCESS
-                    else:
+                    if not self._wait_until_readable(data_file.path):
                         # The errors table's row for a watched file that
                         # could not be opened is not logged.
                         status = UpdateStatus.AUTO_UPDATE_TIMEOUT
+                    elif self._is_newer(data_file, data_file.path):
+                        self._refresh(data_file)
+                        status = UpdateStatus.AUTO_UPDATE_SUCCESS
+                    else:
+                        status = UpdateStatus.AUTO_UPDATE_NOT_NEEDED
                 except DataUpdateException as e:
                     self._log_failed_check(data_file, e)
                     status = e.status

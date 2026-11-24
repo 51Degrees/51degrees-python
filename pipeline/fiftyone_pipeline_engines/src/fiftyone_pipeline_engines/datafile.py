@@ -54,7 +54,7 @@ class DataFile():
         @type auto_update: bool
         @param: auto_update: whether to automatically update the datafile when required
         @type file_system_watcher: bool
-        @param file_system_watcher: whether to check the datafile's path for changes and update the connected FlowElement's data automatically when the file is changed in the operating system
+        @param file_system_watcher: whether to check the datafile's path for changes and update the connected FlowElement's data automatically when the file is changed in the operating system. When the FlowElement has a get_date_published_from_file method, a changed or downloaded file is loaded only when the date it gives for the file is later than get_date_published gives for the data in use
         @type polling_interval: int
         @param polling_interval: How often to poll for updates to the datafile (minutes)
         @type update_time_maximum_randomisation : int
