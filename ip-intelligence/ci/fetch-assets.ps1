@@ -12,8 +12,10 @@ if ($env:GITHUB_JOB -eq "PreBuild") {
 $assetsDir = "$PSScriptRoot/../assets"
 New-Item -ItemType Directory -Force -Path $assetsDir | Out-Null
 
+# The mixed examples use the device detection Lite data file as well, so it
+# is fetched here too, for a run that tests IP Intelligence alone.
 $assets = '51Degrees-LiteIpiV41.ipi', 'ip-intelligence-evidence.yml',
-    '51Degrees-EnterpriseIpiV41.ipi'
+    '51Degrees-EnterpriseIpiV41.ipi', '51Degrees-LiteV4.1.hash'
 
 ./steps/fetch-assets.ps1 -Assets $assets
 
@@ -34,8 +36,9 @@ $asn = '51Degrees-IPIV4AsnIpiV41.ipi'
 ./steps/fetch-assets.ps1 -Assets $asn
 Copy-Item "assets/$asn" $ipIntelligenceData
 
-# The tests prefer the Enterprise file, which they find through the
-# environment variable the test suites read.
-if ($env:GITHUB_ENV) {
-    Write-Output "_51DEGREES_IPI_PATH=$assetsDir/51Degrees-EnterpriseIpiV41.ipi" | Out-File -Append -FilePath $env:GITHUB_ENV -ErrorAction SilentlyContinue
-}
+# The tests and examples find their data file through the environment
+# variable the test suites read. They accept the Lite file, so it is the one
+# named. common-ci runs the tests in the same process as this script, so the
+# variable is set in this process.
+$env:_51DEGREES_IPI_PATH = (Resolve-Path "assets/51Degrees-LiteIpiV41.ipi").Path
+$env:_51DEGREES_DD_PATH = (Resolve-Path "assets/51Degrees-LiteV4.1.hash").Path
