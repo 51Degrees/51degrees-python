@@ -882,7 +882,10 @@ class DidClient:
         The resource key, the 51Did, the sealed result, the transaction and
         the licence key all travel in the body of a POST to ``id/redeem``,
         as ``resource``, ``51did``, ``sealedResult``, ``transaction`` and
-        ``license``, so none of them reaches an access log. (The redeem
+        ``license``, so none of them reaches an access log. The sealed
+        result and the transaction are also sent under their obsolete names,
+        ``result`` and ``challenge``, so the call works with a cloud that
+        reads only those. (The redeem
         endpoint takes the resource key in the form on a POST, where the
         key and verify endpoints take it in the route on a GET.) One use
         against the resource key, the second of the two a browser context
@@ -940,13 +943,19 @@ class DidClient:
         if sealed_result is _NOT_GIVEN:
             raise TypeError("redeem() missing the sealed_result argument")
         text = _identifier_text(fod_id)
+        sealed_text = sealed_result if isinstance(sealed_result, str) else ""
+        transaction_text = transaction if isinstance(transaction, str)             else ""
+        # Each value is sent under its new name and its obsolete one, so the
+        # call works with a cloud that reads only the obsolete names. A cloud
+        # that reads both takes the new name and adds an "obsolete" array to
+        # its answer, which is ignored here.
         form = [
             ("resource", self._resource_key),
             ("51did", text),
-            ("sealedResult",
-             sealed_result if isinstance(sealed_result, str) else ""),
-            ("transaction",
-             transaction if isinstance(transaction, str) else ""),
+            ("sealedResult", sealed_text),
+            ("transaction", transaction_text),
+            ("result", sealed_text),
+            ("challenge", transaction_text),
         ]
         if self._licence_key is not None:
             form.append(("license", self._licence_key))

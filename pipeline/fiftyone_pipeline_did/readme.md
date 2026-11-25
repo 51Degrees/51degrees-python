@@ -574,7 +574,9 @@ redeemed.to_dict()                # the cloud's own response shape, for
 
 The `result` and `challenge` arguments are obsolete. They still work,
 with a `DeprecationWarning`, and `sealed_result` and `transaction` win
-when both are given. The `EXPIRED`, `REPLAYED`, `UNREADABLE` and
+when both are given. The request sends each value under both its new
+name and its obsolete one, so it works with a cloud that reads only
+`result` and `challenge`. The `EXPIRED`, `REPLAYED`, `UNREADABLE` and
 `UNCONFIRMED` members of `ContextResult` are obsolete too, because
 `status` now says what happened to the sealed result. They keep their
 values and still work, with a `DeprecationWarning` when read by name.

@@ -130,6 +130,8 @@ class CreatorContextServerTests(unittest.TestCase):
             redeem.data.decode("ascii")).items()}
         self.assertEqual("sealed", form["sealedResult"])
         self.assertEqual("abc", form["transaction"])
+        self.assertEqual("sealed", form["result"])
+        self.assertEqual("abc", form["challenge"])
         self.assertEqual("test-licence-key", form["license"])
         self.assertEqual(self.fod_id.as_base64_url(), form["51did"])
 

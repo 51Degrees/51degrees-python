@@ -1315,6 +1315,10 @@ class RedeemTests(unittest.TestCase):
             "51did": self.fod_id.as_base64_url(),
             "sealedResult": "sealed-result",
             "transaction": "abc123",
+            # The obsolete names carry the same values, for a cloud that
+            # reads only those.
+            "result": "sealed-result",
+            "challenge": "abc123",
             "license": LICENCE,
         }, form)
         # No credential in the URL, because a query string is written to
@@ -1544,6 +1548,7 @@ class RedeemTests(unittest.TestCase):
         form = form_of(self.transport.last())
         self.assertEqual(text, form["51did"])
         self.assertEqual("", form["transaction"])
+        self.assertEqual("", form["challenge"])
 
     def test_redeem_refuses_far_too_long_text_before_the_form(self):
         with self.assertRaises(ValueError):
@@ -1794,8 +1799,10 @@ class RedeemArgumentTests(unittest.TestCase):
     def assert_sent(self, form, sealed_result, transaction):
         self.assertEqual(sealed_result, form["sealedResult"])
         self.assertEqual(transaction, form["transaction"])
-        self.assertNotIn("result", form)
-        self.assertNotIn("challenge", form)
+        # The obsolete names carry the same values, for a cloud that reads
+        # only those.
+        self.assertEqual(sealed_result, form["result"])
+        self.assertEqual(transaction, form["challenge"])
 
     def assert_obsolete(self, caught, *replacements):
         """One DeprecationWarning for each obsolete argument, naming its
