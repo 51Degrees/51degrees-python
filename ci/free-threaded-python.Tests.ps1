@@ -1,12 +1,14 @@
-# Tests that .github/workflows/free-threaded-python.yml fetches the free Lite
-# data files once, in one job, and that the jobs that test take them from the
-# cache that job fills, rather than each downloading them again.
+# Tests that .github/workflows/free-threaded-python.yml takes the free Lite
+# data files from the assets common-ci fetches for each run, in one job, and
+# that the jobs that test restore them from that job's cache, rather than any
+# job downloading them from the links in the data submodule.
 # The workflow is read as text, as the runners have no YAML module.
 
 BeforeAll {
     $script:Workflow = Join-Path $PSScriptRoot '..' '.github' 'workflows' `
         'free-threaded-python.yml'
     $lines = @(Get-Content -LiteralPath $script:Workflow)
+    $script:Text = $lines -join "`n"
 
     # Each job's lines, by the job's name, from the two-space keys under jobs.
     $script:Jobs = [ordered]@{}
@@ -41,22 +43,7 @@ BeforeAll {
         }
         if ($null -ne $current) { $steps += , $current }
         return @($steps | Where-Object {
-                ($_ -join "`n") -match "uses:\s*$([regex]::Escape($Uses))@" })
-    }
-
-    # The lines of a "path: |" block in a step, trimmed.
-    function Get-Paths($Step) {
-        $paths = @()
-        $inPaths = $false
-        foreach ($line in $Step) {
-            if ($line -match '^\s+path:\s*\|\s*$') { $inPaths = $true; continue }
-            if ($inPaths -and $line -match '^\s{12,}\S') {
-                $paths += $line.Trim()
-                continue
-            }
-            $inPaths = $false
-        }
-        return $paths
+                ($_ -join "`n") -match "(?m)uses:\s*$([regex]::Escape($Uses))(@|\s*$)" })
     }
 
     function Get-Value($Step, [string]$Key) {
@@ -66,66 +53,83 @@ BeforeAll {
     }
 
     $script:Fetching = @($script:Jobs.Keys | Where-Object {
-            ($script:Jobs[$_] -join "`n") -match 'get-data-files\.ps1' })
+            ($script:Jobs[$_] -join "`n") -match 'uses:\s*\S*prefetch_assets' })
     $script:Testing = @($script:Jobs.Keys | Where-Object {
             ($script:Jobs[$_] -join "`n") -match 'pytest' })
 }
 
 Describe 'free-threaded-python.yml' {
-    It 'downloads the free data files in one job only' {
+    It 'never downloads from the links in the data submodule' {
+        $script:Text | Should -Not -Match 'get-data-files'
+    }
+
+    It 'finds or fetches the assets in one job only' {
         $script:Fetching.Count | Should -Be 1
     }
 
-    It 'downloads them in a job that is not a matrix' {
-        foreach ($job in $script:Fetching) {
-            ($script:Jobs[$job] -join "`n") | Should -Not -Match 'matrix:'
-        }
+    It 'names that job Configure, so every product''s assets are fetched' {
+        # ci/fetch-assets.ps1 fetches every product's assets only in a job of
+        # that name, and the cache it fills is shared with the other
+        # workflows.
+        $script:Fetching[0] | Should -BeExactly 'Configure'
+        Get-Content -Raw (Join-Path $PSScriptRoot 'fetch-assets.ps1') |
+            Should -Match "GITHUB_JOB\s+-eq\s+'Configure'"
     }
 
-    It 'never downloads them in a job that runs the tests' {
+    It 'fetches with common-ci''s action, run from common-ci''s checkout' {
+        $job = $script:Fetching[0]
+        $prefetch = @(Get-Step $job './.github/actions/prefetch_assets')
+        $prefetch.Count | Should -Be 1
+        Get-Value $prefetch[0] 'id' | Should -Not -BeNullOrEmpty
+        Get-Value $prefetch[0] 'license-key' | Should -Not -BeNullOrEmpty
+        $checkouts = @(Get-Step $job 'actions/checkout')
+        @($checkouts | Where-Object {
+                (Get-Value $_ 'repository') -eq '51Degrees/common-ci' -and
+                -not (Get-Value $_ 'path') }).Count | Should -Be 1
+        $own = @($checkouts | Where-Object { -not (Get-Value $_ 'repository') })
+        $own.Count | Should -Be 1
+        Get-Value $own[0] 'path' | Should -Be (Get-Value $prefetch[0] 'repo')
+        Get-Value $own[0] 'submodules' | Should -Be 'recursive'
+    }
+
+    It 'gives the cache key to the jobs that test' {
+        $job = $script:Fetching[0]
+        $id = Get-Value (@(Get-Step $job './.github/actions/prefetch_assets')[0]) 'id'
+        ($script:Jobs[$job] -join "`n") | Should -Match (
+            '\n    outputs:\s*\n\s+key:\s*' +
+            [regex]::Escape('${{ steps.' + $id + '.outputs.cache-key }}'))
+    }
+
+    It 'never fetches in a job that runs the tests' {
         $script:Testing.Count | Should -BeGreaterThan 0
         foreach ($job in $script:Testing) {
             $script:Fetching | Should -Not -Contain $job
         }
     }
 
-    It 'saves them in the cache, and downloads them only when it misses' {
+    It 'restores the assets in each job that runs the tests, as prefetch_assets saves them' {
         $job = $script:Fetching[0]
-        $cache = @(Get-Step $job 'actions/cache')
-        $cache.Count | Should -Be 1
-        Get-Value $cache[0] 'id' | Should -Not -BeNullOrEmpty
-        $id = Get-Value $cache[0] 'id'
-        $fetch = ($script:Jobs[$job] -join "`n")
-        $fetch | Should -Match ("if:\s*steps\.$id\.outputs\.cache-hit\s*!=\s*" +
-            "'true'\s*\n\s+run:\s*[|]?\s*\n?\s*\./cxx/data/get-data-files\.ps1")
-    }
-
-    It 'restores them in each job that runs the tests, from the same key and paths' {
-        $job = $script:Fetching[0]
-        $save = @(Get-Step $job 'actions/cache')[0]
-        $keyStep = Get-Value $save 'key'
-        $keyStep | Should -Match '^\$\{\{\s*steps\.([\w-]+)\.outputs\.key\s*\}\}$'
-        ($script:Jobs[$job] -join "`n") | Should -Match (
-            '\n    outputs:\s*\n\s+key:\s*' + [regex]::Escape($keyStep))
         foreach ($testing in $script:Testing) {
             $text = $script:Jobs[$testing] -join "`n"
             $text | Should -Match "\n    needs:\s*\[?\s*$([regex]::Escape($job))\b"
             $restore = @(Get-Step $testing 'actions/cache/restore')
             $restore.Count | Should -Be 1
+            Get-Value $restore[0] 'path' | Should -Be 'assets'
             Get-Value $restore[0] 'key' |
                 Should -Be ('${{ needs.' + $job + '.outputs.key }}')
             Get-Value $restore[0] 'fail-on-cache-miss' | Should -Be 'true'
-            Get-Paths $restore[0] | Should -Be (Get-Paths $save)
+            Get-Value $restore[0] 'enableCrossOsArchive' | Should -Be 'true'
         }
     }
 
-    It 'saves and restores across operating systems, for the Windows jobs' {
-        $job = $script:Fetching[0]
-        $steps = @(Get-Step $job 'actions/cache') + @($script:Testing |
-                ForEach-Object { Get-Step $_ 'actions/cache/restore' })
-        $steps.Count | Should -BeGreaterThan 1
-        foreach ($step in $steps) {
-            Get-Value $step 'enableCrossOsArchive' | Should -Be 'true'
+    It 'puts each free data file the tests use in place from the assets' {
+        foreach ($testing in $script:Testing) {
+            $text = $script:Jobs[$testing] -join "`n"
+            foreach ($file in '51Degrees-LiteV4.1.hash', '20000 Evidence Records.yml',
+                '51Degrees-IPIV4AsnIpiV41.ipi', '51Degrees-LiteIpiV41.ipi') {
+                $text | Should -Match ([regex]::Escape("assets/$file"))
+            }
+            $text | Should -Match ([regex]::Escape('51Degrees-LiteV41.ipi'))
         }
     }
 
@@ -161,16 +165,5 @@ Describe 'free-threaded-python.yml' {
             $text | Should -Match ('- name: Install the packages the tests use' +
                 '\s*\n(\s+\S.*\n)*?\s+\$PSNativeCommandUseErrorActionPreference = \$true')
         }
-    }
-
-    It 'caches each of the free data files the tests use' {
-        $paths = Get-Paths (@(Get-Step $script:Fetching[0] 'actions/cache')[0])
-        foreach ($file in '51Degrees-LiteV4.1.hash', '51Degrees-LiteV41.ipi',
-            '51Degrees-IPIV4AsnIpiV41.ipi', '20000 Evidence Records.yml') {
-            $paths | Should -Contain "cxx/data/**/$file"
-        }
-        # The evidence is the YAML file, and no other evidence file is cached.
-        @($paths | Where-Object { $_ -notmatch '\.(hash|ipi|yml)$' }) |
-            Should -BeNullOrEmpty
     }
 }

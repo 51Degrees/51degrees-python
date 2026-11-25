@@ -2,9 +2,11 @@ name: Free-threaded Python
 
 # Builds the Device Detection and IP Intelligence on-premise packages on the
 # free-threaded builds of Python and runs their tests there, with the free
-# Lite data files. The first job downloads those once for each commit of the
-# data submodule, which links them, and puts them in the cache. The test jobs
-# restore them from there and never download them.
+# Lite data files. Those come from the assets common-ci fetches for each run,
+# as every other workflow's tests do. The first job finds them in the asset
+# cache, or fetches them into it with common-ci's prefetch_assets action when
+# it misses, and the test jobs restore them from there. No job downloads
+# them from the links in the data submodule.
 # ci/free-threaded-python.Tests.ps1 checks this. The native modules do not declare that they run without
 # the GIL, so Python turns the GIL back on when it loads them.
 # tests/test_free_threaded.py in each package checks that it does, and is
@@ -37,54 +39,51 @@ permissions:
   contents: read
 
 jobs:
-  free-data-files:
-    name: Fetch the free Lite data files once
+  # The job is named Configure, as common-ci's is, because this repository's
+  # ci/fetch-assets.ps1 fetches the assets of every product only in a job of
+  # that name. The asset cache it fills is the one the other workflows that
+  # day restore, so it must never hold only some of them.
+  Configure:
+    name: Find or fetch the run's assets
     runs-on: ubuntu-latest
     outputs:
-      key: ${{ steps.key.outputs.key }}
+      key: ${{ steps.prefetch-assets.outputs.cache-key }}
     defaults:
       run:
         shell: pwsh
     steps:
+      # common-ci's action and steps run from its checkout, with this
+      # repository below it, as in common-ci's own workflows.
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          persist-credentials: false
+
+      # The fetch links the assets into the data submodule, so it is
+      # checked out too.
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          path: ${{ github.event.repository.name }}
           persist-credentials: false
           submodules: recursive
 
-      - name: Name the cache after the data submodule
-        id: key
-        run: |
-          # The data submodule's .link files say which files are fetched and
-          # from where, so a new commit of it needs the files again. Change
-          # v2 when the list of files below changes.
-          $data = git -C cxx rev-parse HEAD:data
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          "key=free-lite-data-v2-$data" >> $env:GITHUB_OUTPUT
-
-      - name: Look for the files in the cache
-        id: cache
-        uses: actions/cache@v4
+      # Restores nothing, and fetches the assets into the cache only when it
+      # has no copy under the day's key.
+      - name: Find or fetch the assets
+        id: prefetch-assets
+        uses: ./.github/actions/prefetch_assets
         with:
-          path: |
-            cxx/data/**/51Degrees-LiteV4.1.hash
-            cxx/data/**/20000 Evidence Records.yml
-            cxx/data/**/51Degrees-LiteV41.ipi
-            cxx/data/**/51Degrees-IPIV4AsnIpiV41.ipi
-          key: ${{ steps.key.outputs.key }}
-          # The Windows job restores what this Linux job saves.
-          enableCrossOsArchive: true
-          lookup-only: true
-
-      # Runs only when the cache has no copy, and the cache saves the files
-      # when the job ends.
-      - name: Fetch the free Lite data files
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: ./cxx/data/get-data-files.ps1 51Degrees-LiteV4.1.hash '20000 Evidence Records.yml' 51Degrees-LiteV41.ipi 51Degrees-IPIV4AsnIpiV41.ipi
+          repo: ${{ github.event.repository.name }}
+          secrets: ${{ toJSON(secrets) }}
+          vars: ${{ toJSON(vars) }}
+          license-key: ${{ secrets.LICENSE_KEY_V4TAC_IPIV4ENTERPRISE }}
 
   free-threaded:
     name: Python ${{ matrix.python }} on ${{ matrix.os }}
-    needs: free-data-files
+    needs: Configure
     strategy:
       fail-fast: false
       matrix:
@@ -158,26 +157,32 @@ jobs:
             -e device-detection/fiftyone_devicedetection `
             -e device-detection/fiftyone_devicedetection_examples
 
-      - name: Restore the free Lite data files
-        uses: actions/cache/restore@v4
+      # The path and the cross-OS setting are those prefetch_assets saves
+      # with, so the key matches.
+      - name: Restore the run's assets
+        uses: actions/cache/restore@v5
         with:
-          path: |
-            cxx/data/**/51Degrees-LiteV4.1.hash
-            cxx/data/**/20000 Evidence Records.yml
-            cxx/data/**/51Degrees-LiteV41.ipi
-            cxx/data/**/51Degrees-IPIV4AsnIpiV41.ipi
-          key: ${{ needs.free-data-files.outputs.key }}
+          path: assets
+          key: ${{ needs.Configure.outputs.key }}
           enableCrossOsArchive: true
           # The first job fetched them, so a miss is a fault, never a reason
           # to download them here.
           fail-on-cache-miss: true
 
-      - name: Put the IP Intelligence file where the tests look for it
+      # Copies, not links, so the Windows job needs no right to make links.
+      - name: Put the free data files where the tests look for them
         run: |
-          New-Item -ItemType Directory -Force -Path ip-intelligence/assets | Out-Null
-          New-Item -ItemType HardLink `
-            -Path ip-intelligence/assets/51Degrees-LiteIpiV41.ipi `
-            -Target cxx/data/ip-intelligence/51Degrees-LiteV41.ipi | Out-Null
+          $dd = 'cxx/data/device-detection'
+          $ipi = 'cxx/data/ip-intelligence'
+          New-Item -ItemType Directory -Force -Path $dd, $ipi, ip-intelligence/assets | Out-Null
+          Copy-Item -LiteralPath 'assets/51Degrees-LiteV4.1.hash' -Destination $dd
+          Copy-Item -LiteralPath 'assets/20000 Evidence Records.yml' -Destination $dd
+          Copy-Item -LiteralPath 'assets/51Degrees-IPIV4AsnIpiV41.ipi' -Destination $ipi
+          # The data repository saves the Lite IP Intelligence file as
+          # 51Degrees-LiteV41.ipi, and the tests also look for it under the
+          # name the assets give it.
+          Copy-Item -LiteralPath 'assets/51Degrees-LiteIpiV41.ipi' -Destination "$ipi/51Degrees-LiteV41.ipi"
+          Copy-Item -LiteralPath 'assets/51Degrees-LiteIpiV41.ipi' -Destination ip-intelligence/assets
 
       - name: Build the native modules
         run: |
