@@ -39,12 +39,13 @@
 # 2. Active. The page loads the 51Degrees client script, which runs the
 #    browser tests and sends the answers to the cloud. When the script
 #    completes, HumanConfidenceSource is Active and HumanConfidence holds
-#    a sealed value the browser can't read or change.
-# 3. Redeem. The page hands the sealed value to this server, which calls
-#    hc/redeem with it and the account's License Key, and gets the true
-#    level back. A sealed value redeems once, within ten seconds. This
-#    server is the only party holding the License Key, which the browser
-#    never sees.
+#    a sealed result the browser can't read or change.
+# 3. Redeem. The page hands the sealed result to this server, which calls
+#    hc/redeem with it as sealedResult and the account's License Key, and
+#    gets the true level back. The answer's status says what happened to
+#    the sealed result, and only success carries the true level. A sealed
+#    result redeems once, within ten seconds. This server is the only
+#    party holding the License Key, which the browser never sees.
 #
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/humanconfidence_web/app.py).
 #
@@ -210,13 +211,16 @@ def create_app(resource_key, license_key, api):
         except (requests.RequestException, ValueError) as error:
             return jsonify(error=str(error))
 
-    # Redeem: the page sends the sealed value, and this server redeems it
+    # Redeem: the page sends the sealed result, and this server redeems it
     # with the License Key. The answer goes back to the page as the cloud
     # gave it.
     @app.route("/redeem", methods=["POST"])
     def redeem():
 
-        fields = {"value": request.form.get("value", "")}
+        sealed = request.form.get("sealedResult")             or request.form.get("value", "")
+        # The sealed result goes to the cloud as sealedResult, and as value
+        # too, with the same text, for a cloud that reads only value.
+        fields = {"sealedResult": sealed, "value": sealed}
         if license_key:
             fields["license"] = license_key
         try:

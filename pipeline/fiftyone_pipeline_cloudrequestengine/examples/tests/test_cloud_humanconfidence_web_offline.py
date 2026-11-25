@@ -123,11 +123,15 @@ class StubCloud:
                 "humanconfidencesource": "Passive"}})
 
         if path == "hc/redeem":
-            if data.get("value") in self.redeemed:
-                return StubResponse({"result": "replayed"})
-            self.redeemed.add(data.get("value"))
+            # The cloud reads the sealed result from sealedResult, and the
+            # level it gives with any status but success is Medium.
+            if data.get("sealedResult") in self.redeemed:
+                return StubResponse(
+                    {"humanConfidence": "Medium", "status": "replayed"})
+            self.redeemed.add(data.get("sealedResult"))
             return StubResponse({
-                "humanConfidence": "High", "secondsSinceVerified": 2})
+                "humanConfidence": "High", "status": "success",
+                "secondsSinceVerified": 2})
 
         return StubResponse("Not Found", 404)
 
@@ -317,36 +321,53 @@ def test_passive_answers_when_the_cloud_cannot_be_reached(cloud):
 
 # Step 3, redeem.
 
-def test_redeem_sends_the_sealed_value_with_the_licence_key(cloud):
+def test_redeem_sends_the_sealed_result_with_the_licence_key(cloud):
     stub = cloud()
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
+    response = client_for().post(
+        "/redeem", data={"sealedResult": "a-sealed-value"})
 
     assert response.status_code == 200
     assert response.headers["Content-Type"].startswith("application/json")
     assert response.get_json() == {
-        "humanConfidence": "High", "secondsSinceVerified": 2}
+        "humanConfidence": "High", "status": "success",
+        "secondsSinceVerified": 2}
     method, url, data = stub.requests[-1]
     assert method == "POST"
     assert url == API + "hc/redeem"
-    assert data == {"value": "a-sealed-value", "license": LICENCE_KEY}
+    # The sealed result goes as value too, for a cloud that reads only
+    # value.
+    assert data == {"sealedResult": "a-sealed-value",
+                    "value": "a-sealed-value", "license": LICENCE_KEY}
+
+
+def test_redeem_still_takes_the_sealed_result_as_value(cloud):
+    stub = cloud()
+    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
+
+    assert response.get_json()["status"] == "success"
+    assert stub.requests[-1][2] == {"sealedResult": "a-sealed-value",
+                                    "value": "a-sealed-value",
+                                    "license": LICENCE_KEY}
 
 
 def test_second_redeem_of_the_same_value_is_replayed(cloud):
     cloud()
     client = client_for()
-    first = client.post("/redeem", data={"value": "a-sealed-value"})
-    second = client.post("/redeem", data={"value": "a-sealed-value"})
+    first = client.post("/redeem", data={"sealedResult": "a-sealed-value"})
+    second = client.post("/redeem", data={"sealedResult": "a-sealed-value"})
 
     assert first.get_json()["humanConfidence"] == "High"
-    assert second.get_json() == {"result": "replayed"}
+    assert second.get_json() == {
+        "humanConfidence": "Medium", "status": "replayed"}
 
 
 def test_redeem_without_a_licence_key_sends_none(cloud):
     stub = cloud()
     client_for(license_key="").post(
-        "/redeem", data={"value": "a-sealed-value"})
+        "/redeem", data={"sealedResult": "a-sealed-value"})
 
-    assert stub.requests[-1][2] == {"value": "a-sealed-value"}
+    assert stub.requests[-1][2] == {"sealedResult": "a-sealed-value",
+                                    "value": "a-sealed-value"}
 
 
 def test_redeem_gives_the_answer_as_the_cloud_gave_it(cloud):
@@ -356,6 +377,17 @@ def test_redeem_gives_the_answer_as_the_cloud_gave_it(cloud):
 
     assert response.status_code == 400
     assert response.get_data(as_text=True) == '{"result":"expired"}'
+
+
+def test_redeem_gives_an_unconfirmed_status_as_the_cloud_gave_it(cloud):
+    stub = cloud()
+    body = '{"humanConfidence":"Medium","status":"unconfirmed"}'
+    stub.instead["hc/redeem"] = StubResponse(body, 503)
+    response = client_for().post(
+        "/redeem", data={"sealedResult": "a-sealed-value"})
+
+    assert response.status_code == 503
+    assert response.get_data(as_text=True) == body
 
 
 def test_redeem_says_when_the_service_does_not_redeem(cloud):

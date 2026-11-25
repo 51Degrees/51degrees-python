@@ -134,22 +134,37 @@
     })
     .catch(function (error) { show("passive-level", String(error), FAIL); });
 
-  // Step 3. The server redeems the sealed value with its License Key.
+  // Step 3. The server redeems the sealed result with its License Key.
   function redeem(value) {
     var body = new URLSearchParams();
-    body.set("value", value);
+    body.set("sealedResult", value);
     return fetch("redeem", { method: "POST", body: body })
       .then(function (r) { return r.json(); });
   }
 
+  // What happened to the sealed result. The status says it, and a cloud
+  // that gives no status says it in result instead.
+  function outcome(answer) {
+    return answer.status || answer.result;
+  }
+
+  // Only success carries the true level. The level that comes with any
+  // other status isn't the browser's, so it isn't shown as one. A cloud
+  // that gives no status gives a level only on success.
+  function redeemed(answer) {
+    return answer.status ? answer.status === "success"
+      : Boolean(answer.humanConfidence);
+  }
+
   function showRedeemed(answer) {
-    if (answer.humanConfidence) {
+    if (redeemed(answer)) {
       show("redeem-detail", "redeemed " + answer.secondsSinceVerified
         + " s after the check", PASS);
       show("redeem-level", answer.humanConfidence,
         levelClass(answer.humanConfidence));
     } else {
-      show("redeem-detail", answer.result || answer.error || "no answer", FAIL);
+      show("redeem-detail", outcome(answer) || answer.error || "no answer",
+        FAIL);
       show("redeem-level", "no level", NONE);
     }
   }
@@ -191,8 +206,8 @@
         again.onclick = function () {
           redeem(value).then(function (second) {
             document.getElementById("again-result").textContent =
-              " Second redeem: " + (second.result || second.humanConfidence
-                || second.error);
+              " Second redeem: " + (redeemed(second)
+                ? second.humanConfidence : outcome(second) || second.error);
           });
         };
       }).catch(function (error) {
