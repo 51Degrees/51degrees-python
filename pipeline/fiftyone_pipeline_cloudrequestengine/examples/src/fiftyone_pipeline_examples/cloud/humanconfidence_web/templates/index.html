@@ -145,15 +145,22 @@
   // What happened to the sealed result. The status says it, and a cloud
   // that gives no status says it in result instead.
   function outcome(answer) {
-    return answer.status || answer.result;
+    return answer.status || answer.result || answer.context;
   }
 
   // Only success carries the true level. The level that comes with any
   // other status isn't the browser's, so it isn't shown as one. A cloud
-  // that gives no status gives a level only on success.
+  // that gives no status still gives a level with expired and replayed,
+  // so there it's success only when result names no failure: it's left
+  // out, or it's success. Any other word, expired, replayed, unreadable
+  // and unconfirmed included, is a failure.
   function redeemed(answer) {
-    return answer.status ? answer.status === "success"
-      : Boolean(answer.humanConfidence);
+    if (answer.status) {
+      return answer.status === "success";
+    }
+    var word = answer.result || answer.context;
+    return Boolean(answer.humanConfidence)
+      && (!word || word === "success");
   }
 
   function showRedeemed(answer) {

@@ -28,7 +28,10 @@ was sent, so the tests see what the example passed on.
 """
 
 import json
+import os
 import re
+import shutil
+import subprocess
 
 import pytest
 import requests
@@ -388,6 +391,50 @@ def test_redeem_gives_an_unconfirmed_status_as_the_cloud_gave_it(cloud):
 
     assert response.status_code == 503
     assert response.get_data(as_text=True) == body
+
+
+# How the page reads each redeem answer, as the cloud gives it now with
+# status, and as release 4.4.55 gives it without status. Each is paired with
+# whether the page shows the level as redeemed.
+REDEEM_ANSWERS = [
+    ({"humanConfidence": "High", "status": "success"}, True),
+    ({"humanConfidence": "Medium", "status": "replayed"}, False),
+    ({"humanConfidence": "Medium", "status": "expired"}, False),
+    ({"humanConfidence": "Medium", "status": "unconfirmed"}, False),
+    ({"humanConfidence": "High", "verifiedAt": "2026-11-25T09:00:00Z",
+      "secondsSinceVerified": 2}, True),
+    ({"humanConfidence": "Low", "result": "expired",
+      "verifiedAt": "2026-11-25T09:00:00Z", "secondsSinceVerified": 900},
+     False),
+    ({"humanConfidence": "Low", "result": "replayed"}, False),
+    ({"result": "unreadable"}, False),
+    ({"result": "unconfirmed"}, False),
+    ({"humanConfidence": "Low", "result": "somethingnew"}, False),
+    ({"humanConfidence": "Low", "context": "replayed"}, False),
+    ({"error": "HTTP 502"}, False),
+]
+
+
+@pytest.mark.skipif(shutil.which("node") is None,
+                    reason="Node is not on the path")
+def test_page_shows_a_level_only_for_a_redeemed_answer():
+    template = os.path.join(
+        os.path.dirname(example.__file__), "templates", "index.html")
+    with open(template, encoding="utf-8") as handle:
+        page = handle.read()
+    function = re.search(
+        r"function redeemed\(answer\) \{.*?\n  \}", page, re.S)
+    assert function is not None, "the page has a redeemed function"
+    script = function.group(0) + "\nconsole.log(JSON.stringify(" \
+        + json.dumps([answer for answer, _ in REDEEM_ANSWERS]) \
+        + ".map(redeemed)));\n"
+    finished = subprocess.run(
+        [shutil.which("node"), "-e", script], capture_output=True,
+        text=True, timeout=60)
+    assert finished.returncode == 0, finished.stderr
+
+    assert json.loads(finished.stdout) == [
+        expected for _, expected in REDEEM_ANSWERS]
 
 
 def test_redeem_says_when_the_service_does_not_redeem(cloud):
