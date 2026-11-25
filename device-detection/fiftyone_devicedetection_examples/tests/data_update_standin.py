@@ -87,10 +87,14 @@ def write_published(path, date):
 
 
 def newer_copy(source, target):
-    """Copies the data file at source to target with its published date a
-    day later, and gives that date."""
+    """Copies the data file at source to target, published tomorrow, and
+    gives that date. Tomorrow is later than any If-Modified-Since the
+    request can carry, which is the file's published date or, before an
+    engine has loaded it, the time the file was last modified."""
     shutil.copyfile(source, target)
-    date = read_published(target) + timedelta(days=1)
+    tomorrow = datetime.now(timezone.utc) + timedelta(days=1)
+    date = datetime(tomorrow.year, tomorrow.month, tomorrow.day,
+                    tzinfo=timezone.utc)
     write_published(target, date)
     return date
 

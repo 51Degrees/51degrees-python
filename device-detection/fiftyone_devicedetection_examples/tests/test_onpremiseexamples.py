@@ -75,8 +75,7 @@ class DeviceDetectionExampleTests(unittest.TestCase):
 
     def update_from_stand_in(self, product):
         """Runs the data file update example against the stand-in, which
-        serves a copy of the fetched TAC data file with its published date a
-        day later. Gives the requests the stand-in received, the published
+        serves a copy of the fetched TAC data file published tomorrow. Gives the requests the stand-in received, the published
         date of the file the example updated, and the date it should hold."""
         source = ExampleUtils.find_file(TAC_DATAFILE_NAME)
         self.assertIsNotNone(
