@@ -522,6 +522,7 @@ check = await client.verify_detailed(fod_id)
 check.valid                           # bool
 check.human_confidence                # HumanConfidenceValue: HIGH,
                                       #   MEDIUM, LOW or ABSENT, or None
+                                      #   where the cloud sent no Value
 check.human_confidence_null_reason    # the cloud's reason, or None
 ```
 
@@ -541,6 +542,8 @@ redeemed.human_confidence         # HumanConfidenceValue on SUCCESS for
                                   #   a licence key valid for Human
                                   #   Confidence: HIGH, MEDIUM, LOW or
                                   #   ABSENT. None otherwise
+redeemed.human_confidence_raw     # the humanConfidence word as sent,
+                                  #   or None
 redeemed.human_confidence_null_reason  # the cloud's reason, or None
 redeemed.context                  # ContextResult: VERIFIED, MISMATCH,
                                   #   NO_CONTEXT, MISCONFIGURED or
@@ -565,7 +568,8 @@ redeemed.verified_at              # datetime, on the redeemed and expired
                                   #   outcomes
 redeemed.seconds_since_verified
 redeemed.status_code              # 200, or 503 for UNCONFIRMED, which may
-                                  #   be retried
+                                  #   be retried. A 503 is UNCONFIRMED
+                                  #   whatever its body says
 redeemed.raw                      # the body as received
 redeemed.to_dict()                # the cloud's own response shape, for
                                   #   relaying to a page, without the
@@ -594,7 +598,10 @@ a receiver of `VERIFIED` sees how many factors it rests on.
 
 A context string this package does not know maps to `UNREADABLE`, so an
 unrecognised outcome is never mistaken for a good one, and `context_raw`
-keeps the string as sent. Every cryptographic failure comes back from the
+keeps the string as sent. A Human Confidence Value this package does
+not know reads as `ABSENT`, so it is never taken for `HIGH`, `MEDIUM` or
+`LOW`, and `human_confidence_raw` keeps the word as sent. A missing
+`humanConfidence` field reads as `None`. Every cryptographic failure comes back from the
 cloud as the one word `unreadable` by design, a missing licence key
 included, so the client does not try to tell them apart either. A string
 that does not parse as a 51Did raises `DidArgumentError` before any

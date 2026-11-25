@@ -402,7 +402,8 @@ class CloudVerification:
     valid: bool
     #: The Human Confidence Value the 51Did carries, present only where the
     #: signature verified and the call presented a License Key valid for
-    #: Human Confidence. ``None`` otherwise.
+    #: Human Confidence. ``None`` otherwise. A Value this package does not
+    #: know reads as :attr:`HumanConfidenceValue.ABSENT`.
     human_confidence: Optional[HumanConfidenceValue] = None
     #: Why the cloud gave no Human Confidence Value, as the cloud worded
     #: it, where it said. ``None`` otherwise.
@@ -470,6 +471,9 @@ class RedeemResult:
         self.status_code = status_code
         #: The response body exactly as received.
         self.raw = raw
+        # HTTP 503 means first use could not be confirmed, whatever the
+        # body says, so no verdict is read from the body of one.
+        unconfirmed = status_code == 503
         context = parsed.get("context")
         context = context if isinstance(context, str) else ""
         #: The ``context`` string exactly as the cloud sent it, kept so an
@@ -477,8 +481,10 @@ class RedeemResult:
         self.context_raw = context
         #: One of :class:`ContextResult`. A string this package does not
         #: know maps to :attr:`ContextResult.UNREADABLE`, so an
-        #: unrecognised outcome is never mistaken for a good one.
-        self.context = _context_of(context)
+        #: unrecognised outcome is never mistaken for a good one. HTTP 503
+        #: reads as ``unconfirmed``, whatever the body says.
+        self.context = _context_of(
+            "unconfirmed" if unconfirmed else context)
         status = parsed.get("status")
         status = status if isinstance(status, str) else ""
         #: The ``status`` string exactly as the cloud sent it, or ``""``
@@ -491,15 +497,29 @@ class RedeemResult:
         #: :attr:`RedeemStatus.UNREADABLE`, so it is never mistaken for a
         #: good one. A cloud that sends no ``status`` writes the same word
         #: to ``context`` on every other outcome, so the status is then read
-        #: from ``context``.
-        self.status = _status_of(status, context)
+        #: from ``context``. HTTP 503 is always
+        #: :attr:`RedeemStatus.UNCONFIRMED`, whatever the body says.
+        self.status = RedeemStatus.UNCONFIRMED if unconfirmed \
+            else _status_of(status, context)
+        if unconfirmed:
+            # Nothing else in the body of a 503 is read either, so a body
+            # shaped like a redeemed result gives no verdict.
+            parsed = {}
+        word = parsed.get("humanConfidence")
+        #: The ``humanConfidence`` string exactly as the cloud sent it, or
+        #: ``None`` where it sent none, kept so a word this package does
+        #: not know is still visible.
+        self.human_confidence_raw: Optional[str] = \
+            word if isinstance(word, str) else None
         #: The Human Confidence Value the 51Did carries, one of
         #: :class:`HumanConfidenceValue`. The cloud gives it on
         #: :attr:`RedeemStatus.SUCCESS` to a call that presented a License
         #: Key valid for Human Confidence. ``None`` where the cloud sent no
-        #: Value, or a word this package does not know.
+        #: Value. A Value this package does not know reads as
+        #: :attr:`HumanConfidenceValue.ABSENT`, so it is never mistaken
+        #: for one of the others.
         self.human_confidence: Optional[HumanConfidenceValue] = \
-            _human_confidence_of(parsed.get("humanConfidence"))
+            _human_confidence_of(word)
         reason = parsed.get("humanConfidenceNullReason")
         #: Why the cloud gave no Human Confidence Value, as the cloud worded
         #: it, where it said. ``None`` otherwise.
@@ -546,8 +566,12 @@ class RedeemResult:
     @classmethod
     def from_response(cls, status_code: int, raw: str) -> "RedeemResult":
         """Builds a result from a redeem response body, raising
-        :class:`DidClientError` when the body is not a JSON object."""
+        :class:`DidClientError` when the body is not a JSON object. A 503
+        is :attr:`RedeemStatus.UNCONFIRMED` whatever its body, so an empty
+        body or one that is not JSON raises nothing."""
         parsed = _try_parse_json(raw)
+        if status_code == 503 and not isinstance(parsed, dict):
+            parsed = {}
         if not isinstance(parsed, dict):
             raise DidClientError(
                 "Redeem answered HTTP {0} with a body that is not a JSON "
@@ -617,13 +641,17 @@ def _status_of(status: str, context: str) -> RedeemStatus:
 
 def _human_confidence_of(value: Any) -> Optional[HumanConfidenceValue]:
     """The Human Confidence Value from the cloud's word, compared without
-    regard to case, or ``None`` for anything else."""
-    if not isinstance(value, str):
+    regard to case. ``None`` where the cloud sent no Value (the field left
+    out, or ``null``), and :attr:`HumanConfidenceValue.ABSENT` for any
+    other value this package does not know, so it is never taken for High,
+    Medium or Low."""
+    if value is None:
         return None
-    for member in HumanConfidenceValue:
-        if member.value.lower() == value.lower():
-            return member
-    return None
+    if isinstance(value, str):
+        for member in HumanConfidenceValue:
+            if member.value.lower() == value.lower():
+                return member
+    return HumanConfidenceValue.ABSENT
 
 
 def _factor_of(value: Any) -> FactorValue:

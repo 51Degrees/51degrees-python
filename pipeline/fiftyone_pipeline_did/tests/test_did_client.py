@@ -1684,18 +1684,74 @@ class NewRedeemAnswerTests(unittest.TestCase):
                 # The words are compared without regard to case.
                 ("high", HumanConfidenceValue.HIGH),
                 ("ABSENT", HumanConfidenceValue.ABSENT),
-                # Anything else is no Value at all, never one of the four.
-                ("Unknown", None),
-                ("", None),
-                (None, None),
-                (7, None),
-                (True, None)):
+                # Any other value the cloud sends is Absent, never High,
+                # Medium or Low.
+                ("Unknown", HumanConfidenceValue.ABSENT),
+                ("Highest", HumanConfidenceValue.ABSENT),
+                ("", HumanConfidenceValue.ABSENT),
+                (7, HumanConfidenceValue.ABSENT),
+                (True, HumanConfidenceValue.ABSENT),
+                # A null is no Value at all.
+                (None, None)):
             with self.subTest(word=word):
                 body = with_new_fields(REDEEMED_WITHOUT_FACTORS,
                                        humanConfidence=word,
                                        status="success")
                 self.assertIs(expected,
                               self.redeem(200, body).human_confidence)
+
+    def test_an_unknown_value_keeps_the_word_as_sent(self):
+        result = self.redeem(200, with_new_fields(
+            REDEEMED_WITHOUT_FACTORS, humanConfidence="Highest",
+            status="success"))
+        self.assertIs(HumanConfidenceValue.ABSENT, result.human_confidence)
+        self.assertEqual("Highest", result.human_confidence_raw)
+        self.assertEqual(
+            "High", self.redeem(
+                200, TODAY_AND_NEW_REDEEM_ANSWERS[0][2]).human_confidence_raw)
+
+    def test_a_missing_value_is_none_not_absent(self):
+        # Told apart from an unknown word: no field means no Value, with
+        # the cloud's reason where it gave one.
+        result = self.redeem(200, TODAY_AND_NEW_REDEEM_ANSWERS[1][2])
+        self.assertIsNone(result.human_confidence)
+        self.assertIsNone(result.human_confidence_raw)
+        self.assertEqual(HUMAN_CONFIDENCE_NULL_REASON,
+                         result.human_confidence_null_reason)
+        result = self.redeem(200, with_new_fields(
+            REDEEMED_WITHOUT_FACTORS, status="success"))
+        self.assertIsNone(result.human_confidence)
+        self.assertIsNone(result.human_confidence_raw)
+
+    def test_503_is_unconfirmed_whatever_the_body_says(self):
+        for body in ("", "Service Unavailable", "[]",
+                     '{"context":"unconfirmed"}',
+                     with_new_fields(REDEEMED_WITH_FACTORS,
+                                     humanConfidence="High",
+                                     status="success"),
+                     '{"context":"verified","signature":"verified"}'):
+            with self.subTest(body=body):
+                result = self.redeem(503, body)
+                self.assertEqual(503, result.status_code)
+                self.assertIs(RedeemStatus.UNCONFIRMED, result.status)
+                self.assertEqual("unconfirmed", result.context.value)
+                self.assertEqual(body, result.raw)
+                # No verdict is read from the body of a 503.
+                self.assertIsNone(result.human_confidence)
+                self.assertIs(SignatureResult.UNKNOWN, result.signature)
+                self.assertIsNone(result.factors)
+                self.assertIsNone(result.verified_at)
+                self.assertIsNone(result.seconds_since_verified)
+                self.assertEqual({"context": "unconfirmed"},
+                                 result.to_dict())
+
+    def test_the_result_class_reads_a_503_directly(self):
+        result = RedeemResult.from_response(503, "")
+        self.assertIs(RedeemStatus.UNCONFIRMED, result.status)
+        result = RedeemResult(
+            503, "", {"status": "success", "humanConfidence": "High"})
+        self.assertIs(RedeemStatus.UNCONFIRMED, result.status)
+        self.assertIsNone(result.human_confidence)
 
     def test_the_values_are_the_words_the_cloud_writes(self):
         self.assertEqual(
@@ -1990,6 +2046,27 @@ class CloudVerifyHumanConfidenceTests(unittest.TestCase):
         self.assertEqual(
             CloudVerification(True, HumanConfidenceValue.MEDIUM, None),
             run(self.client.verify_detailed(self.fod_id)))
+
+    def test_verify_detailed_reads_an_unknown_value_as_absent(self):
+        for word in ("Highest", "", 7):
+            with self.subTest(word=word):
+                self.transport.answers["id/verify/"] = (
+                    200, json.dumps({"valid": True, "humanConfidence": word}))
+                self.assertEqual(
+                    CloudVerification(True, HumanConfidenceValue.ABSENT),
+                    run(self.client.verify_detailed(self.fod_id)))
+
+    def test_verify_detailed_reads_a_missing_value_as_none(self):
+        # Told apart from an unknown word: no field means no Value, with
+        # the cloud's reason where it gave one.
+        for body, reason in (
+                (self.VERIFIED_WITHOUT_VALUE, HUMAN_CONFIDENCE_NULL_REASON),
+                ('{"valid":true,"humanConfidence":null}', None)):
+            with self.subTest(body=body):
+                self.transport.answers["id/verify/"] = (200, body)
+                self.assertEqual(
+                    CloudVerification(True, None, reason),
+                    run(self.client.verify_detailed(self.fod_id)))
 
     def test_verify_detailed_reads_today_s_answers(self):
         self.transport.answers["id/verify/"] = (200, '{"valid":true}')
