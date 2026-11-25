@@ -510,19 +510,42 @@ message and `status_code` 400.
 valid = await client.verify(fod_id)   # bool
 ```
 
+`verify_detailed` makes the same call and also reads the Human Confidence
+Value the 51Did carries. Where the client holds a licence key, it goes in
+the `X-51D-License-Key` header, never in the URL. The cloud gives the
+Value for a 51Did whose signature verifies when that key is valid for
+Human Confidence, and otherwise says why it left the Value out. `verify`
+sends no licence key.
+
+```python
+check = await client.verify_detailed(fod_id)
+check.valid                           # bool
+check.human_confidence                # HumanConfidenceValue: HIGH,
+                                      #   MEDIUM, LOW or ABSENT, or None
+check.human_confidence_null_reason    # the cloud's reason, or None
+```
+
 **4. Redeem a sealed creator context result.** The verify-context and
 verify-full endpoints are browser calls, because the creator context
 describes the browser's own connection, and they return the verdict only
-as an encrypted `result` the browser cannot read or forge. The party that
-acts on it redeems it on the server, with the licence key, against the
-51Did it knows independently.
+as a sealed result, `sealedResult`, that the browser cannot read or
+forge. The party that acts on it redeems it on the server, with the
+licence key, against the 51Did it knows independently. The transaction
+is the optional single-use value the page gave the verify endpoint.
 
 ```python
-redeemed = await client.redeem(fod_id, result, challenge)
+redeemed = await client.redeem(fod_id, sealed_result, transaction)
+redeemed.status                   # RedeemStatus: SUCCESS, EXPIRED,
+                                  #   REPLAYED, UNCONFIRMED or UNREADABLE
+redeemed.human_confidence         # HumanConfidenceValue on SUCCESS for
+                                  #   a licence key valid for Human
+                                  #   Confidence: HIGH, MEDIUM, LOW or
+                                  #   ABSENT. None otherwise
+redeemed.human_confidence_null_reason  # the cloud's reason, or None
 redeemed.context                  # ContextResult: VERIFIED, MISMATCH,
-                                  #   NO_CONTEXT, MISCONFIGURED,
-                                  #   INVALID_DATE, EXPIRED, REPLAYED,
-                                  #   UNREADABLE, UNCONFIRMED
+                                  #   NO_CONTEXT, MISCONFIGURED or
+                                  #   INVALID_DATE on SUCCESS, and the
+                                  #   status word otherwise
 redeemed.signature                # SignatureResult: VERIFIED, INVALID
                                   #   or UNKNOWN
 redeemed.factors                  # on a mismatch, on a misconfigured
@@ -545,8 +568,18 @@ redeemed.status_code              # 200, or 503 for UNCONFIRMED, which may
                                   #   be retried
 redeemed.raw                      # the body as received
 redeemed.to_dict()                # the cloud's own response shape, for
-                                  #   relaying to a page
+                                  #   relaying to a page, without the
+                                  #   status or the Value
 ```
+
+The `result` and `challenge` arguments are obsolete. They still work,
+with a `DeprecationWarning`, and `sealed_result` and `transaction` win
+when both are given. The `EXPIRED`, `REPLAYED`, `UNREADABLE` and
+`UNCONFIRMED` members of `ContextResult` are obsolete too, because
+`status` now says what happened to the sealed result. They keep their
+values and still work, with a `DeprecationWarning` when read by name.
+A cloud that sends no `status` writes the failure word to `context`, so
+`status` is then read from `context`.
 
 Neither `MISCONFIGURED` nor `NOT_RECORDED` is a mismatch, and neither
 must ever be read as one, but they say different things, because

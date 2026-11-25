@@ -28,7 +28,9 @@ handles a key itself. It fetches the signing public keys and keeps them,
 picks the key in force when an identifier was created, verifies a
 signature offline against that key, verifies a signature through the
 cloud's verify endpoint, and redeems a sealed creator context result with
-the licence key, returning a typed :class:`RedeemResult`.
+the licence key, returning a typed :class:`RedeemResult`. The verify and
+redeem calls also read the Human Confidence Value a 51Did carries, where
+the cloud gives it.
 
 Creating a 51Did is not part of this client. Creation is the cloud ``json``
 endpoint through the cloud request engine and pipeline, and a page creates
@@ -63,6 +65,9 @@ import warnings
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+# Imported under a private name so that a star import of this module gives
+# no name it did not give before.
+from enum import EnumMeta as _EnumMeta
 from typing import (
     Any, Awaitable, Callable, Dict, List, Optional, Tuple, Union)
 
@@ -152,11 +157,57 @@ def _package_version() -> str:
 #: Sent with every request so the cloud can tell which package called.
 USER_AGENT = "fiftyone_pipeline_did/" + _package_version()
 
+# The header the cloud reads a License Key from, used where a request has
+# no form body to carry one, so the key never travels in a URL.
+_LICENCE_HEADER = "X-51D-License-Key"
 
-class ContextResult(str, Enum):
+# Marks a redeem argument that was not given, so that an explicit None
+# still reads as it always has.
+_NOT_GIVEN: Any = object()
+
+
+#: The :class:`ContextResult` members that are obsolete, each with the
+#: message the warning gives. What happened to the sealed result is now
+#: read from :attr:`RedeemResult.status`. The cloud still writes the same
+#: words to ``context``, so each member keeps its value and goes on
+#: working.
+_OBSOLETE_CONTEXT_MEMBERS = {
+    "EXPIRED": "ContextResult.EXPIRED is obsolete. Use "
+               "RedeemStatus.EXPIRED, read from RedeemResult.status.",
+    "REPLAYED": "ContextResult.REPLAYED is obsolete. Use "
+                "RedeemStatus.REPLAYED, read from RedeemResult.status.",
+    "UNREADABLE": "ContextResult.UNREADABLE is obsolete. Use "
+                  "RedeemStatus.UNREADABLE, read from RedeemResult.status.",
+    "UNCONFIRMED": "ContextResult.UNCONFIRMED is obsolete. Use "
+                   "RedeemStatus.UNCONFIRMED, read from "
+                   "RedeemResult.status.",
+}
+
+
+class _ContextResultType(_EnumMeta):
+    """The type of :class:`ContextResult`, which gives a
+    :class:`DeprecationWarning` when one of its obsolete members is read by
+    name, as in ``ContextResult.EXPIRED``. Reading a member by its value,
+    as ``ContextResult("expired")`` does and as this package does, gives
+    none, and neither does listing the members."""
+
+    def __getattribute__(cls, name: str) -> Any:
+        message = _OBSOLETE_CONTEXT_MEMBERS.get(name)
+        if message is not None:
+            warnings.warn(message, DeprecationWarning, stacklevel=2)
+        return super().__getattribute__(name)
+
+
+class ContextResult(str, Enum, metaclass=_ContextResultType):
     """The creator context outcome of a redemption, as the cloud reports it
     in the ``context`` field. The values are the cloud's own strings, so a
-    result can be compared to a member or printed as received."""
+    result can be compared to a member or printed as received.
+
+    :attr:`EXPIRED`, :attr:`REPLAYED`, :attr:`UNREADABLE` and
+    :attr:`UNCONFIRMED` are obsolete, and reading one by name gives a
+    :class:`DeprecationWarning`. Read :attr:`RedeemResult.status` instead.
+    They keep their values and still work, because the cloud still writes
+    those words to ``context`` when a sealed result is not redeemed."""
 
     #: Every factor matched the browser and connection that created it.
     VERIFIED = "verified"
@@ -180,16 +231,61 @@ class ContextResult(str, Enum):
     #: the future or before the creator context scheme began, so the
     #: identifier is fabricated rather than the service being wrong.
     INVALID_DATE = "invaliddate"
+    #: Obsolete. Use :attr:`RedeemStatus.EXPIRED`. The sealed result was
+    #: redeemed outside the freshness window.
+    EXPIRED = "expired"
+    #: Obsolete. Use :attr:`RedeemStatus.REPLAYED`. The sealed result had
+    #: already been redeemed on that instance.
+    REPLAYED = "replayed"
+    #: Obsolete. Use :attr:`RedeemStatus.UNREADABLE`. The sealed result
+    #: could not be read. Every cryptographic failure, a missing licence key
+    #: included, comes back as this one word by design, and a context string
+    #: this package does not know is mapped here too.
+    UNREADABLE = "unreadable"
+    #: Obsolete. Use :attr:`RedeemStatus.UNCONFIRMED`. First use could not
+    #: be confirmed (HTTP 503). The caller may retry.
+    UNCONFIRMED = "unconfirmed"
+
+
+class RedeemStatus(str, Enum):
+    """What happened to the sealed result at redemption, as the cloud
+    reports it in the ``status`` field. The values are the cloud's own
+    words. Only :attr:`SUCCESS` carries an unsealed result, being the
+    ``signature``, ``context`` and ``factors`` of the verdict."""
+
+    #: The sealed result was redeemed, and the verdict is in
+    #: :attr:`RedeemResult.context`.
+    SUCCESS = "success"
     #: The sealed result was redeemed outside the freshness window.
     EXPIRED = "expired"
     #: The sealed result had already been redeemed on that instance.
     REPLAYED = "replayed"
-    #: The sealed result could not be read. Every cryptographic failure, a
-    #: missing licence key included, comes back as this one word by design,
-    #: and a context string this package does not know is mapped here too.
-    UNREADABLE = "unreadable"
     #: First use could not be confirmed (HTTP 503). The caller may retry.
     UNCONFIRMED = "unconfirmed"
+    #: The sealed result could not be read. Every cryptographic failure, a
+    #: missing licence key included, comes back as this one word by design,
+    #: and a status this package does not know is read as this too.
+    UNREADABLE = "unreadable"
+
+
+class HumanConfidenceValue(str, Enum):
+    """The Human Confidence Value a 51Did carries, as the cloud reports it
+    in the ``humanConfidence`` field. The values are the cloud's own
+    words. The cloud gives it only to a call that presents a License Key
+    valid for Human Confidence."""
+
+    #: High confidence that a human was using the device the 51Did was
+    #: created for.
+    HIGH = "High"
+    #: Medium confidence that a human was using the device the 51Did was
+    #: created for.
+    MEDIUM = "Medium"
+    #: Low confidence that a human was using the device the 51Did was
+    #: created for.
+    LOW = "Low"
+    #: The 51Did carries no Value. Every 51Did issued before the Value was
+    #: added reads as this.
+    ABSENT = "Absent"
 
 
 class SignatureResult(str, Enum):
@@ -297,6 +393,22 @@ class SignatureCheck:
     reason: SignatureReason
 
 
+@dataclass(frozen=True)
+class CloudVerification:
+    """The detailed answer to a signature check through the cloud's verify
+    endpoint, from :meth:`DidClient.verify_detailed`."""
+
+    #: Whether the cloud verified the signature.
+    valid: bool
+    #: The Human Confidence Value the 51Did carries, present only where the
+    #: signature verified and the call presented a License Key valid for
+    #: Human Confidence. ``None`` otherwise.
+    human_confidence: Optional[HumanConfidenceValue] = None
+    #: Why the cloud gave no Human Confidence Value, as the cloud worded
+    #: it, where it said. ``None`` otherwise.
+    human_confidence_null_reason: Optional[str] = None
+
+
 #: The type of a factor value in :attr:`RedeemResult.factors`, which is
 #: never ``None``.
 FactorValue = FactorResult
@@ -367,6 +479,32 @@ class RedeemResult:
         #: know maps to :attr:`ContextResult.UNREADABLE`, so an
         #: unrecognised outcome is never mistaken for a good one.
         self.context = _context_of(context)
+        status = parsed.get("status")
+        status = status if isinstance(status, str) else ""
+        #: The ``status`` string exactly as the cloud sent it, or ``""``
+        #: where it sent none, kept so a status this package does not know
+        #: is still visible.
+        self.status_raw = status
+        #: One of :class:`RedeemStatus`, saying what happened to the sealed
+        #: result. Only :attr:`RedeemStatus.SUCCESS` carries a verdict. A
+        #: status this package does not know reads as
+        #: :attr:`RedeemStatus.UNREADABLE`, so it is never mistaken for a
+        #: good one. A cloud that sends no ``status`` writes the same word
+        #: to ``context`` on every other outcome, so the status is then read
+        #: from ``context``.
+        self.status = _status_of(status, context)
+        #: The Human Confidence Value the 51Did carries, one of
+        #: :class:`HumanConfidenceValue`. The cloud gives it on
+        #: :attr:`RedeemStatus.SUCCESS` to a call that presented a License
+        #: Key valid for Human Confidence. ``None`` where the cloud sent no
+        #: Value, or a word this package does not know.
+        self.human_confidence: Optional[HumanConfidenceValue] = \
+            _human_confidence_of(parsed.get("humanConfidence"))
+        reason = parsed.get("humanConfidenceNullReason")
+        #: Why the cloud gave no Human Confidence Value, as the cloud worded
+        #: it, where it said. ``None`` otherwise.
+        self.human_confidence_null_reason: Optional[str] = \
+            reason if isinstance(reason, str) else None
         signature = parsed.get("signature")
         #: One of :class:`SignatureResult`.
         self.signature = (
@@ -421,7 +559,10 @@ class RedeemResult:
         ``context``, ``factors`` when present, ``verifiedAt``,
         ``secondsSinceVerified``), so a server can answer a page with it
         directly. ``signature`` is left out when the cloud did not report
-        it, as the cloud leaves it out."""
+        it, as the cloud leaves it out. ``status`` is left out, as the
+        failure words are in ``context``, and so is the Human Confidence
+        Value, which is for the server holding the License Key and never
+        for the page."""
         body: Dict[str, Any] = {}
         if self.signature is not SignatureResult.UNKNOWN:
             body["signature"] = self.signature.value
@@ -443,10 +584,46 @@ class RedeemResult:
 
 
 def _context_of(text: str) -> ContextResult:
+    # Read by value, so the package itself never reads an obsolete member
+    # by name and never gives the warning that reading does.
     try:
         return ContextResult(text)
     except ValueError:
-        return ContextResult.UNREADABLE
+        return ContextResult("unreadable")
+
+
+def _status_of(status: str, context: str) -> RedeemStatus:
+    """The status of a redemption. Read from ``status`` where the cloud sent
+    one, and otherwise from ``context``, where a cloud that sends no
+    ``status`` writes the failure word. Any other ``context`` from such a
+    cloud is a verdict, so the sealed result was redeemed, unless it is a
+    word this package does not know, which reads as unreadable."""
+    if status != "":
+        try:
+            return RedeemStatus(status)
+        except ValueError:
+            return RedeemStatus.UNREADABLE
+    # The four failure words are both context words and status words.
+    # "success" is a status word only, so as a context it is unknown.
+    try:
+        word = ContextResult(context)
+    except ValueError:
+        return RedeemStatus.UNREADABLE
+    try:
+        return RedeemStatus(word.value)
+    except ValueError:
+        return RedeemStatus.SUCCESS
+
+
+def _human_confidence_of(value: Any) -> Optional[HumanConfidenceValue]:
+    """The Human Confidence Value from the cloud's word, compared without
+    regard to case, or ``None`` for anything else."""
+    if not isinstance(value, str):
+        return None
+    for member in HumanConfidenceValue:
+        if member.value.lower() == value.lower():
+            return member
+    return None
 
 
 def _factor_of(value: Any) -> FactorValue:
@@ -642,6 +819,26 @@ class DidClient:
         transport failure raises the :class:`OSError` the transport raised
         (:class:`urllib.error.URLError` by default). Being a coroutine,
         every one of these is raised when the call is awaited."""
+        return (await self._verify(fod_id, False)).valid
+
+    async def verify_detailed(self, fod_id: Union[FodId, str]) \
+            -> CloudVerification:
+        """As :meth:`verify`, with the Human Confidence Value the 51Did
+        carries alongside the answer.
+
+        Where the client holds a licence key, it is sent in the
+        ``X-51D-License-Key`` header, never in the URL, and the cloud adds
+        the Value for a 51Did whose signature verifies when that key is
+        valid for Human Confidence. Otherwise the answer carries the reason
+        the cloud gave for leaving the Value out, where it gave one.
+        :meth:`verify` sends no licence key. One use against the resource
+        key, as :meth:`verify` is. Raises what :meth:`verify` raises."""
+        return await self._verify(fod_id, True)
+
+    async def _verify(self, fod_id: Union[FodId, str],
+                      with_licence: bool) -> CloudVerification:
+        """The verify request, with the licence key in its header where
+        ``with_licence`` is set and the client holds one."""
         text = _identifier_text(fod_id)
         # The identifier travels under both names so the request works with
         # hosts that read either parameter. Hosts that recognise both prefer
@@ -650,13 +847,20 @@ class DidClient:
         url = "{0}id/verify/{1}?51did={2}&owid={2}".format(
             self._endpoint, urllib.parse.quote(self._resource_key, safe=""),
             encoded)
+        headers = {"User-Agent": USER_AGENT}
+        if with_licence and self._licence_key is not None:
+            headers[_LICENCE_HEADER] = self._licence_key
         status, body = await self._send(urllib.request.Request(
-            url, headers={"User-Agent": USER_AGENT}, method="GET"))
+            url, headers=headers, method="GET"))
         parsed = _try_parse_json(body)
         if isinstance(parsed, dict):
             valid = parsed.get("valid")
             if isinstance(valid, bool):
-                return valid
+                reason = parsed.get("humanConfidenceNullReason")
+                return CloudVerification(
+                    valid,
+                    _human_confidence_of(parsed.get("humanConfidence")),
+                    reason if isinstance(reason, str) else None)
             errors = parsed.get("errors")
             if status == 400 and isinstance(errors, list):
                 raise DidArgumentError(
@@ -667,29 +871,45 @@ class DidClient:
 
     # ----- Redeem -----
 
-    async def redeem(self, fod_id: Union[FodId, str], result: str,
-                     challenge: Optional[str] = None) -> RedeemResult:
+    async def redeem(self, fod_id: Union[FodId, str],
+                     sealed_result: Optional[str] = _NOT_GIVEN,
+                     transaction: Optional[str] = None, *,
+                     result: Optional[str] = _NOT_GIVEN,
+                     challenge: Optional[str] = _NOT_GIVEN) -> RedeemResult:
         """Redeems a sealed creator context result against the identifier,
         on the server, with the licence key.
 
-        The resource key, the 51Did, the sealed result, the challenge and
+        The resource key, the 51Did, the sealed result, the transaction and
         the licence key all travel in the body of a POST to ``id/redeem``,
-        so none of them reaches an access log. (The redeem endpoint takes
-        the resource key in the form on a POST, where the key and verify
-        endpoints take it in the route on a GET.) One use against the
-        resource key, the second of the two a browser context check costs.
+        as ``resource``, ``51did``, ``sealedResult``, ``transaction`` and
+        ``license``, so none of them reaches an access log. (The redeem
+        endpoint takes the resource key in the form on a POST, where the
+        key and verify endpoints take it in the route on a GET.) One use
+        against the resource key, the second of the two a browser context
+        check costs.
 
         A 200 and a 503 both produce a result, the 503 being the
-        ``unconfirmed`` outcome the caller may retry. Every cryptographic
+        ``unconfirmed`` status the caller may retry. Every cryptographic
         failure comes back as the one word ``unreadable`` by design, so the
-        client does not try to tell them apart either.
+        client does not try to tell them apart either. Read
+        :attr:`RedeemResult.status` for what happened to the sealed result,
+        and :attr:`RedeemResult.human_confidence` for the Human Confidence
+        Value the 51Did carries.
 
         :param fod_id: the identifier the caller knows independently, or
             its base64 in either alphabet.
-        :param result: the sealed result exactly as the verify endpoint
-            returned it to the page.
-        :param challenge: the single-use challenge given to the verify
-            endpoint, where one was.
+        :param sealed_result: the sealed result exactly as the verify
+            endpoint returned it to the page.
+        :param transaction: the single-use transaction value given to the
+            verify endpoint, where one was.
+        :param result: obsolete. Use ``sealed_result``. Still works, with a
+            :class:`DeprecationWarning`, and ``sealed_result`` wins when
+            both are given.
+        :param challenge: obsolete. Use ``transaction``. Still works, with a
+            :class:`DeprecationWarning`, and ``transaction`` wins when both
+            are given.
+        :raises TypeError: when neither ``sealed_result`` nor ``result`` is
+            given.
         :raises DidArgumentError: before transport when a string does not
             parse as a 51Did, with the message naming the parse status, or
             when the cloud refused the value (HTTP 400), with the cloud's
@@ -705,12 +925,28 @@ class DidClient:
         Being a coroutine, every one of these is raised when the call is
         awaited.
         """
+        if result is not _NOT_GIVEN:
+            warnings.warn(
+                "The result argument of redeem is obsolete. Use "
+                "sealed_result.", DeprecationWarning, stacklevel=2)
+            if sealed_result is _NOT_GIVEN:
+                sealed_result = result
+        if challenge is not _NOT_GIVEN:
+            warnings.warn(
+                "The challenge argument of redeem is obsolete. Use "
+                "transaction.", DeprecationWarning, stacklevel=2)
+            if transaction is None:
+                transaction = challenge
+        if sealed_result is _NOT_GIVEN:
+            raise TypeError("redeem() missing the sealed_result argument")
         text = _identifier_text(fod_id)
         form = [
             ("resource", self._resource_key),
             ("51did", text),
-            ("result", result if isinstance(result, str) else ""),
-            ("challenge", challenge if isinstance(challenge, str) else ""),
+            ("sealedResult",
+             sealed_result if isinstance(sealed_result, str) else ""),
+            ("transaction",
+             transaction if isinstance(transaction, str) else ""),
         ]
         if self._licence_key is not None:
             form.append(("license", self._licence_key))

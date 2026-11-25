@@ -37,6 +37,7 @@ from owid import Crypto, Version
 
 from fiftyone_pipeline_did import (
     DEFAULT_ENDPOINT,
+    CloudVerification,
     ContextResult,
     DidArgumentError,
     DidClient,
@@ -45,9 +46,11 @@ from fiftyone_pipeline_did import (
     FactorResult,
     FodId,
     FodIdParseStatus,
+    HumanConfidenceValue,
     OwidError,
     PublicKeyEntry,
     RedeemResult,
+    RedeemStatus,
     SignatureReason,
     SignatureResult,
 )
@@ -257,6 +260,8 @@ DID_CLIENT_STAR_NAMES = (
     "DEFAULT_TIMEOUT",
     "USER_AGENT",
     "ContextResult",
+    "RedeemStatus",
+    "HumanConfidenceValue",
     "SignatureResult",
     "FactorResult",
     "SignatureReason",
@@ -265,6 +270,7 @@ DID_CLIENT_STAR_NAMES = (
     "DidNotSupportedError",
     "PublicKeyEntry",
     "SignatureCheck",
+    "CloudVerification",
     "FactorValue",
     "Transport",
     "parse_iso8601",
@@ -1307,8 +1313,8 @@ class RedeemTests(unittest.TestCase):
         self.assertEqual({
             "resource": RESOURCE,
             "51did": self.fod_id.as_base64_url(),
-            "result": "sealed-result",
-            "challenge": "abc123",
+            "sealedResult": "sealed-result",
+            "transaction": "abc123",
             "license": LICENCE,
         }, form)
         # No credential in the URL, because a query string is written to
@@ -1537,7 +1543,7 @@ class RedeemTests(unittest.TestCase):
         run(self.client.redeem(text, "sealed-result", None))
         form = form_of(self.transport.last())
         self.assertEqual(text, form["51did"])
-        self.assertEqual("", form["challenge"])
+        self.assertEqual("", form["transaction"])
 
     def test_redeem_refuses_far_too_long_text_before_the_form(self):
         with self.assertRaises(ValueError):
@@ -1547,6 +1553,454 @@ class RedeemTests(unittest.TestCase):
     def test_result_class_can_be_built_from_a_response_directly(self):
         result = RedeemResult.from_response(200, REDEEMED_WITHOUT_FACTORS)
         self.assertEqual(ContextResult.VERIFIED, result.context)
+
+
+#: The reason the cloud gives in place of the Human Confidence Value to a
+#: call whose licence key is not valid for Human Confidence.
+HUMAN_CONFIDENCE_NULL_REASON = (
+    "humanConfidence is a paid feature. You need a License Key valid for "
+    "Human Confidence, presented on this call, to retrieve it. Visit "
+    "https://51degrees.com/pricing for details")
+
+#: The message the cloud adds for the obsolete name of the sealed result.
+OBSOLETE_RESULT_MESSAGE = "result is obsolete. Use sealedResult."
+
+
+def with_new_fields(body, **fields):
+    """A recorded answer from before ``status`` and ``humanConfidence``
+    were added, with the fields the cloud now adds beside it."""
+    answer = json.loads(body)
+    answer.update(fields)
+    return json.dumps(answer)
+
+
+#: Each answer the redeem endpoint gave before ``status`` and
+#: ``humanConfidence`` were added, with the HTTP status, paired with the
+#: same answer as the cloud gives it now. The new answers are recorded with
+#: the Value for a licence key valid for Human Confidence, the reason for
+#: one that is not, and the ``obsolete`` messages a call using an obsolete
+#: name gets.
+TODAY_AND_NEW_REDEEM_ANSWERS = (
+    (200, REDEEMED_WITH_FACTORS, with_new_fields(
+        REDEEMED_WITH_FACTORS, humanConfidence="High", status="success")),
+    (200, REDEEMED_WITHOUT_FACTORS, with_new_fields(
+        REDEEMED_WITHOUT_FACTORS,
+        humanConfidenceNullReason=HUMAN_CONFIDENCE_NULL_REASON,
+        status="success")),
+    (200, REDEEMED_WITH_NOT_RECORDED_FACTORS, with_new_fields(
+        REDEEMED_WITH_NOT_RECORDED_FACTORS, humanConfidence="Absent",
+        status="success", obsolete=[OBSOLETE_RESULT_MESSAGE])),
+    (200, '{"context":"expired","verifiedAt":"2026-08-07T09:15:32Z",'
+          '"secondsSinceVerified":14}',
+     '{"context":"expired","status":"expired",'
+     '"verifiedAt":"2026-08-07T09:15:32Z","secondsSinceVerified":14}'),
+    (200, '{"context":"replayed"}',
+     '{"context":"replayed","status":"replayed"}'),
+    (200, '{"context":"unreadable"}',
+     '{"context":"unreadable","status":"unreadable","obsolete":'
+     '["result is obsolete. Use sealedResult.",'
+     '"challenge is obsolete. Use transaction."]}'),
+    (503, '{"context":"unconfirmed"}',
+     '{"context":"unconfirmed","status":"unconfirmed"}'),
+)
+
+
+def members_today(result):
+    """Every member a redeem answer had before ``status`` and
+    ``humanConfidence`` were added, read as a caller reads them."""
+    return {
+        "status_code": result.status_code,
+        "context": result.context,
+        "context_raw": result.context_raw,
+        "signature": result.signature,
+        "factors": result.factors,
+        "verified_at": result.verified_at,
+        "seconds_since_verified": result.seconds_since_verified,
+        "to_dict": result.to_dict(),
+        "repr": repr(result),
+    }
+
+
+class NewRedeemAnswerTests(unittest.TestCase):
+    """The redeem answers now carry ``status``, and on success the Human
+    Confidence Value or the reason it is left out, beside the fields they
+    always had. Every member a caller read before reads the same, and the
+    new members read the new fields."""
+
+    def setUp(self):
+        self.transport = FakeTransport()
+        self.client = DidClient(RESOURCE, LICENCE, ENDPOINT,
+                                transport=self.transport)
+        self.fod_id = signed_fod_id(Crypto.new())
+
+    def redeem(self, status, body):
+        self.transport.answers["id/redeem"] = (status, body)
+        return run(self.client.redeem(self.fod_id, "sealed-result", "abc"))
+
+    def test_every_member_reads_a_new_answer_as_it_reads_today_s(self):
+        for status, today, new in TODAY_AND_NEW_REDEEM_ANSWERS:
+            with self.subTest(answer=today):
+                self.assertEqual(
+                    members_today(self.redeem(status, today)),
+                    members_today(self.redeem(status, new)))
+
+    def test_reading_a_new_answer_gives_no_warning(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            for status, _, new in TODAY_AND_NEW_REDEEM_ANSWERS:
+                self.redeem(status, new)
+        self.assertEqual([], [str(w.message) for w in caught])
+
+    def test_success_with_the_value(self):
+        result = self.redeem(200, TODAY_AND_NEW_REDEEM_ANSWERS[0][2])
+        self.assertIs(RedeemStatus.SUCCESS, result.status)
+        self.assertEqual("success", result.status_raw)
+        self.assertIs(HumanConfidenceValue.HIGH, result.human_confidence)
+        self.assertIsNone(result.human_confidence_null_reason)
+
+    def test_success_without_a_key_valid_for_human_confidence(self):
+        result = self.redeem(200, TODAY_AND_NEW_REDEEM_ANSWERS[1][2])
+        self.assertIs(RedeemStatus.SUCCESS, result.status)
+        self.assertIsNone(result.human_confidence)
+        self.assertEqual(HUMAN_CONFIDENCE_NULL_REASON,
+                         result.human_confidence_null_reason)
+
+    def test_success_for_a_51did_that_carries_no_value(self):
+        result = self.redeem(200, TODAY_AND_NEW_REDEEM_ANSWERS[2][2])
+        self.assertIs(RedeemStatus.SUCCESS, result.status)
+        self.assertIs(HumanConfidenceValue.ABSENT, result.human_confidence)
+
+    def test_each_value_is_read_from_its_own_word(self):
+        for word, expected in (
+                ("High", HumanConfidenceValue.HIGH),
+                ("Medium", HumanConfidenceValue.MEDIUM),
+                ("Low", HumanConfidenceValue.LOW),
+                ("Absent", HumanConfidenceValue.ABSENT),
+                # The words are compared without regard to case.
+                ("high", HumanConfidenceValue.HIGH),
+                ("ABSENT", HumanConfidenceValue.ABSENT),
+                # Anything else is no Value at all, never one of the four.
+                ("Unknown", None),
+                ("", None),
+                (None, None),
+                (7, None),
+                (True, None)):
+            with self.subTest(word=word):
+                body = with_new_fields(REDEEMED_WITHOUT_FACTORS,
+                                       humanConfidence=word,
+                                       status="success")
+                self.assertIs(expected,
+                              self.redeem(200, body).human_confidence)
+
+    def test_the_values_are_the_words_the_cloud_writes(self):
+        self.assertEqual(
+            ["High", "Medium", "Low", "Absent"],
+            [member.value for member in HumanConfidenceValue])
+
+    def test_each_failure_status(self):
+        for status, _, new in TODAY_AND_NEW_REDEEM_ANSWERS[3:]:
+            word = json.loads(new)["status"]
+            with self.subTest(status=word):
+                result = self.redeem(status, new)
+                self.assertIs(RedeemStatus(word), result.status)
+                self.assertEqual(word, result.status_raw)
+                # A sealed result that did not redeem has no unsealed
+                # result, so no Value either.
+                self.assertIsNone(result.human_confidence)
+                self.assertIsNone(result.human_confidence_null_reason)
+
+    def test_the_statuses_are_the_words_the_cloud_writes(self):
+        self.assertEqual(
+            ["success", "expired", "replayed", "unconfirmed", "unreadable"],
+            [member.value for member in RedeemStatus])
+
+    def test_a_status_this_package_does_not_know_reads_as_unreadable(self):
+        result = self.redeem(
+            200, '{"context":"somethingnew","status":"somethingnew"}')
+        self.assertIs(RedeemStatus.UNREADABLE, result.status)
+        self.assertEqual("somethingnew", result.status_raw)
+
+    def test_the_status_is_read_from_status_rather_than_context(self):
+        result = self.redeem(200, with_new_fields(
+            REDEEMED_WITHOUT_FACTORS, status="replayed"))
+        self.assertIs(RedeemStatus.REPLAYED, result.status)
+
+    def test_an_answer_without_status_is_read_from_context(self):
+        # A cloud from before status was added writes the failure word to
+        # context, and a verdict only when the sealed result redeemed.
+        for status, today, _ in TODAY_AND_NEW_REDEEM_ANSWERS:
+            context = json.loads(today)["context"]
+            expected = RedeemStatus(context) if context in (
+                "expired", "replayed", "unreadable", "unconfirmed") \
+                else RedeemStatus.SUCCESS
+            with self.subTest(context=context):
+                result = self.redeem(status, today)
+                self.assertIs(expected, result.status)
+                self.assertEqual("", result.status_raw)
+                self.assertIsNone(result.human_confidence)
+                self.assertIsNone(result.human_confidence_null_reason)
+        for body in ('{"context":"nocontext"}',
+                     '{"context":"misconfigured"}',
+                     '{"context":"invaliddate"}',
+                     '{"context":"notcheckable"}'):
+            with self.subTest(body=body):
+                self.assertIs(RedeemStatus.SUCCESS,
+                              self.redeem(200, body).status)
+        for body in ('{"context":"somethingnew"}', '{"context":"success"}',
+                     '{}', '{"status":7}'):
+            with self.subTest(body=body):
+                self.assertIs(RedeemStatus.UNREADABLE,
+                              self.redeem(200, body).status)
+
+    def test_to_dict_leaves_out_the_status_and_the_value(self):
+        # The Value is for the server holding the licence key, never for
+        # the page a server answers with to_dict.
+        result = self.redeem(200, TODAY_AND_NEW_REDEEM_ANSWERS[0][2])
+        body = result.to_dict()
+        self.assertNotIn("status", body)
+        self.assertNotIn("humanConfidence", body)
+        self.assertNotIn("High", json.dumps(body))
+
+    def test_the_result_class_reads_a_new_answer_directly(self):
+        result = RedeemResult.from_response(
+            200, TODAY_AND_NEW_REDEEM_ANSWERS[0][2])
+        self.assertIs(RedeemStatus.SUCCESS, result.status)
+        self.assertIs(HumanConfidenceValue.HIGH, result.human_confidence)
+
+
+class RedeemArgumentTests(unittest.TestCase):
+    """The redeem arguments ``sealed_result`` and ``transaction``, sent to
+    the cloud under those names, and the obsolete ``result`` and
+    ``challenge``, which still work with a DeprecationWarning."""
+
+    def setUp(self):
+        self.transport = FakeTransport(
+            {"id/redeem": (200, REDEEMED_WITHOUT_FACTORS)})
+        self.client = DidClient(RESOURCE, LICENCE, ENDPOINT,
+                                transport=self.transport)
+        self.fod_id = signed_fod_id(Crypto.new())
+
+    def redeem(self, *args, **kwargs):
+        """Redeems, and answers the form sent and the warnings given. The
+        call is awaited from a coroutine in this file, as a server awaits
+        it from its own, so a warning points at the line that awaited."""
+        async def call():
+            return await self.client.redeem(self.fod_id, *args, **kwargs)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            run(call())
+        return form_of(self.transport.last()), caught
+
+    def assert_sent(self, form, sealed_result, transaction):
+        self.assertEqual(sealed_result, form["sealedResult"])
+        self.assertEqual(transaction, form["transaction"])
+        self.assertNotIn("result", form)
+        self.assertNotIn("challenge", form)
+
+    def assert_obsolete(self, caught, *replacements):
+        """One DeprecationWarning for each obsolete argument, naming its
+        replacement and pointing at the line in this file that called."""
+        self.assertEqual(len(replacements), len(caught),
+                         [str(w.message) for w in caught])
+        for warning, replacement in zip(caught, replacements):
+            self.assertIs(DeprecationWarning, warning.category)
+            self.assertIn("obsolete. Use " + replacement + ".",
+                          str(warning.message))
+            self.assertEqual(
+                os.path.normcase(os.path.realpath(__file__)),
+                os.path.normcase(os.path.realpath(warning.filename)))
+
+    def test_the_new_names_by_keyword(self):
+        form, caught = self.redeem(sealed_result="sealed", transaction="t1")
+        self.assert_sent(form, "sealed", "t1")
+        self.assertEqual([], caught)
+
+    def test_the_new_names_by_position(self):
+        form, caught = self.redeem("sealed", "t1")
+        self.assert_sent(form, "sealed", "t1")
+        self.assertEqual([], caught)
+
+    def test_no_transaction_sends_an_empty_one(self):
+        form, caught = self.redeem("sealed")
+        self.assert_sent(form, "sealed", "")
+        self.assertEqual([], caught)
+
+    def test_an_explicit_none_sends_an_empty_sealed_result(self):
+        form, caught = self.redeem(None)
+        self.assert_sent(form, "", "")
+        self.assertEqual([], caught)
+
+    def test_result_still_works_and_warns(self):
+        form, caught = self.redeem(result="sealed")
+        self.assert_sent(form, "sealed", "")
+        self.assert_obsolete(caught, "sealed_result")
+
+    def test_challenge_still_works_and_warns(self):
+        form, caught = self.redeem("sealed", challenge="t1")
+        self.assert_sent(form, "sealed", "t1")
+        self.assert_obsolete(caught, "transaction")
+
+    def test_both_obsolete_names_still_work_and_warn(self):
+        form, caught = self.redeem(result="sealed", challenge="t1")
+        self.assert_sent(form, "sealed", "t1")
+        self.assert_obsolete(caught, "sealed_result", "transaction")
+
+    def test_the_new_names_win_over_the_obsolete_ones(self):
+        form, caught = self.redeem("sealed", "t1", result="old",
+                                   challenge="old")
+        self.assert_sent(form, "sealed", "t1")
+        self.assert_obsolete(caught, "sealed_result", "transaction")
+
+    def test_no_sealed_result_raises_before_transport(self):
+        with self.assertRaises(TypeError):
+            run(self.client.redeem(self.fod_id))
+        with self.assertRaises(TypeError):
+            run(self.client.redeem(self.fod_id, transaction="t1"))
+        self.assertEqual(0, len(self.transport.requests))
+
+
+class ObsoleteContextResultTests(unittest.TestCase):
+    """The four ContextResult members that say what happened to the sealed
+    result are obsolete, because RedeemResult.status says it. Each keeps
+    its value and still works, with a DeprecationWarning when read by
+    name."""
+
+    OBSOLETE = {
+        "EXPIRED": ("expired", "RedeemStatus.EXPIRED"),
+        "REPLAYED": ("replayed", "RedeemStatus.REPLAYED"),
+        "UNREADABLE": ("unreadable", "RedeemStatus.UNREADABLE"),
+        "UNCONFIRMED": ("unconfirmed", "RedeemStatus.UNCONFIRMED"),
+    }
+
+    def test_each_obsolete_member_warns_and_keeps_its_value(self):
+        for name, (value, replacement) in self.OBSOLETE.items():
+            with self.subTest(name=name):
+                with warnings.catch_warnings(record=True) as caught:
+                    warnings.simplefilter("always")
+                    member = getattr(ContextResult, name)
+                self.assertEqual(value, member.value)
+                self.assertIs(ContextResult(value), member)
+                self.assertEqual(1, len(caught))
+                self.assertIs(DeprecationWarning, caught[0].category)
+                message = str(caught[0].message)
+                self.assertIn("ContextResult." + name + " is obsolete",
+                              message)
+                self.assertIn(replacement, message)
+
+    def test_the_warning_points_at_the_caller(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            ContextResult.EXPIRED
+        self.assertEqual(1, len(caught))
+        self.assertEqual(
+            os.path.normcase(os.path.realpath(__file__)),
+            os.path.normcase(os.path.realpath(caught[0].filename)))
+
+    def test_the_other_members_and_lookups_give_no_warning(self):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            ContextResult.VERIFIED
+            ContextResult.MISMATCH
+            ContextResult.NO_CONTEXT
+            ContextResult.NOT_CHECKABLE
+            ContextResult.MISCONFIGURED
+            ContextResult.INVALID_DATE
+            ContextResult("expired")
+            ContextResult["REPLAYED"]
+            members = list(ContextResult)
+        self.assertEqual([], [str(w.message) for w in caught])
+        self.assertEqual(10, len(members))
+
+    def test_the_cloud_still_writes_the_obsolete_words_to_context(self):
+        transport = FakeTransport(
+            {"id/redeem": (200, '{"context":"replayed",'
+                                '"status":"replayed"}')})
+        client = DidClient(RESOURCE, LICENCE, ENDPOINT, transport=transport)
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            result = run(client.redeem(signed_fod_id(Crypto.new()), "s"))
+        self.assertEqual([], [str(w.message) for w in caught])
+        self.assertEqual("replayed", result.context.value)
+        self.assertIs(RedeemStatus.REPLAYED, result.status)
+
+
+class CloudVerifyHumanConfidenceTests(unittest.TestCase):
+    """The verify endpoint now adds the Human Confidence Value a 51Did
+    carries, or the reason it is left out, for a 51Did whose signature
+    verifies. verify still answers a bool and sends no licence key, and
+    verify_detailed sends the licence key in a header and reads the
+    Value."""
+
+    VERIFIED_WITH_VALUE = '{"valid":true,"humanConfidence":"Medium"}'
+    VERIFIED_WITHOUT_VALUE = json.dumps(
+        {"valid": True,
+         "humanConfidenceNullReason": HUMAN_CONFIDENCE_NULL_REASON})
+
+    def setUp(self):
+        self.transport = FakeTransport()
+        self.client = DidClient(RESOURCE, LICENCE, ENDPOINT,
+                                transport=self.transport)
+        self.fod_id = signed_fod_id(Crypto.new())
+
+    def test_verify_reads_the_new_answers_as_it_reads_today_s(self):
+        for body in (self.VERIFIED_WITH_VALUE, self.VERIFIED_WITHOUT_VALUE):
+            with self.subTest(body=body):
+                self.transport.answers["id/verify/"] = (200, body)
+                self.assertIs(True, run(self.client.verify(self.fod_id)))
+
+    def test_verify_sends_no_licence_key(self):
+        self.transport.answers["id/verify/"] = (200, self.VERIFIED_WITH_VALUE)
+        run(self.client.verify(self.fod_id))
+        request = self.transport.last()
+        self.assertIsNone(request.get_header("X-51d-license-key"))
+        self.assertNotIn(LICENCE, request.full_url)
+
+    def test_verify_detailed_sends_the_licence_key_in_a_header(self):
+        self.transport.answers["id/verify/"] = (200, self.VERIFIED_WITH_VALUE)
+        run(self.client.verify_detailed(self.fod_id))
+        request = self.transport.last()
+        self.assertEqual("GET", request.get_method())
+        self.assertEqual(LICENCE, request.get_header("X-51d-license-key"))
+        # Never in the URL, because a query string is written to access
+        # logs.
+        self.assertNotIn(LICENCE, request.full_url)
+        parsed = urllib.parse.urlparse(request.full_url)
+        self.assertEqual("/api/v4/id/verify/" + RESOURCE, parsed.path)
+
+    def test_verify_detailed_without_a_licence_key_sends_none(self):
+        client = DidClient(RESOURCE, endpoint=ENDPOINT,
+                           transport=self.transport)
+        self.transport.answers["id/verify/"] = (
+            200, self.VERIFIED_WITHOUT_VALUE)
+        answer = run(client.verify_detailed(self.fod_id))
+        self.assertIsNone(
+            self.transport.last().get_header("X-51d-license-key"))
+        self.assertEqual(CloudVerification(
+            True, None, HUMAN_CONFIDENCE_NULL_REASON), answer)
+
+    def test_verify_detailed_reads_the_value(self):
+        self.transport.answers["id/verify/"] = (200, self.VERIFIED_WITH_VALUE)
+        self.assertEqual(
+            CloudVerification(True, HumanConfidenceValue.MEDIUM, None),
+            run(self.client.verify_detailed(self.fod_id)))
+
+    def test_verify_detailed_reads_today_s_answers(self):
+        self.transport.answers["id/verify/"] = (200, '{"valid":true}')
+        self.assertEqual(CloudVerification(True),
+                         run(self.client.verify_detailed(self.fod_id)))
+        self.transport.answers["id/verify/"] = (400, '{"valid":false}')
+        self.assertEqual(CloudVerification(False),
+                         run(self.client.verify_detailed(self.fod_id)))
+
+    def test_verify_detailed_raises_what_verify_raises(self):
+        self.transport.answers["id/verify/"] = (
+            400, '{"errors":["Value for 51did is not a 51Did this service '
+                 'issued."]}')
+        with self.assertRaises(DidArgumentError):
+            run(self.client.verify_detailed(self.fod_id))
+        self.transport.answers["id/verify/"] = (500, "boom")
+        with self.assertRaises(DidClientError):
+            run(self.client.verify_detailed(self.fod_id))
 
 
 class OpenerTransportTests(unittest.TestCase):

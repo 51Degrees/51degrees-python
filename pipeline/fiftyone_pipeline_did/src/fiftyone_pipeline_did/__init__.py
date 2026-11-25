@@ -47,20 +47,26 @@ manipulation of a 51Did a server needs against the 51Degrees cloud: the
 signing public keys and the key in force when an identifier was created,
 offline and cloud signature verification, and redeeming a sealed creator
 context result with the licence key into a typed
-:class:`~fiftyone_pipeline_did.did_client.RedeemResult`. Every method
+:class:`~fiftyone_pipeline_did.did_client.RedeemResult`, with its
+:class:`~fiftyone_pipeline_did.did_client.RedeemStatus` and the
+:class:`~fiftyone_pipeline_did.did_client.HumanConfidenceValue` the 51Did
+carries. Every method
 that reaches the cloud is a coroutine, awaited on the server's event loop.
 """
 
 from .did_client import (
     DEFAULT_ENDPOINT,
+    CloudVerification,
     ContextResult,
     DidArgumentError,
     DidClient,
     DidClientError,
     DidNotSupportedError,
     FactorResult,
+    HumanConfidenceValue,
     PublicKeyEntry,
     RedeemResult,
+    RedeemStatus,
     SignatureCheck,
     SignatureReason,
     SignatureResult,
@@ -85,8 +91,11 @@ __all__ = [
     "DATE_EPOCH",
     "DidClient",
     "RedeemResult",
+    "RedeemStatus",
+    "HumanConfidenceValue",
     "PublicKeyEntry",
     "SignatureCheck",
+    "CloudVerification",
     "ContextResult",
     "SignatureResult",
     "FactorResult",
