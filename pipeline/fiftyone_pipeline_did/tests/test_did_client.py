@@ -47,6 +47,7 @@ from fiftyone_pipeline_did import (
     FodId,
     FodIdParseStatus,
     HumanConfidenceValue,
+    NO_HUMAN_CONFIDENCE_REASON,
     OwidError,
     PublicKeyEntry,
     RedeemResult,
@@ -1839,7 +1840,12 @@ class NewRedeemAnswerTests(unittest.TestCase):
                 self.assertEqual("unconfirmed" if status == 503 else "",
                                  result.status_raw)
                 self.assertIsNone(result.human_confidence)
-                self.assertIsNone(result.human_confidence_null_reason)
+                # A cloud from before the Value sends no field, and the
+                # package says so where the sealed result redeemed.
+                self.assertEqual(
+                    NO_HUMAN_CONFIDENCE_REASON
+                    if expected is RedeemStatus.SUCCESS else None,
+                    result.human_confidence_null_reason)
         for body in ('{"context":"nocontext"}',
                      '{"context":"misconfigured"}',
                      '{"context":"invaliddate"}',
@@ -2131,7 +2137,8 @@ class CloudVerifyHumanConfidenceTests(unittest.TestCase):
         # the cloud's reason where it gave one.
         for body, reason in (
                 (self.VERIFIED_WITHOUT_VALUE, HUMAN_CONFIDENCE_NULL_REASON),
-                ('{"valid":true,"humanConfidence":null}', None)):
+                ('{"valid":true,"humanConfidence":null}',
+                 NO_HUMAN_CONFIDENCE_REASON)):
             with self.subTest(body=body):
                 self.transport.answers["id/verify/"] = (200, body)
                 self.assertEqual(
@@ -2139,8 +2146,11 @@ class CloudVerifyHumanConfidenceTests(unittest.TestCase):
                     run(self.client.verify_detailed(self.fod_id)))
 
     def test_verify_detailed_reads_today_s_answers(self):
+        # A cloud from before the Value sends neither field, and the
+        # package says so.
         self.transport.answers["id/verify/"] = (200, '{"valid":true}')
-        self.assertEqual(CloudVerification(True),
+        self.assertEqual(CloudVerification(True, None,
+                                           NO_HUMAN_CONFIDENCE_REASON),
                          run(self.client.verify_detailed(self.fod_id)))
         self.transport.answers["id/verify/"] = (400, '{"valid":false}')
         self.assertEqual(CloudVerification(False),

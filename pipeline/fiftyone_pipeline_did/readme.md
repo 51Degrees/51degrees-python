@@ -528,6 +528,13 @@ check.human_confidence_raw            # the humanConfidence word as sent,
 check.human_confidence_null_reason    # the cloud's reason, or None
 ```
 
+Where a valid answer holds neither `humanConfidence` nor
+`humanConfidenceNullReason`, as an answer from a cloud from before the
+Value does, `human_confidence` is `None` and
+`human_confidence_null_reason` is `NO_HUMAN_CONFIDENCE_REASON`, so there
+is always a reason where there is no Value. A redeem whose status is
+`SUCCESS` reads the same way.
+
 Only an HTTP 200 answer can be valid, and only a 200 carries the Human
 Confidence fields. An HTTP 400 answer is invalid whatever its body says.
 Any other status raises `DidClientError`, whatever its body says.

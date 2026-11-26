@@ -161,6 +161,14 @@ USER_AGENT = "fiftyone_pipeline_did/" + _package_version()
 # no form body to carry one, so the key never travels in a URL.
 _LICENCE_HEADER = "X-51D-License-Key"
 
+#: The reason given for no Human Confidence Value where an answer that
+#: verified or redeemed a 51Did held neither ``humanConfidence`` nor
+#: ``humanConfidenceNullReason``, as an answer from a cloud from before the
+#: Value was added does.
+NO_HUMAN_CONFIDENCE_REASON = (
+    "The cloud did not return a Human Confidence Value. A cloud from "
+    "before the Value was added returns none.")
+
 # Marks a redeem argument that was not given, so that an explicit None
 # still reads as it always has.
 _NOT_GIVEN: Any = object()
@@ -406,7 +414,9 @@ class CloudVerification:
     #: know reads as :attr:`HumanConfidenceValue.ABSENT`.
     human_confidence: Optional[HumanConfidenceValue] = None
     #: Why the cloud gave no Human Confidence Value, as the cloud worded
-    #: it, where it said. ``None`` otherwise.
+    #: it, where it said, or :data:`NO_HUMAN_CONFIDENCE_REASON` where the
+    #: signature verified and the answer held neither a Value nor a
+    #: reason. ``None`` otherwise.
     human_confidence_null_reason: Optional[str] = None
     #: The ``humanConfidence`` string exactly as the cloud sent it, or
     #: ``None`` where it sent none, kept so a word this package does not
@@ -502,7 +512,8 @@ class RedeemResult:
         #: from ``context``. HTTP 503 is always
         #: :attr:`RedeemStatus.UNCONFIRMED`, whatever the body says.
         self.status = _status_of(status, context)
-        value, word, reason = _human_confidence_fields(parsed)
+        value, word, reason = _human_confidence_fields(
+            parsed, self.status is RedeemStatus.SUCCESS)
         #: The ``humanConfidence`` string exactly as the cloud sent it, or
         #: ``None`` where it sent none, kept so a word this package does
         #: not know is still visible.
@@ -516,7 +527,9 @@ class RedeemResult:
         #: for one of the others.
         self.human_confidence: Optional[HumanConfidenceValue] = value
         #: Why the cloud gave no Human Confidence Value, as the cloud worded
-        #: it, where it said. ``None`` otherwise.
+        #: it, where it said, or :data:`NO_HUMAN_CONFIDENCE_REASON` where the
+        #: status is :attr:`RedeemStatus.SUCCESS` and the answer held
+        #: neither a Value nor a reason. ``None`` otherwise.
         self.human_confidence_null_reason: Optional[str] = reason
         signature = parsed.get("signature")
         #: One of :class:`SignatureResult`.
@@ -653,17 +666,24 @@ def _human_confidence_of(value: Any) -> Optional[HumanConfidenceValue]:
     return HumanConfidenceValue.ABSENT
 
 
-def _human_confidence_fields(parsed: Dict[str, Any]) \
+def _human_confidence_fields(parsed: Dict[str, Any], answered: bool) \
         -> Tuple[Optional[HumanConfidenceValue], Optional[str],
                  Optional[str]]:
     """The Human Confidence fields of a verify or redeem answer: the Value,
     the ``humanConfidence`` word exactly as sent, and the null reason. The
-    word and the reason are ``None`` where the cloud sent no string."""
+    word is ``None`` where the cloud sent no string. Where ``answered`` is
+    set, because the answer verified or redeemed the 51Did, and the cloud
+    sent neither a Value nor a reason, as a cloud from before the Value
+    does, the reason is :data:`NO_HUMAN_CONFIDENCE_REASON`."""
     word = parsed.get("humanConfidence")
     reason = parsed.get("humanConfidenceNullReason")
-    return (_human_confidence_of(word),
-            word if isinstance(word, str) else None,
-            reason if isinstance(reason, str) else None)
+    word = word if isinstance(word, str) else None
+    reason = reason if isinstance(reason, str) else None
+    if answered and reason is None and \
+            parsed.get("humanConfidence") is None:
+        reason = NO_HUMAN_CONFIDENCE_REASON
+    return (_human_confidence_of(parsed.get("humanConfidence")), word,
+            reason)
 
 
 def _factor_of(value: Any) -> FactorValue:
@@ -902,7 +922,7 @@ class DidClient:
         if isinstance(parsed, dict) and status in (200, 400):
             valid = parsed.get("valid")
             if status == 200 and isinstance(valid, bool):
-                value, word, reason = _human_confidence_fields(parsed)
+                value, word, reason = _human_confidence_fields(parsed, valid)
                 return CloudVerification(valid, value, reason, word)
             if status == 400 and isinstance(valid, bool):
                 return CloudVerification(False)
@@ -989,7 +1009,8 @@ class DidClient:
             raise TypeError("redeem() missing the sealed_result argument")
         text = _identifier_text(fod_id)
         sealed_text = sealed_result if isinstance(sealed_result, str) else ""
-        transaction_text = transaction if isinstance(transaction, str)             else ""
+        transaction_text = (
+            transaction if isinstance(transaction, str) else "")
         # Each value is sent under its new name and its obsolete one, so the
         # call works with a cloud that reads only the obsolete names. A cloud
         # that reads both takes the new name and adds an "obsolete" array to
