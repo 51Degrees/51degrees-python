@@ -1222,6 +1222,24 @@ class CloudVerifyTests(unittest.TestCase):
         self.assertEqual(500, raised.exception.status_code)
         self.assertEqual("boom", raised.exception.body)
 
+    def test_only_a_200_can_be_valid(self):
+        body = '{"valid":true,"humanConfidence":"High"}'
+        # A 400 is invalid whatever its body says.
+        self.transport.answers["id/verify/"] = (400, body)
+        self.assertIs(False, run(self.client.verify(self.fod_id)))
+        self.assertEqual(CloudVerification(False),
+                         run(self.client.verify_detailed(self.fod_id)))
+        # Any other status is an error whatever its body says.
+        for status in (201, 403, 404, 500, 503):
+            with self.subTest(status=status):
+                self.transport.answers["id/verify/"] = (status, body)
+                for call in (self.client.verify, self.client.verify_detailed):
+                    with self.assertRaises(DidClientError) as raised:
+                        run(call(self.fod_id))
+                    self.assertEqual(status, raised.exception.status_code)
+                    self.assertNotIsInstance(raised.exception,
+                                             DidArgumentError)
+
     def test_transport_failure_propagates_as_the_io_error(self):
         self.transport.answers["id/verify/"] = urllib.error.URLError(
             "no route to host")
@@ -1735,9 +1753,13 @@ class NewRedeemAnswerTests(unittest.TestCase):
                 self.assertEqual(503, result.status_code)
                 self.assertIs(RedeemStatus.UNCONFIRMED, result.status)
                 self.assertEqual("unconfirmed", result.context.value)
+                self.assertEqual("unconfirmed", result.context_raw)
+                self.assertEqual("unconfirmed", result.status_raw)
                 self.assertEqual(body, result.raw)
-                # No verdict is read from the body of a 503.
+                # Nothing else is read from the body of a 503.
                 self.assertIsNone(result.human_confidence)
+                self.assertIsNone(result.human_confidence_raw)
+                self.assertIsNone(result.human_confidence_null_reason)
                 self.assertIs(SignatureResult.UNKNOWN, result.signature)
                 self.assertIsNone(result.factors)
                 self.assertIsNone(result.verified_at)
@@ -1748,10 +1770,26 @@ class NewRedeemAnswerTests(unittest.TestCase):
     def test_the_result_class_reads_a_503_directly(self):
         result = RedeemResult.from_response(503, "")
         self.assertIs(RedeemStatus.UNCONFIRMED, result.status)
-        result = RedeemResult(
-            503, "", {"status": "success", "humanConfidence": "High"})
+        body = json.dumps({
+            "status": "success", "context": "verified",
+            "signature": "verified", "humanConfidence": "High",
+            "humanConfidenceNullReason": HUMAN_CONFIDENCE_NULL_REASON,
+            "factors": {"transport": "verified"},
+            "verifiedAt": "2026-08-07T09:15:32Z",
+            "secondsSinceVerified": 3})
+        result = RedeemResult.from_response(503, body)
         self.assertIs(RedeemStatus.UNCONFIRMED, result.status)
+        self.assertIs(ContextResult("unconfirmed"), result.context)
+        self.assertEqual("unconfirmed", result.context_raw)
+        self.assertEqual("unconfirmed", result.status_raw)
         self.assertIsNone(result.human_confidence)
+        self.assertIsNone(result.human_confidence_raw)
+        self.assertIsNone(result.human_confidence_null_reason)
+        self.assertIs(SignatureResult.UNKNOWN, result.signature)
+        self.assertIsNone(result.factors)
+        self.assertIsNone(result.verified_at)
+        self.assertIsNone(result.seconds_since_verified)
+        self.assertEqual(body, result.raw)
 
     def test_the_values_are_the_words_the_cloud_writes(self):
         self.assertEqual(
@@ -1797,7 +1835,9 @@ class NewRedeemAnswerTests(unittest.TestCase):
             with self.subTest(context=context):
                 result = self.redeem(status, today)
                 self.assertIs(expected, result.status)
-                self.assertEqual("", result.status_raw)
+                # A 503 is read as unconfirmed without reading its body.
+                self.assertEqual("unconfirmed" if status == 503 else "",
+                                 result.status_raw)
                 self.assertIsNone(result.human_confidence)
                 self.assertIsNone(result.human_confidence_null_reason)
         for body in ('{"context":"nocontext"}',
@@ -2044,17 +2084,47 @@ class CloudVerifyHumanConfidenceTests(unittest.TestCase):
     def test_verify_detailed_reads_the_value(self):
         self.transport.answers["id/verify/"] = (200, self.VERIFIED_WITH_VALUE)
         self.assertEqual(
-            CloudVerification(True, HumanConfidenceValue.MEDIUM, None),
+            CloudVerification(True, HumanConfidenceValue.MEDIUM, None,
+                              "Medium"),
             run(self.client.verify_detailed(self.fod_id)))
 
     def test_verify_detailed_reads_an_unknown_value_as_absent(self):
-        for word in ("Highest", "", 7):
+        # The word is kept as sent where it is a string.
+        for word, raw in (("Highest", "Highest"), ("", ""), (7, None)):
             with self.subTest(word=word):
                 self.transport.answers["id/verify/"] = (
                     200, json.dumps({"valid": True, "humanConfidence": word}))
                 self.assertEqual(
-                    CloudVerification(True, HumanConfidenceValue.ABSENT),
+                    CloudVerification(True, HumanConfidenceValue.ABSENT,
+                                      None, raw),
                     run(self.client.verify_detailed(self.fod_id)))
+
+    def test_verify_and_redeem_read_the_fields_the_same_way(self):
+        for fields in ({"humanConfidence": "High"},
+                       {"humanConfidence": "low"},
+                       {"humanConfidence": "Highest"},
+                       {"humanConfidence": 7},
+                       {"humanConfidence": None},
+                       {"humanConfidenceNullReason":
+                        HUMAN_CONFIDENCE_NULL_REASON},
+                       {"humanConfidenceNullReason": 7},
+                       {}):
+            with self.subTest(fields=fields):
+                self.transport.answers["id/verify/"] = (
+                    200, json.dumps(dict(fields, valid=True)))
+                verified = run(self.client.verify_detailed(self.fod_id))
+                self.transport.answers["id/redeem"] = (
+                    200, json.dumps(dict(fields, status="success",
+                                         context="verified")))
+                redeemed = run(self.client.redeem(
+                    self.fod_id, "sealed-result", "abc"))
+                self.assertEqual(
+                    (redeemed.human_confidence,
+                     redeemed.human_confidence_raw,
+                     redeemed.human_confidence_null_reason),
+                    (verified.human_confidence,
+                     verified.human_confidence_raw,
+                     verified.human_confidence_null_reason))
 
     def test_verify_detailed_reads_a_missing_value_as_none(self):
         # Told apart from an unknown word: no field means no Value, with

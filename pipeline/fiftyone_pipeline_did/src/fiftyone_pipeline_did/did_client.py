@@ -408,6 +408,10 @@ class CloudVerification:
     #: Why the cloud gave no Human Confidence Value, as the cloud worded
     #: it, where it said. ``None`` otherwise.
     human_confidence_null_reason: Optional[str] = None
+    #: The ``humanConfidence`` string exactly as the cloud sent it, or
+    #: ``None`` where it sent none, kept so a word this package does not
+    #: know is still visible.
+    human_confidence_raw: Optional[str] = None
 
 
 #: The type of a factor value in :attr:`RedeemResult.factors`, which is
@@ -467,13 +471,12 @@ class RedeemResult:
 
     def __init__(self, status_code: int, raw: str,
                  parsed: Dict[str, Any]) -> None:
+        """Reads ``parsed`` as given. :meth:`from_response` is the way to
+        read a response, as it applies what the HTTP status means."""
         #: The HTTP status the cloud answered with, 200 or 503.
         self.status_code = status_code
         #: The response body exactly as received.
         self.raw = raw
-        # HTTP 503 means first use could not be confirmed, whatever the
-        # body says, so no verdict is read from the body of one.
-        unconfirmed = status_code == 503
         context = parsed.get("context")
         context = context if isinstance(context, str) else ""
         #: The ``context`` string exactly as the cloud sent it, kept so an
@@ -483,8 +486,7 @@ class RedeemResult:
         #: know maps to :attr:`ContextResult.UNREADABLE`, so an
         #: unrecognised outcome is never mistaken for a good one. HTTP 503
         #: reads as ``unconfirmed``, whatever the body says.
-        self.context = _context_of(
-            "unconfirmed" if unconfirmed else context)
+        self.context = _context_of(context)
         status = parsed.get("status")
         status = status if isinstance(status, str) else ""
         #: The ``status`` string exactly as the cloud sent it, or ``""``
@@ -499,18 +501,12 @@ class RedeemResult:
         #: to ``context`` on every other outcome, so the status is then read
         #: from ``context``. HTTP 503 is always
         #: :attr:`RedeemStatus.UNCONFIRMED`, whatever the body says.
-        self.status = RedeemStatus.UNCONFIRMED if unconfirmed \
-            else _status_of(status, context)
-        if unconfirmed:
-            # Nothing else in the body of a 503 is read either, so a body
-            # shaped like a redeemed result gives no verdict.
-            parsed = {}
-        word = parsed.get("humanConfidence")
+        self.status = _status_of(status, context)
+        value, word, reason = _human_confidence_fields(parsed)
         #: The ``humanConfidence`` string exactly as the cloud sent it, or
         #: ``None`` where it sent none, kept so a word this package does
         #: not know is still visible.
-        self.human_confidence_raw: Optional[str] = \
-            word if isinstance(word, str) else None
+        self.human_confidence_raw: Optional[str] = word
         #: The Human Confidence Value the 51Did carries, one of
         #: :class:`HumanConfidenceValue`. The cloud gives it on
         #: :attr:`RedeemStatus.SUCCESS` to a call that presented a License
@@ -518,13 +514,10 @@ class RedeemResult:
         #: Value. A Value this package does not know reads as
         #: :attr:`HumanConfidenceValue.ABSENT`, so it is never mistaken
         #: for one of the others.
-        self.human_confidence: Optional[HumanConfidenceValue] = \
-            _human_confidence_of(word)
-        reason = parsed.get("humanConfidenceNullReason")
+        self.human_confidence: Optional[HumanConfidenceValue] = value
         #: Why the cloud gave no Human Confidence Value, as the cloud worded
         #: it, where it said. ``None`` otherwise.
-        self.human_confidence_null_reason: Optional[str] = \
-            reason if isinstance(reason, str) else None
+        self.human_confidence_null_reason: Optional[str] = reason
         signature = parsed.get("signature")
         #: One of :class:`SignatureResult`.
         self.signature = (
@@ -567,11 +560,17 @@ class RedeemResult:
     def from_response(cls, status_code: int, raw: str) -> "RedeemResult":
         """Builds a result from a redeem response body, raising
         :class:`DidClientError` when the body is not a JSON object. A 503
-        is :attr:`RedeemStatus.UNCONFIRMED` whatever its body, so an empty
-        body or one that is not JSON raises nothing."""
+        is :attr:`RedeemStatus.UNCONFIRMED`, with ``unconfirmed`` as both
+        the raw status and the context, whatever its body, and nothing else
+        is read from it, so an
+        empty body or one that is not JSON raises nothing."""
+        if status_code == 503:
+            # First use could not be confirmed. The body is kept in raw but
+            # never read, so a body shaped like a redeemed result gives no
+            # verdict, Value, signature, factors or times.
+            return cls(status_code, raw,
+                       {"status": "unconfirmed", "context": "unconfirmed"})
         parsed = _try_parse_json(raw)
-        if status_code == 503 and not isinstance(parsed, dict):
-            parsed = {}
         if not isinstance(parsed, dict):
             raise DidClientError(
                 "Redeem answered HTTP {0} with a body that is not a JSON "
@@ -652,6 +651,19 @@ def _human_confidence_of(value: Any) -> Optional[HumanConfidenceValue]:
             if member.value.lower() == value.lower():
                 return member
     return HumanConfidenceValue.ABSENT
+
+
+def _human_confidence_fields(parsed: Dict[str, Any]) \
+        -> Tuple[Optional[HumanConfidenceValue], Optional[str],
+                 Optional[str]]:
+    """The Human Confidence fields of a verify or redeem answer: the Value,
+    the ``humanConfidence`` word exactly as sent, and the null reason. The
+    word and the reason are ``None`` where the cloud sent no string."""
+    word = parsed.get("humanConfidence")
+    reason = parsed.get("humanConfidenceNullReason")
+    return (_human_confidence_of(word),
+            word if isinstance(word, str) else None,
+            reason if isinstance(reason, str) else None)
 
 
 def _factor_of(value: Any) -> FactorValue:
@@ -842,7 +854,10 @@ class DidClient:
         before transport when a string does not parse as a 51Did, with the
         message naming the parse status, or when the cloud refused the
         value, with the cloud's message, and :class:`DidClientError` on any
-        answer other than valid or invalid. Text far longer than any
+        answer other than valid or invalid. Only an HTTP 200 answer can be
+        valid. An HTTP 400 answer is invalid whatever its body says, and
+        any other status raises :class:`DidClientError` whatever its body
+        says. Text far longer than any
         identifier raises :class:`ValueError` before transport. A
         transport failure raises the :class:`OSError` the transport raised
         (:class:`urllib.error.URLError` by default). Being a coroutine,
@@ -881,14 +896,16 @@ class DidClient:
         status, body = await self._send(urllib.request.Request(
             url, headers=headers, method="GET"))
         parsed = _try_parse_json(body)
-        if isinstance(parsed, dict):
+        # Only a 200 can verify, and only a 200 carries the Human
+        # Confidence fields. A 400 is invalid whatever its body says.
+        # Every other status is an error, whatever its body says.
+        if isinstance(parsed, dict) and status in (200, 400):
             valid = parsed.get("valid")
-            if isinstance(valid, bool):
-                reason = parsed.get("humanConfidenceNullReason")
-                return CloudVerification(
-                    valid,
-                    _human_confidence_of(parsed.get("humanConfidence")),
-                    reason if isinstance(reason, str) else None)
+            if status == 200 and isinstance(valid, bool):
+                value, word, reason = _human_confidence_fields(parsed)
+                return CloudVerification(valid, value, reason, word)
+            if status == 400 and isinstance(valid, bool):
+                return CloudVerification(False)
             errors = parsed.get("errors")
             if status == 400 and isinstance(errors, list):
                 raise DidArgumentError(

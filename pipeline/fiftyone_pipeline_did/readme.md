@@ -523,8 +523,14 @@ check.valid                           # bool
 check.human_confidence                # HumanConfidenceValue: HIGH,
                                       #   MEDIUM, LOW or ABSENT, or None
                                       #   where the cloud sent no Value
+check.human_confidence_raw            # the humanConfidence word as sent,
+                                      #   or None
 check.human_confidence_null_reason    # the cloud's reason, or None
 ```
+
+Only an HTTP 200 answer can be valid, and only a 200 carries the Human
+Confidence fields. An HTTP 400 answer is invalid whatever its body says.
+Any other status raises `DidClientError`, whatever its body says.
 
 **4. Redeem a sealed creator context result.** The verify-context and
 verify-full endpoints are browser calls, because the creator context
@@ -569,7 +575,8 @@ redeemed.verified_at              # datetime, on the redeemed and expired
 redeemed.seconds_since_verified
 redeemed.status_code              # 200, or 503 for UNCONFIRMED, which may
                                   #   be retried. A 503 is UNCONFIRMED
-                                  #   whatever its body says
+                                  #   whatever its body says, and
+                                  #   nothing else is read from it
 redeemed.raw                      # the body as received
 redeemed.to_dict()                # the cloud's own response shape, for
                                   #   relaying to a page, without the
