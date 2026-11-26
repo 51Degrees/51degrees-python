@@ -26,10 +26,12 @@ Flask's test client. The resource key has to carry HumanConfidence, which
 the example asks the cloud service about before anything else, and these
 tests skip themselves when no key is set or the key does not carry it.
 
-The passive tests check that HumanConfidenceSource comes back. The Pro and
-Bespoke products offer it, and the Bespoke key gets Passive, as no browser
-tests have run. The Basic product does not offer HumanConfidenceSource, so
-a Basic key gets no source.
+The passive test checks that the example gives a level from the cloud's
+answer, and describes the request it sent. The example gives no source,
+so the test reads HumanConfidenceSource from the cloud's own answer, and
+the Bespoke key gets Passive, as no browser tests have run. A key outside
+the Bespoke product, read from the Basic key variable, is checked to get
+no HumanConfidenceSource, with the reason the cloud gives.
 
 The production cloud does not serve HumanConfidenceSource yet, so the two
 tests that check it are marked staging and call the staging cloud that
@@ -59,9 +61,8 @@ DESKTOP_CHROME = (
 
 HEADERS = {"User-Agent": DESKTOP_CHROME}
 
-# Every value the property has. Unknown is the one the cloud gives when it
-# has too little to rate the request.
-LEVELS = ("High", "Medium", "Low", "Unknown")
+# The levels a passive answer gives.
+LEVELS = ("High", "Medium", "Low")
 
 # The variable holding a resource key of the Basic product.
 BASIC_KEY_NAME = "_51DEGREES_RESOURCE_KEY_BASIC"
@@ -106,7 +107,8 @@ def naming_the_properties(monkeypatch):
     answers = []
 
     def request(method, url, data=None, **kwargs):
-        named = method == "POST" and url.endswith(".json")
+        # The cloud request engine adds "?" to the address it posts to.
+        named = method == "POST" and url.split("?")[0].endswith(".json")
         if named:
             data = dict(data or {}, values=PROPERTIES)
         response = real(method, url, data=data, **kwargs)
@@ -140,12 +142,17 @@ def staging_api():
 
 
 @pytest.fixture(scope="module")
-def staging_client(staging_api):
-    staging_key = read_environment(STAGING_KEY_NAME)
-    if not staging_key:
+def staging_key():
+    resource_key = read_environment(STAGING_KEY_NAME)
+    if not resource_key:
         pytest.skip(
             f"{STAGING_KEY_NAME} is not set. Set it to a Bespoke resource "
             "key the staging cloud knows.")
+    return resource_key
+
+
+@pytest.fixture(scope="module")
+def staging_client(staging_api, staging_key):
     if not example.carries_human_confidence(staging_api, staging_key):
         pytest.skip(
             f"The key in {STAGING_KEY_NAME} does not carry HumanConfidence "
@@ -163,50 +170,73 @@ def test_page_is_served_and_never_kept(client, key):
 
 @pytest.mark.staging
 def test_passive_source_and_level_come_from_the_cloud(
-        staging_client, naming_the_properties):
+        staging_client, staging_api, staging_key, naming_the_properties):
+    """The example gives the level from the cloud's answer and describes
+    the request it sent. The example gives no source, so the source is read
+    from the cloud's own answer, and is Passive, as no browser tests have
+    run."""
     answer = staging_client.get("/passive", headers=HEADERS).get_json()
-    assert "error" not in answer, answer
-    assert answer["source"] == "Passive", answer
-    assert answer["humanConfidence"] in LEVELS
+    assert "error" not in answer, "The cloud refused the request."
+    assert answer["humanConfidence"] in LEVELS, answer["humanConfidence"]
+    # Compared apart from the assert, so a failure does not print the key.
+    described = answer["sent"]["url"] == staging_api + staging_key + ".json"
+    assert described, "The example described another address."
+
+    assert naming_the_properties, "The example did not ask the cloud."
+    derived = naming_the_properties[-1].json().get("derived") or {}
+    assert derived.get("humanconfidencesource") == "Passive", (
+        derived.get("humanconfidencesource"))
 
 
 @pytest.mark.staging
-def test_a_basic_key_gets_no_source(staging_api, naming_the_properties):
-    """The Basic product does not offer HumanConfidenceSource, so the cloud
-    answers the property with no value and the reason, and the example
-    gives no source."""
+def test_a_key_outside_bespoke_gets_no_source(staging_api):
+    """A key outside the Bespoke product, here a Basic key, is answered
+    with HumanConfidenceSource present and null, and a reason that says
+    why, when the passive call names both properties."""
     basic = read_environment(BASIC_KEY_NAME)
     if not basic:
         pytest.skip(
-            f"{BASIC_KEY_NAME} is not set. The Basic product does not offer "
-            "HumanConfidenceSource. Set the variable to a Basic resource "
-            "key to check that such a key gets no source.")
-    client = example.create_app(basic, None, staging_api).test_client()
-    answer = client.get("/passive", headers=HEADERS).get_json()
-    assert "error" not in answer, "The cloud refused the request."
-    assert answer["source"] is None, answer
+            f"{BASIC_KEY_NAME} is not set. Set the variable to a Resource "
+            "Key of the Basic product to check the passive call with it.")
 
-    # The example gives no source for a property the cloud left out too,
-    # so the cloud's own answer must name the property, with no value and
-    # a reason.
-    assert naming_the_properties, "The example did not ask the cloud."
-    derived = naming_the_properties[-1].json().get("derived") or {}
+    def redact(text):
+        return str(text).replace(basic, "<Resource Key>")
+
+    failure = None
+    try:
+        answer = requests.request(
+            "POST", staging_api + basic + ".json",
+            data={"user-agent": DESKTOP_CHROME, "values": PROPERTIES},
+            timeout=example.TIMEOUT)
+    except requests.RequestException as error:
+        failure = "The passive call failed: " + redact(error)
+    if failure:
+        pytest.fail(failure)
+    assert answer.status_code == 200, (
+        "The passive call did not succeed: " + redact(answer.text))
+    derived = answer.json().get("derived")
+    assert isinstance(derived, dict), (
+        "The answer has no derived object: " + redact(answer.text))
     assert "humanconfidencesource" in derived, (
-        "The cloud's answer leaves out humanconfidencesource, so it says "
-        "nothing about what the Basic product offers.")
+        "The answer has no humanconfidencesource at all, so this cloud "
+        "does not serve HumanConfidenceSource: " + redact(derived))
     assert derived["humanconfidencesource"] is None, (
-        derived["humanconfidencesource"])
-    assert isinstance(
-        derived.get("humanconfidencesourcenullreason"), str), (
-        "The cloud gave no humanconfidencesourcenullreason.")
+        "A key outside the Bespoke product should get a null "
+        "humanconfidencesource, but the answer has " +
+        redact(derived["humanconfidencesource"]) + ".")
+    assert isinstance(derived.get("humanconfidencesourcenullreason"), str), (
+        "The null humanconfidencesource has no string "
+        "humanconfidencesourcenullreason: " + redact(derived))
 
 
-def test_licence_key_never_reaches_the_browser(client):
-    licence_key = ExampleUtils.get_license_key()
-    if not licence_key:
+def test_license_key_never_reaches_the_browser(client):
+    license_key = ExampleUtils.get_license_key()
+    if not license_key:
         pytest.skip(
             f"{ExampleUtils.LICENSE_KEY_ENV_VAR} is not set, so there is no "
-            "licence key to look for.")
-    for response in (client.get("/", headers=HEADERS),
-                     client.get("/passive", headers=HEADERS)):
-        assert licence_key.encode() not in response.data
+            "License Key to look for.")
+    for response in (client.get("/?mode=client", headers=HEADERS),
+                     client.get("/?mode=server", headers=HEADERS),
+                     client.get("/passive", headers=HEADERS),
+                     client.post("/redeem", data={"value": "not-sealed"})):
+        assert license_key.encode() not in response.data

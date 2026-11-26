@@ -21,69 +21,85 @@
     * such notice(s) shall fulfill the requirements of that article.
     * ********************************************************************* #}
 <!DOCTYPE html>
-{# Human Confidence demo page.
-   Served by app.py, which puts in the Resource Key and the cloud address,
-   and holds the License Key server side. Styling is the 51Degrees example
-   design system, vendored with this example as the 51Did demo vendors
-   it. #}
+{# Human Confidence demo page. Served by app.py, which puts in the Resource
+   Key, the cloud address and the mode, and holds the License Key. #}
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Human Confidence demo</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/examples-main.min.css') }}">
+<style>
+  .hc-cmd { white-space: pre-wrap; word-break: break-all; margin: 0; font-size: 0.75em; height: 4.6em; overflow-y: auto; }
+  .hc-level { min-width: 6em; display: inline-block; text-align: center; }
+</style>
 </head>
 <body>
 <div class="c-eg-page">
   <h2 class="c-eg-page__title">Human Confidence demo</h2>
-  <p class="c-eg-page__lead">This page shows how likely it is that a
-  person is looking at it. The server asks the cloud first. Then your
-  browser runs the 51Degrees browser tests, and the server redeems the
-  sealed result. The License Key stays on the server.</p>
+  <p class="c-eg-page__lead">How likely it is that a person is looking at
+  this page, passive from the request and active from the browser tests.</p>
+
+  <div class="c-eg-button-row">
+    <a id="mode-client" href="?mode=client"
+       class="b-btn{% if mode != 'client' %} b-btn--secondary{% endif %}">Client side</a>
+    <a id="mode-server" href="?mode=server"
+       class="b-btn{% if mode != 'server' %} b-btn--secondary{% endif %}">Server side</a>
+  </div>
+  {% if mode == 'client' %}
+  <p class="c-eg-page__lead" id="mode-line">Client side. The browser loads
+  the 51Degrees script from the cloud and the result comes back to the page
+  through fod.onChange, then this server redeems it.</p>
+  {% else %}
+  <p class="c-eg-page__lead" id="mode-line">Server side. This server reaches
+  the cloud through the 51Degrees cloud request engine and the browser never
+  calls the cloud, so JA4 and HTTP/2 signals are not available.</p>
+  {% endif %}
 
   <table class="c-eg-table">
     <thead class="c-eg-table__head">
       <tr class="c-eg-table__row">
-        <th class="c-eg-table__cell">Step</th>
-        <th class="c-eg-table__cell">Source</th>
-        <th class="c-eg-table__cell">Human Confidence</th>
+        <th class="c-eg-table__cell">HumanConfidenceSource</th>
+        <th class="c-eg-table__cell">HumanConfidence</th>
       </tr>
     </thead>
     <tbody>
-      <tr class="c-eg-table__row">
-        <td class="c-eg-table__cell c-eg-table__cell--key">1. Passive, asked by the server</td>
-        <td class="c-eg-table__cell"><span id="passive-source"
-          class="c-eg-status c-eg-status--none">waiting&#8230;</span></td>
-        <td class="c-eg-table__cell"><span id="passive-level"
-          class="c-eg-status c-eg-status--none">waiting&#8230;</span></td>
+      <tr id="row-passive">
+        <td class="c-eg-table__cell c-eg-table__cell--key">Passive</td>
+        <td class="c-eg-table__cell"><span id="passive"
+          class="hc-level c-eg-status c-eg-status--none"></span></td>
       </tr>
-      <tr class="c-eg-table__row c-eg-table__row--alt">
-        <td class="c-eg-table__cell c-eg-table__cell--key">2. After the browser tests, in the page</td>
-        <td class="c-eg-table__cell"><span id="active-source"
-          class="c-eg-status c-eg-status--none">running the tests&#8230;</span></td>
-        <td class="c-eg-table__cell"><span id="active-value"
-          class="c-eg-status c-eg-status--none">waiting&#8230;</span></td>
-      </tr>
-      <tr class="c-eg-table__row">
-        <td class="c-eg-table__cell c-eg-table__cell--key">3. Redeemed by the server</td>
-        <td class="c-eg-table__cell"><span id="redeem-detail"
-          class="c-eg-status c-eg-status--none">waiting&#8230;</span></td>
-        <td class="c-eg-table__cell"><span id="redeem-level"
-          class="c-eg-status c-eg-status--none">waiting&#8230;</span></td>
+      <tr id="row-active" class="c-eg-table__row--alt">
+        <td class="c-eg-table__cell c-eg-table__cell--key">Active</td>
+        <td class="c-eg-table__cell"><span id="active"
+          class="hc-level c-eg-status c-eg-status--none"></span></td>
       </tr>
     </tbody>
   </table>
+  <p class="c-eg-page__lead" id="levels-line">Active Low is also given when
+  the cloud refuses the sealed value. No result means no level arrived.</p>
 
-  <p class="c-eg-page__lead">
-    <button type="button" id="again" class="b-btn b-btn--secondary"
-      style="display: none">Redeem the same value again</button>
-    <span id="again-result"></span>
-  </p>
+  <p class="c-eg-page__lead">Try it on your own site. <a href="https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-humanconfidence_web-templates-index.html&utm_term=try-it-configurator">Create a Resource Key in the 51Degrees Configurator</a>.</p>
 
-  <p class="c-eg-page__lead" id="note"></p>
+  <h3 class="c-eg-page__heading">Replay it from a terminal</h3>
+  <div class="c-eg-button-row">
+    <button type="button" id="shell-ps" class="b-btn">Windows PowerShell</button>
+    <button type="button" id="shell-sh" class="b-btn b-btn--secondary">bash</button>
+  </div>
+  <div class="c-eg-message" id="box-passive">
+    <div class="c-eg-message__text"><b>Replay the passive data</b>
+      <pre class="hc-cmd b-text--code" id="cmd-passive">Waiting for the request&#8230;</pre></div>
+    <button type="button" class="b-btn c-eg-message__cta" data-copy="cmd-passive">Copy</button>
+  </div>
+  <div class="c-eg-message" id="box-active">
+    <div class="c-eg-message__text"><b>Replay the active data</b>
+      <pre class="hc-cmd b-text--code" id="cmd-active">Waiting for the browser tests&#8230;</pre></div>
+    <button type="button" class="b-btn c-eg-message__cta" data-copy="cmd-active">Copy</button>
+  </div>
 
   <h3 class="c-eg-page__heading">Find out more</h3>
   <ul>
+    <li><a href="https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-humanconfidence_web-templates-index.html&utm_term=find-out-more-configurator">Configurator</a></li>
     <li><a href="https://51degrees.com/bots-and-humans?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-humanconfidence_web-templates-index.html&utm_term=find-out-more-bots-and-humans">Bots and humans</a></li>
     <li><a href="https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-humanconfidence_web-templates-index.html&utm_term=find-out-more-resource-keys">Resource keys</a></li>
     <li><a href="https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-src-fiftyone_pipeline_examples-cloud-humanconfidence_web-templates-index.html&utm_term=find-out-more-pricing">Pricing</a></li>
@@ -98,109 +114,246 @@
   var RESOURCE = {{ resource_key|tojson }};
   // The cloud API base ending in /api/v4/, as the server read it.
   var API = {{ api|tojson }};
+  var API_ORIGIN = new URL(API).origin;
+  var MODE = {{ mode|tojson }};
+  // This server's redeem route, which holds the License Key.
+  var REDEEM = location.origin + "/redeem";
+  // Server side, the script's calls to the cloud go to
+  // /hc/cloud/<host>/<path> here.
+  var FORWARD = /^https?:\/\/[^\/]+\/hc\/cloud\/([^\/]+)\/(.*)$/;
+  var LEVELS = ["High", "Medium", "Low"];
+  // The values HumanConfidence takes before it is sealed.
+  var PLAIN = LEVELS.concat(["Unknown"]);
+  // How long to wait for the browser tests' sealed value.
+  var ACTIVE_LIMIT_MS = 30000;
+  // How long to wait for this server to answer a redeem.
+  var REDEEM_LIMIT_MS = 15000;
+  var CLASSES = { High: "c-eg-status--pass", Medium: "c-eg-status--part",
+    Low: "c-eg-status--fail", Unknown: "c-eg-status--none" };
 
-  var PASS = "c-eg-status c-eg-status--pass";
-  var FAIL = "c-eg-status c-eg-status--fail";
-  var PART = "c-eg-status c-eg-status--part";
-  var NONE = "c-eg-status c-eg-status--none";
-
-  function show(id, text, cls) {
-    var element = document.getElementById(id);
-    element.textContent = text;
-    element.className = cls;
-  }
-
-  function levelClass(level) {
-    return level === "High" ? PASS : level === "Low" ? FAIL
-      : level === "Medium" ? PART : NONE;
-  }
-
+  // Both rows show from the start, each with a running timer until its
+  // level arrives, so it is clear something is happening.
   var started = Date.now();
-  function seconds() {
-    return ((Date.now() - started) / 1000).toFixed(1) + " s";
+  var shown = { passive: false, active: false };
+  function tick() {
+    var seconds = ((Date.now() - started) / 1000).toFixed(1) + " s";
+    ["passive", "active"].forEach(function (id) {
+      if (!shown[id]) { document.getElementById(id).textContent = seconds; }
+    });
+    if (!shown.passive || !shown.active) { setTimeout(tick, 100); }
+  }
+  tick();
+
+  // Shows a level as the cloud gave it, Unknown included, or No result
+  // when there is none to show, as when a call failed.
+  function show(id, level) {
+    if (PLAIN.indexOf(level) < 0) { level = null; }
+    shown[id] = true;
+    var element = document.getElementById(id);
+    element.textContent = level || "No result";
+    element.className = "hc-level c-eg-status " +
+      (level ? CLASSES[level] : "c-eg-status--none");
   }
 
-  // Step 1. The server asks the cloud for the passive level.
-  fetch("passive").then(function (r) { return r.json(); })
-    .then(function (answer) {
-      if (answer.error) {
-        show("passive-source", "failed", FAIL);
-        show("passive-level", answer.error, NONE);
-        return;
+  // Form encoding with every character a shell treats specially escaped,
+  // so one double quoted text works in PowerShell and bash.
+  function encode(text) {
+    return encodeURIComponent(text).replace(/[!'()*~]/g, function (c) {
+      return "%" + c.charCodeAt(0).toString(16).toUpperCase(); });
+  }
+  function post(program, url, pairs) {
+    return program + " -s -X POST \"" + url + "\"" + pairs.map(function (p) {
+      return " --data \"" + encode(p[0]) + "=" + encode(p[1]) + "\"";
+    }).join("");
+  }
+  var PY = "python3 -c \"import sys,json;print(json.load(sys.stdin)";
+  var SHELLS = {
+    ps: {
+      passive: function (url, pairs) {
+        return "\"Passive \" + (" + post("curl.exe", url, pairs) +
+          " | ConvertFrom-Json).derived.humanconfidence";
+      },
+      active: function (url, pairs) {
+        return "$v = (" + post("curl.exe", url, pairs) +
+          " | ConvertFrom-Json).derived.humanconfidence; \"Active \" + (" +
+          "curl.exe -s -X POST \"" + REDEEM + "\" --data-urlencode " +
+          "\"value=$v\" | ConvertFrom-Json).humanConfidence";
       }
-      show("passive-source", answer.source || "not returned", NONE);
-      show("passive-level", answer.humanConfidence || "not returned",
-        levelClass(answer.humanConfidence));
-    })
-    .catch(function (error) { show("passive-level", String(error), FAIL); });
+    },
+    sh: {
+      passive: function (url, pairs) {
+        return "printf 'Passive '; " + post("curl", url, pairs) + " | " +
+          PY + "['derived']['humanconfidence'])\"";
+      },
+      active: function (url, pairs) {
+        return "v=$(" + post("curl", url, pairs) + " | " + PY +
+          "['derived']['humanconfidence'])\"); printf 'Active '; " +
+          "curl -s -X POST \"" + REDEEM + "\" --data-urlencode \"value=$v\"" +
+          " | " + PY + "['humanConfidence'])\"";
+      }
+    }
+  };
+  var shell = "ps";
+  var commands = {};
+  function render(name) {
+    var c = commands[name];
+    if (!c) { return; }
+    document.getElementById("cmd-" + name).textContent =
+      SHELLS[shell][name](c.url, c.pairs);
+  }
+  function setCommand(name, url, pairs) {
+    commands[name] = { url: url, pairs: pairs };
+    render(name);
+  }
+  function setShell(name) {
+    shell = name;
+    document.getElementById("shell-ps").className =
+      "b-btn" + (name === "ps" ? "" : " b-btn--secondary");
+    document.getElementById("shell-sh").className =
+      "b-btn" + (name === "sh" ? "" : " b-btn--secondary");
+    Object.keys(commands).forEach(render);
+  }
+  document.getElementById("shell-ps").onclick = function () { setShell("ps"); };
+  document.getElementById("shell-sh").onclick = function () { setShell("sh"); };
+  Array.prototype.forEach.call(document.querySelectorAll("[data-copy]"),
+    function (button) {
+      button.onclick = function () {
+        var text = document.getElementById(button.dataset.copy).textContent;
+        navigator.clipboard.writeText(text).then(function () {
+          button.textContent = "Copied";
+          setTimeout(function () { button.textContent = "Copy"; }, 1500);
+        });
+      };
+    });
 
-  // Step 3. The server redeems the sealed value with its License Key.
+  // Passive, server side only. Client side has no passive result, so the
+  // passive row and its replay are removed and no passive call is made.
+  if (MODE === "client") {
+    shown.passive = true;
+    document.getElementById("row-passive").remove();
+    document.getElementById("box-passive").remove();
+  } else {
+    fetch("passive").then(function (r) { return r.json(); })
+      .then(function (answer) {
+        show("passive", answer.humanConfidence);
+        if (answer.sent) {
+          setCommand("passive", answer.sent.url, answer.sent.form);
+        }
+      })
+      .catch(function () { show("passive", null); });
+  }
+
+  // Records the browser test answers the 51Degrees script posts. Server
+  // side the post comes here and the cloud request engine sends it to the
+  // Resource Key's JSON address, setting the resource and values fields
+  // itself.
+  function bodyPairs(body) {
+    if (!body) { return []; }
+    if (typeof body === "string") {
+      return Array.from(new URLSearchParams(body).entries());
+    }
+    if (body instanceof URLSearchParams || body instanceof FormData) {
+      return Array.from(body.entries()).map(function (p) {
+        return [p[0], String(p[1])]; });
+    }
+    return [];
+  }
+  function recordPost(url, body) {
+    var absolute = new URL(url, location.href).href;
+    var pairs = bodyPairs(body);
+    if (FORWARD.test(absolute)) {
+      absolute = API + RESOURCE + ".json";
+      pairs = pairs.filter(function (p) {
+        return p[0] !== "resource" && p[0] !== "values"; });
+    }
+    // Only posts to the cloud in use, or a 51Degrees cloud host, carry the
+    // test answers.
+    var toCloud = absolute.indexOf(API_ORIGIN + "/") === 0 ||
+      /^https:\/\/cloud[a-z0-9-]*\.51degrees\.com\//.test(absolute);
+    if (!toCloud || !pairs.length) { return; }
+    setCommand("active", absolute, pairs);
+  }
+  var open = XMLHttpRequest.prototype.open;
+  var send = XMLHttpRequest.prototype.send;
+  XMLHttpRequest.prototype.open = function (method, url) {
+    this._hcPost = String(method).toUpperCase() === "POST" ? url : null;
+    return open.apply(this, arguments);
+  };
+  XMLHttpRequest.prototype.send = function (body) {
+    if (this._hcPost) { recordPost(this._hcPost, body); }
+    return send.apply(this, arguments);
+  };
+  var originalFetch = window.fetch;
+  window.fetch = function (input, init) {
+    if (init && String(init.method || "").toUpperCase() === "POST") {
+      recordPost(typeof input === "string" ? input : input.url, init.body);
+    }
+    return originalFetch.apply(this, arguments);
+  };
+
+  // Active. Each new sealed value goes to this server to redeem, and only
+  // the answer for the newest one is shown.
+  var seen = null, latest = 0, redeeming = 0;
   function redeem(value) {
+    var mine = ++latest;
+    redeeming++;
+    function done() { redeeming--; }
     var body = new URLSearchParams();
     body.set("value", value);
-    return fetch("redeem", { method: "POST", body: body })
-      .then(function (r) { return r.json(); });
+    var abort = new AbortController();
+    setTimeout(function () { abort.abort(); }, REDEEM_LIMIT_MS);
+    originalFetch("redeem", { method: "POST", body: body,
+      signal: abort.signal })
+      .then(function (r) { return r.json(); })
+      .then(function (answer) {
+        done();
+        if (mine === latest) { show("active", answer.humanConfidence); }
+      })
+      .catch(function () {
+        done();
+        if (mine === latest) { show("active", null); }
+      });
   }
 
-  function showRedeemed(answer) {
-    if (answer.humanConfidence) {
-      show("redeem-detail", "redeemed " + answer.secondsSinceVerified
-        + " s after the check", PASS);
-      show("redeem-level", answer.humanConfidence,
-        levelClass(answer.humanConfidence));
-    } else {
-      show("redeem-detail", answer.result || answer.error || "no answer", FAIL);
-      show("redeem-level", "no level", NONE);
-    }
-  }
-
-  // Step 2. The client script runs the browser tests, sends the answers,
-  // and calls back through its complete function with the final result.
+  // The script's third party cookie check calls window.fodTpcEndpoint, or
+  // the public cloud when that is not set, so it is pointed at the same
+  // cloud as everything else.
+  window.fodTpcEndpoint = MODE === "server"
+    ? location.origin + "/hc/cloud/" + API.replace(/^https?:\/\//, "") + "3pc"
+    : API + "3pc";
+  // The 51Degrees script, from the cloud client side and from this server
+  // server side. Its result comes back through fod.onChange.
   var script = document.createElement("script");
   script.async = true;
-  script.src = API + RESOURCE + ".js";
-  script.onerror = function () {
-    show("active-source", "the 51Degrees script didn't load", FAIL);
-  };
+  script.src = MODE === "server" ? "hc/script.js" : API + RESOURCE + ".js";
+  script.onerror = function () { show("active", null); };
   script.onload = function () {
-    if (!window.fod || typeof window.fod.complete !== "function") {
-      show("active-source", "no fod object on the page", FAIL);
+    if (!window.fod || typeof window.fod.onChange !== "function") {
+      show("active", null);
       return;
     }
-    window.fod.complete(function (data) {
-      var derived = (data && data.derived) || {};
-      var source = derived.humanconfidencesource;
-      var value = derived.humanconfidence;
-      if (source !== "Active") {
-        show("active-source", (source || "not returned") + " after "
-          + seconds(), NONE);
-        show("active-value", value || "not returned", levelClass(value));
-        show("redeem-detail", "nothing to redeem", NONE);
-        show("redeem-level", "", NONE);
-        document.getElementById("note").textContent = "The source isn't "
-          + "Active, so there's no sealed value to redeem.";
-        return;
+    window.fod.onChange(function (data) {
+      var value = data && data.derived && data.derived.humanconfidence;
+      // The script's first result comes before the browser tests have
+      // run, and its HumanConfidence is then a plain level. Only a sealed
+      // value is redeemed: redeeming a plain level answers unreadable,
+      // which would show Active Low for tests that haven't run yet.
+      if (value && PLAIN.indexOf(value) < 0 && value !== seen) {
+        seen = value;
+        redeem(value);
       }
-      show("active-source", "Active after " + seconds(), PASS);
-      show("active-value", "sealed value, " + String(value).length
-        + " characters, unreadable here", NONE);
-      redeem(value).then(function (answer) {
-        showRedeemed(answer);
-        var again = document.getElementById("again");
-        again.style.display = "";
-        again.onclick = function () {
-          redeem(value).then(function (second) {
-            document.getElementById("again-result").textContent =
-              " Second redeem: " + (second.result || second.humanConfidence
-                || second.error);
-          });
-        };
-      }).catch(function (error) {
-        show("redeem-detail", String(error), FAIL);
-      });
     });
   };
   document.head.appendChild(script);
+
+  // The browser tests take a few seconds. If no sealed value has arrived
+  // by then, the timer stops and the row says No result rather than
+  // running on, or showing a level for tests that didn't run. A redeem
+  // still on its way is left to give its level, and a sealed value that
+  // arrives later still replaces No result.
+  setTimeout(function () {
+    if (!shown.active && !redeeming) { show("active", null); }
+  }, ACTIVE_LIMIT_MS);
 })();
 </script>
 </body>

@@ -29,22 +29,34 @@
 # then open http://localhost:5151/
 #
 # Human Confidence says how likely it is that a person is looking at the
-# page. It comes in two ways, and this demo shows both.
+# page, as High, Medium or Low. The page shows it two ways.
 #
-# 1. Passive. This server asks the cloud itself, sending the visitor's
-#    request headers and IP address. HumanConfidenceSource is Passive and
-#    HumanConfidence is a plain level.
-#    The server asks for it rather than reading it from the page, because
-#    a level a browser sends can be forged.
-# 2. Active. The page loads the 51Degrees client script, which runs the
-#    browser tests and sends the answers to the cloud. When the script
-#    completes, HumanConfidenceSource is Active and HumanConfidence holds
-#    a sealed value the browser can't read or change.
-# 3. Redeem. The page hands the sealed value to this server, which calls
-#    hc/redeem with it and the account's License Key, and gets the true
-#    level back. A sealed value redeems once, within ten seconds. This
-#    server is the only party holding the License Key, which the browser
-#    never sees.
+# 1. Passive. This server asks the cloud with the visitor's request headers
+#    and IP address, and gets a plain level.
+# 2. Active. The 51Degrees client script runs the browser tests and sends
+#    the answers to the cloud, which answers with a sealed value. This
+#    server redeems the sealed value with the License Key, which the
+#    browser never sees, and gets the level. Redeeming needs a cloud that
+#    offers the redeem call (POST hc/redeem). A sealed value the cloud
+#    refuses gives Active Low. When a call fails, the cloud doesn't offer
+#    redeem, or no sealed value arrives within 30 seconds, the page says No
+#    result.
+#
+# The Resource Key is put in the page, as the 51Degrees client script is
+# loaded with it. The License Key stays on this server.
+#
+# The page works in two modes, chosen with ?mode=client or ?mode=server
+# and kept in a cookie.
+#
+# - Client side. The browser loads the client script from the cloud and
+#   the sealed value comes back to the page through fod.onChange.
+# - Server side. The browser never calls the cloud. The page loads the
+#   client script from this server, with every cloud address in it pointed
+#   here, and this server sends each call on through the cloud request
+#   engine.
+#
+# Under the results the page gives two curl commands that replay the
+# passive call and the browser test answers from a terminal.
 #
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/humanconfidence_web/app.py).
 #
@@ -56,20 +68,27 @@
 #   segment, defaults to https://cloud.51degrees.com/api/v4/
 # - _51DEGREES_EXAMPLE_HTTP_PORTS, the port to listen on, defaults to 5151
 #
-# See readme.md beside this file for the steps and what to expect.
-#
 # Required PyPI dependencies:
 # - [flask](https://pypi.org/project/flask/)
 # - [requests](https://pypi.org/project/requests/)
 
 import ipaddress
+import json
+import logging
 import os
+import re
 import sys
 import urllib.parse
 
 import requests
-from flask import Flask, Response, jsonify, make_response, render_template
-from flask import request
+from flask import Flask, Response, abort, jsonify, make_response
+from flask import render_template, request
+
+from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
+    CloudRequestEngine
+from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import \
+    CloudRequestException
+from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
@@ -80,6 +99,44 @@ PROPERTY = "HumanConfidence"
 
 # A short limit, in seconds, so a slow cloud can't hang the demo.
 TIMEOUT = 10
+
+# The two modes, the default first, and the cookie that keeps the choice.
+MODES = ("client", "server")
+MODE_COOKIE = "hc_mode"
+
+# The levels, highest first. A sealed value the cloud refuses gets the
+# last.
+LEVELS = ("High", "Medium", "Low")
+
+# The statuses of a redeem answer that are the cloud's verdict on the
+# sealed value: redeemed, or refused as expired, replayed or unreadable.
+# Any other status means the redeem didn't happen.
+REDEEM_ANSWERED = (200, 400)
+
+# The 51Degrees cloud hosts. The host of the endpoint in use, such as a
+# private cloud in Docker, counts as a cloud host too.
+CLOUD_HOSTS = r"cloud[a-z0-9-]*\.51degrees\.com"
+
+
+def cloud_patterns(api):
+
+    """!
+    The cloud hosts for the endpoint api, and the cloud addresses in the
+    client script, which in server mode are each pointed at this server.
+    """
+
+    hosts = CLOUD_HOSTS + "|" + re.escape(urllib.parse.urlsplit(api).netloc)
+    return (re.compile(hosts),
+            re.compile(r"(https?)://(" + hosts + r")/([^\"'\s\\)]*)"))
+
+# Headers the cloud lists that are never sent on as HTTP headers, because
+# they belong to this server's own connection to the cloud.
+NOT_FORWARDED = {"host", "protocol", "client-ip", "content-length",
+                 "content-type", "connection", "cookie"}
+
+# The prefix, in lower case, of the cookies the client script and the cloud
+# set.
+COOKIE_PREFIX = "51d"
 
 # Where to go next. The page ends with these links, and the example prints
 # them when it stops before the page is served.
@@ -148,34 +205,84 @@ def create_app(resource_key, license_key, api):
 
     """!
     Create the Flask application that serves the page, asks the cloud for
-    the passive level, and redeems the sealed active level.
+    the passive level, redeems the sealed active level, and in server mode
+    sends the browser's calls on to the cloud.
     """
 
     # Serve the files in the static folder from the root, so the stylesheet
     # is at /css, as in the other web examples.
     app = Flask(__name__, static_url_path="")
+    cloud_host, cloud_url = cloud_patterns(api)
+    endpoint = urllib.parse.urlsplit(api)
 
-    # The request headers the cloud reads, from its own list, fetched once.
-    # Only these are passed on, so headers such as Authorization stay here.
-    fetched = []
+    # The cloud request engine, which sends this server's requests for data
+    # to the cloud: the passive level, and in server mode the browser's
+    # test answers. It asks the cloud for the properties the key carries
+    # and the evidence it reads when it is built. The page's own script is
+    # served by this server, so the pipeline needs no JavaScript of its
+    # own.
+    engine = CloudRequestEngine({"resource_key": resource_key,
+                                 "cloud_endpoint": api,
+                                 "timeout_seconds": TIMEOUT})
+    pipeline = PipelineBuilder({"add_javascript_builder": False}).add(
+        engine).build()
 
-    def cloud_headers():
-        if not fetched:
-            answer = requests.request(
-                "GET", api + "evidencekeys", timeout=TIMEOUT)
-            if answer.status_code != 200:
-                raise ValueError(
-                    f"HTTP {answer.status_code}: {trim(answer.text)}")
-            fetched.append({
-                key[len("header."):].lower() for key in answer.json()
-                if key.lower().startswith("header.")})
-        return fetched[0]
+    def visitor_headers():
+        # The request headers the cloud reads, from the evidence keys the
+        # engine was given. Only these are passed on, so headers such as
+        # Authorization stay here.
+        names = {key[len("header."):].lower() for key in engine.evidence_keys
+                 if key.lower().startswith("header.")}
+        return {name.lower(): value for name, value in request.headers.items()
+                if name.lower() in names}
+
+    def ask_cloud(fields):
+        """The cloud's answer for the visitor's headers and IP address and
+        the form fields given, sent through the cloud request engine, with
+        what was sent described for the page's curl command."""
+        # The visitor's address is the connection's own address, sent when
+        # it is a public one. A Client-IP request header is not passed on,
+        # so with a local or private connection the cloud reads this
+        # server's public address.
+        evidence = {"header." + name: value
+                    for name, value in visitor_headers().items()
+                    if name != "client-ip"}
+        for name, value in fields:
+            if name.lower() not in ("resource", "values", "client-ip"):
+                evidence["query." + name] = value
+        address = public_ip(request.remote_addr)
+        if address:
+            evidence["query.client-ip"] = address
+        flowdata = pipeline.create_flowdata()
+        for key, value in evidence.items():
+            flowdata.evidence.add(key, value)
+        flowdata.process()
+        if flowdata.errors:
+            raise ValueError("; ".join(
+                str(error) for error in flowdata.errors.values()))
+        answer = flowdata.get("cloud-response").get("cloud")
+        if isinstance(answer, str):
+            answer = json.loads(answer)
+        # The form fields as the engine sends them, apart from the Resource
+        # Key, which the address carries.
+        sent = {
+            "method": "POST",
+            "url": api + resource_key + ".json",
+            "form": [[name, value] for name, value
+                     in engine.get_content(flowdata).items()]}
+        return answer, sent
 
     @app.route("/")
     def index():
 
+        mode = request.args.get("mode")
+        if mode not in MODES:
+            mode = request.cookies.get(MODE_COOKIE)
+        if mode not in MODES:
+            mode = MODES[0]
         response = make_response(render_template(
-            "index.html", resource_key=resource_key, api=api))
+            "index.html", resource_key=resource_key, api=api, mode=mode))
+        response.set_cookie(MODE_COOKIE, mode, samesite="Lax")
         # The page must never come from a cache, as each load runs the
         # tests.
         response.headers["Cache-Control"] = "no-store"
@@ -188,51 +295,145 @@ def create_app(resource_key, license_key, api):
     def passive():
 
         try:
-            names = cloud_headers()
-            evidence = {}
-            for name, value in request.headers.items():
-                if name.lower() in names:
-                    evidence[name.lower()] = value
-            # Behind a load balancer or CDN, use the visitor's address it
-            # passes on. Set last, so no header can replace it.
-            if request.remote_addr:
-                evidence["client-ip"] = client_ip(request.remote_addr)
-            answer = requests.request(
-                "POST", api + resource_key + ".json", data=evidence,
-                timeout=TIMEOUT)
-            if answer.status_code >= 400:
-                return jsonify(
-                    error=f"HTTP {answer.status_code}: {trim(answer.text)}")
-            derived = answer.json().get("derived")
+            answer, sent = ask_cloud([])
+            derived = answer.get("derived")
             return jsonify(
-                source=read(derived, "humanconfidencesource"),
-                humanConfidence=read(derived, "humanconfidence"))
-        except (requests.RequestException, ValueError) as error:
+                humanConfidence=read(derived, "humanconfidence"), sent=sent)
+        except Exception as error:
             return jsonify(error=str(error))
 
-    # Redeem: the page sends the sealed value, and this server redeems it
-    # with the License Key. The answer goes back to the page as the cloud
-    # gave it.
+    # Redeem: the page, or a terminal, sends a sealed value, and this server
+    # redeems it with the License Key. Only the level goes back. A value
+    # the cloud refuses gives Low, as nothing then shows a person is there.
+    # When the cloud can't be reached, doesn't offer redeem or gives an
+    # answer that isn't JSON, there is no level, and the page says No
+    # result. The cloud's own answer is never sent back.
     @app.route("/redeem", methods=["POST"])
     def redeem():
 
-        fields = {"value": request.form.get("value", "")}
+        sealed = request.form.get("value", "")
+        fields = {"value": sealed}
         if license_key:
             fields["license"] = license_key
         try:
             answer = requests.request(
                 "POST", api + "hc/redeem", data=fields, timeout=TIMEOUT)
-        except requests.RequestException as error:
+            if answer.status_code not in REDEEM_ANSWERED:
+                return jsonify(humanConfidence=None)
+            verdict = answer.json()
+        except (requests.RequestException, ValueError):
+            return jsonify(humanConfidence=None)
+        if not isinstance(verdict, dict):
+            return jsonify(humanConfidence=None)
+        level = read(verdict, "humanConfidence")
+        if level not in LEVELS:
+            level = LEVELS[-1]
+        return jsonify(humanConfidence=level)
+
+    # Server mode: the client script, fetched from the cloud for this
+    # visitor, with every cloud address in it pointed at this server.
+    @app.route("/hc/script.js")
+    def script():
+
+        try:
+            query = {}
+            address = public_ip(request.remote_addr)
+            if address:
+                query["client-ip"] = address
+            answer = requests.request(
+                "GET", api + resource_key + ".js", params=query,
+                headers=passed_on(visitor_headers()), timeout=TIMEOUT)
+        except (requests.RequestException, CloudRequestException,
+                ValueError):
+            # An empty script with a failing status, so the page's script
+            # element fails and the page shows No result for Active.
+            return Response(
+                "", status=502, content_type="application/javascript")
+        here = request.host_url + "hc/cloud/"
+        text = cloud_url.sub(
+            lambda m: here + m.group(2) + "/" + m.group(3), answer.text)
+        response = Response(
+            text, status=answer.status_code,
+            content_type="application/javascript")
+        response.headers["Cache-Control"] = "no-store"
+        return response
+
+    # Server mode: a call the client script makes to the cloud. The test
+    # answers (a POST) go through the cloud request engine. A GET is the
+    # third-party cookie check, sent on with the visitor's headers and only
+    # the cloud's own cookies. Only cloud hosts are reached.
+    @app.route("/hc/cloud/<host>/<path:path>", methods=["GET", "POST"])
+    def forward(host, path):
+
+        if not cloud_host.fullmatch(host):
+            abort(404)
+        if request.method == "POST":
+            try:
+                answer, _ = ask_cloud(request.form.items(multi=True))
+            except Exception as error:
+                return jsonify(error=str(error)), 502
+            response = jsonify(answer)
+            response.headers["Cache-Control"] = "no-store"
+            return response
+        # The endpoint's own host keeps the endpoint's scheme, as a private
+        # cloud may be plain http.
+        scheme = endpoint.scheme if host == endpoint.netloc else "https"
+        url = scheme + "://" + host + "/" + path
+        cookies = "; ".join(
+            f"{name}={value}" for name, value in request.cookies.items()
+            if name.lower().startswith(COOKIE_PREFIX))
+        try:
+            headers = passed_on(visitor_headers())
+            if cookies:
+                headers["Cookie"] = cookies
+            answer = requests.request(
+                "GET", url, params=request.args, headers=headers,
+                timeout=TIMEOUT)
+        except (requests.RequestException, CloudRequestException) as error:
             return jsonify(error=str(error)), 502
-        if answer.status_code == 404:
-            return jsonify(
-                error=f"The service at {api} doesn't redeem Human "
-                      "Confidence.")
-        return Response(
-            answer.text, status=answer.status_code,
-            content_type="application/json")
+        response = Response(
+            answer.content, status=answer.status_code,
+            content_type=answer.headers.get(
+                "Content-Type", "application/json"))
+        for cookie in set_cookies(answer):
+            response.headers.add("Set-Cookie", cookie)
+        response.headers["Cache-Control"] = "no-store"
+        return response
 
     return app
+
+
+def passed_on(headers):
+
+    """!
+    The visitor's headers to send as HTTP headers, without the ones that
+    belong to this server's own connection.
+    """
+
+    return {name: value for name, value in headers.items()
+            if name.lower() not in NOT_FORWARDED}
+
+
+def set_cookies(answer):
+
+    """!
+    The cloud's Set-Cookie headers, made to work on this server's own
+    address by dropping the domain, Secure and SameSite=None.
+    """
+
+    raw = getattr(answer, "raw", None)
+    values = []
+    if raw is not None and hasattr(raw, "headers") and \
+            hasattr(raw.headers, "getlist"):
+        values = raw.headers.getlist("Set-Cookie")
+    kept = []
+    for value in values:
+        parts = [part.strip() for part in value.split(";")]
+        parts = [part for part in parts if part and not
+                 part.lower().startswith("domain=") and
+                 part.lower() not in ("secure", "samesite=none")]
+        kept.append("; ".join(parts))
+    return kept
 
 
 def client_ip(address):
@@ -249,6 +450,24 @@ def client_ip(address):
     return str(mapped) if mapped else address
 
 
+def public_ip(address):
+
+    """!
+    The visitor's address when it is a public one, otherwise None. A local
+    or private address means nothing to the cloud, which then reads this
+    server's own public address, the visitor's too when both are on one
+    network.
+    """
+
+    if not address:
+        return None
+    address = client_ip(address)
+    try:
+        return address if ipaddress.ip_address(address).is_global else None
+    except ValueError:
+        return None
+
+
 def read(parent, name):
 
     """!
@@ -261,6 +480,20 @@ def read(parent, name):
 
 def trim(text):
     return text[:200]
+
+
+def without_key(text, resource_key):
+
+    """!
+    The text with the Resource Key, as given and as an address holds it,
+    shown as <Resource Key>. An error from the requests library names the
+    address it asked for, which holds the key.
+    """
+
+    for form in {resource_key, urllib.parse.quote(resource_key, safe="")}:
+        if form:
+            text = text.replace(form, "<Resource Key>")
+    return text
 
 
 def main(argv):
@@ -284,7 +517,7 @@ def main(argv):
     try:
         carried = carries_human_confidence(api, resource_key)
     except (requests.RequestException, ValueError) as error:
-        print(error)
+        print(without_key(str(error), resource_key))
         print_find_out_more()
         sys.exit(1)
     if not carried:
@@ -296,13 +529,17 @@ def main(argv):
     if not license_key.strip():
         print(f"No {ExampleUtils.LICENSE_KEY_ENV_VAR} set. The page still "
               "shows Passive and Active, but an account that holds License "
-              "Keys can't redeem without one, so the redeemed level will be "
-              "unreadable.")
+              "Keys can't redeem without one, so Active will show Low or No "
+              "result.")
 
     app = create_app(resource_key, license_key, api)
     port = os.environ.get("_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)
+    # The web server writes a line for each request unless told not to.
+    # The example writes only the line below.
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
     print(f"Human Confidence demo on http://localhost:{port}/, using {api}")
-    app.run(port=int(os.environ.get("_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)))
+    # Threaded, so the page's calls in server mode don't wait on each other.
+    app.run(port=int(port), threaded=True)
 
 
 if __name__ == "__main__":
