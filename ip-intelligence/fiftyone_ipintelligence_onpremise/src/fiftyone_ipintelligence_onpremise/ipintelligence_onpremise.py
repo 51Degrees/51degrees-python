@@ -21,6 +21,7 @@
 # *********************************************************************
 
 from __future__ import absolute_import
+import datetime
 import multiprocessing
 import os.path
 
@@ -308,6 +309,26 @@ class IpIntelligenceOnPremise(Engine):
         # Special properties
         for metric_property_name, metric_property in self.get_metric_properties().items():
             self.properties[metric_property_name] = metric_property
+
+    def get_date_published_from_file(self, path):
+
+        """!
+        Reads the date a data file was published from its header, without
+        loading the file. The data file update service loads a watched or
+        downloaded file only when this date is later than that of the data
+        in use.
+        @type path: string
+        @param path: path to the data file
+        @rtype: date
+        @return: the date the data file was published
+        @raise RuntimeError: when the file cannot be opened, is shorter than
+        its header, holds no valid date, or is not a data file this engine
+        reads
+        """
+
+        published = EngineIpiSwig.getPublishedTimeFromFile(path)
+        return datetime.date(
+            published.getYear(), published.getMonth(), published.getDay())
 
     def read_evidence_keys(self):
 

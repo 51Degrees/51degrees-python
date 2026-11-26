@@ -86,8 +86,9 @@
 #
 # # File System Watcher
 # You can configure the pipeline builder to watch for changes to the currently loaded device
-# detection data file, and to replace the file currently in use with the new one. This is
-# useful, for example, if you wish to download and update the device detection file "manually" -
+# detection data file, and to replace the data currently in use with the new file when the new
+# file was published later. This is useful, for example, if you wish to download and update the
+# device detection file "manually" -
 # i.e. you would download it then drop it into place with the same path as the currently loaded
 # file. That location is checked periodically (by default every 30 mins) and this frequency can be
 # configured.
@@ -399,7 +400,8 @@ class DataFileUpdateConsole():
 		pipeline = DeviceDetectionPipelineBuilder(
 			# specify the filename for the data file. When using update on start-up
 			# the file need not exist, but the directory it is in must exist.
-			# Any file that is present is overwritten. Because the file will be
+			# A file that is present is overwritten by a download published
+			# later. Because the file may be
 			# overwritten the pipeline must be configured to copy the supplied
 			# file to a temporary file (create_temp_copy parameter == True).
 			data_file_path = data_file,
@@ -417,8 +419,8 @@ class DataFileUpdateConsole():
 			update_on_start = True,
 			# Enable automatic updates once the pipeline has started
 			auto_update = True,
-			# Watch the data file on disk and refresh the engine
-			# as soon as that file is updated.
+			# Watch the data file on disk and refresh the engine as
+			# soon as a file published later is put in its place.
 			file_system_watcher=True,
 			# The product the 51Degrees distributor is asked for, which
 			# is named only when this example is given one. With none
@@ -438,15 +440,15 @@ class DataFileUpdateConsole():
 
 			if update_event.status == UpdateStatus.AUTO_UPDATE_SUCCESS:
 
-				output("Modifying downloaded file to trigger reload - please wait for that"
+				output("Modifying downloaded file to trigger a check - please wait for that"
 					" to complete")
 
 				# wait for the dataUpdateService to notify us that it has updated
 				update_event.clear()
 
-				# it's the same file but changing the file metadata will trigger reload,
-				# demonstrating that if you download a new file and replace the
-				# existing one, then it will be loaded
+				# it's the same file, so changing its time triggers a check that
+				# reports AUTO_UPDATE_NOT_NEEDED. A file put in place of the
+				# existing one is loaded only when it was published later.
 				now = datetime.now().timestamp()
 				try:
 					os.utime(data_file, (now, now))

@@ -71,7 +71,7 @@ class WatcherWithoutLicenceKeyTests(unittest.TestCase):
         self.assertFalse(watched.auto_update)
         self.assertFalse(watched.update_on_start)
 
-    def test_a_replaced_file_is_loaded_with_no_licence_key(self):
+    def test_a_replaced_file_is_checked_with_no_licence_key(self):
         service = DataFileUpdateService()
         service.FILE_SYSTEM_WATCHER_INTERVAL_SECONDS = \
             WATCHER_INTERVAL_SECONDS
@@ -95,7 +95,9 @@ class WatcherWithoutLicenceKeyTests(unittest.TestCase):
         self.assertTrue(
             reloaded.wait(RELOAD_WAIT_SECONDS),
             "The watcher did not report the replaced file.")
-        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], statuses)
+        # The copy was published on the same day as the data in use, so it
+        # is not loaded, whatever its time, and the engine keeps its data.
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_NOT_NEEDED], statuses)
 
         with pipeline.create_flowdata() as flowdata:
             flowdata.evidence.add("header.user-agent", mobile_ua)
