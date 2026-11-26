@@ -1924,6 +1924,10 @@ class EngineIpiSwig(EngineBaseSwig):
     def getPublishedTimeFromFile(fileName):
         return _IpIntelligenceEngineModule.EngineIpiSwig_getPublishedTimeFromFile(fileName)
 
+    @staticmethod
+    def getProductFromFile(fileName):
+        return _IpIntelligenceEngineModule.EngineIpiSwig_getProductFromFile(fileName)
+
     def getDataFilePath(self):
         return _IpIntelligenceEngineModule.EngineIpiSwig_getDataFilePath(self)
 
