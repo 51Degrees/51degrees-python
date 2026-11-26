@@ -40,7 +40,7 @@ Describe '<Name> native build flags' -ForEach $Packages {
 
     It 'turns no warning off and lowers no warning level' {
         $switches = @($script:Code | Where-Object {
-            $_ -match "-Wno-|/wd\d|/w[1-4]\d|'-w'|'/w'|'/W[0-3]'|/external:W0"
+            $_ -match "['`"]-Wno-[a-z]|/wd\d|/w[1-4]\d|'-w'|'/w'|'/W[0-3]'|/external:W0"
         })
         $switches | Should -BeNullOrEmpty
     }
@@ -70,14 +70,18 @@ Describe '<Name> native build flags' -ForEach $Packages {
         Get-Count "'/WX'" | Should -BeGreaterOrEqual 3
     }
 
-    It 'takes the warning level setuptools gives MSVC out, so /W4 is the only one' {
-        # cl warns (D9025) when /W4 overrides another level, and /WX does not
-        # make that an error.
-        Get-Count '^\s*def remove_msvc_warning_level\(compiler\):' |
+    It 'takes the warning options the compiler is given before ours out' {
+        # setuptools gives MSVC /W3, and cl warns (D9025) when /W4 overrides
+        # it, which /WX does not make an error. Python's own build flags can
+        # give GCC and Clang a -Wno-<name>.
+        Get-Count '^\s*def remove_inherited_warning_options\(compiler\):' |
             Should -Be 1
-        Get-Count 'compiler\.compile_options,\s*compiler\.compile_options_debug' |
+        Get-Count '^\s*for options in \(compiler\.compile_options,$' |
             Should -Be 1
-        Get-Count '^\s*remove_msvc_warning_level\(self\.compiler\)' |
+        Get-Count '^\s*compiler\.compile_options_debug\):$' |
+            Should -Be 1
+        Get-Count 'not o\.startswith\("-Wno-"\)' | Should -Be 1
+        Get-Count '^\s*remove_inherited_warning_options\(self\.compiler\)' |
             Should -Be 2
         Get-Count '^\s*cmdclass=\{"build_ext":\s*NoSuffixBuilder,\s*"build_clib":\s*LibraryBuilder\}' |
             Should -Be 1

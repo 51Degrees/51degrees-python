@@ -74,26 +74,33 @@ def get_version():
     python_version = str(sys.version_info[0])
     return version + python_version
 
-def remove_msvc_warning_level(compiler):
+def remove_inherited_warning_options(compiler):
 
-    """Take the warning level that setuptools gives MSVC out of its options,
-    so /W4 below is the only level. cl warns (D9025) when one level overrides
-    another, and /WX does not make that warning an error."""
-    if compiler.compiler_type != "msvc":
+    """Take the warning options the compiler is given before ours out of its
+    command lines, so the warning options below are the only ones. setuptools
+    gives MSVC /W3, and cl warns (D9025) when /W4 overrides it, which /WX does
+    not make an error. Python's own build flags can give GCC and Clang a
+    -Wno-<name> that turns a warning off, such as -Wno-unused-result."""
+    if compiler.compiler_type == "msvc":
+        if not compiler.initialized:
+            compiler.initialize()
+        for options in (compiler.compile_options,
+                        compiler.compile_options_debug):
+            options[:] = [o for o in options if not re.fullmatch(r"/W\d", o)]
         return
-    if not compiler.initialized:
-        compiler.initialize()
-    for options in (compiler.compile_options, compiler.compile_options_debug):
-        options[:] = [o for o in options if not re.fullmatch(r"/W\d", o)]
+    for name in getattr(compiler, "executables", {}):
+        command = getattr(compiler, name, None)
+        if isinstance(command, list):
+            command[:] = [o for o in command if not o.startswith("-Wno-")]
 
 class LibraryBuilder(build_clib):
     def build_libraries(self, libraries):
-        remove_msvc_warning_level(self.compiler)
+        remove_inherited_warning_options(self.compiler)
         super().build_libraries(libraries)
 
 class NoSuffixBuilder(build_ext):
     def build_extensions(self):
-        remove_msvc_warning_level(self.compiler)
+        remove_inherited_warning_options(self.compiler)
         super().build_extensions()
 
     def get_ext_filename(self, ext_name):
@@ -171,15 +178,13 @@ cflags = [
     '-DFIFTYONE_DEGREES_REDUCED_FILE=1']
 
 # The warnings of -Wall -Wextra and /W4 are on and are errors, for the
-# wrapper, the C++ and the C alike. -Wunused-result comes after the flags
-# Python was built with, which can turn it off.
+# wrapper, the C++ and the C alike.
 if sys.platform != "win32":
     extra_compile_args.extend([
         '-fPIC',
         '-std=gnu++17',
         '-Wall',
         '-Wextra',
-        '-Wunused-result',
         '-D_FILE_OFFSET_BITS=64',
         '-Werror'
     ])
@@ -187,7 +192,6 @@ if sys.platform != "win32":
         '-std=gnu11',
         '-Wall',
         '-Wextra',
-        '-Wunused-result',
         '-D_FILE_OFFSET_BITS=64',
         '-Werror'
     ])

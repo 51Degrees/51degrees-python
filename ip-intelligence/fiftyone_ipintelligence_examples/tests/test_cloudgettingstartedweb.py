@@ -32,6 +32,7 @@ import pytest
 from fiftyone_ipintelligence_examples.cloud.gettingstarted_web \
     import app as example
 
+from . import known_address
 from .live_cloud import find_resource_key, no_resource_key
 
 pytestmark = pytest.mark.live
@@ -41,7 +42,7 @@ NO_KEY = no_resource_key(
     "IP Intelligence properties such as RegisteredName")
 
 # The address looked up, given as the example's client-ip query parameter.
-CLIENT_IP = "8.8.8.8"
+CLIENT_IP = known_address.ADDRESS
 
 # What the example shows for a property the results do not have.
 NOT_FOUND = "Property not found in data file"
@@ -81,6 +82,19 @@ class CloudGettingStartedWebTests(unittest.TestCase):
             NOT_FOUND, page,
             "The cloud answered without a registration property, which is "
             "what a key that does not carry the ip product gets.")
+        # The page shows no country or range other than the registered
+        # country, so that is where the country is looked for.
+        self.assertRegex(
+            page,
+            rf"<li>Registered Name: [^<]*{known_address.REGISTERED_NAME}",
+            f"The page should give {known_address.REGISTERED_NAME} as the "
+            f"registered name of {CLIENT_IP}.\n{page}")
+        self.assertRegex(
+            page,
+            r"<li>Registered Country: [^<]*(?:"
+            + "|".join(known_address.COUNTRY) + ")",
+            f"The page should give {' or '.join(known_address.COUNTRY)} as "
+            f"the registered country of {CLIENT_IP}.\n{page}")
 
 
 if __name__ == "__main__":

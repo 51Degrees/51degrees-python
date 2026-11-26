@@ -1307,6 +1307,10 @@ class EngineHashSwig(EngineDeviceDetectionSwig):
     def getUpdateAvailableTime(self):
         return _DeviceDetectionHashEngineModule.EngineHashSwig_getUpdateAvailableTime(self)
 
+    @staticmethod
+    def getPublishedTimeFromFile(fileName):
+        return _DeviceDetectionHashEngineModule.EngineHashSwig_getPublishedTimeFromFile(fileName)
+
     def getDataFilePath(self):
         return _DeviceDetectionHashEngineModule.EngineHashSwig_getDataFilePath(self)
 

@@ -39,6 +39,11 @@ def pytest_configure(config):
         "markers",
         "live: calls the live 51Degrees cloud service and needs a resource "
         "key")
+    config.addinivalue_line(
+        "markers",
+        "staging: calls the staging cloud service CLOUD_STAGING_ENDPOINT "
+        "names, for what the production cloud does not serve yet. The "
+        "Cloud Human Confidence workflow runs these with -m staging")
 
 
 @pytest.hookimpl(tryfirst=True)

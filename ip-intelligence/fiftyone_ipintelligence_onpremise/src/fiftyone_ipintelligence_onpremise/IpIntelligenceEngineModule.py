@@ -1920,6 +1920,10 @@ class EngineIpiSwig(EngineBaseSwig):
     def getUpdateAvailableTime(self):
         return _IpIntelligenceEngineModule.EngineIpiSwig_getUpdateAvailableTime(self)
 
+    @staticmethod
+    def getPublishedTimeFromFile(fileName):
+        return _IpIntelligenceEngineModule.EngineIpiSwig_getPublishedTimeFromFile(fileName)
+
     def getDataFilePath(self):
         return _IpIntelligenceEngineModule.EngineIpiSwig_getDataFilePath(self)
 

@@ -29487,6 +29487,68 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_EngineHashSwig_getPublishedTimeFromFile(PyObject *self, PyObject *args) {
+  PyObject *resultobj = 0;
+  std::string *arg1 = 0 ;
+  int res1 = SWIG_OLDOBJ ;
+  PyObject *swig_obj[1] ;
+  Date result;
+  
+  (void)self;
+  if (!args) SWIG_fail;
+  swig_obj[0] = args;
+  {
+    std::string *ptr = (std::string *)0;
+    res1 = SWIG_AsPtr_std_string(swig_obj[0], &ptr);
+    if (!SWIG_IsOK(res1)) {
+      SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "EngineHashSwig_getPublishedTimeFromFile" "', argument " "1"" of type '" "std::string const &""'"); 
+    }
+    if (!ptr) {
+      SWIG_exception_fail(SWIG_NullReferenceError, "invalid null reference " "in method '" "EngineHashSwig_getPublishedTimeFromFile" "', argument " "1"" of type '" "std::string const &""'"); 
+    }
+    arg1 = ptr;
+  }
+  {
+    try {
+      result = EngineHash::getPublishedTimeFromFile((std::string const &)*arg1);;
+    }
+    catch(FatalException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NotImplementedException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(InvalidPropertyException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(EvidenceException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(TooManyValuesException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(NoValuesAvailableException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }	
+    catch(StatusCodeException& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(runtime_error& e) {
+      SWIG_exception(SWIG_RuntimeError, e.what());
+    }
+    catch(invalid_argument& e) {
+      SWIG_exception(SWIG_ValueError, e.what());
+    }
+  }
+  resultobj = SWIG_NewPointerObj((new Date(result)), SWIGTYPE_p_Date, SWIG_POINTER_OWN |  0 );
+  if (SWIG_IsNewObj(res1)) delete arg1;
+  return resultobj;
+fail:
+  if (SWIG_IsNewObj(res1)) delete arg1;
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_EngineHashSwig_getDataFilePath(PyObject *self, PyObject *args) {
   PyObject *resultobj = 0;
   EngineHash *arg1 = 0 ;
@@ -31391,6 +31453,7 @@ static PyMethodDef SwigMethods[] = {
 	 { "new_EngineHashSwig", _wrap_new_EngineHashSwig, METH_VARARGS, NULL},
 	 { "EngineHashSwig_getPublishedTime", _wrap_EngineHashSwig_getPublishedTime, METH_O, NULL},
 	 { "EngineHashSwig_getUpdateAvailableTime", _wrap_EngineHashSwig_getUpdateAvailableTime, METH_O, NULL},
+	 { "EngineHashSwig_getPublishedTimeFromFile", _wrap_EngineHashSwig_getPublishedTimeFromFile, METH_O, NULL},
 	 { "EngineHashSwig_getDataFilePath", _wrap_EngineHashSwig_getDataFilePath, METH_O, NULL},
 	 { "EngineHashSwig_getDataFileTempPath", _wrap_EngineHashSwig_getDataFileTempPath, METH_O, NULL},
 	 { "EngineHashSwig_refreshData", _wrap_EngineHashSwig_refreshData, METH_O, NULL},

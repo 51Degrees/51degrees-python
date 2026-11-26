@@ -104,6 +104,8 @@ Describe 'Find-EnvironmentNameProblem in a workflow' {
 
     It 'leaves <Line> alone' -ForEach @(
         @{ Line = '          _51DEGREES_EXAMPLE_SETTING: ${{ secrets._51DEGREES_EXAMPLE_SETTING }}' }
+        @{ Line = '          CLOUD_STAGING_ENDPOINT: ${{ vars.CLOUD_STAGING_ENDPOINT }}' }
+        @{ Line = '          RESOURCE_KEY_BESPOKE_STAGING: ${{ secrets.RESOURCE_KEY_BESPOKE_STAGING }}' }
         @{ Line = '          GITHUB_TOKEN: ${{ github.token }}' }
         @{ Line = '        uses: actions/checkout@v4' }
         @{ Line = '    runs-on: ubuntu-latest' }
@@ -130,6 +132,9 @@ Describe 'Test-EnvironmentName' {
         @{ Name = 'GITHUB_ENV' }
         @{ Name = 'TEMP' }
         @{ Name = 'PSModulePath' }
+        # Names only CI uses.
+        @{ Name = 'CLOUD_STAGING_ENDPOINT' }
+        @{ Name = 'RESOURCE_KEY_BESPOKE_STAGING' }
     ) {
         Test-EnvironmentName $Name | Should -BeTrue
     }
@@ -140,6 +145,12 @@ Describe 'Test-EnvironmentName' {
         @{ Name = '51DEGREES_EXAMPLE_SETTING' }
         @{ Name = 'TEMPORARY' }
         @{ Name = 'MY_GITHUB_SETTING' }
+        # Look-alikes of the names only CI uses.
+        @{ Name = 'cloud_staging_endpoint' }
+        @{ Name = 'CLOUD_STAGING_ENDPOINT_URL' }
+        @{ Name = 'CLOUD_ENDPOINT' }
+        @{ Name = 'RESOURCE_KEY_BESPOKE' }
+        @{ Name = 'RESOURCE_KEY_BASIC_STAGING' }
     ) {
         Test-EnvironmentName $Name | Should -BeFalse
     }
