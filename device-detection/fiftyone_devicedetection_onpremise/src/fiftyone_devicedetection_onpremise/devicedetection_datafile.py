@@ -119,19 +119,46 @@ class DeviceDetectionDataFile(DataFile):
         Get the Distributor's name for the product the data file in use is
         of, which the data file update service asks for when the license
         key holds several products
-        @returns string : name of the product, or None when the engine has
-        not loaded a data file
+        @returns string : name of the product, or None when none is known
         """
 
+        # Once the engine has loaded the data file, the product is the one
+        # the engine has. Before that, at start-up or after the engine is
+        # closed, it is read from the header of the data file at the
+        # configured location, without loading the file.
         engine = getattr(self.flow_element, "engine", None)
         if engine is None:
-            return None
+            return self.product_from_file()
         tier = engine.getProduct()
         if not tier:
             return None
         if tier.upper().startswith(self.PRODUCT_PREFIX):
             return tier
         return self.PRODUCT_PREFIX + tier
+
+    def product_from_file(self):
+
+        """!
+        Read the Distributor's name for the product of the data file at the
+        configured location from its header, without loading the file, as
+        in V4TAC for the TAC data file.
+        @returns string : name of the product, or None when there is no
+        file, its header cannot be read, or the native library cannot read
+        it
+        """
+
+        path = getattr(self, "path", None)
+        if not path:
+            return None
+        try:
+            from .DeviceDetectionHashEngineModule import EngineHashSwig
+            read = getattr(EngineHashSwig, "getProductFromFile", None)
+            if read is None:
+                return None
+            product = read(str(path))
+        except Exception:
+            return None
+        return str(product) if product else None
 
     def refresh(self):
 

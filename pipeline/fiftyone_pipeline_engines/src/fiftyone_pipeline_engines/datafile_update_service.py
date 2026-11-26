@@ -525,8 +525,10 @@ class DataFileUpdateService():
     @staticmethod
     def _data_update_product(data_file):
         # The product the data file in use is of, as the data file names it
-        # to the Distributor. None when it names none, as it does before
-        # its engine has loaded a data file.
+        # to the Distributor. That is the product of the engine once it has
+        # loaded the file, and before then the product the header of the
+        # file at the configured location names. None when no product is
+        # known, as when there is no file there.
         named = getattr(data_file, "get_data_update_product", None)
         if named is None:
             return None
