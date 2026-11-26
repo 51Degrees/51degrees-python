@@ -6,6 +6,10 @@ on:
       dryrun:
         type: boolean
         default: false
+      prs:
+        description: 'Comma-separated pull request numbers to build, drafts included'
+        type: string
+        default: ''
       skip-lite-tests:
         description: 'Skip testing with Lite data file'
         type: boolean
@@ -26,6 +30,7 @@ jobs:
       repo-name: ${{ github.event.repository.name }}
       org-name: ${{ github.event.repository.owner.login }}
       dryrun: ${{ inputs.dryrun || false }}
+      prs: ${{ inputs.prs }}
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
       skip-lite-tests: ${{ inputs.skip-lite-tests || false }}
       cache-assets: true
