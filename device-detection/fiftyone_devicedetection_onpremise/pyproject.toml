@@ -2,8 +2,6 @@
 requires = ["setuptools>=42", "wheel", "Cython"]
 build-backend = "setuptools.build_meta"
 
-# Every warning the test run raises is an error, as in the native build:
-# Python's own (DeprecationWarning, ResourceWarning and the rest), pytest's,
-# and those of the packages the tests use.
+# conftest.py makes every warning the test run raises an error when
+# _51DEGREES_WARNINGS_AS_ERRORS is "true".
 [tool.pytest.ini_options]
-filterwarnings = ["error"]

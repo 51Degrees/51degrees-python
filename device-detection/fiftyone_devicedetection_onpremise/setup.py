@@ -93,6 +93,15 @@ def remove_inherited_warning_options(compiler):
         if isinstance(command, list):
             command[:] = [o for o in command if not o.startswith("-Wno-")]
 
+def warnings_are_errors():
+
+    """True when the environment variable _51DEGREES_WARNINGS_AS_ERRORS is
+    "true", ignoring case, as the builds 51Degrees runs set it. Every compiler
+    warning then stops the build. An install from source elsewhere leaves it
+    unset, so a new warning is shown and the install goes on."""
+    return os.environ.get(
+        "_51DEGREES_WARNINGS_AS_ERRORS", "").lower() == "true"
+
 class LibraryBuilder(build_clib):
     def build_libraries(self, libraries):
         remove_inherited_warning_options(self.compiler)
@@ -159,22 +168,23 @@ extra_link_args = []
 # Extra compilation flags for C library
 cflags = []
 
-# The warnings of -Wall -Wextra and /W4 are on and are errors, for the
-# wrapper, the C++ and the C alike.
+# The warnings of -Wall -Wextra and /W4 are on for the wrapper, the C++ and
+# the C alike, and are errors when warnings_are_errors() says so.
 if sys.platform != "win32":
     extra_compile_args.extend([
         '-fPIC',
         '-std=gnu++17',
         '-Wall',
-        '-Wextra',
-        '-Werror'
+        '-Wextra'
     ])
     cflags.extend([
         '-std=gnu11',
         '-Wall',
-        '-Wextra',
-        '-Werror'
+        '-Wextra'
     ])
+    if warnings_are_errors():
+        extra_compile_args.append('-Werror')
+        cflags.append('-Werror')
 
 
 if sys.platform == "win32":
@@ -182,18 +192,17 @@ if sys.platform == "win32":
         '/std:c++17',
         '/D_UNICODE',
         '/DUNICODE',
-        '/W4',
-        '/WX'
+        '/W4'
     ])
     cflags.extend([
         '/D_UNICODE',
         '/DUNICODE',
-        '/W4',
-        '/WX'
+        '/W4'
     ])
-    extra_link_args.extend([
-        '/WX'
-    ])
+    if warnings_are_errors():
+        extra_compile_args.append('/WX')
+        cflags.append('/WX')
+        extra_link_args.append('/WX')
 
 if sys.platform == "linux":
     extra_link_args.extend([

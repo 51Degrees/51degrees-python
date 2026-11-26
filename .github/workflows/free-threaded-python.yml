@@ -38,6 +38,12 @@ on:
 permissions:
   contents: read
 
+# Every warning in the native build is an error in this workflow's builds, as
+# in every build 51Degrees runs. setup.py reads the variable in
+# warnings_are_errors().
+env:
+  _51DEGREES_WARNINGS_AS_ERRORS: 'true'
+
 jobs:
   # The job is named Configure, as common-ci's is, because this repository's
   # ci/fetch-assets.ps1 fetches the assets of every product only in a job of

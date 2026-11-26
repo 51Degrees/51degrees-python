@@ -30,8 +30,8 @@ $script:Prefix = '_51DEGREES_'
 # Names GitHub, the operating system, Python, pytest and Flask define. Any
 # name starting GITHUB_ is GitHub's.
 $script:PlatformNames = @(
-    'FLASK_APP', 'PATH', 'PSModulePath', 'PYTEST_ADDOPTS', 'PYTHONPATH',
-    'TEMP', 'TMP', 'TMPDIR')
+    'FLASK_APP', 'PATH', 'PSModulePath', 'PYTEST_ADDOPTS', 'PYTHON_GIL',
+    'PYTHONPATH', 'TEMP', 'TMP', 'TMPDIR')
 $script:PlatformPrefixes = @('GITHUB_')
 
 # The names only CI uses. No customer sets them, so they have no _51DEGREES_

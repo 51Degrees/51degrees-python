@@ -8,6 +8,12 @@
 
 . (Join-Path $PSScriptRoot 'packages.ps1')
 
+# Every warning in the native build is an error in the builds 51Degrees runs.
+# setup.py reads the variable in warnings_are_errors(). common-ci runs these
+# steps from workflows this repository calls, which take no env of its own,
+# so the steps set it here.
+$env:_51DEGREES_WARNINGS_AS_ERRORS = 'true'
+
 # Runs $Step for each affected product, or for each of $Products when given.
 # Every product is run even when an earlier one fails, so one run reports
 # every broken product, and the step fails at the end if any did. A pull
