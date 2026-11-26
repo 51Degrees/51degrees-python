@@ -42,8 +42,8 @@
 #    a sealed result the browser can't read or change.
 # 3. Redeem. The page hands the sealed result to this server, which calls
 #    hc/redeem with it as sealedResult and the account's License Key, and
-#    gets the true level back. The answer's status says what happened to
-#    the sealed result, and only success carries the true level. A sealed
+#    gets the true Value back. The answer's status says what happened to
+#    the sealed result, and only success carries the true Value. A sealed
 #    result redeems once, within ten seconds. This server is the only
 #    party holding the License Key, which the browser never sees.
 #
@@ -217,7 +217,8 @@ def create_app(resource_key, license_key, api):
     @app.route("/redeem", methods=["POST"])
     def redeem():
 
-        sealed = request.form.get("sealedResult")             or request.form.get("value", "")
+        sealed = (request.form.get("sealedResult")
+                  or request.form.get("value", ""))
         # The sealed result goes to the cloud as sealedResult, and as value
         # too, with the same text, for a cloud that reads only value.
         fields = {"sealedResult": sealed, "value": sealed}

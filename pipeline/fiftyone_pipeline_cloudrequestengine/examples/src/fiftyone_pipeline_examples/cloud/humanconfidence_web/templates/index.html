@@ -148,9 +148,9 @@
     return answer.status || answer.result || answer.context;
   }
 
-  // Only success carries the true level. The level that comes with any
+  // Only success carries the true Value. The Value that comes with any
   // other status isn't the browser's, so it isn't shown as one. A cloud
-  // that gives no status still gives a level with expired and replayed,
+  // that gives no status still gives a Value with expired and replayed,
   // so there it's success only when result names no failure: it's left
   // out, or it's success. Any other word, expired, replayed, unreadable
   // and unconfirmed included, is a failure.
