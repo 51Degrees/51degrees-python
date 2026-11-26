@@ -41,6 +41,8 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_core import web
 from fiftyone_pipeline_core.web import javascript_response, json_response
+from fiftyone_pipeline_engines.basic_dictionary_cache import (
+    BasicDictionaryCache)
 
 from .classes.mockrequestclient import MockRequestClient
 
@@ -183,6 +185,58 @@ class ServerRoutePassThroughTests(unittest.TestCase):
             self.assertEqual(VISITOR_IP, body["client-ip"])
             self.assertEqual(VISITOR_JA4, body["ja4"])
             self.assertEqual(VISITOR_H2, body["h2"])
+
+    def test_every_iteration_reaches_the_cloud_through_a_cache(self):
+        """The cache key is made from the evidence keys the cloud lists,
+        and the cloud lists none of the session id, the sequence, the
+        answers, the JA4 or the H2. So two iterations of one page share a
+        key, and without care the iteration carrying the answers would be
+        answered from the cache and never reach the cloud."""
+
+        self.engine.set_cache(BasicDictionaryCache())
+        session_id = self.run_iterations(make_app(self.engine, True))
+        bodies = self.data_requests()
+        self.assertEqual(3, len(bodies))
+        for body in bodies:
+            self.assertEqual(session_id, body["session-id"])
+            self.assertEqual(VISITOR_JA4, body["ja4"])
+        for body in bodies[1:]:
+            self.assertEqual(ANSWER_VALUE, body[ANSWER_NAME])
+
+    def test_a_supplied_connection_is_never_served_from_a_cache(self):
+        """A server call with no page iteration, but with the visitor's
+        JA4 and H2, goes to the cloud each time, because the cloud judges
+        the call on them and the cache key leaves them out."""
+
+        self.engine.set_cache(BasicDictionaryCache())
+        pipeline = PipelineBuilder({"add_javascript_builder": False}) \
+            .add(self.engine).build()
+        for ja4 in (VISITOR_JA4, "t13d1517h2_8daaf6152771_b1ff8ab2d16f"):
+            data = pipeline.create_flowdata()
+            data.evidence.add("header.user-agent", CHROME)
+            data.evidence.add("query.ja4", ja4)
+            data.evidence.add("query.h2", VISITOR_H2)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                data.process()
+        self.assertEqual(
+            [VISITOR_JA4, "t13d1517h2_8daaf6152771_b1ff8ab2d16f"],
+            [body["ja4"] for body in self.data_requests()])
+
+    def test_any_other_call_is_still_served_from_a_cache(self):
+        """A call that is neither a page iteration nor carries a supplied
+        connection is cached as before."""
+
+        self.engine.set_cache(BasicDictionaryCache())
+        pipeline = PipelineBuilder({"add_javascript_builder": False}) \
+            .add(self.engine).build()
+        for _ in range(2):
+            data = pipeline.create_flowdata()
+            data.evidence.add("query.User-Agent", CHROME)
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                data.process()
+        self.assertEqual(1, len(self.data_requests()))
 
     def test_without_supplied_values_the_connection_is_the_requests(self):
         """With nothing supplied, the address sent is the one the request

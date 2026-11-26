@@ -785,7 +785,12 @@ class CloudRequestEngine(Engine):
         @param flowdata: the FlowData to process
         """
 
-        result = super(CloudRequestEngine, self).process(flowdata)
+        if hasattr(self, "cache") and self.bypasses_cache(flowdata.evidence):
+            # Neither served from the cache nor stored in it. See
+            # bypasses_cache.
+            result = self.process_internal(flowdata)
+        else:
+            result = super(CloudRequestEngine, self).process(flowdata)
 
         # FlowData keeps each element's data under its datakey in lower case.
         data = flowdata.data.get(self.datakey.lower())
@@ -793,6 +798,39 @@ class CloudRequestEngine(Engine):
             flowdata.data[Constants.RESPONSE_DATA_KEY] = data
 
         return result
+
+    @staticmethod
+    def bypasses_cache(evidence):
+
+        """!
+        Whether a request goes to the cloud service whatever the cache
+        holds, and its answer is not stored. The cache key is made from the
+        evidence keys the service lists, but the engine sends every evidence
+        value. A page iteration carries the session id and the sequence,
+        and a server may supply the visitor's JA4 and H2, none of which the
+        service lists. Two iterations of one page that differ only in those
+        would share a key, and the later one, which may carry the browser
+        test answers the service waits for before it makes a 51Did, would
+        be answered from the cache and never reach the service. So a
+        request carrying any of Constants.UNCACHED_EVIDENCE_NAMES, under any
+        prefix and in any letter case, bypasses the cache, and every other
+        request is cached as before.
+
+        @type evidence: Evidence
+        @param evidence: The flow data's Evidence
+
+        @rtype: bool
+        @return: True if the request bypasses the cache
+        """
+
+        unaccepted = getattr(evidence, "get_unaccepted", dict)()
+        for source in (unaccepted, evidence.get_all()):
+            for key in source:
+                name = str(key).partition(Constants.EVIDENCE_SEPERATOR)
+                name = (name[2] if name[1] else name[0]).lower()
+                if name in Constants.UNCACHED_EVIDENCE_NAMES:
+                    return True
+        return False
 
     def is_cacheable(self, data):
 

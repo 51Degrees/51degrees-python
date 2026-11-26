@@ -137,6 +137,12 @@ class Constants:
         RESOURCE_PARAMETER, LICENSE_PARAMETER, LICENCE_SPELLING,
         VALUES_PARAMETER)
 
+    # Evidence names, under any prefix, that the service reads but does not
+    # list, so the cache key leaves them out. A request carrying one goes
+    # to the service whatever the cache holds. See
+    # CloudRequestEngine.bypasses_cache.
+    UNCACHED_EVIDENCE_NAMES = ("session-id", "sequence", "ja4", "h2")
+
     # The path, below the base URL, of the data endpoint that takes no
     # resource key in its route, used when the engine authenticates on a
     # licence key alone.
