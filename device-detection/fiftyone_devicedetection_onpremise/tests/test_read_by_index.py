@@ -28,7 +28,6 @@ its list, and reads by index too."""
 
 import time
 import unittest
-import warnings
 
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_devicedetection_onpremise.devicedetection_onpremise import \
@@ -38,9 +37,9 @@ data_file = "../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 mobile_ua = ("Mozilla/5.0 (iPhone; CPU iPhone OS 7_1 like Mac OS X) "
              "AppleWebKit/537.51.2 (KHTML, like Gecko) Version/7.0 Mobile"
              "/11D167 Safari/9537.53")
-# Reads timed for the figures in the warnings.
+# Reads timed for the figures the tests print.
 TIMED_READS = 20000
-# Builds of the index table timed for the figures in the warnings.
+# Builds of the index table timed for the figures the tests print.
 TIMED_TABLE_BUILDS = 200
 
 
@@ -174,7 +173,7 @@ class ReadByIndexTests(unittest.TestCase):
         for _ in range(TIMED_TABLE_BUILDS):
             engine.read_property_indexes()
         table = time.perf_counter() - start
-        warnings.warn(
+        print(
             f"No names, IsMobile read {TIMED_READS} times, native by name "
             f"{by_name * 1e9 / TIMED_READS:.0f} ns a read, native by index "
             f"{by_index * 1e9 / TIMED_READS:.0f} ns a read, typed read "
@@ -263,7 +262,7 @@ class ReadByIndexTests(unittest.TestCase):
         for _ in range(TIMED_READS):
             flowdata.device.get("ismobile")
         typed = time.perf_counter() - start
-        warnings.warn(
+        print(
             f"IsMobile read {TIMED_READS} times, native by name "
             f"{by_name * 1e9 / TIMED_READS:.0f} ns a read, native by index "
             f"{by_index * 1e9 / TIMED_READS:.0f} ns a read, typed read "

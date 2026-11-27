@@ -20,6 +20,37 @@
  * such notice(s) shall fulfill the requirements of that article.
  * ********************************************************************* */
 
+/* The wrapper is built with the warnings of -Wall -Wextra and /W4 as errors,
+ * so SWIG is asked to leave on the warnings it turns off for the whole wrapper
+ * (C4505 and the C runtime deprecation warnings). SWIG's runtime defines
+ * helper functions that a module may not call. GCC and Clang are told so by
+ * SWIG's unused attribute, which MSVC has no equivalent for, so on MSVC they
+ * are inline, as unused inline functions are expected. Only the arguments
+ * that differ are checked to tell the overloads apart (fast dispatch), which
+ * also keeps each check in a scope of its own so no local hides another.
+ *
+ * SWIG still writes these pragmas in the wrapper, and no SWIG setting
+ * removes them. None of them changes this build:
+ * - GCC "-Wregister", around Python.h only, for Python 2.7 headers. The
+ *   Python headers this package builds with use register only for GNU
+ *   explicit register variables, which -Wregister does not report.
+ * - Intel compiler warning 592, for the Intel compiler only.
+ * - GCC "-Wdeprecated" and "-Wdeprecated-declarations", and MSVC 4996,
+ *   around PyObject_AsReadBuffer, only when SWIG_PYTHON_OLD_BUFFER_PROTOCOL
+ *   is defined. This build does not define it.
+ * ci/native-warnings.Tests.ps1 fails on any other pragma in the wrapper. */
+%begin %{
+#define SWIG_MSC_UNSUPPRESS_4505
+#define SWIG_NO_CRT_SECURE_NO_DEPRECATE
+#define SWIG_NO_SCL_SECURE_NO_DEPRECATE
+#if defined(_MSC_VER)
+#define SWIGINTERN static inline
+#define SWIGINTERNINLINE static inline
+#define SWIGRUNTIMEINLINE static inline
+#endif
+%}
+%feature("fastdispatch");
+
 %include <pybuffer.i>
 %pybuffer_binary(unsigned char data[], long length);
 %rename(refreshDataFromFile) refreshData(const char *fileName);

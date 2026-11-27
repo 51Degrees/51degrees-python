@@ -38,6 +38,12 @@ on:
 permissions:
   contents: read
 
+# Every warning in the native build is an error in this workflow's builds, as
+# in every build 51Degrees runs. setup.py reads the variable in
+# warnings_are_errors().
+env:
+  _51DEGREES_WARNINGS_AS_ERRORS: 'true'
+
 jobs:
   # The job is named Configure, as common-ci's is, because this repository's
   # ci/fetch-assets.ps1 fetches the assets of every product only in a job of
@@ -198,7 +204,14 @@ jobs:
             Pop-Location
           }
 
+      # The tests start with the GIL on, as the package's readme says to,
+      # because Python warns when it turns the GIL on to load a native module
+      # and every warning fails the tests. tests/test_free_threaded.py loads
+      # each module in a new interpreter without PYTHON_GIL, and checks that
+      # Python turns the GIL on and gives that warning.
       - name: Run the tests
+        env:
+          PYTHON_GIL: '1'
         run: |
           $failed = $false
           foreach ($package in 'device-detection/fiftyone_devicedetection_onpremise', 'ip-intelligence/fiftyone_ipintelligence_onpremise') {

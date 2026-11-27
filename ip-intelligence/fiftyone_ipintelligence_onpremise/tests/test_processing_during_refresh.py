@@ -30,7 +30,6 @@ import os
 import sys
 import threading
 import unittest
-import warnings
 
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise import \
@@ -102,7 +101,7 @@ class ProcessingDuringRefreshTests(unittest.TestCase):
         finally:
             sys.setswitchinterval(interval)
         self.assertEqual([], errors)
-        warnings.warn(
+        print(
             f"{processed} Flow Data processed during {REFRESHES} refreshes "
             f"{name}")
         return processed

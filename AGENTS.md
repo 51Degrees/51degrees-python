@@ -286,6 +286,21 @@ an organization secret, and skip naming it when it is not set. Cloud tests
 and examples call the service `_51DEGREES_CLOUD_ENDPOINT` names, or the
 public one when it is not set.
 
+`_51DEGREES_WARNINGS_AS_ERRORS` set to `true`, ignoring case, makes every
+warning in the native build of the two on-premise packages an error
+(`-Werror`, and `/WX` for the compile and the link). With any other value, or
+none, warnings are shown and the build goes on, so a newer compiler on a
+customer's machine never stops an install from source. The warnings of
+`-Wall -Wextra` and `/W4` are on either way. The builds 51Degrees runs set it:
+the step scripts in `ci/` that common-ci calls, the `.pkg` environment of
+each on-premise `tox.ini`, and
+[`.github/workflows/free-threaded-python.yml`](.github/workflows/free-threaded-python.yml).
+Each package's `setup.py` reads it in `warnings_are_errors()`, and
+[`ci/native-warnings.Tests.ps1`](ci/native-warnings.Tests.ps1) checks the
+flags with it set and unset.
+The same setting makes every warning in the two packages' test runs an
+error, through the `conftest.py` beside each `pyproject.toml`.
+
 ## Products keep their own CI scripts
 
 Each product folder still has the `ci/` scripts it had as its own repository,
