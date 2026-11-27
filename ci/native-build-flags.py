@@ -7,7 +7,7 @@
 # reading of _51DEGREES_WARNINGS_AS_ERRORS is what is tested. setup(),
 # Extension, the setuptools and Cython build commands and the copy of the
 # native source are replaced, so nothing is built, copied or installed, and
-# neither setuptools nor Cython is needed.
+# neither setuptools, Cython nor the native source is needed.
 
 import json
 import os
@@ -62,6 +62,13 @@ module("Cython.Distutils", build_ext=Command)
 
 shutil.copytree = lambda *args, **kwargs: None
 shutil.rmtree = lambda *args, **kwargs: None
+
+# setup.py stops when it finds no native source to copy. The flags don't
+# depend on it, and the CI script tests check out no submodule, so the
+# source folders read as present.
+found_dir = os.path.isdir
+os.path.isdir = lambda path: found_dir(path) or os.path.normpath(
+    path).endswith(os.path.join("cxx", "src"))
 sys.platform = target_platform
 
 os.chdir(os.path.dirname(setup_py))
