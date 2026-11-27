@@ -16,7 +16,7 @@ The Pipeline is a generic web request intelligence and data processing solution 
 
 This package uses the `engines` class created by the `fiftyone-pipeline-engines`. It makes available:
 
-* A `Cloud Request Engine` which calls the 51Degrees cloud service to fetch properties and metadata about them based on a provided resource key. Get a resource key at https://configure.51degrees.com/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=this-package-fiftyone_pipeline_cloudrequestengine
+* A `Cloud Request Engine` which calls the 51Degrees cloud service to fetch properties and metadata about them based on a provided resource key. Get a resource key at https://51degrees.com/configure/?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine&utm_term=this-package-fiftyone_pipeline_cloudrequestengine
 * A `Cloud Engine` template which reads data from the Cloud Request Engine.
 
 ## Credentials
@@ -58,16 +58,72 @@ See the [Credentials section of the cloud request engine specification](https://
 and the rules in
 [`cloudrequestengine.py`](src/fiftyone_pipeline_cloudrequestengine/cloudrequestengine.py).
 
+## When the engine is built
+
+The engine asks the cloud service for the properties the key carries and
+the evidence keys the service accepts when it is constructed, so a
+pipeline built with it has both before the first request. When the cloud
+service refuses either request, with an answer from 400 to 499 such as
+the one for a resource key that is not valid, the constructor raises
+`CloudRequestException`. Any other failure, such as the service being
+unreachable, a timeout or an answer of 500 or more, gives a warning and
+the engine is still built, so a cloud outage does not stop the
+application starting. The engine then asks again when it is first used,
+and a failure at that point is an error of that request, which
+`suppress_process_exceptions` decides whether to raise. Until then the
+cloud engines after it have no property metadata.
+
+Each entry in the `warnings` list of an answer from the cloud service is
+given as a warning, with any licence key masked.
+
+A cloud engine takes its properties from the Cloud Request Engine in its
+pipeline. It can be in several pipelines that share one Cloud Request
+Engine, and a pipeline with a different Cloud Request Engine refuses it,
+so build a cloud engine for each Cloud Request Engine.
+
+An engine whose discovery has completed gives what it discovered with
+`discovery_state()`, as one JSON document. Keep it, and give it as the
+`discovery_state` setting of an engine with the same credentials, for
+example on the next start of a short-lived host, and that engine is built
+without asking the cloud service. The document is the one the Java
+package's `CloudDiscoveryState` writes.
+
+See the [Start-up activity section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#start-up-activity).
+
+## Timeout
+
+Each request to the cloud service waits at most `timeout_seconds` to
+connect, and at most that long again for each part of the answer, before it
+fails with a timeout. The default is 2 seconds, as the
+[configuration options of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#configuration-options)
+give. A value that is not a finite number above zero raises `ValueError` when the
+engine is built. A request that times out while the engine is built is a
+failure that may pass, so the engine is built with a warning and asks
+again when it is first used.
+
+A client given as `http_client` is passed the timeout when its `request`
+method has a `timeout_seconds` parameter, as `RequestClient.request` does,
+and is called without it otherwise.
+
+## Reading the answer
+
+The engine's data holds the raw JSON answer of the cloud service as its
+`cloud` property, and is read under `cloud-response`, the key the
+[Element Data section of the cloud request engine specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/pipeline-elements/cloud-request-engine.md#element-data)
+gives, as in `flowdata.get("cloud-response").get("cloud")`. The old key,
+`cloud`, gives the same data and is deprecated, so read under
+`cloud-response` instead. The old key will be removed in a later release.
+The engine's own data key is still `cloud`, so
+`pipeline.get_element("cloud")` still finds the engine, and the JSON for the
+browser leaves the engine's data out as before.
+
 ## Pointing the engine at another host
 
 The engine calls `https://cloud.51degrees.com/api/v4/` unless told
 otherwise. Set the `_51DEGREES_CLOUD_ENDPOINT` environment variable, or pass
 `cloud_endpoint` in the engine settings, to the API base of another
-host including the `/api/v4/` segment. `FOD_CLOUD_API_URL`, the old name
-of that variable, is deprecated. The engine reads it only when
-`_51DEGREES_CLOUD_ENDPOINT` is not set, and warns once that the old name
-was used. `Constants.FOD_CLOUD_API_URL` is deprecated as well, and
-`Constants.CLOUD_ENDPOINT` replaces it. A host other than
+host including the `/api/v4/` segment. `Constants.CLOUD_ENDPOINT` holds
+the name of that variable. A host other than
 cloud.51degrees.com would be used to (a) use an on premise web server,
 or (b) use a privately hosted version of the 51Degrees cloud for
 performance reasons. This is the private hosting option of the cloud

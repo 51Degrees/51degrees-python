@@ -1,0 +1,150 @@
+# *********************************************************************
+# This Original Work is copyright of 51 Degrees Mobile Experts Limited.
+# Copyright 2026 51 Degrees Mobile Experts Limited, Davidson House,
+# Forbury Square, Reading, Berkshire, United Kingdom RG1 3EU.
+#
+# This Original Work is licensed under the European Union Public Licence
+# (EUPL) v.1.2 and is subject to its terms as set out below.
+#
+# If a copy of the EUPL was not distributed with this file, You can obtain
+# one at https://opensource.org/licenses/EUPL-1.2.
+#
+# The 'Compatible Licences' set out in the Appendix to the EUPL (as may be
+# amended by the European Commission) shall be deemed incompatible for
+# the purposes of the Work and the provisions of the compatibility
+# clause in Article 5 of the EUPL shall not apply.
+#
+# If using the Work as, or as part of, a network application, by
+# including the attribution notice(s) required under Article 5 of the EUPL
+# in the end user terms of the application under an appropriate heading,
+# such notice(s) shall fulfill the requirements of that article.
+# *********************************************************************
+
+import os
+import threading
+import unittest
+
+from fiftyone_pipeline_engines.datafile_update_service import \
+    DataFileUpdateService, UpdateStatus
+from fiftyone_ipintelligence_onpremise.ipintelligence_onpremise_pipelinebuilder import \
+    IpIntelligenceOnPremisePipelineBuilder
+
+from .constants import TestConstants
+
+data_file = TestConstants.get_data_file_path()
+
+# How often the watcher looks at the file in these tests.
+WATCHER_INTERVAL_SECONDS = 0.5
+
+# The longest the tests wait for the watcher to report the file and the
+# engine to reload it. It is a guard that stops a test waiting for ever, and
+# a reload that takes longer than it fails the test.
+RELOAD_WAIT_SECONDS = 120
+
+
+@unittest.skipUnless(
+    os.path.isfile(data_file),
+    "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
+    "or set the _51DEGREES_IPI_PATH environment variable." % data_file)
+class WatcherWithoutLicenceKeyTests(unittest.TestCase):
+    """!
+    The file system watcher downloads nothing, so it needs no licence key.
+    """
+
+    def build(self, **settings):
+        pipeline = IpIntelligenceOnPremisePipelineBuilder(
+            data_file_path=data_file,
+            usage_sharing=False,
+            **settings).build()
+        self.addCleanup(pipeline.close)
+        return pipeline
+
+    def test_the_watcher_runs_with_no_licence_key(self):
+        pipeline = self.build(file_system_watcher=True)
+        watched = pipeline.get_element("ip").data_file
+        self.assertTrue(watched.file_system_watcher)
+        self.assertFalse(watched.auto_update)
+        self.assertFalse(watched.update_on_start)
+
+    def test_a_changed_file_is_loaded_with_no_licence_key(self):
+        service = DataFileUpdateService()
+        service.FILE_SYSTEM_WATCHER_INTERVAL_SECONDS = \
+            WATCHER_INTERVAL_SECONDS
+        statuses = []
+        reloaded = threading.Event()
+
+        def on_complete(status, watched):
+            statuses.append(status)
+            reloaded.set()
+
+        service.on_complete(on_complete)
+        pipeline = self.build(
+            file_system_watcher=True, data_file_update_service=service)
+
+        # The data file can be large, so it is marked as written to by
+        # moving its time on rather than copied, and its time is put back
+        # afterwards.
+        before = os.stat(data_file)
+        self.addCleanup(
+            os.utime, data_file, (before.st_atime, before.st_mtime))
+        later = before.st_mtime + 10
+        os.utime(data_file, (later, later))
+
+        self.assertTrue(
+            reloaded.wait(RELOAD_WAIT_SECONDS),
+            "The watcher did not report the changed file.")
+        self.assertEqual([UpdateStatus.AUTO_UPDATE_SUCCESS], statuses)
+
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add("query.client-ip", "8.8.8.8")
+            flowdata.process()
+            self.assertEqual({}, flowdata.errors)
+
+
+@unittest.skipUnless(
+    os.path.isfile(data_file),
+    "No IP intelligence data file found at '%s'. Run ci/fetch-assets.ps1 "
+    "or set the _51DEGREES_IPI_PATH environment variable." % data_file)
+class RefreshFromFileAfterMemoryTests(unittest.TestCase):
+    """!
+    An engine whose data file is kept on disk, refreshed from data in
+    memory as an update from memory does when it cannot write the file, is
+    still refreshed from the file by polling and the file system watcher.
+    """
+
+    def check_refresh_from_file_after_memory(self, **settings):
+        pipeline = IpIntelligenceOnPremisePipelineBuilder(
+            data_file_path=data_file,
+            usage_sharing=False,
+            file_system_watcher=True,
+            **settings).build()
+        self.addCleanup(pipeline.close)
+        element = pipeline.get_element("ip")
+        kept = element.data_file
+
+        # The refresh from memory, with the data file in memory mode for
+        # that one refresh.
+        with open(data_file, "rb") as file:
+            kept.data = file.read()
+        kept.download = False
+        try:
+            kept.refresh()
+        finally:
+            kept.download = True
+            del kept.data
+
+        # The refresh from the file that polling and the watcher make.
+        kept.refresh()
+
+        self.assertEqual(data_file, element.engine.getDataFilePath())
+        with pipeline.create_flowdata() as flowdata:
+            flowdata.evidence.add("query.client-ip", "8.8.8.8")
+            flowdata.process()
+            self.assertEqual({}, flowdata.errors)
+
+    def test_with_a_temporary_copy(self):
+        self.check_refresh_from_file_after_memory(create_temp_data_copy=True)
+
+    def test_without_a_temporary_copy(self):
+        self.check_refresh_from_file_after_memory(
+            create_temp_data_copy=False)

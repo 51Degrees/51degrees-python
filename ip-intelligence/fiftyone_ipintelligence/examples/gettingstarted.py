@@ -21,11 +21,36 @@
 # *********************************************************************
 
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
+from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
+
+# Where to ask for a copy of the Enterprise data file, tagged with this
+# example.
+CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-examples-gettingstarted.py&utm_term=enterprise-data-file"
+
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-examples-gettingstarted.py&utm_term=find-out-more-ip-intelligence"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-examples-gettingstarted.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence-examples-gettingstarted.py&utm_term=find-out-more-resource-keys"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+    ("IP intelligence engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
 
 # First create the IP intelligence pipeline with the desired settings.
 
-data_file = "../../cxx/data/ip-intelligence/51Degrees-LiteV41.ipi"
-resource_key = "!!YOUR_RESOURCE_KEY!!"
+# The data file named in the _51DEGREES_IPI_PATH environment variable, or
+# else the free Lite data file, found in the folder this runs in or a folder
+# above it, or downloaded when it is missing.
+data_file = (ExampleUtils.get_data_file_path()
+             or ExampleUtils.find_file("51Degrees-LiteV41.ipi"))
+# The resource key for the Cloud line below, from the
+# _51DEGREES_RESOURCE_KEY environment variable.
+resource_key = ExampleUtils.get_resource_key() or "!!YOUR_RESOURCE_KEY!!"
 
 # Uncommment the line below 'On-Premise' and comment the line below 'Cloud' to
 # switch to an On-Premise installation
@@ -65,6 +90,15 @@ with pipeline:
             # Output why the value isn't meaningful
             print(flowdata1.ip.registeredname.no_value_message())
 
+        # The country is only in the Enterprise data file, so the free Lite
+        # data file says so and where to ask for a copy.
+        print("Which country is IP address " + ipv4_address + " in? ")
+        if ExampleUtils.has_property(pipeline.get_element("ip"), "country"):
+            print(ExampleUtils.get_human_readable(flowdata1.ip, "country"))
+        else:
+            print(ExampleUtils.NEEDS_ENTERPRISE)
+            print(ExampleUtils.get_enterprise_note(CONTACT_US))
+
     # Now we do the same with a new IP address, this time an IPv6 one
 
     with pipeline.create_flowdata() as flowdata2:
@@ -80,3 +114,8 @@ with pipeline:
             print(flowdata2.ip.registeredname.value())
         else:
             print(flowdata2.ip.registeredname.no_value_message())
+
+print("=" * 79)
+print("Find out more:")
+for label, url in FIND_OUT_MORE:
+    print(f"\t{label}: {url}")

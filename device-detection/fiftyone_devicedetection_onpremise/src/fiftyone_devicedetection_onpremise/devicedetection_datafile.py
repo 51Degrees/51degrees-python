@@ -58,10 +58,14 @@ class DeviceDetectionDataFile(DataFile):
         if not self._data_update_use_url_formatter:
             return self.update_url_params["base_url"]
 
+        # A product is named only when one is configured, and then every
+        # request carries it. With none configured the URL has no Product
+        # parameter at all, so a license key that holds one product is
+        # served that product.
         query_params = {
             "Type": self.update_url_params["type"],
             "licenseKeys": self.update_url_params.get("license_keys"),
-            "Product": self.update_url_params.get("product")
+            "Product": self.update_url_params.get("product") or None
         }
 
         # Remove keys with None values
@@ -104,6 +108,58 @@ class DeviceDetectionDataFile(DataFile):
         else:
             return datetime.datetime.now()
 
+    # The Distributor's name for a Device Detection product is this, then
+    # the tier of its data file, as in V4TAC for the TAC data file and
+    # V4Enterprise for the Enterprise one.
+    PRODUCT_PREFIX = "V4"
+
+    def get_data_update_product(self):
+
+        """!
+        Get the Distributor's name for the product the data file in use is
+        of, which the data file update service asks for when the license
+        key holds several products
+        @returns string : name of the product, or None when none is known
+        """
+
+        # Once the engine has loaded the data file, the product is the one
+        # the engine has. Before that, at start-up or after the engine is
+        # closed, it is read from the header of the data file at the
+        # configured location, without loading the file.
+        engine = getattr(self.flow_element, "engine", None)
+        if engine is None:
+            return self.product_from_file()
+        tier = engine.getProduct()
+        if not tier:
+            return None
+        if tier.upper().startswith(self.PRODUCT_PREFIX):
+            return tier
+        return self.PRODUCT_PREFIX + tier
+
+    def product_from_file(self):
+
+        """!
+        Read the Distributor's name for the product of the data file at the
+        configured location from its header, without loading the file, as
+        in V4TAC for the TAC data file.
+        @returns string : name of the product, or None when there is no
+        file, its header cannot be read, or the native library cannot read
+        it
+        """
+
+        path = getattr(self, "path", None)
+        if not path:
+            return None
+        try:
+            from .DeviceDetectionHashEngineModule import EngineHashSwig
+            read = getattr(EngineHashSwig, "getProductFromFile", None)
+            if read is None:
+                return None
+            product = read(str(path))
+        except Exception:
+            return None
+        return str(product) if product else None
+
     def refresh(self):
 
         """!
@@ -116,4 +172,8 @@ class DeviceDetectionDataFile(DataFile):
         if self.download == False:
             self.flow_element.engine.refreshDataFromMemory(self.data)
         else:
+            # The update is written to the file the engine was built from.
             self.flow_element.engine.refreshData()
+
+        # The new data may accept other Evidence keys.
+        self.flow_element.read_evidence_keys()

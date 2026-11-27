@@ -24,7 +24,6 @@ import string
 import unittest
 import os
 import time
-import csv
 import platform
 
 from fiftyone_devicedetection_onpremise.devicedetection_onpremise_pipelinebuilder import DeviceDetectionOnPremisePipelineBuilder
@@ -39,17 +38,6 @@ from fiftyone_pipeline_engines.lru_cache import LRUEngineCache
 data_file = "../../cxx/data/device-detection/51Degrees-LiteV4.1.hash"
 
 mobile_ua = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_2 like Mac OS X) AppleWebKit/604.4.7 (KHTML, like Gecko) Mobile/15C114"
-
-# User agents test percentages
-minMobilePercentage = 0.72
-maxUnknownPercentage = 0.002
-
-# User agents file
-
-with open('../../cxx/data/device-detection/20000 User Agents.csv', newline='') as file:
-    reader = csv.reader(file)
-    user_agents = list(reader)
-    no_user_agents = len(user_agents)
 
 
 class DeviceDetectionTests(unittest.TestCase):
@@ -124,6 +112,29 @@ class DeviceDetectionTests(unittest.TestCase):
         fd.process()
 
         self.assertTrue(fd.device.ismobile.value())
+
+    def test_method_is_the_match_method_name(self):
+        """!
+        Method is the name of the method the match used, being one of the
+        C library's NONE, PERFORMANCE, COMBINED and PREDICTIVE, as
+        device-detection-on-premise.md's match metric table says (a
+        string, read with getMethod).
+        """
+
+        pipeline = DeviceDetectionOnPremisePipelineBuilder(
+            data_file_path=data_file, usage_sharing=False, licence_keys="").build()
+        self.addCleanup(pipeline.close)
+
+        fd = pipeline.create_flowdata()
+        self.addCleanup(fd.close)
+
+        fd.evidence.add("header.user-agent", mobile_ua)
+
+        fd.process()
+
+        self.assertIn(
+            fd.device.method.value(),
+            ["NONE", "PERFORMANCE", "COMBINED", "PREDICTIVE"])
 
     def test_process_with_no_evidence(self):
         """!
@@ -648,7 +659,7 @@ class DeviceDetectionTests(unittest.TestCase):
 
         for engine_property in properties:
             data_property = fd.device.get(engine_property)
-            if properties[engine_property]["category"] == "Device metrics":
+            if properties[engine_property]["category"] == "Device Metrics":
                 self.assertEqual(data_property.has_value(), True)
             elif engine_property == "deviceid":
                 self.assertEqual(fd.device.deviceid.value(), "0-0-0-0")
@@ -677,7 +688,7 @@ class DeviceDetectionTests(unittest.TestCase):
 
         for engine_property in properties:
             data_property = fd.device.get(engine_property)
-            if properties[engine_property]["category"] == "Device metrics":
+            if properties[engine_property]["category"] == "Device Metrics":
                 self.assertEqual(data_property.has_value(), True)
             elif engine_property == "deviceid":
                 self.assertEqual(fd.device.deviceid.value(), "0-0-0-0")
@@ -756,26 +767,6 @@ class DeviceDetectionTests(unittest.TestCase):
 
         timer.join(10)
         self.assertFalse(timer.is_alive())
-
-    def process_user_agent_list(self, pipeline):
-
-        results = {"mobile": 0, "not_mobile": 0, "unknown": 0}
-
-        for user_agent in user_agents:
-            user_agent = user_agent[0]
-            with pipeline.create_flowdata() as flowdata:
-                flowdata.evidence.add("header.user-agent", user_agent)
-                flowdata.process()
-
-                if flowdata.device.ismobile.has_value():
-                    if(flowdata.device.ismobile.value()):
-                        results["mobile"] += 1
-                    else:
-                        results["not_mobile"] += 1
-                else:
-                    results["unknown"] += 1
-
-        return results
 
 
 class DeviceDetectionCacheTests(unittest.TestCase):

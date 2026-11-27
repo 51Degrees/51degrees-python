@@ -8,7 +8,7 @@ param (
 # anything builds. See ci/copy-owid-source.ps1 for the full reasoning.
 & "$PSScriptRoot/copy-owid-source.ps1" -RepoRoot $RepoName
 
-$packages = "fiftyone_pipeline_core", "fiftyone_pipeline_engines", "fiftyone_pipeline_engines_fiftyone", "fiftyone_pipeline_cloudrequestengine", "fiftyone_pipeline_translation"
+$packages = "fiftyone_pipeline_core", "fiftyone_pipeline_engines", "fiftyone_pipeline_engines_fiftyone", "fiftyone_pipeline_cloudrequestengine", "fiftyone_pipeline_translation", "fiftyone_pipeline_derivedproperty"
 ./python/build-project.ps1 -RepoName $RepoName -Packages $packages
 
 exit $LASTEXITCODE

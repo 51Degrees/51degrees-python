@@ -54,7 +54,8 @@ setuptools.setup(
     packages=["fiftyone_pipeline_cloudrequestengine"],
     package_dir={"": "src"},
     install_requires=[
-          'fiftyone_pipeline_engines',
+          # The release this package is built and tested with.
+          'fiftyone_pipeline_engines>=4.5.44',
           'requests',
     ],
     license="EUPL-1.2",

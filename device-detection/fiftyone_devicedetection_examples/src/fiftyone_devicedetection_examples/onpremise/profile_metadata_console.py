@@ -36,6 +36,10 @@
 # 5. How to handle multi-value properties (TAC, HardwareName)
 # 6. How to output the results as JSON
 #
+# It uses the free Lite data file unless it is given one. The Lite file has
+# none of these properties, so the example then says which ones need the
+# Enterprise data file and where to ask for a copy.
+#
 # Required PyPi Dependencies:
 # - fiftyone_devicedetection_onpremise
 
@@ -65,6 +69,21 @@ def stderr_print(*args, **kwargs):
 # example.
 CONTACT_US = "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-profile_metadata_console.py&utm_term=enterprise-data-file"
 
+# The free data file the example uses when it is given none.
+LITE_DATA_FILE = "51Degrees-LiteV4.1.hash"
+
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-profile_metadata_console.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-profile_metadata_console.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 
 class ProfileMetadataConsole():
     # Properties we want to extract from each hardware profile
@@ -74,7 +93,33 @@ class ProfileMetadataConsole():
     # Properties that can have multiple values
     MULTI_VALUE_PROPERTIES = ["tac", "hardwarename", "nativename", "nativemodel"]
 
-    def run(self, data_file, output_file, logger, output, limit=None):
+    # The names of the target properties as the data file gives them.
+    PROPERTY_NAMES = {
+        "tac": "TAC",
+        "hardwarevendor": "HardwareVendor",
+        "hardwarename": "HardwareName",
+        "hardwaremodel": "HardwareModel",
+        "nativemodel": "NativeModel",
+        "nativename": "NativeName",
+    }
+
+    def missing_properties(self, metadata):
+        """
+        The names of the target properties the data file does not have. The
+        free Lite data file has none of them.
+        """
+        properties = metadata.getProperties()
+        available = {
+            properties.getByIndex(index).getName().lower()
+            for index in range(properties.getSize())}
+        return [self.PROPERTY_NAMES[name] for name in self.TARGET_PROPERTIES
+                if name not in available]
+
+    def run(self, data_file, output_file, logger, output, limit=None,
+            contact_us=CONTACT_US):
+        # contact_us is the link written when the data file lacks a target
+        # property, tagged with the example that runs this, or None when
+        # that example has given its own.
         output(f"Loading data file: {data_file}")
 
         # Configure the engine with all properties (empty list = all available)
@@ -185,10 +230,24 @@ class ProfileMetadataConsole():
             if output_file and out_stream:
                 out_stream.close()
 
+        # Say which of the properties listed the data file lacks, and where
+        # to ask for the Enterprise data file, which has them all.
+        missing = self.missing_properties(metadata)
+        if missing:
+            names = ", ".join(missing[:-1]) + " or " + missing[-1] \
+                if len(missing) > 1 else missing[0]
+            note = (f"The data file in use does not have {names}, which "
+                    "only the Enterprise data file has.")
+            if contact_us:
+                note += f" Contact us for a copy at {contact_us}"
+            output(note)
+        return missing
+
 
 def main(argv):
-    # Default data file path - use TAC data file for enterprise features
-    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file("TAC-HashV41.hash")
+    # The free Lite data file unless a data file is given. Give an
+    # Enterprise data file to see the hardware properties.
+    data_file = argv[0] if len(argv) > 0 else ExampleUtils.find_file(LITE_DATA_FILE)
     # Output file - use "-" for stdout
     output_arg = argv[1] if len(argv) > 1 else "-"
     output_file = None if output_arg == "-" else output_arg
@@ -203,14 +262,20 @@ def main(argv):
 
     if data_file is not None:
         ProfileMetadataConsole().run(data_file, output_file, logger, output_func, limit)
+        # The links go where the progress messages went, so that JSON
+        # written to standard output stays valid.
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE, output_func)
     else:
-        # Only the Enterprise data file has the properties the example lists,
-        # so without one it says so and where to ask for one, and stops.
-        print("Listing the hardware profiles needs the TAC, HardwareVendor "
-              "and HardwareName properties, which only the Enterprise data "
-              "file has. Give the path to an Enterprise data file as the "
-              "first command line argument, or contact us for a copy at "
-              f"{CONTACT_US}")
+        # The free data file could not be found or downloaded, so the
+        # example says what to give it and where to ask for the Enterprise
+        # data file, and stops.
+        print(f"The free {LITE_DATA_FILE} data file was not found and could "
+              "not be downloaded. Give the path to a data file as the first "
+              "command line argument. Listing the hardware profiles in full "
+              "needs the TAC, HardwareVendor and HardwareName properties, "
+              "which only the Enterprise data file has. Contact us for a copy "
+              f"at {CONTACT_US}")
+        ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 
 if __name__ == "__main__":

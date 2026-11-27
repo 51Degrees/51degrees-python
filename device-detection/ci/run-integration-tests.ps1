@@ -1,8 +1,9 @@
 param (
     [Parameter(Mandatory=$true)]
     [string]$RepoName,
-    [Parameter(Mandatory=$true)]
-    [Hashtable]$Keys
+    # False, from the root select-options.ps1, on every entry of a pull
+    # request but one, so the browser contract runs once.
+    [bool]$SeleniumContract = $true
 )
 
 if ($IsWindows) {
@@ -13,10 +14,14 @@ if ($IsWindows) {
 
 $packages = "fiftyone_devicedetection_cloud", "fiftyone_devicedetection_examples"
 
-if (!$Keys.TestResourceKey) {
-    throw "No TestResourceKey was passed, so the cloud tests cannot call " +
-        "the cloud service. The workflows set it from the " +
-        "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
+# Without a resource key the tests that need one, which are marked live, are
+# left out and every other test runs. A live test still fails when it finds
+# no key, so a key that is passed but does not reach it is not missed.
+# The selection is added to any options a caller set in PYTEST_ADDOPTS.
+$addopts = $env:PYTEST_ADDOPTS
+if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
+    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization secret of that name."
+    $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 # The cloud package runs without the CSV file too, because only its property
 # coverage tests read the file, and they say so when it is missing.
@@ -32,19 +37,46 @@ if ($env:GITHUB_JOB -eq "Test") {
     pip install $RepoName/fiftyone_devicedetection_examples || $(throw "pip install failed")
 }
 
-# Resource key environment variables follow the 51Degrees convention, which
-# is that every one of them starts with '_51DEGREES_RESOURCE_KEY'. The tests
-# and examples read the key from no other name, and common-ci sets only the
-# older resource_key, so the key is set here.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-# The data file update example's test reads the licence key for the data
-# files from _51DEGREES_LICENSE_KEY, which common-ci sets as license_key.
-$env:_51DEGREES_LICENSE_KEY = $Keys.DeviceDetection
+# The tests read the resource key from _51DEGREES_RESOURCE_KEY_BESPOKE, and
+# give it to each example they run under the name the example reads.
+# The data file update example's test reads the data license from
+# _51DEGREES_LICENSE_KEY, which common-ci exports. It is left as it is.
 
-./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages -Keys $Keys
+try {
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages $packages
+} finally {
+    $env:PYTEST_ADDOPTS = $addopts
+}
 $failures = @()
 if ($LASTEXITCODE -ne 0) {
     $failures += "the Python integration tests exited with code $LASTEXITCODE"
+}
+
+if (-not $SeleniumContract) {
+    Write-Output "Another entry runs the Selenium contract tests for this pull request."
+    if ($failures.Count -gt 0) {
+        throw "Integration tests failed: $($failures -join '; ')"
+    }
+    return
+}
+
+# The contract tests run against the cloud example when there is a resource
+# key, and against the on-premise example when there is the TAC data file,
+# which is only fetched when a licence is given.
+$tac = "$PWD/assets/TAC-HashV41.hash"
+$runCloud = [bool]$env:_51DEGREES_RESOURCE_KEY_BESPOKE
+$runOnPremise = Test-Path $tac
+if (-not $runCloud) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the Selenium contract tests will not run against the cloud example."
+}
+if (-not $runOnPremise) {
+    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No TAC Data File::The TAC data file wasn't found, so the Selenium tests will not run against the on-premise example."
+}
+if (-not ($runCloud -or $runOnPremise)) {
+    if ($failures.Count -gt 0) {
+        throw "Integration tests failed: $($failures -join '; ')"
+    }
+    return
 }
 
 # The shared Selenium contract tests are run against the cloud example and the
@@ -58,11 +90,9 @@ if (-not (Test-Path selenium-api-tests)) {
     if ($LASTEXITCODE -ne 0) { throw "failed to clone selenium-api-tests" }
 }
 
-# Settings the suite reads whichever example it drives. CLOUD_ROOT_URL is read
-# when the suite starts, so it is needed for the on-premise run too.
-$env:CLOUD_ROOT_URL = "https://cloud.51degrees.com/"
-$env:PAID_RESOURCE_KEY = $Keys.TestResourceKey
-$env:EXAMPLE_LANG = 'python'
+# The language of the examples, which the suite reads whichever example it
+# drives.
+$env:_51DEGREES_EXAMPLE_LANG = 'python'
 
 # The examples run from their own virtual environment, created once here so a
 # running example never holds a file the second setup would need to replace.
@@ -91,7 +121,7 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
     try {
         Push-Location $examplesDir
         try {
-            $env:PORT = $Port
+            $env:_51DEGREES_EXAMPLE_HTTP_PORTS = $Port
             $example = & $py -m $Module 2>&1 &
         } finally { Pop-Location }
 
@@ -111,7 +141,7 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
             return "the $Name example did not answer on $url (job state $($example.State))"
         }
 
-        $env:EXAMPLE_URL = $url
+        $env:_51DEGREES_EXAMPLE_URL = $url
         # Output goes to the host, so that only a failure is returned.
         dotnet test selenium-api-tests -c Release --filter TestCategory=Contract `
             --results-directory $resultsDir --logger "trx;LogFileName=selenium-$Name.trx" `
@@ -129,23 +159,28 @@ function Test-Example([string]$Name, [string]$Module, [int]$Port) {
     }
 }
 
-# The cloud example, pointed at the live cloud.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-$env:_51DEGREES_CLOUD_ENDPOINT = "https://cloud.51degrees.com/api/v4/"
-$failures += Test-Example -Name 'cloud' `
-    -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097
+# The cloud example, which reads its resource key from
+# _51DEGREES_RESOURCE_KEY, the name a person running it sets. It is given the
+# key for this run only. The example calls the cloud service that
+# _51DEGREES_CLOUD_ENDPOINT names, or the public one when that is not set.
+if ($runCloud) {
+    $env:_51DEGREES_RESOURCE_KEY = $env:_51DEGREES_RESOURCE_KEY_BESPOKE
+    try {
+        $failures += Test-Example -Name 'cloud' `
+            -Module 'fiftyone_devicedetection_examples.cloud.gettingstarted_web' -Port 8097
+    } finally {
+        Remove-Item Env:_51DEGREES_RESOURCE_KEY
+    }
+}
 
 # The on-premise example. The contract tests need the device type and the
 # JavaScript properties, which the Lite data file does not have, so it runs
-# against the TAC data file, which is only fetched when a licence is given.
-$tac = "$PWD/assets/TAC-HashV41.hash"
-if (Test-Path $tac) {
+# against the TAC data file.
+if ($runOnPremise) {
     $env:_51DEGREES_DD_PATH = (Resolve-Path $tac).Path
     $failures += Test-Example -Name 'onpremise' `
         -Module 'fiftyone_devicedetection_examples.onpremise.gettingstarted_web' -Port 8098
     Remove-Item Env:_51DEGREES_DD_PATH
-} else {
-    Write-Output "::warning file=$($MyInvocation.ScriptName),line=$($MyInvocation.ScriptLineNumber),title=No TAC Data File::The TAC data file wasn't found, so the Selenium tests will not run against the on-premise example."
 }
 
 # A failure anywhere above must fail the job. This script is dot-sourced by

@@ -27,6 +27,7 @@
 
 import io
 import os
+import runpy
 import unittest
 from contextlib import redirect_stdout
 from unittest import mock
@@ -45,7 +46,7 @@ from fiftyone_devicedetection_shared.example_constants import EVIDENCE_FILE_NAME
 from fiftyone_devicedetection_shared.example_constants import LITE_DATAFILE_NAME
 
 # The settings the examples read, which a fresh clone does not have.
-SETTINGS = ["_51DEGREES_LICENSE_KEY", "license_key", "LICENSE_KEY"]
+SETTINGS = ["_51DEGREES_LICENSE_KEY"]
 
 # The evidence records the offline processing test reads. The example's own
 # file has 20,000, which take minutes.
@@ -85,18 +86,21 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         self.assertIn(
             ExampleUtils.get_enterprise_note(gettingstarted_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_match_metrics(self):
         printed = run_without_settings(match_metrics.main)
         self.assertIn(
             ExampleUtils.get_enterprise_offer(match_metrics.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_metadata_console(self):
         printed = run_without_settings(metadata_console.main)
         self.assertIn(
             ExampleUtils.get_enterprise_offer(metadata_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_offline_processing(self):
         output = io.StringIO()
@@ -119,6 +123,29 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         printed = run_without_settings(datafileupdate_console.main)
         self.assertIn("The data file in use is the 'Lite' file", printed)
         self.assertIn(datafileupdate_console.CONTACT_US, printed)
+        # The update the example asks for itself needs no licence key, so it
+        # runs from a fresh clone on the free Lite data file.
+        self.assertIn("A programmatic update needs no licence key", printed)
+        self.assertIn(
+            "gave the status UpdateStatus.AUTO_UPDATE_SUCCESS", printed)
+        self.assertIn("Find out more:", printed)
+
+    def test_failuretomatch(self):
+        # This example has no main, and runs when it is run as a module. Its
+        # pipeline shares usage, so nothing is sent from a test.
+        with mock.patch("requests.post"):
+            printed = run_without_settings(lambda argv: runpy.run_module(
+                "fiftyone_devicedetection_examples.onpremise.failuretomatch",
+                run_name="__main__"))
+        self.assertIn(
+            "Who made the device? \n" + ExampleUtils.NEEDS_ENTERPRISE,
+            printed)
+        self.assertIn(
+            "utm_content=fiftyone_devicedetection_examples-src-"
+            "fiftyone_devicedetection_examples-onpremise-failuretomatch.py"
+            "&utm_term=enterprise-data-file",
+            printed)
+        self.assertIn("Find out more:", printed)
 
     # The two examples below need files that are not free, so in a fresh
     # clone the search for them finds nothing, which the tests stand in for.
@@ -128,12 +155,14 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
             printed = run_without_settings(csv_profile_metadata.main)
         self.assertIn(csv_profile_metadata.CSV_FILE_NAME, printed)
         self.assertIn(csv_profile_metadata.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
     def test_profile_metadata_console(self):
         with mock.patch.object(ExampleUtils, "find_file", return_value=None):
             printed = run_without_settings(profile_metadata_console.main)
         self.assertIn("only the Enterprise data file has", printed)
         self.assertIn(profile_metadata_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
 
 if __name__ == "__main__":

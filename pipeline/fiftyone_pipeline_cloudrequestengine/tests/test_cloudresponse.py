@@ -29,6 +29,7 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 from .classes.constants import *
+from .classes.endpoint import expected_endpoint
 
 
 class TestCloudResponse(CloudRequestEngineTestsBase):
@@ -102,13 +103,12 @@ class TestCloudResponse(CloudRequestEngineTestsBase):
             containing the errors from the cloud service when resource key
             is invalid.
         """
+        # The constructor asks for the accessible properties, so it raises.
         with self.assertRaises(CloudRequestException) as context:
-            engine = CloudRequestEngine({
+            CloudRequestEngine({
                 "resource_key": Constants.invalidKey,
                 "http_client": self.http_client,
             })
-            # trigger the lazy load of the properties
-            engine.flow_element_properties  # noqa
 
         self.assertEqual(Constants.invalidKeyMessageComplete, context.exception.message)
 
@@ -119,14 +119,14 @@ class TestCloudResponse(CloudRequestEngineTestsBase):
             An exception should be thrown by the cloud request engine.
         """
         with self.assertRaises(CloudRequestException) as context:
-            engine = CloudRequestEngine({
+            CloudRequestEngine({
                 "resource_key": Constants.noDataKey,
                 "http_client": self.http_client,
             })
-            # trigger the lazy load of the properties
-            engine.flow_element_properties  # noqa
 
-        self.assertEqual(Constants.noDataKeyMessageComplete, context.exception.message)
+        self.assertEqual(
+            Constants.noDataKeyMessageComplete(expected_endpoint()),
+            context.exception.message)
 
     def test_validate_error_handling_noerror_nosuccess(self):
         """ 
@@ -135,11 +135,11 @@ class TestCloudResponse(CloudRequestEngineTestsBase):
             An exception should be thrown by the cloud request engine.
         """ 
         with self.assertRaises(CloudRequestException) as context:
-            engine = CloudRequestEngine({
+            CloudRequestEngine({
                 "resource_key": Constants.noErrorNoSuccessKey,
                 "http_client": self.http_client,
             })
-            # trigger the lazy load of the properties
-            engine.flow_element_properties  # noqa
 
-        self.assertEqual(Constants.noErrorNoSuccessMessage, context.exception.message)
+        self.assertEqual(
+            Constants.noErrorNoSuccessMessage(expected_endpoint()),
+            context.exception.message)

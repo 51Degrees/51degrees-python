@@ -51,7 +51,9 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     python_requires=">=3.10",
     install_requires=[
-          'fiftyone_pipeline_core',
+          # The first version with _contents_property, which keeps the
+          # values of the Aspect Data this package gives.
+          'fiftyone_pipeline_core>=4.5.44',
           'requests',
           'cachetools'
     ],

@@ -20,6 +20,19 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+"""!
+Helpers that use a Pipeline in a Flask web application. webevidence takes
+the evidence from a request, set_response_header sets the response headers
+the results ask for, and javascript_response and json_response answer the
+requests of the client-side JavaScript.
+
+A Flow Data cannot be used by two threads at once. Create one for each
+request, use it only in the code that handles that request, and close it
+when the request ends, as javascript_response and json_response do. To hand
+work to another thread or task, read the values it needs from the Flow Data
+first and pass those values, not the Flow Data.
+"""
+
 import hashlib
 import json
 import re
@@ -70,6 +83,21 @@ def request_line_path(request):
     if raw:
         return raw.split("?", 1)[0].split("#", 1)[0]
     return request.path
+
+def request_line_query(request):
+
+    """!
+    The query string of the request line, whole and undecoded, or empty
+    when it has none. Taken from the request line when the server says what
+    that was, and otherwise from the query string WSGI gives, which it
+    leaves undecoded.
+    """
+
+    raw = request.environ.get("RAW_URI") or request.environ.get("REQUEST_URI")
+    if raw:
+        target = raw.split("#", 1)[0]
+        return target.split("?", 1)[1] if "?" in target else ""
+    return request.environ.get("QUERY_STRING", "")
 
 def webevidence(request):
 
@@ -129,13 +157,14 @@ def webevidence(request):
 
     # The request itself, for the usage sharing element, which accepts no
     # evidence and shares what it finds. A read-only view of the parts above
-    # and the method and path of the request line, keyed as evidence is. It
-    # leaves out the Cookie header, which cookies already cover. Evidence
-    # keeps it from every other element.
+    # and the method, path and query string of the request line, keyed as
+    # evidence is. It leaves out the Cookie header, which cookies already
+    # cover. Evidence keeps it from every other element.
     view = {key: value for key, value in webevidence.items()
             if key not in ("header.cookie", "server.host-ip")}
     view["server.request-method"] = request.method
     view["server.request-path"] = request_line_path(request)
+    view["server.request-query"] = request_line_query(request)
     webevidence[HTTP_REQUEST_KEY] = MappingProxyType(view)
 
     return webevidence
@@ -269,17 +298,16 @@ def _client_side_response(
 
 def _uses(pipeline, key):
 
-    # Whether the key is evidence one of the pipeline's elements accepts. The
-    # web request itself, which the usage sharing element reads, is evidence
-    # no element uses, whatever the filters accept.
+    # Whether the key is evidence one of the pipeline's elements accepts,
+    # which the pipeline's own evidence key filter says. The web request
+    # itself, which the usage sharing element reads, is evidence no element
+    # uses, whatever the filters accept.
     if key.lower() == HTTP_REQUEST_KEY:
         return False
     if key.startswith("header.") and \
             key[len("header."):] in _REVALIDATION_HEADERS:
         return False
-    return any(
-        element.filter_evidence_key(key)
-        for element in pipeline.flow_elements)
+    return pipeline.get_evidence_key_filter().filter_evidence_key(key)
 
 def _opaque_tag(pipeline, evidence):
 

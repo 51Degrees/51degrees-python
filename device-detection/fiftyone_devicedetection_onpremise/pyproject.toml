@@ -1,3 +1,7 @@
 [build-system]
 requires = ["setuptools>=42", "wheel", "Cython"]
 build-backend = "setuptools.build_meta"
+
+# conftest.py makes every warning the test run raises an error when
+# _51DEGREES_WARNINGS_AS_ERRORS is "true".
+[tool.pytest.ini_options]

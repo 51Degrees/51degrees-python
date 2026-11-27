@@ -75,6 +75,18 @@ ENTERPRISE_PROPERTIES = [
     "nativename",
     "nativemodel"]
 
+# Where to go next, printed when the example ends.
+FIND_OUT_MORE = [
+    ("Device detection",
+     "https://51degrees.com/device-detection?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=find-out-more-device-detection"),
+    ("Enterprise data file",
+     "https://51degrees.com/contact-us?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_examples-src-fiftyone_devicedetection_examples-onpremise-offlineprocessing.py&utm_term=find-out-more-enterprise-data-file"),
+    ("Device detection for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/device-detection"),
+    ("Device detection engine",
+     "https://github.com/51Degrees/51degrees-cxx"),
+]
+
 class OfflineProcessing():
     def run(self, data_file, evidence_yaml, logger, output):
         """!
@@ -251,6 +263,10 @@ def main(argv):
             "data submodule is there, by running " +
             "`git submodule update --init --recursive`, and run this " +
             "example again to download the file.")
+
+    # The results are in the output file, so the links are printed to the
+    # console.
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

@@ -32,67 +32,47 @@ from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
 import pytest
 
-# Each reader of a setting, with the new name of its variable and the old
-# one, which is still read when the new name is not set.
-OLD_NAMES = [
-    ("get_resource_key", "_51DEGREES_RESOURCE_KEY", "resource_key"),
-    ("get_license_key", "_51DEGREES_LICENSE_KEY", "license_key"),
-    ("get_cloud_endpoint", "_51DEGREES_CLOUD_ENDPOINT", "cloud_endpoint"),
-    ("get_cloud_request_origin", "_51DEGREES_CLOUD_REQUEST_ORIGIN",
-     "cloud_request_origin"),
+# Each reader of a setting, with the name of its variable.
+NAMES = [
+    ("get_resource_key", "_51DEGREES_RESOURCE_KEY"),
+    ("get_license_key", "_51DEGREES_LICENSE_KEY"),
+    ("get_cloud_endpoint", "_51DEGREES_CLOUD_ENDPOINT"),
+    ("get_cloud_request_origin", "_51DEGREES_CLOUD_REQUEST_ORIGIN"),
 ]
 
 
 @pytest.fixture
 def no_settings(monkeypatch):
-    """None of the settings in the environment, and no old name reported
-    as deprecated yet."""
-    for _, name, old_name in OLD_NAMES:
+    """None of the settings in the environment."""
+    for _, name in NAMES:
         monkeypatch.delenv(name, raising=False)
-        monkeypatch.delenv(old_name, raising=False)
-    monkeypatch.setattr(
-        ExampleUtils, "_ExampleUtils__reported_old_names", set())
     return monkeypatch
 
 
-@pytest.mark.parametrize("getter, name, old_name", OLD_NAMES)
-def test_setting_is_read_from_its_old_name_and_reported_once(
-        getter, name, old_name, no_settings, capsys):
-    no_settings.setenv(old_name, "old-value")
-    assert getattr(ExampleUtils, getter)() == "old-value"
-    assert getattr(ExampleUtils, getter)() == "old-value"
-    errors = capsys.readouterr().err
-    assert errors.count(
-        old_name + " environment variable is deprecated") == 1
-    assert name in errors
-
-
-@pytest.mark.parametrize("getter, name, old_name", OLD_NAMES)
-def test_new_name_wins_and_nothing_is_printed(
-        getter, name, old_name, no_settings, capsys):
+@pytest.mark.parametrize("getter, name", NAMES)
+def test_setting_is_read(getter, name, no_settings):
     no_settings.setenv(name, "new-value")
-    no_settings.setenv(old_name, "old-value")
     assert getattr(ExampleUtils, getter)() == "new-value"
-    assert capsys.readouterr().err == ""
 
 
-@pytest.mark.parametrize("getter, name, old_name", OLD_NAMES)
-def test_neither_name_gives_an_empty_string(
-        getter, name, old_name, no_settings, capsys):
+@pytest.mark.parametrize("getter, name", NAMES)
+def test_no_setting_gives_an_empty_string(getter, name, no_settings):
     assert getattr(ExampleUtils, getter)() == ""
-    assert capsys.readouterr().err == ""
 
-
-def test_constants_hold_the_old_and_the_new_names():
+def test_constants_hold_the_names():
     assert ExampleUtils.RESOURCE_KEY_ENV_VAR == "_51DEGREES_RESOURCE_KEY"
-    assert ExampleUtils.LEGACY_RESOURCE_KEY_ENV_VAR == "resource_key"
     assert ExampleUtils.LICENSE_KEY_ENV_VAR == "_51DEGREES_LICENSE_KEY"
-    assert ExampleUtils.LEGACY_LICENSE_KEY_ENV_VAR == "license_key"
     assert ExampleUtils.CLOUD_ENDPOINT_ENV_VAR == "_51DEGREES_CLOUD_ENDPOINT"
-    assert ExampleUtils.ENDPOINT_ENV_VAR == "cloud_endpoint"
     assert (ExampleUtils.CLOUD_REQUEST_ORIGIN_ENV_VAR
             == "_51DEGREES_CLOUD_REQUEST_ORIGIN")
-    assert ExampleUtils.ORIGIN_ENV_VAR == "cloud_request_origin"
+
+
+def test_no_other_constant_names_a_variable():
+    named = sorted(
+        name for name in vars(ExampleUtils) if name.endswith("_ENV_VAR"))
+    assert named == [
+        "CLOUD_ENDPOINT_ENV_VAR", "CLOUD_REQUEST_ORIGIN_ENV_VAR",
+        "LICENSE_KEY_ENV_VAR", "RESOURCE_KEY_ENV_VAR"]
 
 
 class Results:

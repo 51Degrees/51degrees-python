@@ -1,7 +1,6 @@
 param (
     [Parameter(Mandatory)][string]$RepoName,
     [Parameter(Mandatory)][string]$OrgName,
-    [Parameter(Mandatory)][hashtable]$Keys,
     [bool]$DryRun = $false
 )
 $ErrorActionPreference = "Stop"
@@ -12,7 +11,7 @@ $PSNativeCommandUseErrorActionPreference = $true
 # change what the plan would say.
 $plan = @(Get-ReleasePlan $RepoName)
 
-./python/publish-package-pypi.ps1 -Keys $Keys -DryRun $DryRun
+./python/publish-package-pypi.ps1 -DryRun $DryRun
 
 # One tag and one GitHub release per package, '<package>/<version>', in place
 # of common-ci's single tag, which would name no package. The notes list the

@@ -10,10 +10,10 @@ layout and how to get the code are in the [README](README.md).
 
 Device Detection's on-premise `gettingstarted_console` is the quickest
 example to show, because its data file is about 35 MB. IP Intelligence's
-on-premise `gettingstarted_console` runs on the free Asn data file, which is
-about 6 MB, and shows registration values once it is given the Lite file,
-which is a download of about 230 MB. Run each command from the repository root
-unless the step says otherwise.
+on-premise `gettingstarted_console` runs on the free Lite data file, which is a
+download of about 230 MB and has the registration values. The free Asn data
+file, about 6 MB, has only the network properties. Run each command from the
+repository root unless the step says otherwise.
 
 The on-premise engines are C and C++ code that is compiled when the package is
 installed. PyPI has only source distributions of
@@ -150,16 +150,19 @@ macOS (`find_file` in
 python -m fiftyone_devicedetection_examples.onpremise.gettingstarted_console
 ```
 
-The IP Intelligence example with no argument looks for the Asn file in the
-folder it runs in and in its `assets` and `cxx/data/ip-intelligence` folders,
-then does the same in each of the seven folders above it, and downloads the
-file into `cxx/data/ip-intelligence` when it is missing. To see registration
-values, download the Lite file first, as "Data files" says, and give its path
-as the first argument.
+The IP Intelligence example with no argument looks for the Lite file,
+`51Degrees-LiteV41.ipi`, in the folder it runs in and in its `assets`,
+`cxx/data/ip-intelligence` and `cxx/data/device-detection` folders, then does
+the same in each of the seven folders above it. When none of them has the
+file, it downloads the file into the `cxx/data/ip-intelligence` folder that
+holds the file's `.link` (`find_file` in
+`ip-intelligence/fiftyone_ipintelligence_examples/src/fiftyone_ipintelligence_examples/example_utils.py`).
+To run it on the smaller Asn file, download that file first, as "Data files"
+says, and give its path as the first argument.
 
 ```
 python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console
-python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console cxx/data/ip-intelligence/51Degrees-LiteV41.ipi
+python -m fiftyone_ipintelligence_examples.onpremise.gettingstarted_console cxx/data/ip-intelligence/51Degrees-IPIV4AsnIpiV41.ipi
 ```
 
 Either example uses a path given as the first argument as it is, so a file
@@ -187,11 +190,12 @@ The IP Intelligence example logs `Using a '<product>' data file created
 '<date>'`, then for each of four IP addresses, starting with `116.154.188.222`,
 prints `Input values:` with `query.client-ip`, then `Results:` with a line for
 each of 16 properties, starting with `RegisteredName`, `RegisteredOwner` and
-`RegisteredCountry`. A property the data file lacks reads
-`This property is not present in the data file.` With the Asn file that is
-every registration and location property, as the examples' README says. The
-Lite file has RegisteredName, RegisteredOwner and RegisteredCountry, so with it
-those three lines are read from the file.
+`RegisteredCountry`. The Lite file has RegisteredName, RegisteredOwner and
+RegisteredCountry, so those three lines are read from the file. Each property
+the data file lacks reads `needs the Enterprise data file`, and after the last
+address the example prints `Some of these properties need the Enterprise data
+file. Contact us for a copy at` followed by a link. With the Asn file the
+registration properties need the Enterprise data file as well.
 
 The paid data files have many more properties, as the
 [pricing page](https://51degrees.com/pricing?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=correct-output)
@@ -202,10 +206,10 @@ describes.
 The cloud examples need a resource key, which a person creates in the
 configurator, so ask for one if none is set. A key with the properties the
 Device Detection cloud example uses can be made
-[here](https://configure.51degrees.com/1QWJwHxl?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples),
+[here](https://51degrees.com/configure/1QWJwHxl?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples),
 which is the configuration the example's own message names, and a key for IP
 Intelligence in the
-[configurator](https://configure.51degrees.com/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
+[configuration page](https://51degrees.com/configure/?utm_source=github&utm_medium=docs&utm_campaign=51degrees-python&utm_content=agents.md&utm_term=cloud-examples).
 
 The Device Detection and IP Intelligence cloud examples take the key as
 their first argument, or from `_51DEGREES_RESOURCE_KEY`.
@@ -250,6 +254,53 @@ example logs an error that names the variable and the configurator.
   assets, and the IP Intelligence example tests use the Asn file and throw
   their output away.
 
+## Environment variable names
+
+Every environment variable the packages, tests, examples and CI scripts
+define is named `_51DEGREES_<NAME>`, and each name holds one thing. A name
+that GitHub, the operating system or a tool defines, such as `GITHUB_JOB` or
+`PYTEST_ADDOPTS`, is used as it is.
+[`ci/check-environment-variable-names.ps1`](ci/check-environment-variable-names.ps1)
+reads every tracked file and fails on a variable read or set under any other
+name. It lists the platform names it lets through, so a new one is added
+there, and the names only CI uses, which have no prefix because no customer
+sets them.
+
+Two names are CI only. `CLOUD_STAGING_ENDPOINT`, an organization variable,
+is the staging cloud's API base, ending `/api/v4/`, and
+`RESOURCE_KEY_BESPOKE_STAGING`, an organization secret, is a Bespoke key the
+staging cloud knows. Only
+[`.github/workflows/cloud-human-confidence.yml`](.github/workflows/cloud-human-confidence.yml)
+sets them, for the Human Confidence tests marked `staging`, which check what
+the production cloud does not serve yet. common-ci passes on only
+`_51DEGREES_` names and its own list of CI secrets, so in the shared
+integration tests those tests skip. A staging test never falls back to
+`_51DEGREES_CLOUD_ENDPOINT` or a default address.
+
+`_51DEGREES_RESOURCE_KEY` is the name a person running a cloud example sets.
+The tests that call the cloud service read `_51DEGREES_RESOURCE_KEY_BESPOKE`,
+and a test of an example gives the example that key under
+`_51DEGREES_RESOURCE_KEY`. The Basic Human Confidence test, which calls the
+staging cloud, and the 51Did tier test read `_51DEGREES_RESOURCE_KEY_BASIC`,
+an organization secret, and skip naming it when it is not set. Cloud tests
+and examples call the service `_51DEGREES_CLOUD_ENDPOINT` names, or the
+public one when it is not set.
+
+`_51DEGREES_WARNINGS_AS_ERRORS` set to `true`, ignoring case, makes every
+warning in the native build of the two on-premise packages an error
+(`-Werror`, and `/WX` for the compile and the link). With any other value, or
+none, warnings are shown and the build goes on, so a newer compiler on a
+customer's machine never stops an install from source. The warnings of
+`-Wall -Wextra` and `/W4` are on either way. The builds 51Degrees runs set it:
+the step scripts in `ci/` that common-ci calls, the `.pkg` environment of
+each on-premise `tox.ini`, and
+[`.github/workflows/free-threaded-python.yml`](.github/workflows/free-threaded-python.yml).
+Each package's `setup.py` reads it in `warnings_are_errors()`, and
+[`ci/native-warnings.Tests.ps1`](ci/native-warnings.Tests.ps1) checks the
+flags with it set and unset.
+The same setting makes every warning in the two packages' test runs an
+error, through the `conftest.py` beside each `pyproject.toml`.
+
 ## Products keep their own CI scripts
 
 Each product folder still has the `ci/` scripts it had as its own repository,
@@ -262,16 +313,33 @@ product is built or tested belongs in that product's `ci/`, not in the root.
 A change touches a product when it is in that product's folder, or in a
 package another product depends on; a change outside every product folder
 touches all of them ([ci/packages.ps1](ci/packages.ps1),
-`Resolve-AffectedProducts`).
+`Resolve-AffectedProducts`). A pull request's changes are measured from the
+branch it merges into, `rc`.
+
+[ci/select-options.ps1](ci/select-options.ps1) chooses the entries a pull
+request runs. The standard set is Python 3.14 and 3.10 on Linux, with the
+Selenium contract on 3.14 alone. A native change adds Windows, a packaging
+change adds the other Python versions on Linux, and a change outside the
+product folders or to a `ci/` folder adds every entry but macOS. macOS and
+performance run only when `rc` itself or the release pull request is built,
+which `.github/workflows/release-pull-request.yml` does on every entry.
 
 ## Versions are per package
 
 Every package is versioned and tagged on its own, `<package>/<version>`. A
-package is released when its folders changed since its last tag, or when a
-package it depends on is released. The examples packages are tested but never
-published. common-ci's publish carries one version; here it is only a label,
-and the release plan in `ci/packages.ps1` decides what is built, published
-and tagged. Never push a plain `4.5.x` tag: nothing here reads one.
+package is released when a file that counts in its folders changed since its
+last tag, or when a package it depends on is released. Documentation
+(`*.md`, `docs/`), tests (`tests/`, `test/`), examples (`examples/`) and
+`LICENSE` files do not count, nor do files a package's `Ignore` globs in
+`ci/packages.json` match, unless it sets `IgnoreDefaults` to false. A
+`setup.py`, `setup.cfg` or `pyproject.toml` whose change is only to the
+description, keywords, urls, classifiers, readme, authors or maintainers does
+not count either, which `ci/release-plan-filter.ps1` works out with Python.
+The examples packages are tested but never published. common-ci's publish
+carries one version, which here is only a label, and the release plan
+decides what is built, published and tagged. The release plan is common-ci's
+`steps/release-plan.ps1`, which `ci/packages.ps1` loads, and common-ci tests
+it. Never push a plain `4.5.x` tag, because nothing here reads one.
 
 `ci/packages.json` is the list of packages and what each depends on. Add a
 package there, with a `FirstVersion` if it has never been released, or it is
@@ -313,13 +381,17 @@ A package's `ExtraPaths` in `ci/packages.json` cannot be a folder inside
 cxx update therefore releases no package, even when it brings new translations
 in `cxx/data/ip-intelligence`.
 
-## Releases
-
-Pull requests go to `rc`, not `main`, and stay drafts until they have been
-reviewed, because the nightly merges any pull request into `rc` that is not a
-draft and has no review requested. When a release is wanted, one pull request
-merges `rc` into `main`, and the "Only rc into main" check fails a pull request
-into `main` from any other branch.
+`pipeline/fiftyone_pipeline_derivedproperty` runs the scripts of
+[derived-properties](https://github.com/51Degrees/derived-properties), which is
+its submodule `src/fiftyone_pipeline_derivedproperty/derived-properties`, inside
+the package so that the wheel carries its `scripts` folder (`MANIFEST.in`) and
+nothing else from it. Its tests run every case file in the submodule's `tests`
+folder, so moving the submodule moves the cases the tests run. `parse.py`,
+`validate.py`, `evaluate.py` and `canonical.py` follow the reference tools in
+the submodule's `tools` folder function for function, with `jsvalues.py`
+holding the JavaScript rules they rely on, so a change there is made here the
+same way. The package is `"Publish": false` in `ci/packages.json`, so it is
+tested in every build and not published.
 
 ## Releases
 
@@ -334,3 +406,11 @@ into `main` from any other branch.
 The four repositories were brought in with `git subtree add`, so commit SHAs
 match the originals. Use `git log --follow` to trace a file back through the
 import.
+
+## Tests that fail on timing
+
+A test that fails on a time limit, a performance threshold or a timeout is
+fixed, not run again until it passes. Either the limit is set to fit the
+slowest runner the test runs on, with each runner's measurement behind it, or
+the reason it takes too long is found and fixed. A failure that comes and goes
+costs everyone who meets it the time to look into it.

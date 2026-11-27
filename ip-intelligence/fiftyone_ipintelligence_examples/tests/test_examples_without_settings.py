@@ -43,8 +43,7 @@ from fiftyone_ipintelligence_examples.onpremise import performance_console
 
 # The settings the examples read, which a fresh clone does not have.
 SETTINGS = [
-    "_51DEGREES_LICENSE_KEY", "license_key",
-    ExampleUtils.IPI_PATH_ENV_VAR, ExampleUtils.DATA_FILE_ENV_VAR]
+    "_51DEGREES_LICENSE_KEY", ExampleUtils.IPI_PATH_ENV_VAR]
 
 # Options that keep the performance example short. They leave the data file
 # to the example.
@@ -78,6 +77,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         self.assertIn(
             ExampleUtils.get_enterprise_note(gettingstarted_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_countries_console(self):
         printed = run_without_settings(countries_console.main)
@@ -86,12 +86,14 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
             "CountryCodesGeographical and CountryCodesPopulation properties",
             printed)
         self.assertIn(countries_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
     def test_metadata_console(self):
         printed = run_without_settings(metadata_console.main)
         self.assertIn(
             ExampleUtils.get_enterprise_offer(metadata_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_offlineprocessing(self):
         printed = run_without_settings(offlineprocessing.main)
@@ -100,6 +102,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
             "# " + ExampleUtils.get_enterprise_note(
                 offlineprocessing.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_compare_console(self):
         printed = run_without_settings(compare_console.main)
@@ -108,6 +111,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
             "Latitude, Longitude, LocationConfidence and Country properties",
             printed)
         self.assertIn(compare_console.CONTACT_US, printed)
+        self.assertIn("Find out more:", printed)
 
     def test_performance_console(self):
         printed = run_without_settings(
@@ -115,11 +119,18 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         self.assertIn(
             ExampleUtils.get_enterprise_offer(performance_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
     def test_datafileupdate_console(self):
         printed = run_without_settings(datafileupdate_console.main)
         self.assertIn("The data file in use is the", printed)
         self.assertIn(datafileupdate_console.CONTACT_US, printed)
+        # The update the example asks for itself needs no licence key, so it
+        # runs from a fresh clone on the free ASN data file.
+        self.assertIn("A programmatic update needs no licence key", printed)
+        self.assertIn(
+            "gave the status UpdateStatus.AUTO_UPDATE_SUCCESS", printed)
+        self.assertIn("Find out more:", printed)
 
     @unittest.skipUnless(
         device_detection_available, "device detection is not installed")
@@ -129,6 +140,7 @@ class ExamplesWithoutSettingsTests(unittest.TestCase):
         self.assertIn(
             ExampleUtils.get_enterprise_note(mixed_console.CONTACT_US),
             printed)
+        self.assertIn("Find out more:", printed)
 
 
 if __name__ == "__main__":

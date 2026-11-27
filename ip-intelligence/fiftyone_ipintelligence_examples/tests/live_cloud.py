@@ -21,94 +21,57 @@
 # *********************************************************************
 
 """Where the tests that call the live 51Degrees cloud service find their
-resource key, and what they fail with when there is none or when the
-answer lacks what they asked for. Also how a test reads any setting from
-an environment variable whose name has changed.
+resource key, what they skip with when there is none, and what they
+fail with when the answer lacks what they asked for. Also how a test reads a setting from an
+environment variable.
 
 The same file is in each test folder whose tests read a setting from the
-environment. There is no fallback to a skip, because a cloud test that
-passes without calling the cloud has proved nothing.
+environment. A test with no key skips, naming the variable it reads,
+and never fails for want of one. CI checks that the key is set before
+it runs them, so a run that called nothing is not taken for a pass.
 """
 
 import os
-import sys
 
-# Tried in this order. _51DEGREES_RESOURCE_KEY is first because the Cloud
-# 51Did workflow sets it to each key in turn, and each product's
-# integration test script sets it too.
-RESOURCE_KEY_NAMES = (
-    "_51DEGREES_RESOURCE_KEY",
-    "_51DEGREES_RESOURCE_KEY_BESPOKE",
-)
+# The key that carries every property, which a test reads unless it names
+# another.
+RESOURCE_KEY_NAMES = ("_51DEGREES_RESOURCE_KEY_BESPOKE",)
 
-# Deprecated. The name the resource key variable had before, read when
-# none of RESOURCE_KEY_NAMES is set.
-OLD_RESOURCE_KEY_NAME = "resource_key"
-
-# The old names already reported as deprecated, so each is reported once.
-_reported_old_names = set()
+# The name a person running an example sets. A test of an example gives the
+# example its key under this name.
+RESOURCE_KEY_VARIABLE = "_51DEGREES_RESOURCE_KEY"
 
 ACCESSIBLE_PROPERTIES_URL = (
     "https://cloud.51degrees.com/api/v4/accessibleproperties?resource=<key>")
 
-CREATE_KEY_URL = "https://configure.51degrees.com?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=live_cloud.py&utm_term=resource-key-required"
+CREATE_KEY_URL = "https://51degrees.com/configure?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=live_cloud.py&utm_term=resource-key-required"
 
 
-def _report_old_name(name, old_name):
-    """Prints, once for each old name, that it is deprecated and which
-    name replaces it."""
-    if old_name in _reported_old_names:
-        return
-    _reported_old_names.add(old_name)
-    print(
-        f"The {old_name} environment variable is deprecated and {name} "
-        f"replaces it. The value was read from {old_name} because {name} "
-        f"is not set, so set {name} to the same value.",
-        file=sys.stderr)
-
-
-def read_environment(name, old_name):
+def read_environment(name):
     """The value of the environment variable name, or None when it has
-    none. When name is unset or empty the name the variable had before is
-    read, and using it prints once that the old name is deprecated."""
+    none."""
     value = os.environ.get(name, "").strip()
-    if value:
-        return value
-    value = os.environ.get(old_name, "").strip()
-    if not value:
-        return None
-    _report_old_name(name, old_name)
-    return value
+    return value or None
 
 
-def is_set(name, old_name):
+def is_set(name):
     """Whether the environment variable name is set, whatever it holds,
-    which is how a switch is read. When it is not set, the name the
-    variable had before counts, and using it prints once that the old name
-    is deprecated."""
-    if name in os.environ:
-        return True
-    if old_name not in os.environ:
-        return False
-    _report_old_name(name, old_name)
-    return True
+    which is how a switch is read."""
+    return name in os.environ
 
 
 def find_resource_key(names=RESOURCE_KEY_NAMES):
-    """The first resource key set under any of the names, or None. When
-    none of RESOURCE_KEY_NAMES is set, the deprecated old name is read."""
+    """The resource key set under the names, or None."""
     for name in names:
         value = os.environ.get(name, "").strip()
         if value:
             return value
-    if names is RESOURCE_KEY_NAMES:
-        return read_environment(names[0], OLD_RESOURCE_KEY_NAME)
     return None
 
 
 def no_resource_key(product, asks_for, several=False,
                     names=RESOURCE_KEY_NAMES):
-    """What to fail with when no resource key is set.
+    """What to skip with when no resource key is set.
 
     product names the product the key has to carry, with its article, as in
     "the device product". asks_for says what the test asks the service for.
@@ -123,8 +86,8 @@ def no_resource_key(product, asks_for, several=False,
                    "it needs a resource key")
         asker = "the test asks"
     return (
-        f"{opening} and there is nothing to fall back on. None of "
-        f"{', '.join(names)} is set, tried in that order. The key has to "
+        f"{opening} and there is nothing to fall back on. "
+        f"{', '.join(names)} is not set. The key has to "
         f"carry {product}, because {asker} the service for {asks_for}. To "
         f"see the products a key carries, open {ACCESSIBLE_PROPERTIES_URL}. "
         f"Create a key at {CREATE_KEY_URL}.")

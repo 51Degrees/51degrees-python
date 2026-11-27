@@ -192,8 +192,11 @@ the Terms says under which document it was created.
 
 Bits 4 and 5 of the flags byte say which payload layout the identifier
 follows, and this package reads version 0. A payload naming version 1, 2
-or 3 is refused with `FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION`, and
-the raising readers name the version they found in the message.
+or 3 is refused with `FodIdParseStatus.UNSUPPORTED_PAYLOAD_VERSION`,
+whatever its length, and the raising readers name the version they found
+in the message. The version is read from the flags byte alone, because the
+5 byte header belongs to the layout of version 0, so a payload too short
+for that header is refused for its version rather than as too short.
 
 No field is read under the layout this package knows once the version says
 otherwise. A later version exists precisely because a field moved, so
@@ -220,6 +223,16 @@ instead, which read the same bytes and cannot get the cumulative usage bits
 wrong. The layout is still specified, in
 [identifier-layout.md](https://github.com/51Degrees/specifications/blob/main/did-specification/identifier-layout.md),
 for anyone implementing a reader rather than using one.
+
+The modules `fiftyone_pipeline_did.fod_id` and
+`fiftyone_pipeline_did.did_client` still give the offset, length and payload
+version names the two modules held, such as
+`fiftyone_pipeline_did.fod_id.MATCH_KEY_OFFSET` and
+`fiftyone_pipeline_did.fod_id.SUPPORTED_PAYLOAD_VERSION`, so code that reads
+one keeps working for now. Each read gives a `DeprecationWarning`, because
+those names are not part of the package's surface and will be removed in a
+later release, and neither `dir()` nor a star import of either module lists
+them.
 
 ## Parsing without exceptions
 
@@ -280,18 +293,19 @@ same whichever language parsed the bytes.
 | `IMPLEMENTATION_CAPACITY_EXCEEDED` | The envelope is consistent but larger than this runtime can hold, or dated past the end of the year 9999 where `datetime` stops. The four byte minute count runs to 15 February 10186, and the read answers with this status rather than raising on such a count |
 | `ABSENT_NODE` | The version 0 marker, which stands for an absent envelope |
 | `MALFORMED_ENVELOPE` | Malformed in a way none of the above describes |
-| `PAYLOAD_TOO_SHORT` | The envelope was read but the payload is shorter than the 5 byte header, so the type cannot be read |
+| `PAYLOAD_TOO_SHORT` | The envelope was read but the payload is empty, or names payload version 0 and is shorter than the 5 byte header of that version |
 | `INVALID_TYPE_PAYLOAD_LENGTH` | The header names a type whose match key needs more bytes than the payload holds |
-| `UNSUPPORTED_PAYLOAD_VERSION` | Bits 4 and 5 of the flags byte name a payload layout version this package does not know, so no field is read |
+| `UNSUPPORTED_PAYLOAD_VERSION` | Bits 4 and 5 of the flags byte name a payload layout version this package does not know, so no field is read, whatever the length of the payload |
 | `NO_USAGE` | Bits 0 to 2 of the flags byte are all clear, so the payload names no usage. The cloud never writes one, so the identifier is damaged or forged |
 
 ### Lower bounds and no upper bound
 
-The payload must hold the 5 byte header before the type can be read, and
-the type then says how many match key bytes must follow, being 16 for
-`RANDOM` and 32 for `PROBABILISTIC` and `HASHED_EMAIL`, as the payload
-layout specification says. The Terms byte follows the match key, and a
-payload ending at the match key reads as terms that are not stated.
+A version 0 payload must hold the 5 byte header before the type can be
+read, and the type then says how many match key bytes must follow,
+being 16 for `RANDOM` and 32 for `PROBABILISTIC` and `HASHED_EMAIL`, as
+the payload layout specification says. The Terms byte follows the match
+key, and a payload ending at the match key reads as terms that are not
+stated.
 `RESERVED` keeps the best-effort reading, being the header fields and
 whatever bytes follow, and because no match key length is defined for it
 there is no byte left over to read as its Terms. Anything beyond the Terms
@@ -315,10 +329,10 @@ from the `try_` readers and never an exception. The raising readers,
 `from_base64`, `from_byte_array`, `from_owid` and the constructor, read
 through the same logic and keep their documented exceptions for callers
 who prefer them, being `TypeError` for `None` or a wrong input type,
-`ValueError` for `PAYLOAD_TOO_SHORT`, `INVALID_TYPE_PAYLOAD_LENGTH` and
-`UNSUPPORTED_PAYLOAD_VERSION`, and `OwidError` for every other status,
-with the message naming the status. The three raising `ValueError` are
-the three the payload rules produce, whilst every other status comes
+`ValueError` for `PAYLOAD_TOO_SHORT`, `INVALID_TYPE_PAYLOAD_LENGTH`,
+`UNSUPPORTED_PAYLOAD_VERSION` and `NO_USAGE`, and `OwidError` for every
+other status, with the message naming the status. The four raising
+`ValueError` are the four the payload rules produce, whilst every other status comes
 from the envelope. Signature verification against a key that cannot be
 decoded, a key list that cannot be fetched, and a cloud answer other than
 the one asked for remain exceptions, because they are faults in the
@@ -424,7 +438,7 @@ client = DidClient(resource_key, licence_key, transport=httpx_transport)
 | --- | --- |
 | `resource_key` | Required. The page's resource key, public by nature. It travels in the route of the key and verify requests and in the form body of the redeem request |
 | `licence_key` | Optional. A licence key of the same account, server side only. Needed to redeem where the account holds licence keys. Sent only in the body of the redeem request, never in a URL |
-| `endpoint` | Optional. The API base including the `/api/v4/` segment. Defaults to the `_51DEGREES_CLOUD_ENDPOINT` environment variable, the same variable the cloud request engine honours, then to `FOD_CLOUD_API_URL`, the deprecated old name of that variable, then to `https://cloud.51degrees.com/api/v4/`. The client warns once when the old name is the one used. A value without a trailing slash gains one |
+| `endpoint` | Optional. The API base including the `/api/v4/` segment. Defaults to the `_51DEGREES_CLOUD_ENDPOINT` environment variable, the same variable the cloud request engine honours, then to `https://cloud.51degrees.com/api/v4/`. A value without a trailing slash gains one |
 | `transport` | Optional. The HTTP transport, either an async callable taking the prepared `urllib.request.Request` and answering `(status, body_bytes)`, or an `urllib.request.OpenerDirector`, whose blocking `open` runs on a worker thread. Defaults to `urllib.request.urlopen` on a worker thread. Tests inject one |
 | `timeout` | Optional. Seconds the default transport waits for the cloud, 30 by default |
 | `now` | Optional. The clock, returning an aware UTC `datetime`. Tests inject one |
@@ -517,8 +531,9 @@ redeemed.factors                  # on a mismatch, on a misconfigured
                                   #   is NOT_RECORDED, whatever the
                                   #   overall result. Name to FactorResult
                                   #   (VERIFIED, MISMATCH, MISCONFIGURED
-                                  #   or NOT_RECORDED) or None where
-                                  #   nothing was compared, for
+                                  #   or NOT_RECORDED), where a null or a
+                                  #   word this package does not know
+                                  #   reads as MISMATCH, for
                                   #   transport, device,
                                   #   browserip, connectionip, asn,
                                   #   platformname, platformversion,
@@ -659,8 +674,8 @@ unreachable cloud answers 502 with `{ "error": ... }`.
 | --- | --- |
 | `_51DEGREES_RESOURCE_KEY` | Required. The page's resource key, public by nature |
 | `_51DEGREES_LICENSE_KEY` | Optional. A licence key of the same account, held server side only. Only an account that holds licence keys needs one to redeem, so an account holding none runs without it |
-| `_51DEGREES_CLOUD_ENDPOINT` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. `FOD_CLOUD_API_URL` is its old name, which is deprecated and read only when `_51DEGREES_CLOUD_ENDPOINT` is not set. A host other than cloud.51degrees.com would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons, which is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
-| `PORT` | The port to listen on, defaulting to `5100` |
+| `_51DEGREES_CLOUD_ENDPOINT` | Optional. The cloud API base including the `/api/v4/` segment, defaulting to `https://cloud.51degrees.com/api/v4/`. This is the same variable the cloud request engine honours. A host other than cloud.51degrees.com would be used to (a) use an on premise web server, or (b) use a privately hosted version of the 51Degrees cloud for performance reasons, which is the private hosting option of the cloud service. Both run the same service, so the demo works unchanged against either |
+| `_51DEGREES_EXAMPLE_HTTP_PORTS` | The port to listen on, defaulting to `5151` |
 
 ### Running
 
@@ -671,7 +686,7 @@ cd fiftyone_pipeline_did/examples/creator_context_web
 python server.py
 ```
 
-then open `http://localhost:5100/`. To demonstrate across two devices,
+then open `http://localhost:5151/`. To demonstrate across two devices,
 serve on an address both can reach and open the copied link on the
 second device.
 

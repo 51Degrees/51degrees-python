@@ -1,21 +1,23 @@
 name: Cloud 51Did Tests
 
 # Runs the live cloud 51Did integration test
-# (pipeline/fiftyone_pipeline_did/tests/test_did_client_live.py) once for
-# every _51DEGREES_RESOURCE_KEY* key passed to its step below. Each run sets
-# the single _51DEGREES_RESOURCE_KEY the test reads first. Those keys carry
-# the FODid product and the CloudV5FODiD product the marketing usages need.
+# (pipeline/fiftyone_pipeline_did/tests/test_did_client_live.py) with the
+# keys it reads, _51DEGREES_RESOURCE_KEY_51DID and
+# _51DEGREES_LICENSE_KEY_51DID. The resource key carries the FODid product
+# and the CloudV5FODiD product the marketing usages need.
 # The Basic key carries FODid without CloudV5FODiD, so it runs only the
 # tests of what the Basic tier is entitled to (test_did_tier_live.py).
 #
-# The secrets are named one by one rather than passed as toJSON(secrets).
+# The keys are named one by one rather than passed as toJSON(secrets).
 # GitHub marks a workflow that hands every secret to a step as possibly
 # malicious and holds each run for manual approval, so the nightly never ran.
-# A new resource key therefore needs a line here as well as the organisation
-# secret.
+# The resource keys and the license key are organization secrets. A new
+# resource key or license key therefore needs a line here as well as its
+# organization secret.
 #
-# A run with no key fails, because a cloud test that passes without calling
-# the cloud has proved nothing. A pull request from a fork gets no secrets,
+# A run with no key fails, naming the variable, because a cloud test that
+# passes without calling the cloud has proved nothing. The tests themselves
+# skip without a key. A pull request from a fork gets no secrets,
 # so run this workflow from a branch in this repository.
 
 on:
@@ -29,7 +31,7 @@ on:
   schedule:
     - cron: '30 5 * * *'
   pull_request:
-    branches: [main]
+    branches: [main, rc]
     paths:
       - 'pipeline/fiftyone_pipeline_did/**'
       - 'pipeline/owid-python/**'
@@ -61,40 +63,42 @@ jobs:
         run: ./pipeline/ci/copy-owid-source.ps1
       - name: Install tox
         run: python -m pip install --upgrade pip tox
-      - name: Cloud 51Did test for each resource key secret
-        shell: pwsh
+      - name: Cloud 51Did test
         env:
-          _51DEGREES_RESOURCE_KEY_BESPOKE: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
-          _51DEGREES_RESOURCE_KEY_51DID: ${{ vars._51DEGREES_RESOURCE_KEY_51DID }}
+          # The 51Did live tests read their resource key from
+          # _51DEGREES_RESOURCE_KEY_51DID, the organization secret of the
+          # same name. It has
+          # to be a key of the same account as _51DEGREES_LICENSE_KEY_51DID.
+          # With the Bespoke key in its place, the licensed redeem came back
+          # unreadable.
+          _51DEGREES_RESOURCE_KEY_51DID: ${{ secrets._51DEGREES_RESOURCE_KEY_51DID }}
           # The redemption tests check a sealed result reads back only with a
           # license key, and the service only opens a sealed result for a
-          # license key of the account whose resource key sealed it. So each
-          # license key is passed only with the resource key of the same
-          # suffix, and a resource key without one checks that the result
-          # redeems as unreadable.
+          # license key of the account whose resource key sealed it. The tests
+          # read it from _51DEGREES_LICENSE_KEY_51DID.
           _51DEGREES_LICENSE_KEY_51DID: ${{ secrets._51DEGREES_LICENSE_KEY_51DID }}
+          # The cloud service the tests call. The DidClient uses the public
+          # one when this is empty.
+          _51DEGREES_CLOUD_ENDPOINT: ${{ vars._51DEGREES_CLOUD_ENDPOINT }}
+        # The tests skip without a key, so the run fails here instead,
+        # naming the variable. -rs lists any test that skipped, and none
+        # should.
+        shell: pwsh
         run: |
-          $keys = Get-ChildItem env: |
-            Where-Object { $_.Name -like '_51DEGREES_RESOURCE_KEY*' -and $_.Value }
-          if (-not $keys) {
-            Write-Host '::error::No _51DEGREES_RESOURCE_KEY* secret reached this job. The tests need a key that carries the FODid product, and the CloudV5FODiD product for the marketing usages.'
+          if (-not $env:_51DEGREES_RESOURCE_KEY_51DID) {
+            Write-Host '::error::_51DEGREES_RESOURCE_KEY_51DID is not set. It comes from the _51DEGREES_RESOURCE_KEY_51DID organization secret.'
             exit 1
           }
-          $failed = $false
-          foreach ($k in $keys) {
-            Write-Host "::group::test_did_client_live with $($k.Name)"
-            $env:_51DEGREES_RESOURCE_KEY = $k.Value
-            $licenseName = $k.Name -replace '^_51DEGREES_RESOURCE_KEY', '_51DEGREES_LICENSE_KEY'
-            $env:_51DEGREES_LICENSE_KEY = [Environment]::GetEnvironmentVariable($licenseName)
-            Write-Host "License key: $(if ($env:_51DEGREES_LICENSE_KEY) { $licenseName } else { 'none' })"
-            # -rs lists any test that skipped, and none should.
-            tox -- tests/test_did_client_live.py -v -rs
-            if ($LASTEXITCODE -ne 0) { $failed = $true }
-            Write-Host '::endgroup::'
-          }
-          if ($failed) { exit 1 }
+          tox -- tests/test_did_client_live.py -v -rs
       - name: Cloud 51Did tier test with the Basic key
         if: ${{ !cancelled() }}
         env:
-          _51DEGREES_RESOURCE_KEY_BASIC: ${{ vars._51DEGREES_RESOURCE_KEY_BASIC }}
-        run: tox -- tests/test_did_tier_live.py -v -rs
+          _51DEGREES_RESOURCE_KEY_BASIC: ${{ secrets._51DEGREES_RESOURCE_KEY_BASIC }}
+          _51DEGREES_CLOUD_ENDPOINT: ${{ vars._51DEGREES_CLOUD_ENDPOINT }}
+        shell: pwsh
+        run: |
+          if (-not $env:_51DEGREES_RESOURCE_KEY_BASIC) {
+            Write-Host '::error::_51DEGREES_RESOURCE_KEY_BASIC is not set. It comes from the _51DEGREES_RESOURCE_KEY_BASIC organization secret.'
+            exit 1
+          }
+          tox -- tests/test_did_tier_live.py -v -rs

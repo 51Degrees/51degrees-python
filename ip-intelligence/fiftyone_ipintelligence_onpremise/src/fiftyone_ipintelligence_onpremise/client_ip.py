@@ -135,7 +135,21 @@ def client_ips(evidence, keys):
     @returns: (ipv4 or None, ipv6 or None), with at most one set
     """
 
-    found = readable_client_ips(evidence, keys)
+    return reported_addresses(readable_client_ips(evidence, keys))
+
+
+def reported_addresses(found):
+
+    """!
+    The address the engine reports in Ip or IpV6, given the client IP values
+    readable_client_ips found, being the first of them.
+
+    @type found: list
+    @param found: each client IP value read, as (key, address), in order
+    @rtype: tuple
+    @returns: (ipv4 or None, ipv6 or None), with at most one set
+    """
+
     if not found:
         return (None, None)
     address = found[0][1]

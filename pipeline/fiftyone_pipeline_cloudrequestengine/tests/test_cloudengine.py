@@ -30,21 +30,16 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import CloudRequ
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
-from .live_cloud import read_environment
+from .live_cloud import find_resource_key, no_resource_key
 
 
 class CloudEngineTests(unittest.TestCase):
     def setUp(self):
-        self.resource_key = read_environment(
-            "_51DEGREES_RESOURCE_KEY", "resource_key")
+        self.resource_key = find_resource_key()
 
-        self.assertIsNotNone(
-            self.resource_key,
-            "You need to create a resource key at"
-            " https://configure.51degrees.com and paste it"
-            " into the code, replacing !!YOUR_RESOURCE_KEY!!."
-            " Please make sure to include IsMobile property."
-        )
+        if not self.resource_key:
+            self.skipTest(no_resource_key(
+                "the device product", "the IsMobile property"))
 
     def test_cloud_engine(self):
         """!
@@ -142,9 +137,7 @@ class CloudEngineTests(unittest.TestCase):
         appropriate data to be set in the CloudRequestException.
         """
         with self.assertRaises(CloudRequestException) as context:
-            engine = CloudRequestEngine({"resource_key": "resource_key"})
-            # trigger the lazy load of the properties
-            engine.flow_element_properties  # noqa
+            CloudRequestEngine({"resource_key": "resource_key"})
 
         self.assertNotEqual(context.exception.httpStatusCode, 0, "Status code should not be 0")
         self.assertIsNotNone(context.exception.responseHeaders, "Response headers are not populated")

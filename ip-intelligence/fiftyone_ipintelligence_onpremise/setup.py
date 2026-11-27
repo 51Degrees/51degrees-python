@@ -27,11 +27,13 @@ import sys
 import platform
 from setuptools import setup, Extension
 from setuptools.command import develop
+from setuptools.command.build_clib import build_clib
 from distutils import sysconfig
 from Cython.Distutils import build_ext
 from glob import glob
 import os
 import io
+import re
 import shutil
 
 # Read a text file and return the content as a string.
@@ -72,7 +74,44 @@ def get_version():
     python_version = str(sys.version_info[0])
     return version + python_version
 
+def remove_inherited_warning_options(compiler):
+
+    """Take the warning options the compiler is given before ours out of its
+    command lines, so the warning options below are the only ones. setuptools
+    gives MSVC /W3, and cl warns (D9025) when /W4 overrides it, which /WX does
+    not make an error. Python's own build flags can give GCC and Clang a
+    -Wno-<name> that turns a warning off, such as -Wno-unused-result."""
+    if compiler.compiler_type == "msvc":
+        if not compiler.initialized:
+            compiler.initialize()
+        for options in (compiler.compile_options,
+                        compiler.compile_options_debug):
+            options[:] = [o for o in options if not re.fullmatch(r"/W\d", o)]
+        return
+    for name in getattr(compiler, "executables", {}):
+        command = getattr(compiler, name, None)
+        if isinstance(command, list):
+            command[:] = [o for o in command if not o.startswith("-Wno-")]
+
+def warnings_are_errors():
+
+    """True when the environment variable _51DEGREES_WARNINGS_AS_ERRORS is
+    "true", ignoring case, as the builds 51Degrees runs set it. Every compiler
+    warning then stops the build. An install from source elsewhere leaves it
+    unset, so a new warning is shown and the install goes on."""
+    return os.environ.get(
+        "_51DEGREES_WARNINGS_AS_ERRORS", "").lower() == "true"
+
+class LibraryBuilder(build_clib):
+    def build_libraries(self, libraries):
+        remove_inherited_warning_options(self.compiler)
+        super().build_libraries(libraries)
+
 class NoSuffixBuilder(build_ext):
+    def build_extensions(self):
+        remove_inherited_warning_options(self.compiler)
+        super().build_extensions()
+
     def get_ext_filename(self, ext_name):
         filename = super().get_ext_filename(ext_name)
         suffix = sysconfig.get_config_var('EXT_SUFFIX')
@@ -147,50 +186,43 @@ cflags = [
     '-DFIFTYONE_DEGREES_LARGE_DATA_FILE_SUPPORT=1',
     '-DFIFTYONE_DEGREES_REDUCED_FILE=1']
 
+# The warnings of -Wall -Wextra and /W4 are on for the wrapper, the C++ and
+# the C alike, and are errors when warnings_are_errors() says so.
 if sys.platform != "win32":
     extra_compile_args.extend([
         '-fPIC',
         '-std=gnu++17',
         '-Wall',
-        '-D_FILE_OFFSET_BITS=64',
-        # '-Werror'
+        '-Wextra',
+        '-D_FILE_OFFSET_BITS=64'
     ])
     cflags.extend([
         '-std=gnu11',
         '-Wall',
-        '-D_FILE_OFFSET_BITS=64',
-        # '-Werror',
-        '-Wno-strict-prototypes',
-        '-Wno-unused-variable',
-        '-Wno-missing-braces',
-        '-Wno-strict-aliasing'
+        '-Wextra',
+        '-D_FILE_OFFSET_BITS=64'
     ])
+    if warnings_are_errors():
+        extra_compile_args.append('-Werror')
+        cflags.append('-Werror')
 
 
 if sys.platform == "win32":
     extra_compile_args.extend([
         '/std:c++17',
-        '/D_CRT_SECURE_NO_WARNINGS',
         '/D_UNICODE',
         '/DUNICODE',
-        '/W4',
-        # '/WX',
-        '/wd4127',
-        '/wd4456',
-        '/wd4701',
-        '/wd4703',
-        '/wd4706'
+        '/W4'
     ])
     cflags.extend([
-        '/D_CRT_SECURE_NO_WARNINGS',
         '/D_UNICODE',
         '/DUNICODE',
-        '/W4',
-        # '/WX'
+        '/W4'
     ])
-    extra_link_args.extend([
-        '/WX'
-    ])
+    if warnings_are_errors():
+        extra_compile_args.append('/WX')
+        cflags.append('/WX')
+        extra_link_args.append('/WX')
 
 if sys.platform == "linux":
     extra_link_args.extend([
@@ -201,13 +233,6 @@ if sys.platform == 'darwin':
     # This is flaged in CPython
     extra_compile_args.extend([
         '-DGCC_ENABLE_CPP_EXCEPTIONS=YES'
-    ])
-    if sys.version_info[0] == 3 and sys.version_info[1] == 8:
-        extra_compile_args.extend([
-            '-Wno-deprecated-declarations'
-    ])
-    cflags.extend([
-        '-Wno-atomic-alignment'
     ])
 
 IpIntelligenceEngineModule = Extension('_IpIntelligenceEngineModule',
@@ -245,7 +270,7 @@ clib = ('clib', {
     })
 
 setup(
-    cmdclass={"build_ext": NoSuffixBuilder},
+    cmdclass={"build_ext": NoSuffixBuilder, "build_clib": LibraryBuilder},
     name="fiftyone_ipintelligence_onpremise",
     version=read("version.txt"),
     author="51Degrees Engineering",
@@ -280,9 +305,10 @@ setup(
     install_requires=[
         "fiftyone_ipintelligence_shared",
         "fiftyone_pipeline_engines_fiftyone",
-        # The first versions with close(), which releases the native memory
-        # this package holds.
-        "fiftyone_pipeline_core>=4.5.42",
-        "fiftyone_pipeline_engines>=4.5.42",
+        # The first version with ElementDataPool, which the engine of this
+        # package keeps its Element Data in for reuse.
+        "fiftyone_pipeline_core>=4.5.44",
+        # The release this package is built and tested with.
+        "fiftyone_pipeline_engines>=4.5.44",
     ],
 )

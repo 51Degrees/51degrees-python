@@ -28,18 +28,40 @@
 # the 51Degrees cloud service.
 #
 # A resource key must be supplied in the `_51DEGREES_RESOURCE_KEY` environment
-# variable. Obtain one from https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=top
+# variable. Obtain one from https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=top
 #
 # Run with:
 # ```
 # python -m fiftyone_ipintelligence_examples.cloud.gettingstarted_web
 # ```
+#
+# ## Flow Data and threads
+#
+# A Flow Data cannot be used by two threads at once. This example creates one
+# for each request, uses it only in the code that handles that request, and
+# closes it when the request ends. To hand work to another thread or task,
+# read the values it needs from the Flow Data first and pass those values,
+# not the Flow Data.
 
 from flask import Flask, request
 
+from fiftyone_pipeline_core.logger import Logger
+from fiftyone_pipeline_core.web import webevidence
 from fiftyone_ipintelligence.ipintelligence_pipelinebuilder import IpIntelligencePipelineBuilder
 from fiftyone_ipintelligence_examples.example_utils import ExampleUtils
 from fiftyone_ipintelligence_shared.constants import Constants
+
+# Where to go next, shown at the end of the page.
+FIND_OUT_MORE = [
+    ("IP intelligence",
+     "https://51degrees.com/ip-intelligence?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=find-out-more-ip-intelligence"),
+    ("Resource keys",
+     "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=find-out-more-resource-keys"),
+    ("Pricing",
+     "https://51degrees.com/pricing?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=find-out-more-pricing"),
+    ("IP intelligence for Python",
+     "https://github.com/51Degrees/51degrees-python/tree/main/ip-intelligence"),
+]
 
 app = Flask(__name__)
 
@@ -60,21 +82,26 @@ def get_value(ip_data, property):
 @app.route("/")
 def index():
 
-    # Create the flowdata object for this request.
-    flowdata = pipeline.create_flowdata()
+    # A Flow Data cannot be used by two threads at once, so this one is made
+    # for this request, used only here, and closed when the route returns.
+    with pipeline.create_flowdata() as flowdata:
 
-    # Use the IP address supplied as a query parameter, or fall back
-    # to the address of the requester.
-    client_ip = request.args.get("client-ip", request.remote_addr)
+        # Hand the whole request to the pipeline. Each engine takes the
+        # Evidence it reads from it.
+        flowdata.evidence.add_from_dict(webevidence(request))
 
-    flowdata.evidence.add(Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY, client_ip)
+        # Use the IP address supplied as a query parameter, or fall back
+        # to the address of the requester.
+        client_ip = request.args.get("client-ip", request.remote_addr)
 
-    # Process the flowdata
-    flowdata.process()
+        flowdata.evidence.add(Constants.EVIDENCE_QUERY_CLIENT_IP_51D_KEY, client_ip)
 
-    ip_data = flowdata.ip
+        # Process the flowdata
+        flowdata.process()
 
-    return f"""
+        ip_data = flowdata.ip
+
+        return f"""
     <h2>51Degrees IP Intelligence - Getting Started Web (Cloud)</h2>
     <p>IP address: {client_ip}</p>
     <ul>
@@ -82,19 +109,37 @@ def index():
         <li>Registered Country: {get_value(ip_data, "registeredcountry")}</li>
     </ul>
     <p>Add ?client-ip=x.x.x.x to the url to lookup a different address.</p>
+    {ExampleUtils.get_find_out_more_html(FIND_OUT_MORE)}
     """
 
 
 def main(resource_key = None):
     if not resource_key:
         resource_key = ExampleUtils.get_resource_key()
+
+    # Configure a logger to output to the console.
+    logger = Logger(min_level="info")
+
+    # With no key there is nothing to serve, so say how to get one and
+    # start no server.
     if not resource_key:
-        raise Exception(
+        logger.log("error",
             "No resource key specified in the environment variable "
-            f"'{ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR}'. Obtain one from "
-            "https://configure.51degrees.com/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required")
-    build_pipeline(resource_key)
-    app.run(debug=False)
+            f"'{ExampleUtils.CLOUD_RESOURCE_KEY_ENV_VAR}'. The 51Degrees cloud "
+            "service is accessed using a 'ResourceKey'. For more "
+            "information see "
+            "https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. "
+            "A resource key with the properties required by this example "
+            "can be created for free at "
+            "https://51degrees.com/configure/?utm_source=code&utm_medium=example&utm_campaign=51degrees-python&utm_content=fiftyone_ipintelligence_examples-src-fiftyone_ipintelligence_examples-cloud-gettingstarted_web-app.py&utm_term=resource-key-required. "
+            "Once complete, populate the environment variable mentioned at "
+            "the start of this message with the key.")
+    else:
+        build_pipeline(resource_key)
+        app.run(port=5151, debug=False)
+
+    # Every end, with no key or once the server stops, finishes here.
+    ExampleUtils.print_find_out_more(FIND_OUT_MORE)
 
 
 if __name__ == "__main__":

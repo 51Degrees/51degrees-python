@@ -22,7 +22,7 @@ python -m pip install fiftyone-ipintelligence
 
 The table below lists the other packages. To build from source, see [Getting the code](#getting-the-code).
 
-Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install). For cloud use, [create a Resource Key](https://configure.51degrees.com/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install).
+Try the [User-Agent tester](https://51degrees.com/developers/user-agent-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install) and [IP tester](https://51degrees.com/developers/ip-tester?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install). For cloud use, [create a Resource Key](https://51degrees.com/configure/?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=readme.md&utm_term=install).
 
 Created from `pipeline-python`, `device-detection-python`, and `location-python`, this repository continues their work.
 
@@ -31,7 +31,7 @@ own folder, which has its own README.
 
 | Product | Folder | PyPI packages |
 | --- | --- | --- |
-| Pipeline API | [pipeline](pipeline/readme.md) | `fiftyone_pipeline_core`, `_engines`, `_engines_fiftyone`, `_cloudrequestengine`, `_translation`, `_did` |
+| Pipeline API | [pipeline](pipeline/readme.md) | `fiftyone_pipeline_core`, `_engines`, `_engines_fiftyone`, `_cloudrequestengine`, `_translation`, `_did`, `_derivedproperty` (not yet published) |
 | Device Detection | [device-detection](device-detection/readme.md) | `fiftyone_devicedetection`, `_shared`, `_cloud`, `_onpremise` |
 | IP Intelligence | [ip-intelligence](ip-intelligence/readme.md) | `fiftyone_ipintelligence`, `_shared`, `_cloud`, `_onpremise`, `_translation` |
 | Location | [location](location/readme.md) | `fiftyone_location` |

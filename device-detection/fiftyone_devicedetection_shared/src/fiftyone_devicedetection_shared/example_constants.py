@@ -95,5 +95,4 @@ EVIDENCE_VALUES = [
 
 ENTERPRISE_DATAFILE_NAME = 'Enterprise-HashV41.hash'
 LITE_DATAFILE_NAME = '51Degrees-LiteV4.1.hash'
-UA_FILE_NAME = '20000 User Agents.csv'
 EVIDENCE_FILE_NAME = '20000 Evidence Records.yml'

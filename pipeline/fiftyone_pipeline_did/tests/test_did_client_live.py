@@ -22,12 +22,14 @@
 
 """Live tests against the 51Degrees cloud service.
 
-The resource key is read from the names in ``live_cloud.py``, and every
-test fails when none is set. The key has to carry the FODid product, and
+The resource key is read from ``_51DEGREES_RESOURCE_KEY_51DID``, and every
+test skips, naming it, when it is not set. The key has to carry the FODid product, and
 the CloudV5FODiD product for the marketing usages, which
 ``test_did_tier_live.py`` shows a Basic key does not get. An optional
-licence key is read from ``_51DEGREES_LICENSE_KEY``, and
-the endpoint from ``_51DEGREES_CLOUD_ENDPOINT`` as everywhere else. Every test here
+license key is read from ``_51DEGREES_LICENSE_KEY_51DID``, and must be one
+of the account the resource key belongs to. ``_51DEGREES_LICENSE_KEY`` is
+the data license for the data files, and is not read here. The
+endpoint is read from ``_51DEGREES_CLOUD_ENDPOINT`` as everywhere else. Every test here
 costs uses against the resource key.
 """
 
@@ -56,8 +58,9 @@ from .live_cloud import (
 
 pytestmark = pytest.mark.live
 
-RESOURCE_KEY = find_resource_key()
-LICENCE_KEY = read_environment("_51DEGREES_LICENSE_KEY", "license_key")
+RESOURCE_KEY_NAMES = ("_51DEGREES_RESOURCE_KEY_51DID",)
+RESOURCE_KEY = find_resource_key(RESOURCE_KEY_NAMES)
+LICENCE_KEY = read_environment("_51DEGREES_LICENSE_KEY_51DID")
 
 FODID = "the FODid product"
 MARKETING = "the CloudV5FODiD product"
@@ -65,7 +68,7 @@ MARKETING = "the CloudV5FODiD product"
 NO_KEY = no_resource_key(
     FODID + ", and " + MARKETING + " for the marketing usages",
     "FODiD.IdProbGlobal and FODiD.IdProbLic under each id.usage",
-    several=True)
+    several=True, names=RESOURCE_KEY_NAMES)
 
 
 def run(coroutine):
@@ -94,7 +97,7 @@ class DidClientLiveTests(unittest.TestCase):
 
     def setUp(self):
         if not RESOURCE_KEY:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
         self.client = DidClient(RESOURCE_KEY, LICENCE_KEY)
 
     def create(self):
@@ -308,7 +311,7 @@ class BrowserCreatorContextLiveTests(unittest.TestCase):
 
     def setUp(self):
         if not RESOURCE_KEY:
-            self.fail(NO_KEY)
+            self.skipTest(NO_KEY)
         self.client = DidClient(RESOURCE_KEY, LICENCE_KEY)
 
     def get(self, url, user_agent):

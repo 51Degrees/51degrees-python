@@ -182,17 +182,6 @@ class IpIntelligenceOnPremiseTests(unittest.TestCase):
 
         self.assertIn(".ipi", str(context.exception))
 
-    def test_missing_licence_key(self):
-        """!
-        The engine requires the licence key argument (an empty string
-        disables automatic updates).
-        """
-
-        with self.assertRaises(Exception) as context:
-            IpIntelligenceOnPremise(data_file_path=data_file)
-
-        self.assertIn("licence key is required", str(context.exception))
-
 
 class AsnDataFileTests(unittest.TestCase):
     """!

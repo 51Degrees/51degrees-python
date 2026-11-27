@@ -1,8 +1,9 @@
 # Examples
 
-Examples of the 51Degrees Pipeline API for Python that call the 51Degrees
-cloud service through the cloud request engine, which is the package this
-folder sits in.
+Examples of the 51Degrees Pipeline API for Python that use the cloud request
+engine, which is the package this folder sits in. The mixed examples call
+the 51Degrees cloud service, and the cloud engine example calls a star sign
+service of its own.
 
 ## Cloud, mixed
 
@@ -25,13 +26,19 @@ answer. Those engines are in `src/fiftyone_pipeline_examples/cloud/engines.py`,
 and `src/fiftyone_pipeline_examples/cloud/mixed/pipeline.py` puts them
 together.
 
+A Flow Data cannot be used by two threads at once, so the web example
+creates a Flow Data for each request, uses it only in the code that handles
+that request, and closes it when the request ends. To hand work to another
+thread or task, read the values it needs from the Flow Data first and pass
+those values, not the Flow Data.
+
 ### Keys
 
 The examples call the cloud service with a resource key or a licence key.
 
 A resource key carries the list of properties it returns. Create one
 carrying device detection and IP intelligence properties for free with the
-[configurator](https://configure.51degrees.com?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=resource-key),
+[configuration page](https://51degrees.com/configure?utm_source=github&utm_medium=readme&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-examples-readme.md&utm_term=resource-key),
 and set the `_51DEGREES_RESOURCE_KEY` environment variable to it. A
 resource key limited to particular
 domains only answers a request whose origin is one of them, so set
@@ -82,7 +89,8 @@ and the web example with
 .venv/bin/python -m fiftyone_pipeline_examples.cloud.mixed.gettingstarted_web
 ```
 
-then open <http://localhost:5000>. Set `PORT` to listen on another port.
+then open <http://localhost:5151>. Set `_51DEGREES_EXAMPLE_HTTP_PORTS` to
+listen on another port.
 
 ### Tests
 
@@ -90,17 +98,40 @@ then open <http://localhost:5000>. Set `PORT` to listen on another port.
 .venv/bin/python -m pytest
 ```
 
-The tests that call the cloud service with a resource key fail when none is
-set, naming the variables they read, which are `_51DEGREES_RESOURCE_KEY`
-and `_51DEGREES_RESOURCE_KEY_BESPOKE`, in that order. The
+The tests that call the cloud service with a resource key skip when none is
+set, naming the variable they read, which is
+`_51DEGREES_RESOURCE_KEY_BESPOKE`. They are marked
+`live`, so `python -m pytest -m "not live"` runs every other test. The
 tests that use a licence key skip themselves when none is set.
 
 In CI the examples are run by [ci/run-integration-tests.ps1](../../ci/run-integration-tests.ps1)
 through common-ci, on every Python version and operating system in
 [ci/options.json](../../ci/options.json), with the resource key the pipeline
-holds. No licence key is passed to the pipeline, so the licence-key tests
-skip themselves there. That uses the [tox.ini](tox.ini) in this folder,
+holds. When no resource key is passed, the script leaves out the tests
+marked `live`, says so, and runs the rest. No licence key is passed to the
+pipeline, so the licence-key tests skip themselves there. That uses the [tox.ini](tox.ini) in this folder,
 which can also be run by hand with `python -m tox -e py` from here.
+
+## Cloud engine
+
+`src/fiftyone_pipeline_examples/cloud/simple_cloud_engine.py` shows how to
+write a cloud engine of your own. The engine gets the star sign for a date
+of birth from a remote service, through a cloud request engine, and the
+example prints the reason the service gives when it has no star sign.
+
+So that it runs with no key and no network, the example starts a small star
+sign service of its own on this machine, which answers in the shapes the
+51Degrees cloud service uses. It reads none of the environment variables
+under Keys.
+
+Run it, once the requirements are installed as above, with
+
+```sh
+.venv/bin/python -m fiftyone_pipeline_examples.cloud.simple_cloud_engine
+```
+
+Its test, `tests/test_simple_cloud_engine.py`, runs with the others and needs
+no key.
 
 ## Find out more
 

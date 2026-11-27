@@ -23,7 +23,13 @@ if ([string]::IsNullOrWhiteSpace($ResourceKey)) {
     exit 0
 }
 
-$uri = "https://cloud.51degrees.com/api/v4/accessibleproperties?resource=$ResourceKey"
+# The cloud service _51DEGREES_CLOUD_ENDPOINT names, which is the one the
+# tests call, or the public one when it is not set.
+$api = $env:_51DEGREES_CLOUD_ENDPOINT
+if ([string]::IsNullOrWhiteSpace($api)) {
+    $api = 'https://cloud.51degrees.com/api/v4/'
+}
+$uri = "$($api.Trim().TrimEnd('/'))/accessibleproperties?resource=$ResourceKey"
 try {
     $answer = Invoke-RestMethod -Uri $uri -Method Get -TimeoutSec 30
 } catch {

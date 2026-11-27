@@ -1,165 +1,157 @@
 # Tests for ci/check-environment-variable-names.ps1.
 #
-# Each case is one line of text and what the check must make of it. Names are
-# matched in any case, because Windows reads an environment variable name in
-# any case, so a lower case old name is still the old name there.
+# Each case is one line of text and what the check must make of it. The names
+# that must fail are made up for these tests.
 
 BeforeAll {
     . (Join-Path $PSScriptRoot 'check-environment-variable-names.ps1')
-
-    function Get-Kind([string]$Line) {
-        @(Find-EnvironmentNameProblem $Line | ForEach-Object { $_.Kind })
-    }
 }
 
 Describe 'Find-EnvironmentNameProblem' {
 
-    It 'finds the digit-initial name <Line>' -ForEach @(
-        @{ Line = '$env:51DEGREES_DD_PATH = "file.hash"' }
-        @{ Line = 'export 51DEGREES_IPI_PATH=file.ipi' }
-        @{ Line = 'os.environ.get("51degrees_dd_path")' }
-        @{ Line = '$env:51Degrees_Resource_Key = "key"' }
+    It 'finds <Name> read or set in <Line>' -ForEach @(
+        @{ Line = 'os.environ.get("EXAMPLE_SETTING")'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = "os.environ.get('example_setting', 'none')"; Name = 'example_setting' }
+        @{ Line = 'os.environ["EXAMPLE_SETTING"] = "value"'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'saved = os.environ.pop("EXAMPLE_SETTING", None)'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'os.environ.setdefault("EXAMPLE_SETTING", "value")'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'value = os.getenv("EXAMPLE_SETTING")'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'if "example_setting" in os.environ:'; Name = 'example_setting' }
+        @{ Line = 'if "EXAMPLE_SETTING" not in os.environ:'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'monkeypatch.setenv("EXAMPLE_SETTING", "value")'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'monkeypatch.delenv("EXAMPLE_SETTING", raising=False)'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = '$env:EXAMPLE_SETTING = "value"'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'if (!$Env:Example_Setting) {'; Name = 'Example_Setting' }
+        @{ Line = '${env:EXAMPLE_SETTING} = "value"'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'Remove-Item Env:EXAMPLE_SETTING'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'Remove-Item Env:\EXAMPLE_SETTING'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = '[Environment]::SetEnvironmentVariable("EXAMPLE_SETTING", $value)'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = '[Environment]::GetEnvironmentVariable("EXAMPLE_SETTING")'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = '          url: ${{ env.EXAMPLE_SETTING }}'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = 'export EXAMPLE_SETTING=value'; Name = 'EXAMPLE_SETTING' }
+        # A name has to start with the underscore and be in upper case.
+        @{ Line = 'os.environ.get("51DEGREES_EXAMPLE_SETTING")'; Name = '51DEGREES_EXAMPLE_SETTING' }
+        @{ Line = '$env:_51degrees_example_setting = "value"'; Name = '_51degrees_example_setting' }
+        @{ Line = 'os.environ.get("EXAMPLE_51DEGREES_SETTING")'; Name = 'EXAMPLE_51DEGREES_SETTING' }
     ) {
-        Get-Kind $Line | Should -Contain 'digit'
+        @(Find-EnvironmentNameProblem $Line) | Should -Be @($Name)
     }
 
-    It 'finds the fallback name <Line>' -ForEach @(
-        @{ Line = 'os.environ.get("RESOURCE_KEY")' }
-        @{ Line = 'os.environ.get("resource_key")' }
-        @{ Line = 'os.environ["license_key"]' }
-        @{ Line = 'os.getenv(''License_Key'')' }
-        @{ Line = 'if "resource_key" in os.environ:' }
-        @{ Line = '$env:resource_key = "key"' }
-        @{ Line = '[Environment]::SetEnvironmentVariable("license_key", $k)' }
-        @{ Line = 'LEGACY_RESOURCE_KEY_ENV_VAR = "resource_key"' }
-        @{ Line = 'self.baseURL = os.environ.get("FOD_CLOUD_API_URL")' }
-        @{ Line = 'FOD_CLOUD_API_URL = "FOD_CLOUD_API_URL"' }
-        @{ Line = 'saved = os.environ.pop("FOD_CLOUD_API_URL", None)' }
-        @{ Line = '$env:FOD_CLOUD_API_URL = "https://cloud.51degrees.com/api/v4/"' }
-        @{ Line = 'key = env("_51DEGREES_RESOURCE_KEY", "resource_key") or os.environ.get("license_key")' }
-        @{ Line = 'RESOURCE_KEY_ENV_VAR = "resource_key"' }
-        @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"' }
-        @{ Line = 'ORIGIN_ENV_VAR = "cloud_request_origin"' }
-        @{ Line = 'os.environ.get("cloud_request_origin")' }
-        @{ Line = '$env:cloud_endpoint = "https://cloud.51degrees.com/api/v4/"' }
-        @{ Line = '${env:cloud_endpoint} = "https://cloud.51degrees.com/api/v4/"' }
-        @{ Line = '${Env:RESOURCE_KEY}' }
-        @{ Line = 'Remove-Item Env:\license_key' }
-        @{ Line = '          url: ${{ env.cloud_endpoint }}' }
-        @{ Line = 'env = os.environ.get("IPINTELLIGENCEDATAFILE")' }
-        @{ Line = 'os.environ["ipintelligencetestkey"] = "value"' }
-        @{ Line = 'if "run_performance_tests" in os.environ:' }
+    It 'finds each name once in <Line>' -ForEach @(
+        @{ Line = 'a = os.environ.get("_51DEGREES_EXAMPLE_SETTING") or os.environ.get("EXAMPLE_SETTING") or os.environ.get("OTHER_SETTING")'
+           Names = @('EXAMPLE_SETTING', 'OTHER_SETTING') }
+        @{ Line = '$env:EXAMPLE_SETTING = $env:EXAMPLE_SETTING + $env:TEMP'
+           Names = @('EXAMPLE_SETTING') }
     ) {
-        Get-Kind $Line | Should -Contain 'fallback'
+        @(Find-EnvironmentNameProblem $Line) | Should -Be $Names
     }
 
-    # cloud_endpoint is a pipeline setting as well as an old variable name,
-    # and only the variable moves, so a setting written by its key is left
-    # alone.
-    It 'leaves <Line> alone' -ForEach @(
-        @{ Line = 'os.environ.get("_51DEGREES_RESOURCE_KEY")' }
+    It 'leaves <Line> alone, as its name starts _51DEGREES_' -ForEach @(
+        @{ Line = 'os.environ.get("_51DEGREES_EXAMPLE_SETTING")' }
+        @{ Line = 'os.environ["_51DEGREES_EXAMPLE_SETTING"] = "value"' }
+        @{ Line = 'if "_51DEGREES_EXAMPLE_SETTING" in os.environ:' }
+        @{ Line = '$env:_51DEGREES_EXAMPLE_SETTING = "value"' }
+        @{ Line = '${env:_51DEGREES_EXAMPLE_SETTING} = $value' }
+        @{ Line = 'Remove-Item Env:_51DEGREES_EXAMPLE_SETTING' }
+        @{ Line = 'export _51DEGREES_EXAMPLE_SETTING=value' }
+        @{ Line = '          url: ${{ env._51DEGREES_EXAMPLE_SETTING }}' }
+    ) {
+        @(Find-EnvironmentNameProblem $Line) | Should -BeNullOrEmpty
+    }
+
+    It 'leaves <Line> alone, as the platform defines its name' -ForEach @(
+        @{ Line = 'in_actions = os.environ.get("GITHUB_ACTIONS") == "true"' }
+        @{ Line = 'if ($env:GITHUB_JOB -eq "Test") {' }
+        @{ Line = '"key=value" >> $env:GITHUB_OUTPUT' }
+        @{ Line = '$env:TEMP = New-Item -ItemType Directory -Force -Path "C:\tmp"' }
+        @{ Line = '$env:TMP = $env:TEMP' }
+        @{ Line = '$env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()' }
+        @{ Line = '$env:PYTHONPATH = Join-Path $PWD ''src''' }
+        @{ Line = 'export FLASK_APP=app.py' }
+        @{ Line = '$env:PATH = "$bin;$env:Path"' }
+    ) {
+        @(Find-EnvironmentNameProblem $Line) | Should -BeNullOrEmpty
+    }
+
+    # A setting, a parameter and a request's own environ are not environment
+    # variables of the process.
+    It 'leaves <Line> alone, as it reads or sets no environment variable' -ForEach @(
         @{ Line = 'pipeline_settings["cloud_endpoint"] = cloud_endpoint' }
-        @{ Line = 'resourceKey = "resource_key"' }
-        @{ Line = 'class IpIntelligenceDataFile(DataFile):' }
-        @{ Line = 'if isinstance(datafile, IpIntelligenceDataFile):' }
-        @{ Line = 'RESOURCE_KEY = "resource_key"' }
-        @{ Line = 'testResourceKey = "resource_key"' }
-        @{ Line = 'def __init__(self, resource_key, cloud_request_origin=None):' }
-        @{ Line = '"cloud_request_origin": cloud_request_origin,' }
-        @{ Line = 'cloudRequestEngineSettings["cloud_endpoint"] = cloudEndPoint' }
-        @{ Line = 'def run(self, resource_key, logger, cloud_endpoint = None):' }
-        @{ Line = 'ENDPOINT_VARIABLE = "_51DEGREES_CLOUD_ENDPOINT"' }
-        @{ Line = '$env:_51DEGREES_DD_PATH = "file.hash"' }
-        @{ Line = '$env:_51DEGREES_LICENSE_KEY_51DID = $k' }
-        @{ Line = 'RESOURCE_KEY_ENV_VAR = "_51DEGREES_RESOURCE_KEY"' }
         @{ Line = 'builder = Builder({"resource_key": "YOUR_RESOURCE_KEY"})' }
         @{ Line = 'Builder(resource_key=key, license_key=licence)' }
-        @{ Line = '$env:PAID_RESOURCE_KEY = $Keys.TestResourceKey' }
-        @{ Line = '${env:_51DEGREES_RESOURCE_KEY} = $Keys.TestResourceKey' }
-        @{ Line = '  PAID_RESOURCE_KEY: ${{ env.PAID_RESOURCE_KEY }}' }
+        @{ Line = 'def run(self, resource_key, logger, cloud_endpoint = None):' }
+        @{ Line = 'EXAMPLE_SETTING = "example_setting"' }
+        @{ Line = 'raw = request.environ.get("RAW_URI")' }
+        @{ Line = 'env.pop("EXAMPLE_SETTING", None)' }
+        @{ Line = 'environment = dict(os.environ, EXAMPLE_SETTING=value)' }
+        @{ Line = 'pass_env = EXAMPLE_SETTING' }
         @{ Line = 'Set the 51D_ cookie for the 51Did example.' }
+        @{ Line = '        env:' }
     ) {
-        Get-Kind $Line | Should -BeNullOrEmpty
-    }
-
-    # A variable whose name changed is still read under its old name when
-    # the new one is not set. That read gives the old name as the argument
-    # straight after the new one, and it is left alone.
-    It 'leaves the deprecated read <Line> alone' -ForEach @(
-        @{ Line = 'RESOURCE = env("_51DEGREES_RESOURCE_KEY", "RESOURCE_KEY")' }
-        @{ Line = 'LICENCE = env("_51DEGREES_LICENSE_KEY", "license_key")' }
-        @{ Line = 'API = env("_51DEGREES_CLOUD_ENDPOINT", "FOD_CLOUD_API_URL")' }
-        @{ Line = 'read_environment("_51DEGREES_IPI_PATH", "IPINTELLIGENCEDATAFILE")' }
-        @{ Line = '    "_51DEGREES_RUN_PERFORMANCE_TESTS", "run_performance_tests")' }
-        @{ Line = "read_environment('_51DEGREES_DD_PATH', '51DEGREES_DD_PATH')" }
-    ) {
-        Get-Kind $Line | Should -BeNullOrEmpty
+        @(Find-EnvironmentNameProblem $Line) | Should -BeNullOrEmpty
     }
 }
 
-Describe 'Find-EnvironmentNameProblem with the old names a file may hold' {
+Describe 'Find-EnvironmentNameProblem in a workflow' {
 
-    It 'leaves <Line> alone when the file may hold <Allowed>' -ForEach @(
-        @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"'; Allowed = @('cloud_endpoint') }
-        @{ Line = 'os.environ["resource_key"] = "old-key"'; Allowed = @('resource_key', 'license_key') }
-        @{ Line = 'DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"'; Allowed = @('51DEGREES_DD_PATH') }
-        @{ Line = '    FOD_CLOUD_API_URL'; Allowed = @('FOD_CLOUD_API_URL') }
-        @{ Line = 'os.environ["RESOURCE_KEY"] = "old-resource-key"'; Allowed = @('RESOURCE_KEY') }
+    It 'finds <Name>, a key of an env map, in <Line>' -ForEach @(
+        @{ Line = '          EXAMPLE_SETTING: ${{ github.workspace }}/folder'; Name = 'EXAMPLE_SETTING' }
+        @{ Line = '      EXAMPLE_SETTING: value'; Name = 'EXAMPLE_SETTING' }
     ) {
-        @(Find-EnvironmentNameProblem $Line $Allowed) | Should -BeNullOrEmpty
+        @(Find-EnvironmentNameProblem $Line '.github/workflows/example.yml') |
+            Should -Be @($Name)
     }
 
-    It 'finds <Kind> in <Line> when the file may hold only <Allowed>' -ForEach @(
-        @{ Line = 'ENDPOINT_ENV_VAR = "cloud_endpoint"'; Allowed = @('resource_key'); Kind = 'fallback' }
-        @{ Line = 'os.environ["license_key"] = "old-key"'; Allowed = @('resource_key'); Kind = 'fallback' }
-        @{ Line = 'os.environ["RESOURCE_KEY"] = "old-key"'; Allowed = @('resource_key'); Kind = 'fallback' }
-        @{ Line = '    IPINTELLIGENCEDATAFILE'; Allowed = @('FOD_CLOUD_API_URL'); Kind = 'fallback' }
-        @{ Line = 'DATA_FILE_ENV_VAR = "51DEGREES_IPI_PATH"'; Allowed = @('51DEGREES_DD_PATH'); Kind = 'digit' }
-        @{ Line = '    51DEGREES_DD_PATH_OTHER'; Allowed = @('51DEGREES_DD_PATH'); Kind = 'digit' }
-        @{ Line = 'DATA_FILE_ENV_VAR = "51DEGREES_DD_PATH"'; Allowed = @(); Kind = 'digit' }
+    It 'leaves <Line> alone' -ForEach @(
+        @{ Line = '          _51DEGREES_EXAMPLE_SETTING: ${{ secrets._51DEGREES_EXAMPLE_SETTING }}' }
+        @{ Line = '          CLOUD_STAGING_ENDPOINT: ${{ vars.CLOUD_STAGING_ENDPOINT }}' }
+        @{ Line = '          RESOURCE_KEY_BESPOKE_STAGING: ${{ secrets.RESOURCE_KEY_BESPOKE_STAGING }}' }
+        @{ Line = '          GITHUB_TOKEN: ${{ github.token }}' }
+        @{ Line = '        uses: actions/checkout@v4' }
+        @{ Line = '    runs-on: ubuntu-latest' }
+        @{ Line = '        shell: pwsh' }
     ) {
-        @(Find-EnvironmentNameProblem $Line $Allowed | ForEach-Object { $_.Kind }) |
-            Should -Contain $Kind
+        @(Find-EnvironmentNameProblem $Line '.github/workflows/example.yml') |
+            Should -BeNullOrEmpty
+    }
+
+    It 'reads a key of a map only in a workflow, so <Path> is left alone' -ForEach @(
+        @{ Path = 'ci/packages.json' }
+        @{ Path = 'device-detection/readme.md' }
+        @{ Path = '' }
+    ) {
+        @(Find-EnvironmentNameProblem '    EXAMPLE_SETTING: value' $Path) |
+            Should -BeNullOrEmpty
     }
 }
 
-Describe 'Get-FallbackName' {
+Describe 'Test-EnvironmentName' {
 
-    It 'lets <Path> hold <Name>' -ForEach @(
-        @{ Path = 'pipeline/fiftyone_pipeline_did/tox.ini'; Name = 'FOD_CLOUD_API_URL' }
-        @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py'; Name = '51DEGREES_DD_PATH' }
-        @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py'; Name = 'cloud_endpoint' }
-        @{ Path = 'ip-intelligence/fiftyone_ipintelligence_examples/src/fiftyone_ipintelligence_examples/example_utils.py'; Name = 'IPINTELLIGENCEDATAFILE' }
-        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/constants.py'; Name = 'FOD_CLOUD_API_URL' }
-        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/readme.md'; Name = 'FOD_CLOUD_API_URL' }
-        @{ Path = 'pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client.py'; Name = 'FOD_CLOUD_API_URL' }
-        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_live_cloud.py'; Name = 'resource_key' }
+    It 'takes <Name>' -ForEach @(
+        @{ Name = '_51DEGREES_EXAMPLE_SETTING' }
+        @{ Name = 'GITHUB_ENV' }
+        @{ Name = 'TEMP' }
+        @{ Name = 'PSModulePath' }
+        # Names only CI uses.
+        @{ Name = 'CLOUD_STAGING_ENDPOINT' }
+        @{ Name = 'RESOURCE_KEY_BESPOKE_STAGING' }
     ) {
-        @(Get-FallbackName $Path) | Should -Contain $Name
+        Test-EnvironmentName $Name | Should -BeTrue
     }
 
-    It 'does not let <Path> hold <Name>' -ForEach @(
-        @{ Path = 'pipeline/fiftyone_pipeline_did/tox.ini'; Name = '51DEGREES_DD_PATH' }
-        @{ Path = 'pipeline/fiftyone_pipeline_did/src/fiftyone_pipeline_did/did_client.py'; Name = 'resource_key' }
-        @{ Path = 'pipeline/fiftyone_pipeline_cloudrequestengine/src/fiftyone_pipeline_cloudrequestengine/constants.py'; Name = '51DEGREES_DD_PATH' }
-        @{ Path = 'ip-intelligence/fiftyone_ipintelligence_examples/src/fiftyone_ipintelligence_examples/example_utils.py'; Name = '51DEGREES_DD_PATH' }
-        @{ Path = 'device-detection/fiftyone_devicedetection_examples/src/fiftyone_devicedetection_examples/example_utils.py'; Name = 'IPINTELLIGENCEDATAFILE' }
+    It 'refuses <Name>' -ForEach @(
+        @{ Name = 'EXAMPLE_SETTING' }
+        @{ Name = '_51degrees_example_setting' }
+        @{ Name = '51DEGREES_EXAMPLE_SETTING' }
+        @{ Name = 'TEMPORARY' }
+        @{ Name = 'MY_GITHUB_SETTING' }
+        # Look-alikes of the names only CI uses.
+        @{ Name = 'cloud_staging_endpoint' }
+        @{ Name = 'CLOUD_STAGING_ENDPOINT_URL' }
+        @{ Name = 'CLOUD_ENDPOINT' }
+        @{ Name = 'RESOURCE_KEY_BESPOKE' }
+        @{ Name = 'RESOURCE_KEY_BASIC_STAGING' }
     ) {
-        @(Get-FallbackName $Path) | Should -Not -Contain $Name
-    }
-
-    It 'lets <Path> hold no old name' -ForEach @(
-        @{ Path = 'ci/run-unit-tests.ps1' }
-        @{ Path = 'readme.md' }
-        @{ Path = 'pipeline/fiftyone_pipeline_core/src/fiftyone_pipeline_core/pipeline.py' }
-        @{ Path = 'pipeline/fiftyone_pipeline_core/readme.md' }
-        @{ Path = 'device-detection/fiftyone_devicedetection_examples/tests/test_cloudexamples.py' }
-        @{ Path = 'device-detection/ci/run-integration-tests.ps1' }
-        @{ Path = 'pipeline/fiftyone_pipeline_did/tests/test_did_client_live.py' }
-        @{ Path = 'location/examples/cloud/gettingstarted.py' }
-        @{ Path = 'some/new/package/tox.ini' }
-        @{ Path = 'some/new/example_utils.py' }
-    ) {
-        @(Get-FallbackName $Path) | Should -BeNullOrEmpty
+        Test-EnvironmentName $Name | Should -BeFalse
     }
 }

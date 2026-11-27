@@ -25,6 +25,7 @@ from .flowelement import FlowElement
 from .evidence_keyfilter import EvidenceKeyFilter
 from .javascriptbuilder import parse_sequence
 from .elementdata_dictionary import ElementDataDictionary
+from .elementdata_pool import ElementDataPool
 import re
 import uuid
 
@@ -70,6 +71,7 @@ class SequenceElement(FlowElement):
             "session-id": {"type": "string"},
             "sequence": {"type": "int"}}
         self.exclude_from_messages = True
+        self._element_data_pool = ElementDataPool()
 
 
     def get_evidence_key_filter(self):
@@ -113,5 +115,9 @@ class SequenceElement(FlowElement):
         flowdata.evidence.add("query.session-id", session_id)
         flowdata.evidence.add("query.sequence", sequence)
 
-        flowdata.set_element_data(ElementDataDictionary(
-            self, {"session-id": session_id, "sequence": sequence}))
+        data = self._element_data_pool.take()
+        if data is None:
+            data = ElementDataDictionary(self, {})
+        data.contents["session-id"] = session_id
+        data.contents["sequence"] = sequence
+        flowdata.set_element_data(data)

@@ -27,6 +27,10 @@ from fiftyone_pipeline_engines.missingproperty_service import MissingPropertySer
 
 from .constants import RESULTS_CLOSED
 
+# The names of the C library's match methods, in the order of its
+# fiftyoneDegreesHashMatchMethod values, which getMethod returns.
+MATCH_METHODS = ("NONE", "PERFORMANCE", "COMBINED", "PREDICTIVE")
+
 class OnPremiseMissingPropertyService(MissingPropertyService):
 
     def check(self, key, flow_element):
@@ -35,6 +39,12 @@ class OnPremiseMissingPropertyService(MissingPropertyService):
             datafiles = flow_element.properties[key]["datafiles"]
             if(not flow_element.engine.getProduct() in datafiles):
                 raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. This is because your datafile does not contain the property. The property is available in' + str(datafiles))
+            # The data file holds the property, so it is missing because
+            # it is not available. A missing property always raises.
+            raise Exception(
+                "Property '" + key + "' not found in data for element '" +
+                flow_element.datakey + "'. This is because the property "
+                "has been excluded when configuring the engine.")
         else:
             raise Exception('Property ' + key + ' not found in data for element ' + flow_element.datakey + '. Please check that the element and property names are correct.')
 
@@ -43,6 +53,27 @@ class SwigData(AspectData):
     """!
     Extention of AspectData made for retrieving results
     created by the SWIG wrapper of the On Premise Device Detection engine
+
+    An instance reads its values from a results instance, the object the
+    native code fills for one request, which references unmanaged memory.
+    Multi-threaded access to a results instance is not supported, for
+    performance reasons. Reading a value from it writes into it, so it is not
+    safe to use from several threads at once, and neither is this instance.
+    The engine, its results instances and this instance take no lock to make
+    those reads safe for several threads. The caller is responsible for
+    thread-safe access, and either gives each thread its own Flow Data, and
+    so its own results instance, or coordinates its own access, for example
+    with a lock of its own around every read and around close().
+
+    The package is tested on the free-threaded builds of Python 3.13 and
+    3.14 on Linux, and of Python 3.14 on Windows. The native module does not
+    declare that it can run without the GIL, so Python turns the GIL back on
+    for the whole process when it loads the module, with a RuntimeWarning.
+    Every thread in the program then runs with the GIL, the native code
+    included, as on the standard build of Python, so nothing gains from
+    free-threading. Set PYTHON_GIL=1, or run Python with -X gil=1, to start
+    with the GIL on and so without the warning. A results instance is still
+    not safe to use from several threads at once.
     """
 
     def __init__(self, flow_element, swig_results):
@@ -70,6 +101,15 @@ class SwigData(AspectData):
         exception. Closing the FlowData closes its results.
         """
 
+        self.swig_results = None
+
+    def _clear(self):
+
+        """!
+        Drop the results, ready for a new request. See ElementData._clear.
+        """
+
+        super(SwigData, self)._clear()
         self.swig_results = None
 
     def get(self, key):
@@ -107,16 +147,27 @@ class SwigData(AspectData):
             return AspectPropertyValue(value = self.swig_results.getDeviceId())
 
         if key == 'useragents':
+            # Populated only when the engine records the matched
+            # User-Agents, as its default is an empty list.
+            if not getattr(self.flow_element, "update_matched_useragent", True):
+                return AspectPropertyValue(value = [])
+            # Each component's result has a matched User-Agent, and several
+            # can match the same one, which is listed once.
             useragents = []
             for i in range(self.swig_results.getUserAgents()):
-                useragents.append(self.swig_results.getUserAgent(i))
+                useragent = self.swig_results.getUserAgent(i)
+                if useragent not in useragents:
+                    useragents.append(useragent)
             return AspectPropertyValue(value = useragents)
 
         if key == 'difference':
             return AspectPropertyValue(value = self.swig_results.getDifference())
 
         if key == 'method':
-            return AspectPropertyValue(value = self.swig_results.getMethod())
+            method = self.swig_results.getMethod()
+            return AspectPropertyValue(
+                value = MATCH_METHODS[method]
+                if 0 <= method < len(MATCH_METHODS) else "NONE")
 
         if key == 'matchednodes':
             return AspectPropertyValue(value = self.swig_results.getMatchedNodes())

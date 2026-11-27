@@ -20,7 +20,7 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
-from .elementdata import ElementData
+from .elementdata import ElementData, _contents_property
 
 
 class ElementDataDictionary(ElementData):
@@ -29,6 +29,9 @@ class ElementDataDictionary(ElementData):
     An extension of ElementData with dictionary object storage / lookup
 
     """
+
+    # A dict that refuses writes once the FlowElement has finished.
+    contents = _contents_property
 
     def __init__(self, flow_element, contents):
         
@@ -52,6 +55,16 @@ class ElementDataDictionary(ElementData):
         self.flow_element = flow_element
 
         ElementData(flow_element)
+
+    def _clear(self):
+
+        """!
+        Drop the contents, ready for a new request. See ElementData._clear.
+        A new dictionary, so one returned by as_dictionary() is unchanged.
+        """
+
+        super(ElementDataDictionary, self)._clear()
+        self.contents = {}
 
     def as_dictionary(self):
         

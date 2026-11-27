@@ -13,6 +13,10 @@ on:
       common-ci-ref:
         type: string
         default: ''
+      full-matrix:
+        description: 'Build every configuration, not only those the changes need'
+        type: boolean
+        default: false
 
 jobs:
   PullRequests:
@@ -25,11 +29,10 @@ jobs:
       common-ci-ref: ${{ inputs.common-ci-ref || '' }}
       skip-lite-tests: ${{ inputs.skip-lite-tests || false }}
       cache-assets: true
-    secrets:
-      token: ${{ secrets.ACCESS_TOKEN }}
-      DeviceDetection: ${{ secrets.DEVICE_DETECTION_KEY }}
-      DeviceDetectionUrl: ${{ secrets.DEVICE_DETECTION_URL }}
-      CsvUrl: ${{ secrets.CSV_URL }}
-      IpIntelligence: ${{ secrets.IP_INTELLIGENCE_KEY }}
-      IpIntelligenceUrl: ${{ secrets.IPI_DATA_FILE_URL }}
-      TestResourceKey: ${{ secrets._51DEGREES_RESOURCE_KEY_BESPOKE }}
+      # Each pull request is built on the configurations its changes need,
+      # as ci/select-options.ps1 chooses, and one that fails does not cancel
+      # the others. With nothing eligible, the nightly builds rc instead.
+      full-matrix: ${{ inputs.full-matrix || false }}
+      fail-fast: false
+      build-without-pull-requests: false
+    secrets: inherit

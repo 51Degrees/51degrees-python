@@ -33,14 +33,28 @@ class Constants():
     invalidKey = "invalidkey"
     invalidKeyMessage = "58982060: " + invalidKey + " not a valid resource key"
     invalidKeyResponse = { 'errors':[ invalidKeyMessage ]}
-    invalidKeyMessageComplete = "Error returned from 51Degrees cloud service: '[\"" + invalidKeyMessage + "\"]'"
+    invalidKeyMessageComplete = "Error returned from 51Degrees cloud service: '" + invalidKeyMessage + "'"
     noDataKey = "nodatakey"
     noDataKeyResponse = {}
-    noDataKeyMessageComplete = "Error returned from 51Degrees cloud service: 'No data in response " + \
-        "from cloud service at https://cloud.51degrees.com/api/v4/accessibleProperties?resource=nodatakey'"
+
+    @staticmethod
+    def noDataKeyMessageComplete(endpoint):
+        """The error for the no data key from the service at endpoint."""
+        return "Error returned from 51Degrees cloud service: 'No data in " + \
+            "response from cloud service at " + endpoint + \
+            "accessibleProperties?resource=nodatakey'"
+
     noErrorNoSuccessKey = "noErrorNoSuccessKey"
     noErrorNoSuccessResponse = {'device': {'value': 'abc'}}
-    noErrorNoSuccessMessage= "Error returned from 51Degrees cloud service: 'Cloud service at 'https://cloud.51degrees.com/api/v4/' returned status code '400' with content {'device': {'value': 'abc'}}'"
+
+    @staticmethod
+    def noErrorNoSuccessMessage(endpoint):
+        """The error for the no error no success key from the service at
+        endpoint."""
+        return "Error returned from 51Degrees cloud service: 'Cloud " + \
+            "service at '" + endpoint + "' returned status code '400' " + \
+            "with content {'device': {'value': 'abc'}}'"
+
     accessibleSubPropertiesResponse = \
             { \
                 'Products': { \

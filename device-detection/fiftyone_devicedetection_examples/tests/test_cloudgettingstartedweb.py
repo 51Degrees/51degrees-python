@@ -24,9 +24,17 @@ import flask_unittest
 import re
 import unittest
 from fiftyone_pipeline_core.logger import Logger
-from fiftyone_devicedetection_examples.example_utils import ExampleUtils
 from fiftyone_devicedetection_examples.cloud.gettingstarted_web.app import GettingStartedWeb
 
+from .live_cloud import find_resource_key, no_resource_key
+
+RESOURCE_KEY = find_resource_key()
+
+
+@unittest.skipUnless(
+    RESOURCE_KEY,
+    no_resource_key(
+        "the device product", "device detection properties", several=True))
 class CloudGettingStartedWebTests(flask_unittest.ClientTestCase):
     # The test client sends no User-Agent of its own, so supply one that detection can
     # resolve to a hardware profile.
@@ -34,13 +42,14 @@ class CloudGettingStartedWebTests(flask_unittest.ClientTestCase):
         "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
     # Assign the `Flask` app object
-    resource_key = ExampleUtils.get_resource_key()
+    resource_key = RESOURCE_KEY
     logger = Logger()
-    app = GettingStartedWeb().build(resource_key, logger).app
+    app = GettingStartedWeb().build(resource_key, logger).app         if resource_key else None
 
     def test_cloud_getting_started_web(self, client):
         response = client.get('/')
         self.assertEqual(200, response.status_code)
+        self.assertIn(b"Find out more", response.data)
 
     # The device id used to appear on the page only by accident, inside the JSON of the
     # inlined client-side script. Now that the script is served separately, check that the

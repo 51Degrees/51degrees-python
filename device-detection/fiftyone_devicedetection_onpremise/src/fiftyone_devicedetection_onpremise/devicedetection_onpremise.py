@@ -30,11 +30,22 @@ from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.elementdata_pool import ElementDataPool
 
 from .DeviceDetectionHashEngineModule import *
 
 from .swig_data import SwigData
 from .devicedetection_datafile import DeviceDetectionDataFile
+
+# The Distributor, which serves data files only to a licence key.
+DISTRIBUTOR_URL = "https://distributor.51degrees.com/api/v2/download"
+
+LICENCE_KEY_REQUIRED_FOR_UPDATES = (
+    "Some enabled features ({}) require a licence key but one has not been "
+    "supplied. Supply one with licence_keys, or set {} to False to build "
+    "without one. The file system watcher needs no licence key. A key can be "
+    "obtained from the 51Degrees website: "
+    "https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-src-fiftyone_devicedetection_onpremise-devicedetection_onpremise.py&utm_term=licence-key-required-for-updates")
 
 
 class DeviceDetectionOnPremise(Engine):
@@ -66,7 +77,7 @@ class DeviceDetectionOnPremise(Engine):
         reuse_temp_file=False,
         concurrency=multiprocessing.cpu_count(),
         update_on_start=False,
-        data_update_url="https://distributor.51degrees.com/api/v2/download",
+        data_update_url=DISTRIBUTOR_URL,
         use_predictive_graph=None,
         use_performance_graph=None,
         data_update_use_url_formatter=True,
@@ -85,9 +96,13 @@ class DeviceDetectionOnPremise(Engine):
         @type auto_update: bool
         @param auto_update: whether to automatically update the datafile when required
         @type restricted_properties: list
-        @param restricted_properties: List of property keys to limit the engine to
+        @param restricted_properties: Property names to limit the engine to,
+        as a list or as one comma-separated string
         @type license_keys: string
-        @param licence_keys: licencekeys to use for the data file update service
+        @param licence_keys: licence keys to use for the data file update service.
+        Needed only when auto_update or update_on_start is on with the default
+        data_update_url, and the engine refuses to build without one then. The
+        file system watcher needs no key.
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type max_matched_useragent_length: int
@@ -138,6 +153,8 @@ class DeviceDetectionOnPremise(Engine):
         @param use_predictive_graph: True if the predictive optimized graph should be used for processing
         @param data_update_use_url_formatter: This must be set to false to prevent the API from appending the query string parameters that are required when calling the 51Degrees Distributor service.
         @type data_update_use_url_formatter: bool
+        @param data_update_product_type: The product to ask the 51Degrees Distributor for, such as V4TAC. When one is given, every request for a data file names it. When none is given, no request names a product unless the Distributor asks which of several is wanted, and the product of the data file in use is then named.
+        @type data_update_product_type: string
 
         """
 
@@ -148,8 +165,27 @@ class DeviceDetectionOnPremise(Engine):
 
         self.datakey = "device"
 
+        self._element_data_pool = ElementDataPool()
+
+        # The evidence key filter, with the key list it was made from. See
+        # get_evidence_key_filter.
+        self._evidence_key_filter = None
+
         if not data_file_path and not data:
             raise Exception("data_file_path or data is required")
+
+        # Only polling and the update on start-up download from the
+        # Distributor, so only they need a licence key. The file system
+        # watcher needs none.
+        auto_update = bool(auto_update)
+        update_on_start = bool(update_on_start)
+        if data_update_url == DISTRIBUTOR_URL and not licence_keys:
+            need_key = [name for name, on in (
+                ("auto_update", auto_update),
+                ("update_on_start", update_on_start)) if on]
+            if need_key:
+                raise Exception(LICENCE_KEY_REQUIRED_FOR_UPDATES.format(
+                    ", ".join(need_key), " and ".join(need_key)))
 
         if data_file_path:
             if os.path.isfile(data_file_path) == False and not update_on_start:
@@ -162,12 +198,19 @@ class DeviceDetectionOnPremise(Engine):
         else:
             self.data = data
 
-        if not licence_keys and licence_keys != "":
-            raise Exception("licence key is required. A key can be obtained from the 51Degrees website: https://51degrees.com/pricing?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_devicedetection_onpremise-src-fiftyone_devicedetection_onpremise-devicedetection_onpremise.py&utm_term=licence-key-required. If you do not wish to use a key then you can specify an empty string, but this will cause automatic updates to be disabled.")
-
         #   Create SWIG wrapper vector for restricted properties and add
 
         restricted_properties_vector = VectorStringSwig()
+
+        # A configuration file gives a list of names as one comma-separated
+        # string. A list is copied, so the caller's own list is left as it
+        # was when the metric properties are added below.
+        if isinstance(restricted_properties, str):
+            restricted_properties = [
+                name.strip() for name in restricted_properties.split(",")
+                if name.strip()]
+        elif restricted_properties:
+            restricted_properties = list(restricted_properties)
 
         if restricted_properties:
             for restricted_property in restricted_properties:
@@ -231,6 +274,11 @@ class DeviceDetectionOnPremise(Engine):
         if update_matched_useragent is not None:
             config.setUpdateMatchedUserAgent(update_matched_useragent)
 
+        # Whether the matched User-Agents are recorded, which the native
+        # default turns on. UserAgents is empty when they are not.
+        self.update_matched_useragent = (
+            update_matched_useragent is None or bool(update_matched_useragent))
+
         if allow_unmatched == True or allow_unmatched == False:
             config.setAllowUnmatched(allow_unmatched)
 
@@ -251,37 +299,27 @@ class DeviceDetectionOnPremise(Engine):
         self.properties_list = properties_list
         self.data_file_path = data_file_path
 
-        # Disable features that require a licence key if one was not supplied.
+        # The data file is kept whatever the update settings are, because
+        # an application that asks for every update itself hands this data
+        # file to the data update service with no automatic update on.
+        update_url_params = {
+            "base_url": data_update_url
+        }
 
-        if licence_keys:
-            auto_update = auto_update and (len(licence_keys) > 0)
-            update_on_start = update_on_start and (len(licence_keys) > 0)
-        else:
-            auto_update = False
-            update_on_start = False
-
-        if auto_update or update_on_start or file_system_watcher:
-
-            # Construct DataFile
-
+        if data_update_use_url_formatter:
             update_url_params = {
-                "base_url": data_update_url
+                "base_url": data_update_url,
+                "type": "HashV41",
+                "product": data_update_product_type if data_update_product_type else None,
+                "license_keys": licence_keys if licence_keys else None
             }
 
-            if data_update_use_url_formatter:
-                update_url_params = {
-                    "base_url": data_update_url,
-                    "type": "HashV41",
-                    "product": data_update_product_type if data_update_product_type else None,
-                    "license_keys": licence_keys if licence_keys else None
-                }
+            # Remove keys with None values
+            update_url_params = {k: v for k, v in update_url_params.items() if v is not None}
 
-                # Remove keys with None values
-                update_url_params = {k: v for k, v in update_url_params.items() if v is not None}
+        data_file = DeviceDetectionDataFile(flow_element=self, identifier="HashV41", verify_md5=data_update_verify_md5, auto_update = auto_update, update_on_start = update_on_start, decompress= True, path = data_file_path, download=download, file_system_watcher=file_system_watcher, polling_interval=polling_interval, update_time_maximum_randomisation=update_time_maximum_randomisation, update_url_params = update_url_params, data_update_use_url_formatter = data_update_use_url_formatter)
 
-            data_file = DeviceDetectionDataFile(flow_element=self, identifier="HashV41", verify_md5=data_update_verify_md5, auto_update = auto_update, update_on_start = update_on_start, decompress= True, path = data_file_path, download=download, file_system_watcher=file_system_watcher, polling_interval=polling_interval, update_time_maximum_randomisation=update_time_maximum_randomisation, update_url_params = update_url_params, data_update_use_url_formatter = data_update_use_url_formatter)
-
-            self.register_data_file(data_file)
+        self.register_data_file(data_file)
 
         self.data_file_path = data_file_path
         self.config = config
@@ -308,16 +346,7 @@ class DeviceDetectionOnPremise(Engine):
         # so every read goes by index.
         self.property_indexes = self.read_property_indexes()
 
-        # Get keys and add to evidenceKey filter
-
-        evidence_keys = engine.getKeys()
-
-        evidence_keys_list = []
-
-        for x in range(evidence_keys.size()):
-            evidence_keys_list.append(evidence_keys.__getitem__(x).lower())
-
-        self.evidence_keys_list = evidence_keys_list
+        self.read_evidence_keys()
 
         # Get properties list
 
@@ -343,6 +372,19 @@ class DeviceDetectionOnPremise(Engine):
         for key, property in self.get_metric_properties().items():
             self.properties[key] = property
 
+    def read_evidence_keys(self):
+
+        """!
+        Reads the Evidence keys the data in use accepts. The keys come from
+        the data file, so they are read at start-up and again after every
+        refresh.
+        """
+
+        evidence_keys = self.engine.getKeys()
+        self.evidence_keys_list = [
+            evidence_keys.__getitem__(x).lower()
+            for x in range(evidence_keys.size())]
+
     def read_property_indexes(self):
 
         """!
@@ -364,64 +406,51 @@ class DeviceDetectionOnPremise(Engine):
         return indexes
 
     def get_metric_properties(self):
-        return { "deviceid": {
-          "name": 'DeviceId',
-          "type": 'string',
-          "category": 'Device metrics',
-          "description": DEVICE_ID_DESCRIPTION,
-          "component": "Match Metrics"
-        },
-        "useragents": {
-          "name": 'UserAgents',
-          "type": 'string',
-          "category": 'Device metrics',
-          "description": USER_AGENTS_DESCRIPTION,
-          "component": "Match Metrics"
-        },
-        "difference": {
-          "name": 'Difference',
-          "type": 'int',
-          "category": 'Device metrics',
-          "description": DIFFERENCE_DESCRIPTION,
-          "component": "Match Metrics"
-        },
-        "matchednodes": {
-            "name": 'MatchedNodes',
-            "type": 'int',
-            "category": 'Device metrics',
-            "description": MATCHED_NODES_DESCRIPTION,
-            "component": "Match Metrics"
-        },
-        "drift": {
-            "name": 'Drift',
-            "type": 'int',
-            "category": 'Device metrics',
-            "description": DRIFT_DESCRIPTION,
-            "component": "Match Metrics"
-        },
-        "iterations": {
-            "name": 'Iterations',
-            "type": 'int',
-            "category": 'Device metrics',
-            "description": ITERATIONS_DESCRIPTION,
-            "component": "Match Metrics"
-        },
-        "method": {
-            "name": 'Method',
-            "type": 'string',
-            "category": 'Device metrics',
-            "description": METHOD_DESCRIPTION,
-            "component": "Match Metrics"
-        }}
+
+        """!
+        Metadata for the match metric properties, which the native code does
+        not give, keyed by name in lower case. The engine lists them after
+        the properties from the data file, in this order. UserAgents is a
+        list of strings, which has the type name "string[]" that the native
+        code gives one.
+        """
+
+        metrics = [
+            ("MatchedNodes", "int", MATCHED_NODES_DESCRIPTION),
+            ("Difference", "int", DIFFERENCE_DESCRIPTION),
+            ("Drift", "int", DRIFT_DESCRIPTION),
+            ("DeviceId", "string", DEVICE_ID_DESCRIPTION),
+            ("UserAgents", "string[]", USER_AGENTS_DESCRIPTION),
+            ("Iterations", "int", ITERATIONS_DESCRIPTION),
+            ("Method", "string", METHOD_DESCRIPTION)]
+
+        return {
+            name.lower(): {
+                "name": name,
+                "type": value_type,
+                "datafiles": list(MATCH_METRICS_DATA_FILES),
+                "category": MATCH_METRICS_CATEGORY,
+                "description": description,
+                "component": MATCH_METRICS_COMPONENT}
+            for name, value_type, description in metrics}
 
     def get_evidence_key_filter(self):
         """!
         Returns evidence key filter for the on premise engine.
         Generated via a list of evidence keys from the swig engine
 
+        The filter is kept, as it is asked for once for each Evidence key
+        of every request. It is made again only when evidence_keys_list is
+        another list, which read_evidence_keys sets after a refresh.
+
         """
 
-        return BasicListEvidenceKeyFilter(self.evidence_keys_list)
+        keys = self.evidence_keys_list
+        kept = self._evidence_key_filter
+        if kept is None or kept[0] is not keys:
+            kept = (keys, BasicListEvidenceKeyFilter(keys))
+            self._evidence_key_filter = kept
+        return kept[1]
 
 
     def set_cache(self, cache):
@@ -445,7 +474,10 @@ class DeviceDetectionOnPremise(Engine):
         """
 
         super(DeviceDetectionOnPremise, self).on_registration(pipeline)
-        self.init_engine()
+        # The native engine is built once, so an engine in several
+        # pipelines loads its data file once and every pipeline uses it.
+        if getattr(self, "engine", None) is None:
+            self.init_engine()
 
     def close(self):
 
@@ -478,14 +510,47 @@ class DeviceDetectionOnPremise(Engine):
         evidence = EvidenceDeviceDetectionSwig()
 
         # The native evidence takes text, and the Sequence Element adds a number.
+        # Evidence keys ignore case, but the native evidence matches a key's
+        # prefix with case, so the prefix is given in lower case.
         for key, value in flow_data.evidence.get_all().items():
+            prefix, dot, field = key.partition(".")
+            if dot:
+                key = prefix.lower() + dot + field
             evidence.__setitem__(key, str(value))
 
         result = self.engine.process(evidence)
 
-        data = SwigData(self, result)
+        data = self._element_data_pool.take()
+        if data is None:
+            data = SwigData(self, result)
+        else:
+            data.swig_results = result
 
         flow_data.set_element_data(data)
 
     def get_component(self, property):
         return self.engine.getMetaData().getComponentForProperty(property).getName()
+
+    def get_components(self):
+
+        """!
+        The names of the components the engine returns: those of the data
+        file in use, in the order the native code gives them, followed by
+        "Metrics", the component of the match metric properties, which the
+        native code does not give. The list is read from the data file each
+        time, so it follows a refresh.
+
+        @rtype: list
+        @return: the component names
+        """
+
+        if getattr(self, "engine", None) is None:
+            raise Exception(ENGINE_CLOSED)
+
+        components = self.engine.getMetaData().getComponents()
+        names = [
+            components.getByIndex(index).getName()
+            for index in range(components.getSize())]
+        if MATCH_METRICS_COMPONENT not in names:
+            names.append(MATCH_METRICS_COMPONENT)
+        return names

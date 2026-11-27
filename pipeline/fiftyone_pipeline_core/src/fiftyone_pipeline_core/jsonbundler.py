@@ -23,6 +23,7 @@
 from .basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from .flowelement import FlowElement
 from .elementdata_dictionary import ElementDataDictionary
+from .elementdata_pool import ElementDataPool
 
 # The property types that hold a shape in well-known text. The JSON holds such
 # a value as an object with one member, value, holding the text.
@@ -50,6 +51,11 @@ class JSONBundlerElement(FlowElement):
 
         self.properties = {"json" : { "type": "dict"} }
 
+        self._element_data_pool = ElementDataPool()
+
+        # The delayed execution information of each flow element, keyed by
+        # the element rather than its data key, as two Pipelines sharing
+        # this element can hold different elements under one data key.
         self.property_cache = {}
 
     def get_evidence_key_filter(self):
@@ -116,11 +122,6 @@ class JSONBundlerElement(FlowElement):
 
         output = {"javascriptProperties": [] }
 
-        if len(self.property_cache):
-            property_cache_set = True
-        else:
-            property_cache_set = False
-        
         for flow_element in flowdata.pipeline.flow_elements:
 
             if (flow_element.datakey == "jsonbundler" or
@@ -131,7 +132,9 @@ class JSONBundlerElement(FlowElement):
             
             properties = flow_element.get_properties()
 
-            if not property_cache_set:
+            property_cache = self.property_cache.get(flow_element)
+
+            if property_cache is None:
 
                 delay_execution_list = []
                 delayed_evidence_properties = {}
@@ -160,12 +163,17 @@ class JSONBundlerElement(FlowElement):
                                 flow_element.datakey.lower() + '.' + x, delayed_evidence_properties_list))
 
 
-                self.property_cache[flow_element.datakey] = {
+                property_cache = {
                     "delayExecutionList": delay_execution_list,
                     "evidenceProperties": delayed_evidence_properties
                 }
 
-            property_cache = self.property_cache[flow_element.datakey]
+                # Kept once the element has properties. An element can have
+                # none until its property metadata has been fetched, so an
+                # answer taken from no properties is read again on the next
+                # request.
+                if properties:
+                    self.property_cache[flow_element] = property_cache
 
             # Create empty area for FlowElement properties to go
 
@@ -253,7 +261,10 @@ class JSONBundlerElement(FlowElement):
 
                         output["javascriptProperties"].append(flow_element.datakey.lower() + "." + propertykey.lower())
                  
-        data = ElementDataDictionary(self, {"json": output})
+        data = self._element_data_pool.take()
+        if data is None:
+            data = ElementDataDictionary(self, {})
+        data.contents["json"] = output
 
         flowdata.set_element_data(data)
 

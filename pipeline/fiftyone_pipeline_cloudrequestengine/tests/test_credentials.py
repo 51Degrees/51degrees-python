@@ -30,6 +30,7 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 
 from .classes.accepteverykeyelement import AcceptEveryKeyElement
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
+from .classes.endpoint import expected_endpoint
 
 RESOURCE_KEY = "resource_key"
 LICENSE_KEY = "a-licence-key"
@@ -49,11 +50,6 @@ class TestCredentials(CloudRequestEngineTestsBase):
         Run one flow data through a pipeline holding the engine, and give
         back the requests the mock client saw.
         """
-
-        # The accessible properties are fetched on first use, which a
-        # cloud engine after this one would trigger when it registers, so
-        # trigger it here as that engine would.
-        engine.flow_element_properties  # noqa
 
         pipeline = PipelineBuilder().add(engine).build()
         data = pipeline.create_flowdata()
@@ -140,7 +136,7 @@ class TestCredentials(CloudRequestEngineTestsBase):
 
         request_type, url, content = self.data_request(requests)
         self.assertEqual("POST", request_type)
-        self.assertEqual(Constants.BASE_URL_DEFAULT + "json", url)
+        self.assertEqual(expected_endpoint() + "json", url)
         self.assertNotIn(Constants.RESOURCE_PARAMETER, content)
         self.assertEqual(LICENSE_KEY, content[Constants.LICENSE_PARAMETER])
         self.assertEqual(
@@ -162,10 +158,16 @@ class TestCredentials(CloudRequestEngineTestsBase):
 
         self.assertIn("device", engine.flow_element_properties)
 
-        request_type, url, content = engine.http_client.requests[-1]
+        # The engine also asks for the evidence keys when it is built, so
+        # the request for the properties is found by its address.
+        properties_requests = [
+            request for request in engine.http_client.requests
+            if "accessibleProperties" in request[1]]
+        self.assertEqual(1, len(properties_requests))
+        request_type, url, content = properties_requests[0]
         self.assertEqual("POST", request_type)
         self.assertEqual(
-            Constants.BASE_URL_DEFAULT + "accessibleProperties", url)
+            expected_endpoint() + "accessibleProperties", url)
         self.assertEqual({Constants.LICENSE_PARAMETER: LICENSE_KEY}, content)
 
     def test_licence_key_without_properties_is_refused(self):

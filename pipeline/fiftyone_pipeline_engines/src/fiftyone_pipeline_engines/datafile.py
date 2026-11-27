@@ -124,13 +124,29 @@ class DataFile():
         """
         return datetime.date.today()
 
-    def refresh(self, identifier):
+    def get_data_update_product(self):
+        """!
+        Function called to get the product the data file in use is of, as
+        the data update service names it. A license key can hold several
+        products, and the data update service then asks which one is wanted
+        by answering with the products it offers. The data file update
+        service then makes its request again with the one this function
+        returns named in it.
+        @returns string: Name of the product, or None when the data file
+        names none, which is the default
+        """
+        return None
+
+    def refresh(self, identifier=None):
         """!
         Function called when datafile has been updated.
         Defaults to a refresh method on the attached FlowElement
         @type identifier : string
-        @param identifier : identifier of the datafile
+        @param identifier : identifier of the datafile, this data file's own
+        when none is given, as the data update service gives none
         """
+        if identifier is None:
+            identifier = self.identifier
         self.flow_element.refresh(identifier)
 
     def get_update_url(self):

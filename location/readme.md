@@ -23,7 +23,7 @@ The [tested versions](https://51degrees.com/documentation/_product_summaries__te
 
 You can confirm this is working with the following micro-example.
 
-* Create a resource key for free with the 51Degrees [configurator](https://configure.51degrees.com/6CTsmbPx?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=from-pypi). This defines the properties you want to access.
+* Create a resource key for free with the 51Degrees [configuration page](https://51degrees.com/configure/6CTsmbPx?utm_source=pypi&utm_medium=package&utm_campaign=51degrees-python&utm_content=fiftyone_location&utm_term=from-pypi). This defines the properties you want to access.
 * On the 'implement' page of the configurator, copy the resource key and replace YOUR_RESOURCE_KEY in the example below. Save this as examplelocation.py
 * Run the example with `python examplelocation.py`
 * Feel free to try different locations and property values.
@@ -54,11 +54,17 @@ To run the web example navigate into Examples folder:
 
 #### Linux
 
-Execute `export FLASK_APP=web` where `web` is the example file, and start your application via `flask run`.
+Execute `export FLASK_APP=web` where `web` is the example file, and start your application via `flask run --port 5151`.
 
 #### Windows
 
-Execute `$env:FLASK_APP = "web"` where `web` is the example file, and start your application via `flask run`.
+Execute `$env:FLASK_APP = "web"` where `web` is the example file, and start your application via `flask run --port 5151`.
+
+A Flow Data cannot be used by two threads at once, so the web example
+creates a Flow Data for each request, uses it only in the code that handles
+that request, and closes it before the request ends. To hand work to
+another thread or task, read the values it needs from the Flow Data first
+and pass those values, not the Flow Data.
 
 ## Find out more
 

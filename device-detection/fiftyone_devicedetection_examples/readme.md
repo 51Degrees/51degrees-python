@@ -30,6 +30,16 @@ The data file update example needs a licence key, and the hardware profile
 examples need the TAC data file or its CSV export, so without them each one
 says what it needs and where to ask for it, and stops.
 
+## Web examples
+
+The `gettingstarted_web` and `useragentclienthints_web` examples, under
+`cloud` and `onpremise`, are Flask web applications. A Flow Data cannot be
+used by two threads at once, so each of them creates a Flow Data for each
+request, uses it only in the code that handles that request, and closes it
+when the request ends. To hand work to another thread or task, read the
+values it needs from the Flow Data first and pass those values, not the
+Flow Data.
+
 ## Tests
 
 To run the tests use:
@@ -41,15 +51,19 @@ examples as they run from a fresh clone, with no licence key, and check that
 each one finishes on the free Lite data file and gives the link to ask for
 the Enterprise data file.
 
-The cloud tests need a valid 51Degrees resource key (see above), and fail
+The cloud tests need a valid 51Degrees resource key (see above), and skip
 without one. They read it from the environment variable
-`_51DEGREES_RESOURCE_KEY`, then `_51DEGREES_RESOURCE_KEY_BESPOKE`.
+`_51DEGREES_RESOURCE_KEY_BESPOKE`, and give it to each example under
+`_51DEGREES_RESOURCE_KEY`, the name the examples read. They are marked
+`live`, so `python -m pytest -m "not live"` runs every other test, which is
+what CI does when no resource key is passed.
 
-For example, use following command to set the resource key on Linux:
-`export _51DEGREES_RESOURCE_KEY=MY-RESOURCE-KEY`
+For example, use following command to set the resource key for the tests on
+Linux:
+`export _51DEGREES_RESOURCE_KEY_BESPOKE=MY-RESOURCE-KEY`
 
 On Microsoft Windows use:
-`$env:_51DEGREES_RESOURCE_KEY = "MY-RESOURCE-KEY"`
+`$env:_51DEGREES_RESOURCE_KEY_BESPOKE = "MY-RESOURCE-KEY"`
 
 As the performance and offline processing tests take longer than the others, there is another environment variable flag to run those:
 

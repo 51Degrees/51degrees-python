@@ -1,0 +1,227 @@
+name: Free-threaded Python
+
+# Builds the Device Detection and IP Intelligence on-premise packages on the
+# free-threaded builds of Python and runs their tests there, with the free
+# Lite data files. Those come from the assets common-ci fetches for each run,
+# as every other workflow's tests do. The first job finds them in the asset
+# cache, or fetches them into it with common-ci's prefetch_assets action when
+# it misses, and the test jobs restore them from there. No job downloads
+# them from the links in the data submodule.
+# ci/free-threaded-python.Tests.ps1 checks this. The native modules do not declare that they run without
+# the GIL, so Python turns the GIL back on when it loads them.
+# tests/test_free_threaded.py in each package checks that it does, and is
+# skipped on every other build of Python.
+on:
+  pull_request:
+    paths:
+      - 'device-detection/fiftyone_devicedetection_onpremise/**'
+      - 'ip-intelligence/fiftyone_ipintelligence_onpremise/**'
+      - 'pipeline/fiftyone_pipeline_core/**'
+      - 'pipeline/fiftyone_pipeline_engines/**'
+      - 'pipeline/fiftyone_pipeline_engines_fiftyone/**'
+      - 'cxx'
+      - '.github/workflows/free-threaded-python.yml'
+  push:
+    branches:
+      - main
+      - rc
+    paths:
+      - 'device-detection/fiftyone_devicedetection_onpremise/**'
+      - 'ip-intelligence/fiftyone_ipintelligence_onpremise/**'
+      - 'pipeline/fiftyone_pipeline_core/**'
+      - 'pipeline/fiftyone_pipeline_engines/**'
+      - 'pipeline/fiftyone_pipeline_engines_fiftyone/**'
+      - 'cxx'
+      - '.github/workflows/free-threaded-python.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Every warning in the native build is an error in this workflow's builds, as
+# in every build 51Degrees runs. setup.py reads the variable in
+# warnings_are_errors().
+env:
+  _51DEGREES_WARNINGS_AS_ERRORS: 'true'
+
+jobs:
+  # The job is named Configure, as common-ci's is, because this repository's
+  # ci/fetch-assets.ps1 fetches the assets of every product only in a job of
+  # that name. The asset cache it fills is the one the other workflows that
+  # day restore, so it must never hold only some of them.
+  Configure:
+    name: Find or fetch the run's assets
+    runs-on: ubuntu-latest
+    outputs:
+      key: ${{ steps.prefetch-assets.outputs.cache-key }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      # common-ci's action and steps run from its checkout, with this
+      # repository below it, as in common-ci's own workflows.
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          persist-credentials: false
+
+      # The fetch links the assets into the data submodule, so it is
+      # checked out too.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          path: ${{ github.event.repository.name }}
+          persist-credentials: false
+          submodules: recursive
+
+      # Restores nothing, and fetches the assets into the cache only when it
+      # has no copy under the day's key.
+      - name: Find or fetch the assets
+        id: prefetch-assets
+        uses: ./.github/actions/prefetch_assets
+        with:
+          repo: ${{ github.event.repository.name }}
+          secrets: ${{ toJSON(secrets) }}
+          vars: ${{ toJSON(vars) }}
+          license-key: ${{ secrets.LICENSE_KEY_V4TAC_IPIV4ENTERPRISE }}
+
+  free-threaded:
+    name: Python ${{ matrix.python }} on ${{ matrix.os }}
+    needs: Configure
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            python: '3.13t'
+          - os: ubuntu-latest
+            python: '3.14t'
+          - os: windows-latest
+            python: '3.14t'
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          # The native source is the cxx submodule, and the data files are
+          # linked from its own data submodule.
+          submodules: recursive
+          # The package versions written below come from the release tags.
+          fetch-depth: 0
+
+      # ci/write-package-versions.ps1 works out the versions with common-ci's
+      # release plan.
+      - name: Checkout common-ci
+        uses: actions/checkout@v4
+        with:
+          repository: 51Degrees/common-ci
+          ref: main
+          path: .common-ci
+          persist-credentials: false
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Check the build is free-threaded
+        run: |
+          python -c "import sys, sysconfig; print(sys.version); assert sysconfig.get_config_var('Py_GIL_DISABLED') == 1, 'not a free-threaded build'; assert not sys._is_gil_enabled(), 'the GIL is on at start'"
+
+      - name: Install the packages the tests use
+        env:
+          _51DEGREES_COMMON_CI_DIR: ${{ github.workspace }}/.common-ci
+        run: |
+          # A pip install that fails stops the step here, rather than
+          # leaving the tests to fail on a missing module.
+          $PSNativeCommandUseErrorActionPreference = $true
+          python -m pip install --upgrade pip
+          python -m pip install pytest flask flask-unittest json5 ruamel.yaml Cython setuptools
+          # A package installed from this checkout is 0.0.0 without the
+          # version.txt this writes, which is below the versions the packages
+          # here require of each other, so pip would refuse them.
+          ./ci/write-package-versions.ps1
+          # The pipeline packages come from this checkout, as the tests run
+          # with the pipeline code they are released with.
+          python -m pip install `
+            -e pipeline/fiftyone_pipeline_core `
+            -e pipeline/fiftyone_pipeline_engines `
+            -e pipeline/fiftyone_pipeline_engines_fiftyone `
+            -e pipeline/fiftyone_pipeline_cloudrequestengine `
+            -e device-detection/fiftyone_devicedetection_shared `
+            -e device-detection/fiftyone_devicedetection_cloud `
+            -e ip-intelligence/fiftyone_ipintelligence_shared
+          # These two require the on-premise package by name, which the
+          # tests read from its source folder instead.
+          python -m pip install --no-deps `
+            -e device-detection/fiftyone_devicedetection `
+            -e device-detection/fiftyone_devicedetection_examples
+
+      # The path and the cross-OS setting are those prefetch_assets saves
+      # with, so the key matches.
+      - name: Restore the run's assets
+        uses: actions/cache/restore@v5
+        with:
+          path: assets
+          key: ${{ needs.Configure.outputs.key }}
+          enableCrossOsArchive: true
+          # The first job fetched them, so a miss is a fault, never a reason
+          # to download them here.
+          fail-on-cache-miss: true
+
+      # Copies, not links, so the Windows job needs no right to make links.
+      - name: Put the free data files where the tests look for them
+        run: |
+          $dd = 'cxx/data/device-detection'
+          $ipi = 'cxx/data/ip-intelligence'
+          New-Item -ItemType Directory -Force -Path $dd, $ipi, ip-intelligence/assets | Out-Null
+          Copy-Item -LiteralPath 'assets/51Degrees-LiteV4.1.hash' -Destination $dd
+          Copy-Item -LiteralPath 'assets/20000 Evidence Records.yml' -Destination $dd
+          Copy-Item -LiteralPath 'assets/51Degrees-IPIV4AsnIpiV41.ipi' -Destination $ipi
+          # The data repository saves the Lite IP Intelligence file as
+          # 51Degrees-LiteV41.ipi, and the tests also look for it under the
+          # name the assets give it.
+          Copy-Item -LiteralPath 'assets/51Degrees-LiteIpiV41.ipi' -Destination "$ipi/51Degrees-LiteV41.ipi"
+          Copy-Item -LiteralPath 'assets/51Degrees-LiteIpiV41.ipi' -Destination ip-intelligence/assets
+
+      - name: Build the native modules
+        run: |
+          if ($IsWindows) {
+            # A short temporary path, for the MSVC path length limit.
+            $env:TEMP = New-Item -ItemType Directory -Force -Path 'C:\tmp'
+            $env:TMP = $env:TEMP
+          }
+          foreach ($package in 'device-detection/fiftyone_devicedetection_onpremise', 'ip-intelligence/fiftyone_ipintelligence_onpremise') {
+            Push-Location $package
+            python setup.py build_clib build_ext --inplace
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            Pop-Location
+          }
+
+      # The tests start with the GIL on, as the package's readme says to,
+      # because Python warns when it turns the GIL on to load a native module
+      # and every warning fails the tests. tests/test_free_threaded.py loads
+      # each module in a new interpreter without PYTHON_GIL, and checks that
+      # Python turns the GIL on and gives that warning.
+      - name: Run the tests
+        env:
+          PYTHON_GIL: '1'
+        run: |
+          $failed = $false
+          foreach ($package in 'device-detection/fiftyone_devicedetection_onpremise', 'ip-intelligence/fiftyone_ipintelligence_onpremise') {
+            Write-Host "::group::$package"
+            Push-Location $package
+            $env:PYTHONPATH = Join-Path $PWD 'src'
+            # -rs lists any test that skipped, and none should here.
+            python -m pytest -rs tests
+            if ($LASTEXITCODE) { $failed = $true }
+            Pop-Location
+            Write-Host '::endgroup::'
+          }
+          if ($failed) { exit 1 }

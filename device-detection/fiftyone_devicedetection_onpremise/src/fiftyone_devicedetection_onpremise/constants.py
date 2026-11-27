@@ -19,23 +19,37 @@
 # in the end user terms of the application under an appropriate heading,
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
-DEVICE_ID_DESCRIPTION = ('Consists of four components separated by a hyphen '
-                         'symbol: Hardware-Platform-Browser-IsCrawler where '
-                         'each Component represents an ID of the corresponding '
-                         'Profile.')
-USER_AGENTS_DESCRIPTION = 'The matched User-Agents.'
+# The descriptions of the match metric properties, as the on-premise device
+# detection specification gives them.
+DEVICE_ID_DESCRIPTION = ('Contains the profile ids of the matching profiles, '
+                         'separated by a hyphen symbol. For example '
+                         '[HardwareId]-[PlatformId]-[BrowserId]-[CrawlerId]. '
+                         'By convention, these will be in component Id '
+                         'order. There will often be 4 ids present, but '
+                         'this is not guaranteed.')
+USER_AGENTS_DESCRIPTION = ('The User-Agent values that were matched, each '
+                           'listed once across every result. Populated when '
+                           'the Update Matched User Agent configuration '
+                           'option is on, which it is by default.')
 DIFFERENCE_DESCRIPTION = ('Used when detection method is not Exact or None. '
-                          'This is an integer value and the larger the value '
-                          'the less confident the detector is in this result.')
+                          'The larger the value the less confident the '
+                          'detector is in this result.')
 MATCHED_NODES_DESCRIPTION = ('Indicates the number of hash nodes matched '
-                             'within the evidence.')
-DRIFT_DESCRIPTION = ('Total difference in character positions where the '
-                     'substrings hashes were found away from where they '
-                     'were expected.')
+                             'within the Evidence.')
+DRIFT_DESCRIPTION = ('The drift of every component\'s result added '
+                     'together, each result\'s drift being how far, in '
+                     'character positions, the substring\'s hashes were '
+                     'found from where they were expected. Never the '
+                     'largest or smallest result alone.')
 ITERATIONS_DESCRIPTION = ('The number of iterations carried out in order to '
                           'find a match. This is the number of nodes in the '
                           'graph which have been visited.')
 METHOD_DESCRIPTION = 'The method used to determine the match result.'
+
+# The category, component and data files of every match metric property.
+MATCH_METRICS_CATEGORY = 'Device Metrics'
+MATCH_METRICS_COMPONENT = 'Metrics'
+MATCH_METRICS_DATA_FILES = ('Lite', 'Premium', 'Enterprise', 'TAC')
 
 CACHE_NOT_SUPPORTED = ('A results cache cannot be configured in the '
                        'on-premise device detection engine. Its results '

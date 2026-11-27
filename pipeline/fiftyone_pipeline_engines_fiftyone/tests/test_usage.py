@@ -36,6 +36,23 @@ from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_engines_fiftyone.share_usage import ShareUsage
 from flask import Flask, request, render_template
 import requests
+from unittest import mock
+
+from fiftyone_pipeline_core.basiclist_evidence_keyfilter import \
+    BasicListEvidenceKeyFilter
+from fiftyone_pipeline_core.flowelement import FlowElement
+
+
+class UsingElement(FlowElement):
+    """Accepts the evidence keys given, and adds no data."""
+
+    def __init__(self, keys):
+        super(UsingElement, self).__init__()
+        self.datakey = "using"
+        self.keys = keys
+
+    def get_evidence_key_filter(self):
+        return BasicListEvidenceKeyFilter(self.keys)
 
 testHost = "127.0.0.1"
 testPort = 5000
@@ -406,6 +423,73 @@ class UsageTests(unittest.TestCase):
         usage.close()
 
         self.assertEqual(ips, client_ips(app.received))
+
+    def closing_pipeline(self, **settings):
+        """!
+        A pipeline whose usage sharing element sends nothing until it is
+        closed, as the tests queue fewer than ten entries, then sends two
+        entries in each message, so that closing sends the entries queued in
+        more than one message.
+        """
+        usage = ShareUsage(
+            requested_package_size=10,
+            endpoint=testEndpoint,
+            **settings)
+        usage._log = lambda level, message: self.logs.append(
+            (level, message))
+        usage._message_size = 2
+        pipeline = PipelineBuilder().add(usage).build()
+        return usage, pipeline
+
+    def test_close_keeps_sending_after_a_failed_send(self):
+        """!
+        A failed send while closing does not stop closing from sending the
+        rest of the queue, as only a pause after failed sends does.
+        """
+
+        usage, pipeline = self.closing_pipeline()
+        ips = [self.process_unique(pipeline) for i in range(4)]
+        self.assertEqual([], app.attempts)
+        sends = []
+        send = usage.send_thread
+
+        def first_send_fails(endpoint, data):
+            sends.append(data)
+            return False if len(sends) == 1 else send(endpoint, data)
+
+        usage.send_thread = first_send_fails
+        usage.close()
+
+        self.assertEqual(
+            2, len(sends),
+            "Closing did not send the second message after the first "
+            "failed.")
+        self.assertEqual(ips[2:], client_ips(app.received))
+
+    def test_close_stops_sending_when_failed_sends_start_a_pause(self):
+        """!
+        Failed sends while closing count towards the back-off, and once they
+        start a pause closing sends nothing more and logs how many entries
+        were left.
+        """
+
+        usage, pipeline = self.closing_pipeline(
+            failures_to_enter_recovery=2)
+        for i in range(8):
+            self.process_unique(pipeline)
+        app.status = 500
+
+        usage.close()
+
+        self.assertEqual(
+            2, len(app.attempts),
+            "Closing did not stop at the pause the second failed send "
+            "started.")
+        left = [log for log in self.logs
+                if "4 usage sharing entries were not sent" in log[1]]
+        self.assertEqual(
+            1, len(left),
+            f"The entries left were not logged once. Logged: {self.logs}")
 
     def test_close_stops_sending_after_the_cleanup_bound(self):
         """!
@@ -790,20 +874,27 @@ class UsageTests(unittest.TestCase):
             requested_package_size=10,
             share_percentage=0.01,
             endpoint=testEndpoint)
+        self.addCleanup(usage.close)
 
         pipeline = (PipelineBuilder())\
             .add(usage)\
             .build()
 
-        requiredEvents = 0
-        while len(app.received) == 0 and requiredEvents <= 10000:
-            flowdata = pipeline.create_flowdata()
-            flowdata.evidence.add("server.client-ip", "1.2.3.4")
-            flowdata.evidence.add("header.user-agent", f"ua {requiredEvents}")
-            flowdata.process()
-            requiredEvents = requiredEvents + 1
-
-        self.waitForUsageThreads()
+        # Counts the requests the element chooses to share, rather than
+        # waiting for a message to reach the receiver, so the count does not
+        # depend on when a sending thread runs.
+        with mock.patch.object(
+                usage, "add_to_share_usage",
+                wraps=usage.add_to_share_usage) as shared:
+            requiredEvents = 0
+            while shared.call_count < usage.requested_package_size and \
+                    requiredEvents <= 10000:
+                flowdata = pipeline.create_flowdata()
+                flowdata.evidence.add("server.client-ip", "1.2.3.4")
+                flowdata.evidence.add(
+                    "header.user-agent", f"ua {requiredEvents}")
+                flowdata.process()
+                requiredEvents = requiredEvents + 1
 
         # On average, the number of required events should be around
         # 1000. However, as it's chance based it can vary
@@ -816,7 +907,7 @@ class UsageTests(unittest.TestCase):
             "Expected the number of required events to be less than " +
             f"10,000, but was actually '{requiredEvents}'")
 
-    def test_includes_header(self):
+    def test_escapes_xml_characters(self):
         """!
         Check that XML characters are escaped correctly.
         """
@@ -909,7 +1000,9 @@ class UsageTests(unittest.TestCase):
     def test_share_all(self):
         """!
         Check that sharing all evidence shares what the other rules leave
-        out, but not the evidence that is never shared.
+        out, but not the evidence that is never shared, a cookie that
+        does not start 51D_, or a parameter that neither starts 51D_ nor is
+        used by the Pipeline.
         """
 
         usage = ShareUsage(
@@ -922,28 +1015,30 @@ class UsageTests(unittest.TestCase):
             .build()
         flowdata = pipeline.create_flowdata()
         flowdata.evidence.add("cookie.sessionid", "cookie value")
+        flowdata.evidence.add("cookie.51d_screenpixelswidth", "1080")
         flowdata.evidence.add("query.campaign", "campaign value")
         flowdata.evidence.add("query.id.email", "email value")
         flowdata.process()
 
         self.waitForUsageThreads()
         self.assertEqual(len(app.received), 1)
-        self.assertIn('<cookie Name="sessionid">cookie value</cookie>', app.received[0])
-        self.assertIn('<query Name="campaign">campaign value</query>', app.received[0])
+        self.assertNotIn("cookie value", app.received[0])
+        self.assertIn('<cookie Name="51d_screenpixelswidth">1080</cookie>', app.received[0])
+        self.assertNotIn("campaign value", app.received[0])
         self.assertNotIn("email value", app.received[0])
 
     def test_parameter_names_with_dots(self):
         """!
         Check that a query string parameter whose name contains a dot is
-        matched by its whole name against the parameters to share.
+        matched by its whole name against the evidence the Pipeline uses.
         """
 
         usage = ShareUsage(
             requested_package_size=1,
-            endpoint=testEndpoint,
-            query_whitelist=["valid.email"])
+            endpoint=testEndpoint)
 
         pipeline = (PipelineBuilder())\
+            .add(UsingElement(["query.valid.email"]))\
             .add(usage)\
             .build()
         flowdata = pipeline.create_flowdata()
@@ -958,15 +1053,17 @@ class UsageTests(unittest.TestCase):
 
     def test_empty_query_whitelist(self):
         """!
-        Check that an empty list of parameters to share shares only those
-        starting 51D_, and that None shares every parameter.
+        Check that, with sharing every parameter turned off, an empty
+        list of parameters to share and None both share only those
+        starting 51D_.
         """
 
-        for query_whitelist, shared in (([], False), (None, True)):
+        for query_whitelist in ([], None):
             app.received = []
             usage = ShareUsage(
                 requested_package_size=1,
                 endpoint=testEndpoint,
+                share_all_query_string_parameters=False,
                 query_whitelist=query_whitelist,
                 header_blacklist=["x-secret"])
 
@@ -981,7 +1078,7 @@ class UsageTests(unittest.TestCase):
             self.waitForUsageThreads()
             self.assertEqual(len(app.received), 1)
             self.assertIn("fiftyone value", app.received[0])
-            self.assertEqual("campaign value" in app.received[0], shared)
+            self.assertNotIn("campaign value", app.received[0])
 
     def test_session_cookie(self):
         """!
@@ -1161,4 +1258,8 @@ class UsageTests(unittest.TestCase):
         flowdata.evidence.add("header.user-agent", '"\'&><')
         flowdata.process()
 
-        self.assertTrue(True)
+        # Closing waits for the send, which times out, so no sending thread
+        # outlives the test and posts while a later test stands in for
+        # requests.post.
+        usage.close()
+        self.assertFalse(usage._sending)

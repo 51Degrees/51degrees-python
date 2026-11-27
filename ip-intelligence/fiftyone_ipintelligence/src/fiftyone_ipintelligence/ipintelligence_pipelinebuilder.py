@@ -70,7 +70,8 @@ class IpIntelligencePipelineBuilder(PipelineBuilder):
         On Premise Engine Settings:
 
         @type usage_sharing : bool
-        @param usage_sharing : Whether to enable usage sharing if using the on premise engine
+        @param usage_sharing : Whether to enable usage sharing if using the
+        on premise engine. The usage sharing element runs last.
         @type data_file_path: string
         @param data_file_path: path to the data file (.ipi)
         @type auto_update: bool
@@ -78,7 +79,10 @@ class IpIntelligencePipelineBuilder(PipelineBuilder):
         @type restricted_properties: list
         @param restricted_properties: List of property keys to limit the engine to
         @type licence_keys: string
-        @param licence_keys: licencekeys to use for the data file update service
+        @param licence_keys: licence keys to use for the data file update service.
+        Needed only when auto_update or update_on_start is on with the default
+        data_update_url, and the engine refuses to build without one then. The
+        file system watcher needs no key.
         @type download: bool
         @param download: whether to download the datafile or keep it in memory when it is returned from the datafile update service
         @type performance_profile: string
@@ -117,14 +121,17 @@ class IpIntelligencePipelineBuilder(PipelineBuilder):
 
         # Add specific engines
 
+        # Usage sharing, when on with the on premise engine, runs after
+        # every other element, so build() moves it after any element the
+        # caller adds later.
+        self._usage_sharing = None
+
         if "data_file_path" in settings:
             del settings["settings"]
             ip_engine = IpIntelligenceOnPremise(**settings)
 
-            # If usage sharing enabled, add usage sharing engine
-
             if usage_sharing:
-                self.add(ShareUsage())
+                self._usage_sharing = ShareUsage()
 
         else :
             self.add(CloudRequestEngine(settings))
@@ -134,3 +141,20 @@ class IpIntelligencePipelineBuilder(PipelineBuilder):
             ip_engine.set_cache(settings["cache"])
 
         self.add(ip_engine)
+
+        if self._usage_sharing is not None:
+            self.add(self._usage_sharing)
+
+    def build(self):
+
+        """!
+        Build the Pipeline, with usage sharing after every other element.
+
+        @rtype: Pipeline
+        @return: Returns a Pipeline
+        """
+
+        if self._usage_sharing in self.flow_elements:
+            self.flow_elements.remove(self._usage_sharing)
+            self.flow_elements.append(self._usage_sharing)
+        return super(IpIntelligencePipelineBuilder, self).build()

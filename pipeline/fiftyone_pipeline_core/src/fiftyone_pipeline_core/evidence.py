@@ -20,10 +20,16 @@
 # such notice(s) shall fulfill the requirements of that article.
 # *********************************************************************
 
+from .elementdata import _FlowDataDict
+from .messages import Messages
+
 # The key the web integration gives the web request itself, which the usage
 # sharing element reads. No element uses it as evidence, so filter() always
 # sets it aside, whatever the elements' filters accept.
 HTTP_REQUEST_KEY = "server.http-request"
+
+# The attributes that hold Evidence values.
+_VALUES = ("evidence", "unaccepted")
 
 
 class Evidence:
@@ -34,13 +40,32 @@ class Evidence:
         @type flowdata: FlowData
         @param flowdata: Parent FlowData
         """
+        self.flowdata = flowdata
         self.evidence = {}
         # Each key in lower case to the key as first added, because keys
         # ignore letter case.
         self.keys = {}
         self.evidence_filtered = False
-        self.flowdata = flowdata
         self.unaccepted = {}
+
+    def __setattr__(self, name, value):
+
+        """!
+        Set an attribute. The Evidence values, and the values filter() sets
+        aside, are kept in dicts that refuse writes once the FlowData has
+        finished processing, and neither can be replaced then.
+
+        @raise Exception: when one of them is replaced once the FlowData
+        has finished processing
+        """
+
+        if name in _VALUES:
+            flowdata = self.__dict__.get("flowdata")
+            if name in self.__dict__ and \
+                    getattr(flowdata, "__dict__", {}).get("processed"):
+                raise Exception(Messages.FLOW_DATA_FINISHED.format("Evidence"))
+            value = _FlowDataDict(flowdata, "Evidence", value)
+        object.__setattr__(self, name, value)
 
     def add(self, key, value):
         """!
@@ -51,7 +76,11 @@ class Evidence:
 
         @type value: mixed
         @param value: a piece of evidence
+        @raise Exception: once the FlowData has finished processing
         """
+
+        if self.flowdata.processed:
+            raise Exception(Messages.FLOW_DATA_FINISHED.format("Evidence"))
 
         folded = str(key).lower()
         if folded in self.keys:
@@ -66,9 +95,13 @@ class Evidence:
 
         @type evidence_dictionary: dict
         @param evidence_dictionary: Dict of evidence
+        @raise Exception: once the FlowData has finished processing
         """
 
-        if not type(evidence_dictionary) is dict:
+        if self.flowdata.processed:
+            raise Exception(Messages.FLOW_DATA_FINISHED.format("Evidence"))
+
+        if not isinstance(evidence_dictionary, dict):
             self.flowdata.set_error("core", "Must pass valid dictionary.")
 
         for key, value in evidence_dictionary.items():
@@ -119,22 +152,22 @@ class Evidence:
 
     def filter(self) -> None:
         """!
-        Filter evidence using `filter_evidence_key` and
-        `filter_evidence` methods of each FlowElement in the pipeline. The
-        keys that do not pass, and the web request under HTTP_REQUEST_KEY,
-        move to get_unaccepted().
+        Filter evidence using the Pipeline's evidence key filter, which is
+        built once with the Pipeline and asks each FlowElement's
+        `filter_evidence_key` when a key is checked. The keys that do not
+        pass, and the web request under HTTP_REQUEST_KEY, move to
+        get_unaccepted().
         """
 
         if self.evidence_filtered:
             return
 
+        accepted = self.flowdata.pipeline.get_evidence_key_filter()
+
         # Loop over a copy of the keys, as keys are removed on the way.
         for key in list(self.evidence):
-            if str(key).lower() == HTTP_REQUEST_KEY or not any([
-                flow_element.filter_evidence_key(key)
-                for flow_element
-                in self.flowdata.pipeline.flow_elements
-            ]):
+            if str(key).lower() == HTTP_REQUEST_KEY or \
+                    not accepted.filter_evidence_key(key):
                 self.unaccepted[key] = self.evidence.pop(key)
                 del self.keys[str(key).lower()]
 

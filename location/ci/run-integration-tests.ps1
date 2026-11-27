@@ -1,20 +1,22 @@
 param (
     [Parameter(Mandatory=$true)]
-    [string]$RepoName,
-    [Parameter(Mandatory=$true)]
-    [Hashtable]$Keys
+    [string]$RepoName
 )
 
-if (!$Keys.TestResourceKey) {
-    throw "No TestResourceKey was passed, so the cloud tests cannot call " +
-        "the cloud service. The workflows set it from the " +
-        "_51DEGREES_RESOURCE_KEY_BESPOKE secret."
+# Without a resource key the tests that need one, which are marked live, are
+# left out and every other test runs. A live test still fails when it finds
+# no key, so a key that is passed but does not reach it is not missed.
+# The selection is added to any options a caller set in PYTEST_ADDOPTS.
+$addopts = $env:PYTEST_ADDOPTS
+if (!$env:_51DEGREES_RESOURCE_KEY_BESPOKE) {
+    Write-Output "::warning title=No resource key::_51DEGREES_RESOURCE_KEY_BESPOKE is not set, so the tests that need a resource key are skipped. They are marked live, and the other integration tests run. common-ci exports it from the organization secret of that name."
+    $env:PYTEST_ADDOPTS = "$addopts -m `"not live`"".Trim()
 }
 
-# The examples and tests read the resource key from _51DEGREES_RESOURCE_KEY,
-# and common-ci sets only the older resource_key, so the key is set here.
-$env:_51DEGREES_RESOURCE_KEY = $Keys.TestResourceKey
-
-./python/run-integration-tests.ps1 -RepoName $RepoName -Packages . -Keys $Keys
+try {
+    ./python/run-integration-tests.ps1 -RepoName $RepoName -Packages .
+} finally {
+    $env:PYTEST_ADDOPTS = $addopts
+}
 
 exit $LASTEXITCODE
