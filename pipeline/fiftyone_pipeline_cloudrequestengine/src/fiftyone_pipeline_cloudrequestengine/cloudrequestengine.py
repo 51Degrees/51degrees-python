@@ -112,7 +112,9 @@ class CloudRequestEngine(Engine):
         no discovery request when it is built.
         7) human_confidence_transactions, the HumanConfidenceTransactions
         that issues the transaction of each page asking for Human
-        Confidence. The engine makes its own when this is missing.
+        Confidence. The engine makes its own when this is missing. Either
+        way it's available as human_confidence_transactions, which offers
+        issue and no way to read a transaction back.
 
         See the Credentials section of the cloud request engine
         specification for the combinations that are accepted:
@@ -788,7 +790,7 @@ class CloudRequestEngine(Engine):
             humanconfidence.evidence_name(humanconfidence.PAGE_EVIDENCE)}
         if sealed is not None:
             # Taken whether or not it is used, so it is used once.
-            transaction = self.human_confidence_transactions.take(
+            transaction = self.human_confidence_transactions._take(
                 humanconfidence.evidence_value(
                     flowdata.evidence, humanconfidence.PAGE_EVIDENCE))
             left_out |= humanconfidence.TRANSACTION_SUFFIXES

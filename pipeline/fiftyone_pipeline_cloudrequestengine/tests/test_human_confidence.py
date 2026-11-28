@@ -345,18 +345,28 @@ class HumanConfidenceTests(unittest.TestCase):
         self.assertNotEqual(first.id, second.id)
         self.assertNotEqual(first.script_url(API, RESOURCE),
                             second.script_url(API, RESOURCE))
-        self.assertIsNotNone(self.transactions.take(first.id))
-        self.assertIsNone(self.transactions.take(first.id))
+        self.assertIsNotNone(self.transactions._take(first.id))
+        self.assertIsNone(self.transactions._take(first.id))
         self.assertTrue(first.script_url(API, RESOURCE).startswith(
             API + RESOURCE + ".js?transaction="))
 
+    def test_the_consumer_has_no_accessor_for_a_transaction(self):
+        engine = self.pipeline().get_element("cloud")
+        for store in (self.transactions, engine.human_confidence_transactions,
+                      HumanConfidenceTransactions()):
+            with self.subTest(store=store):
+                public = [name for name in dir(store)
+                          if not name.startswith("_")
+                          and callable(getattr(store, name))]
+                self.assertEqual(["issue"], public)
+
     def test_an_old_or_pushed_out_transaction_is_dropped(self):
         transactions = HumanConfidenceTransactions(lifetime_seconds=0)
-        self.assertIsNone(transactions.take(transactions.issue().id))
+        self.assertIsNone(transactions._take(transactions.issue().id))
         transactions = HumanConfidenceTransactions(capacity=1)
         first = transactions.issue()
         transactions.issue()
-        self.assertIsNone(transactions.take(first.id))
+        self.assertIsNone(transactions._take(first.id))
 
 
 if __name__ == "__main__":

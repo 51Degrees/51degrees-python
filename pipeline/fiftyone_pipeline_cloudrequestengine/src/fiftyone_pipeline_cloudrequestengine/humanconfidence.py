@@ -167,6 +167,11 @@ class HumanConfidenceTransactions(object):
     The transactions are kept in this process. A server run as several
     processes needs each request for a page to reach the process that
     served the page.
+
+    The only public method is issue. A consumer has no way to get a
+    transaction back, as the specification asks: only the Cloud Request
+    Engine takes one, through _take, when it redeems. A store that keeps
+    transactions elsewhere is a subclass that overrides issue and _take.
     """
 
     def __init__(self, lifetime_seconds=600, capacity=10000):
@@ -193,10 +198,11 @@ class HumanConfidenceTransactions(object):
                 self._kept.popitem(last=False)
         return page
 
-    def take(self, page_id):
+    def _take(self, page_id):
         """!
         The transaction kept for the page named, which is then forgotten so
-        it is used once, or None where none is kept for it.
+        it is used once, or None where none is kept for it. For the Cloud
+        Request Engine only, so it isn't part of the public surface.
         """
 
         if not isinstance(page_id, str) or page_id == "":
