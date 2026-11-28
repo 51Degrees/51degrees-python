@@ -996,8 +996,9 @@ class DidClient:
             message.
         :raises ValueError: before transport when the text is far longer
             than any identifier.
-        :raises DidNotSupportedError: when the host does not offer the
-            creator context (HTTP 404).
+        :raises DidNotSupportedError: when the remote server does not offer
+            the creator context (HTTP 404), with a message naming the redeem
+            URL.
         :raises DidClientError: on any other status.
         :raises OSError: when the transport failed to reach the cloud
             (:class:`urllib.error.URLError` by default).
@@ -1057,7 +1058,8 @@ class DidClient:
             raise DidArgumentError(message, status, body)
         if status == 404:
             raise DidNotSupportedError(
-                "The host does not offer the creator context: " + body,
+                "The remote server at " + url + " does not offer the "
+                "creator context: " + body,
                 status, body)
         raise DidClientError(
             "Redeem answered HTTP {0}: {1}".format(status, body), status,

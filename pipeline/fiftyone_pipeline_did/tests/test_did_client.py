@@ -1540,6 +1540,15 @@ class RedeemTests(unittest.TestCase):
         self.assertEqual(404, raised.exception.status_code)
         self.assertEqual("Not Found", raised.exception.body)
 
+    def test_404_names_the_endpoint_without_keys(self):
+        with self.assertRaises(DidNotSupportedError) as raised:
+            self.redeem(404, "Not Found")
+        message = str(raised.exception)
+        self.assertIn(ENDPOINT + "id/redeem", message)
+        self.assertIn("does not offer the creator context", message)
+        self.assertNotIn(RESOURCE, message)
+        self.assertNotIn(LICENCE, message)
+
     def test_other_status_raises_the_client_error(self):
         with self.assertRaises(DidClientError) as raised:
             self.redeem(500, "boom")
