@@ -628,27 +628,33 @@ def _context_of(text: str) -> ContextResult:
         return ContextResult("unreadable")
 
 
+# The context words that are a verdict the check reached, so an answer
+# without status that holds one of them was redeemed. Kept apart from
+# ContextResult, which also lists notcheckable, a word that is no verdict.
+_VERDICT_WORDS = frozenset((
+    "verified", "mismatch", "nocontext", "misconfigured", "invaliddate"))
+
+
 def _status_of(status: str, context: str) -> RedeemStatus:
     """The status of a redemption. Read from ``status`` where the cloud sent
-    one, and otherwise from ``context``, where a cloud that sends no
-    ``status`` writes the failure word. Any other ``context`` from such a
-    cloud is a verdict, so the sealed result was redeemed, unless it is a
-    word this package does not know, which reads as unreadable."""
+    one, and otherwise from ``context``: Success for one of the five
+    verdicts, the word itself for one of the four reasons (expired,
+    replayed, unreadable and unconfirmed), and Unreadable for any other
+    word or none, so a word this package does not know is never a pass."""
     if status != "":
         try:
             return RedeemStatus(status)
         except ValueError:
             return RedeemStatus.UNREADABLE
-    # The four failure words are both context words and status words.
-    # "success" is a status word only, so as a context it is unknown.
-    try:
-        word = ContextResult(context)
-    except ValueError:
-        return RedeemStatus.UNREADABLE
-    try:
-        return RedeemStatus(word.value)
-    except ValueError:
+    if context in _VERDICT_WORDS:
         return RedeemStatus.SUCCESS
+    # "success" is a status word only, so as a context it is unknown.
+    if context != RedeemStatus.SUCCESS.value:
+        try:
+            return RedeemStatus(context)
+        except ValueError:
+            pass
+    return RedeemStatus.UNREADABLE
 
 
 def _human_confidence_of(value: Any) -> Optional[HumanConfidenceValue]:

@@ -1848,16 +1848,36 @@ class NewRedeemAnswerTests(unittest.TestCase):
                     result.human_confidence_null_reason)
         for body in ('{"context":"nocontext"}',
                      '{"context":"misconfigured"}',
-                     '{"context":"invaliddate"}',
-                     '{"context":"notcheckable"}'):
+                     '{"context":"invaliddate"}'):
             with self.subTest(body=body):
                 self.assertIs(RedeemStatus.SUCCESS,
                               self.redeem(200, body).status)
         for body in ('{"context":"somethingnew"}', '{"context":"success"}',
-                     '{}', '{"status":7}'):
+                     '{"context":"notcheckable"}', '{}', '{"status":7}'):
             with self.subTest(body=body):
                 self.assertIs(RedeemStatus.UNREADABLE,
                               self.redeem(200, body).status)
+
+    def test_without_status_only_the_five_verdicts_read_as_success(self):
+        # A word outside the five verdicts and the four reasons is never
+        # read as a pass. notcheckable is a ContextResult member but not a
+        # verdict the check reaches, so it is no exception.
+        verdicts = ("verified", "mismatch", "nocontext", "misconfigured",
+                    "invaliddate")
+        reasons = ("expired", "replayed", "unreadable", "unconfirmed")
+        for word in verdicts:
+            with self.subTest(context=word):
+                self.assertIs(RedeemStatus.SUCCESS, self.redeem(
+                    200, json.dumps({"context": word})).status)
+        for word in reasons:
+            with self.subTest(context=word):
+                self.assertIs(RedeemStatus(word), self.redeem(
+                    200, json.dumps({"context": word})).status)
+        for word in ("notcheckable", "NotCheckable", "Verified", "success",
+                     "pending"):
+            with self.subTest(context=word):
+                self.assertIs(RedeemStatus.UNREADABLE, self.redeem(
+                    200, json.dumps({"context": word})).status)
 
     def test_to_dict_leaves_out_the_status_and_the_value(self):
         # The Value is for the server holding the licence key, never for
