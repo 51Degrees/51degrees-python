@@ -263,25 +263,34 @@ class HumanConfidenceTests(unittest.TestCase):
         # The failure is the Cloud Request Engine's own error.
         self.assertIn("cloud", data.errors)
 
-    def test_no_cloud_request_engine_gives_no_value_but_never_high_or_low(
-            self):
-        # DerivedCloud is refused in a pipeline with no Cloud Request
-        # Engine, so no such pipeline can give a High or Low for a sealed
-        # result, and nothing in one redeems or reads it.
-        with self.assertRaisesRegex(
-                Exception, "CloudRequestEngine needs to be placed before"):
-            PipelineBuilder({"suppress_process_exceptions": True}) \
-                .add(DerivedCloud()).build()
-        pipeline = PipelineBuilder({
-            "suppress_process_exceptions": True}).build()
+    def no_engine_pipeline(self):
+        # Errors are raised, not kept, so any error fails the test.
+        pipeline = PipelineBuilder({"suppress_process_exceptions": False}) \
+            .add(DerivedCloud()).build()
         self.addCleanup(pipeline.close)
-        data = pipeline.create_flowdata()
-        data.evidence.add("query.humanconfidence", SEALED)
-        data.evidence.add("query.humanconfidencepage",
-                          self.transactions.issue().id)
-        data.process()
+        return pipeline
+
+    def test_no_cloud_request_engine_gives_medium_and_active(self):
+        data = self.process(self.no_engine_pipeline())
+        self.assert_not_redeemed(data)
+        self.assertEqual("Medium",
+                         data.derived.get("HumanConfidence").value())
+        self.assertEqual("Active",
+                         data.derived.get("HumanConfidenceSource").value())
         self.assertEqual({}, dict(data.errors))
-        self.assertNotIn("derived", data.data)
+        self.assertEqual([], self.cloud.data_requests)
+
+    def test_no_cloud_request_engine_gives_no_value_without_one(self):
+        for sealed in (None, ""):
+            with self.subTest(sealed=sealed):
+                data = self.process(self.no_engine_pipeline(), sealed=sealed,
+                                    page=None)
+                for name in ("humanconfidence", "humanconfidencesource"):
+                    value = data.derived.get(name)
+                    self.assertFalse(value.has_value())
+                    self.assertIn("no Cloud Request Engine",
+                                  value.no_value_message())
+                self.assertEqual({}, dict(data.errors))
 
     # Reads, the cache and messages.
 

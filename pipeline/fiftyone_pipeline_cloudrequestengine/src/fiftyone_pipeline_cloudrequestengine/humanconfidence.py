@@ -80,6 +80,24 @@ NOT_REDEEMED_VALUE = "Medium"
 # HumanConfidenceSource on every request that carries a sealed result.
 ACTIVE = "Active"
 
+# The data key of the Cloud Request Engine.
+REQUEST_ENGINE_KEY = "cloud"
+
+# The properties DerivedCloud gives in a pipeline with no Cloud Request
+# Engine, keyed and described as the cloud service gives them.
+PROPERTIES_WITHOUT_REQUEST_ENGINE = {
+    "HumanConfidence": {"name": "HumanConfidence", "type": "String"},
+    "HumanConfidenceSource": {
+        "name": "HumanConfidenceSource", "type": "String"}}
+
+# Why neither has a value on a request with no sealed result in a pipeline
+# with no Cloud Request Engine.
+NO_REQUEST_ENGINE_MESSAGE = (
+    "The pipeline has no Cloud Request Engine, so HumanConfidence and "
+    "HumanConfidenceSource have a value only on a request that carries a "
+    "sealed result. Add a Cloud Request Engine before DerivedCloud for "
+    "other requests.")
+
 
 def evidence_name(key):
     """!
@@ -234,6 +252,11 @@ class DerivedCloud(CloudEngine):
     of either never raises for that, and this engine adds no error of its
     own. On any other request this engine reads the section as every cloud
     engine does.
+
+    In a pipeline with no Cloud Request Engine, nothing is redeemed and
+    this engine gives only those two properties: Medium and Active on a
+    request that carries a sealed result, and no value, with the reason, on
+    any other request.
     """
 
     DATA_KEY = "derived"
@@ -244,7 +267,24 @@ class DerivedCloud(CloudEngine):
 
         self.datakey = self.DATA_KEY
 
+    def on_registration(self, pipeline):
+
+        if REQUEST_ENGINE_KEY in pipeline.flow_elements_list:
+            super(DerivedCloud, self).on_registration(pipeline)
+            return
+        if self._request_engine is None:
+            self.properties = dict(PROPERTIES_WITHOUT_REQUEST_ENGINE)
+        pipeline.log(
+            "info", "DerivedCloud is in a pipeline with no Cloud Request "
+            "Engine, so it gives HumanConfidence Medium and "
+            "HumanConfidenceSource Active on a request that carries a "
+            "sealed result, and no other values.")
+
     def process_internal(self, flowdata):
+
+        if REQUEST_ENGINE_KEY not in flowdata.pipeline.flow_elements_list:
+            self._process_without_request_engine(flowdata)
+            return
 
         if sealed_result_of(flowdata.evidence) is None:
             super(DerivedCloud, self).process_internal(flowdata)
@@ -263,6 +303,25 @@ class DerivedCloud(CloudEngine):
             value=self._redeemed_value(flowdata) or NOT_REDEEMED_VALUE)
         data.contents["humanconfidencesource"] = AspectPropertyValue(
             value=ACTIVE)
+
+    def _process_without_request_engine(self, flowdata):
+        """!
+        With no Cloud Request Engine, a sealed result can't be redeemed, so
+        a request that carries one gives Medium and Active, and any other
+        request gives no value.
+        """
+
+        if sealed_result_of(flowdata.evidence) is not None:
+            contents = {
+                "humanconfidence": AspectPropertyValue(
+                    value=NOT_REDEEMED_VALUE),
+                "humanconfidencesource": AspectPropertyValue(value=ACTIVE)}
+        else:
+            contents = {
+                name.lower(): AspectPropertyValue(
+                    no_value_message=NO_REQUEST_ENGINE_MESSAGE)
+                for name in PROPERTIES_WITHOUT_REQUEST_ENGINE}
+        flowdata.set_element_data(CloudData(self, contents))
 
     def _redeemed_value(self, flowdata):
         """!

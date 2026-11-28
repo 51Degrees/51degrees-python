@@ -117,6 +117,25 @@ The engine's own data key is still `cloud`, so
 `pipeline.get_element("cloud")` still finds the engine, and the JSON for the
 browser leaves the engine's data out as before.
 
+## Human Confidence from a sealed result
+
+Add `DerivedCloud` after the engine to read `HumanConfidence` and
+`HumanConfidenceSource` as `flowdata.derived`. On a request whose evidence
+holds a non-empty `query.humanconfidence`, the engine redeems that sealed
+result in its one call, and `DerivedCloud` gives the redeemed value with the
+source `Active`. Where the sealed result isn't redeemed, it gives `Medium`
+and `Active`, adds no error of its own, and a read doesn't raise.
+
+`DerivedCloud` also works in a pipeline with no Cloud Request Engine, such
+as an on-premise one. There, nothing is redeemed: a request carrying a
+sealed result gives `Medium` and `Active`, and any other request gives the
+two properties with no value and a reason. `DerivedCloud` is in
+`fiftyone_pipeline_cloudrequestengine.humanconfidence`, and is added as any
+other element, e.g. `PipelineBuilder().add(DerivedCloud()).build()`.
+
+The rules are on the
+[Human Confidence page of the pipeline specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md).
+
 ## Pointing the engine at another host
 
 The engine calls `https://cloud.51degrees.com/api/v4/` unless told
