@@ -27,6 +27,8 @@ from fiftyone_pipeline_core.aspectproperty_value import AspectPropertyValue
 from fiftyone_pipeline_core.jsonbundler import WKT_TYPES
 
 from .clouddata import CloudData
+from .clouddata import \
+    OnPremiseMissingPropertyService as CloudMissingPropertyService
 from .constants import Constants
 
 import json
@@ -40,6 +42,9 @@ _ANOTHER_REQUEST_ENGINE = (
     "Engine. Its properties come from that Cloud Request Engine, so a "
     "pipeline with a different one is refused. Build another cloud engine "
     "for this pipeline, or use the same Cloud Request Engine in both.")
+
+# The values HumanConfidence can have.
+HUMAN_CONFIDENCE_VALUES = ("High", "Medium", "Low", "Unknown")
 
 class OnPremiseMissingPropertyService(MissingPropertyService):
 
@@ -199,6 +204,32 @@ class CloudEngine(Engine):
         raise Exception("The key in use does not include access to any properties under " + element +  ". For more details on resource keys, see our explainer: https://51degrees.com/documentation/_services__cloud__resource_keys.html?utm_source=code&utm_medium=comment&utm_campaign=51degrees-python&utm_content=fiftyone_pipeline_cloudrequestengine-src-fiftyone_pipeline_cloudrequestengine-cloudengine.py&utm_term=element-properties-not-accessible " + "Available element data keys are: " + str([e for e in flowdata.pipeline.flow_elements_display_list]))
 
 
+    def _is_property_value(self, key, value):
+
+        """!
+        Whether a value the cloud service returned is one the property can
+        have. HumanConfidence under derived is only ever one of the values
+        the property has, so other text, such as a sealed result,
+        is never its value. Every other property takes what is returned.
+        """
+
+        if self.datakey != "derived" or key.lower() != "humanconfidence":
+            return True
+        return isinstance(value, str) and value in HUMAN_CONFIDENCE_VALUES
+
+    def _missing_property_reason(self, key):
+
+        """!
+        The reason this engine's data gives for a property it has no value
+        for, so a value the property can't have reads as a missing one.
+        """
+
+        try:
+            CloudMissingPropertyService().check(key, self)
+        except Exception as error:  # pylint: disable=broad-exception-caught
+            return str(error)
+        return None
+
     @staticmethod
     def _cloud_response(flowdata):
 
@@ -263,6 +294,9 @@ class CloudEngine(Engine):
 
             if key + "nullreason" in engineData:
                 result[key] = AspectPropertyValue(no_value_message=engineData[key + "nullreason"])
+            elif not self._is_property_value(key, value):
+                result[key] = AspectPropertyValue(
+                    no_value_message=self._missing_property_reason(key))
             else:
                 result[key] = AspectPropertyValue(None, value)
 

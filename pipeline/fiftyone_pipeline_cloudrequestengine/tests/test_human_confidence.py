@@ -421,6 +421,50 @@ class HumanConfidenceTests(unittest.TestCase):
         self.assert_values(data, "Low", "Passive")
         self.assertNotIn("transaction", self.cloud.data_requests[-1])
 
+    # HumanConfidence is only ever High, Medium, Low or Unknown, the values
+    # the property has, whatever text the cloud service returns.
+
+    OTHER_TEXT = ("hc1.eyJ2IjoxfQ.c2VhbGVk", "high", "", 3)
+
+    def test_a_sealed_request_gives_medium_for_any_other_text(self):
+        for value in self.OTHER_TEXT + ("Unknown",):
+            for page in (True, None):
+                with self.subTest(value=value, page=page):
+                    self.cloud.answer = reply({"derived": {
+                        "humanconfidence": value,
+                        "humanconfidencesource": "Passive"}})
+                    data = self.process(self.pipeline(), page=page)
+                    self.assert_values(data, "Medium")
+                    self.assertEqual({}, dict(data.errors))
+
+    def test_without_a_sealed_result_other_text_gives_no_value(self):
+        for value in self.OTHER_TEXT + (None,):
+            with self.subTest(value=value):
+                self.cloud.answer = reply({"derived": {
+                    "humanconfidence": value,
+                    "humanconfidencesource": "Passive"}})
+                data = self.process(self.pipeline(), sealed=None, page=None)
+                read = data.derived.humanconfidence
+                self.assertFalse(read.has_value())
+                with self.assertRaises(Exception) as missing:
+                    data.derived.missing_property_service.check(
+                        "humanconfidence", data.derived.flow_element)
+                self.assertEqual(
+                    str(missing.exception), read.no_value_message())
+                self.assertEqual(
+                    "Passive", data.derived.humanconfidencesource.value())
+                self.assertEqual({}, dict(data.errors))
+
+    def test_without_a_sealed_result_each_value_is_read_unchanged(self):
+        for value in ("High", "Medium", "Low", "Unknown"):
+            with self.subTest(value=value):
+                self.cloud.answer = reply({"derived": {
+                    "humanconfidence": value,
+                    "humanconfidencesource": "Passive"}})
+                data = self.process(self.pipeline(), sealed=None, page=None)
+                self.assert_values(data, value, "Passive")
+                self.assertEqual({}, dict(data.errors))
+
     def test_a_credential_without_the_property_gives_its_reason(self):
         reason = "The resource key does not include this property."
         self.cloud.answer = reply({"derived": {
