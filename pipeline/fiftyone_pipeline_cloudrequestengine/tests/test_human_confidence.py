@@ -289,7 +289,35 @@ class HumanConfidenceTests(unittest.TestCase):
             for secret in secrets:
                 self.assertNotIn(secret, message)
 
-    # No sealed result.
+    # A sealed result anywhere but a non-empty query.humanconfidence.
+
+    def test_a_sealed_result_under_another_key_is_not_sent(self):
+        cases = (
+            {"header_humanconfidence": SEALED},
+            {"cookie_HumanConfidence": SEALED},
+            {"humanconfidence": SEALED},
+            {"server_humanconfidence": SEALED})
+        for sealed in (None, ""):
+            for evidence in cases:
+                with self.subTest(query=sealed, evidence=evidence):
+                    data = self.process(
+                        self.pipeline(), sealed=sealed,
+                        query_transaction="from-the-page",
+                        header_transaction="from-a-header",
+                        cookie_challenge="from-a-cookie",
+                        **evidence)
+                    sent = self.cloud.data_requests[-1]
+                    self.assertEqual(
+                        [], [name for name in sent if name.lower() in (
+                            "humanconfidence", "transaction", "challenge")])
+                    self.assertEqual({}, dict(data.errors))
+
+    def test_an_empty_human_confidence_changes_nothing(self):
+        self.process(self.pipeline(), sealed="", page=None,
+                     header_humanconfidence="",
+                     query_transaction="from-the-page")
+        sent = self.cloud.data_requests[-1]
+        self.assertEqual("from-the-page", sent["transaction"])
 
     def test_without_a_sealed_result_the_response_is_read_as_before(self):
         self.cloud.answer = reply({"derived": {

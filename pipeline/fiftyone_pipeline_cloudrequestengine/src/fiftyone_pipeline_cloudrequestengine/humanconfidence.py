@@ -51,6 +51,9 @@ from .cloudengine import CloudEngine
 # The evidence that carries the sealed result, exactly as it arrived.
 SEALED_RESULT_EVIDENCE = "query.humanconfidence"
 
+# The name the sealed result is sent under, once its prefix is removed.
+SEALED_RESULT_NAME = "humanconfidence"
+
 # The evidence that names the page the sealed result came from, being the
 # id of the HumanConfidencePage the server gave that page. It is only a
 # handle: the transaction itself is never taken from the request.

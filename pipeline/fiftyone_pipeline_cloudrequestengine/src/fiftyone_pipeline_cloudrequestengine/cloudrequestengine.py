@@ -799,6 +799,17 @@ class CloudRequestEngine(Engine):
             self._hidden.values = [
                 value for value in (sealed, transaction, self.license_key)
                 if value]
+        elif any(humanconfidence.evidence_name(key)
+                 == humanconfidence.SEALED_RESULT_NAME and str(value) != ""
+                 for key, value in self.sendable_evidence(
+                     flowdata.evidence).items()):
+            # Only a non-empty query.humanconfidence is the sealed result.
+            # A value under a header, a cookie or any other key is not
+            # sent, nor is a transaction or challenge from the request, so
+            # the service can't redeem it with a transaction the request
+            # chose. An empty value is no sealed result and changes nothing.
+            left_out |= humanconfidence.TRANSACTION_SUFFIXES
+            left_out.add(humanconfidence.SEALED_RESULT_NAME)
 
         try:
             content = self.get_content(flowdata, left_out)
