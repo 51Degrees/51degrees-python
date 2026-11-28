@@ -846,7 +846,8 @@ class CloudRequestEngine(Engine):
         # neither served from the cache nor stored in it.
         if (hasattr(self, "cache") and humanconfidence.sealed_result_of(
                 flowdata.evidence) is not None):
-            result = self.process_internal(flowdata)
+            self.process_internal(flowdata)
+            result = None
         else:
             result = super(CloudRequestEngine, self).process(flowdata)
 
