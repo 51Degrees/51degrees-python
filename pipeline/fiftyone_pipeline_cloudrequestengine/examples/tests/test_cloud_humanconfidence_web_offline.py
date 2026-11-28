@@ -459,6 +459,52 @@ def test_a_cloud_that_cannot_be_reached_gives_medium(cloud):
     assert answer["humanConfidence"] == "Medium"
 
 
+# Each answer the server can give the page, with the text the page shows
+# for the level. With no level the page shows why, as the null reason.
+READ_ANSWERS = [
+    ({"source": "Active", "humanConfidence": "High",
+      "humanConfidenceNullReason": None}, "High"),
+    ({"source": "Active", "humanConfidence": "Medium",
+      "humanConfidenceNullReason": None}, "Medium"),
+    ({"source": None, "humanConfidence": None,
+      "humanConfidenceNullReason": "The key does not carry this property."},
+     "The key does not carry this property."),
+    ({"source": "Active"}, "no level"),
+    ({"error": "HTTP 502"}, "no level"),
+]
+
+
+@pytest.mark.skipif(shutil.which("node") is None,
+                    reason="Node is not on the path")
+def test_page_shows_the_null_reason_where_there_is_no_level():
+    template = os.path.join(
+        os.path.dirname(example.__file__), "templates", "index.html")
+    with open(template, encoding="utf-8") as handle:
+        page = handle.read()
+    functions = []
+    for name in ("levelClass", "showRead"):
+        found = re.search(
+            r"function " + name + r"\(.*?\n  \}", page, re.S)
+        assert found is not None, "the page has a " + name + " function"
+        functions.append(found.group(0))
+    script = (
+        "var PASS = 'pass', FAIL = 'fail', PART = 'part', NONE = 'none';\n"
+        "var shown = {};\n"
+        "function show(id, text, cls) { shown[id] = text; }\n"
+        + "\n".join(functions)
+        + "\nconsole.log(JSON.stringify("
+        + json.dumps([answer for answer, _ in READ_ANSWERS])
+        + ".map(function (answer) { shown = {}; showRead(answer); "
+        "return shown['redeem-level']; })));\n")
+    finished = subprocess.run(
+        [shutil.which("node"), "-e", script], capture_output=True,
+        text=True, timeout=60)
+    assert finished.returncode == 0, finished.stderr
+
+    assert json.loads(finished.stdout) == [
+        expected for _, expected in READ_ANSWERS]
+
+
 def test_the_licence_key_never_reaches_the_page_after_a_read(cloud):
     cloud()
     client = client_for()

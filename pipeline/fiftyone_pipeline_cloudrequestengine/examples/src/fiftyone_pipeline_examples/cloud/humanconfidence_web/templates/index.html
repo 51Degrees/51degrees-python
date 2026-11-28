@@ -155,8 +155,15 @@
       return;
     }
     show("redeem-detail", answer.source || "not returned", NONE);
-    show("redeem-level", answer.humanConfidence,
-      levelClass(answer.humanConfidence));
+    if (answer.humanConfidence) {
+      show("redeem-level", answer.humanConfidence,
+        levelClass(answer.humanConfidence));
+    } else {
+      // No level, so the page shows why, as for any other property with
+      // no value.
+      show("redeem-level", answer.humanConfidenceNullReason || "no level",
+        NONE);
+    }
   }
 
   // Step 2. The client script runs the browser tests, sends the answers,
