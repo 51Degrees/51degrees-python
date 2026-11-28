@@ -950,7 +950,7 @@ class DidClient:
 
     async def redeem(self, fod_id: Union[FodId, str],
                      sealed_result: Optional[str] = _NOT_GIVEN,
-                     transaction: Optional[str] = None, *,
+                     transaction: Optional[str] = _NOT_GIVEN, *,
                      result: Optional[str] = _NOT_GIVEN,
                      challenge: Optional[str] = _NOT_GIVEN) -> RedeemResult:
         """Redeems a sealed creator context result against the identifier,
@@ -981,7 +981,7 @@ class DidClient:
         :param sealed_result: the sealed result exactly as the verify
             endpoint returned it to the page.
         :param transaction: the single-use transaction value given to the
-            verify endpoint, where one was.
+            verify endpoint, where one was. ``None`` sends an empty one.
         :param result: obsolete. Use ``sealed_result``. Still works, with a
             :class:`DeprecationWarning`, and ``sealed_result`` wins when
             both are given.
@@ -1015,7 +1015,7 @@ class DidClient:
             warnings.warn(
                 "The challenge argument of redeem is obsolete. Use "
                 "transaction.", DeprecationWarning, stacklevel=2)
-            if transaction is None:
+            if transaction is _NOT_GIVEN:
                 transaction = challenge
         if sealed_result is _NOT_GIVEN:
             raise TypeError("redeem() missing the sealed_result argument")

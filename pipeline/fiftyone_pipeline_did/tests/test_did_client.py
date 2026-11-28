@@ -2000,6 +2000,15 @@ class RedeemArgumentTests(unittest.TestCase):
         self.assert_sent(form, "sealed", "t1")
         self.assert_obsolete(caught, "sealed_result", "transaction")
 
+    def test_an_explicit_transaction_wins_over_challenge_none_included(self):
+        form, caught = self.redeem("sealed", None, challenge="old")
+        self.assert_sent(form, "sealed", "")
+        self.assert_obsolete(caught, "transaction")
+        form, caught = self.redeem("sealed", transaction=None,
+                                   challenge="old")
+        self.assert_sent(form, "sealed", "")
+        self.assert_obsolete(caught, "transaction")
+
     def test_no_sealed_result_raises_before_transport(self):
         with self.assertRaises(TypeError):
             run(self.client.redeem(self.fod_id))
