@@ -22,8 +22,9 @@
     * ********************************************************************* #}
 <!DOCTYPE html>
 {# Human Confidence demo page.
-   Served by app.py, which puts in the Resource Key and the cloud address,
-   and holds the License Key server side. Styling is the 51Degrees example
+   Served by app.py, which puts in the client script address and the page
+   id the package issued for this page, and holds the License Key server
+   side. Styling is the 51Degrees example
    design system, vendored with this example as the 51Did demo vendors
    it. #}
 <html lang="en">
@@ -38,8 +39,9 @@
   <h2 class="c-eg-page__title">Human Confidence demo</h2>
   <p class="c-eg-page__lead">This page shows how likely it is that a
   person is looking at it. The server asks the cloud first. Then your
-  browser runs the 51Degrees browser tests, and the server redeems the
-  sealed result. The License Key stays on the server.</p>
+  browser runs the 51Degrees browser tests, and the server reads the
+  result through its pipeline, which redeems the sealed result. The
+  License Key stays on the server.</p>
 
   <table class="c-eg-table">
     <thead class="c-eg-table__head">
@@ -65,7 +67,7 @@
           class="c-eg-status c-eg-status--none">waiting&#8230;</span></td>
       </tr>
       <tr class="c-eg-table__row">
-        <td class="c-eg-table__cell c-eg-table__cell--key">3. Redeemed by the server</td>
+        <td class="c-eg-table__cell c-eg-table__cell--key">3. Read by the server's pipeline</td>
         <td class="c-eg-table__cell"><span id="redeem-detail"
           class="c-eg-status c-eg-status--none">waiting&#8230;</span></td>
         <td class="c-eg-table__cell"><span id="redeem-level"
@@ -76,7 +78,7 @@
 
   <p class="c-eg-page__lead">
     <button type="button" id="again" class="b-btn b-btn--secondary"
-      style="display: none">Redeem the same value again</button>
+      style="display: none">Send the same value again</button>
     <span id="again-result"></span>
   </p>
 
@@ -95,9 +97,10 @@
 <script>
 (function () {
   "use strict";
-  var RESOURCE = {{ resource_key|tojson }};
-  // The cloud API base ending in /api/v4/, as the server read it.
-  var API = {{ api|tojson }};
+  // The client script address and the page id the package issued for this
+  // page. The script address binds the sealed result to this page.
+  var SCRIPT_URL = {{ script_url|tojson }};
+  var PAGE = {{ page_id|tojson }};
 
   var PASS = "c-eg-status c-eg-status--pass";
   var FAIL = "c-eg-status c-eg-status--fail";
@@ -134,53 +137,33 @@
     })
     .catch(function (error) { show("passive-level", String(error), FAIL); });
 
-  // Step 3. The server redeems the sealed result with its License Key.
-  function redeem(value) {
+  // Step 3. The page sends the sealed result and its page id to the
+  // server, which reads the two properties through its pipeline. The
+  // package redeems the sealed result there.
+  function send(value) {
     var body = new URLSearchParams();
-    body.set("sealedResult", value);
-    return fetch("redeem", { method: "POST", body: body })
+    body.set("humanconfidence", value);
+    body.set("humanconfidencepage", PAGE);
+    return fetch("humanconfidence", { method: "POST", body: body })
       .then(function (r) { return r.json(); });
   }
 
-  // What happened to the sealed result. The status says it, and a cloud
-  // that gives no status says it in result instead.
-  function outcome(answer) {
-    return answer.status || answer.result || answer.context;
-  }
-
-  // Only success carries the true Value. The Value that comes with any
-  // other status isn't the browser's, so it isn't shown as one. A cloud
-  // that gives no status still gives a Value with expired and replayed,
-  // so there it's success only when result names no failure: it's left
-  // out, or it's success. Any other word, expired, replayed, unreadable
-  // and unconfirmed included, is a failure.
-  function redeemed(answer) {
-    if (answer.status) {
-      return answer.status === "success";
-    }
-    var word = answer.result || answer.context;
-    return Boolean(answer.humanConfidence)
-      && (!word || word === "success");
-  }
-
-  function showRedeemed(answer) {
-    if (redeemed(answer)) {
-      show("redeem-detail", "redeemed " + answer.secondsSinceVerified
-        + " s after the check", PASS);
-      show("redeem-level", answer.humanConfidence,
-        levelClass(answer.humanConfidence));
-    } else {
-      show("redeem-detail", outcome(answer) || answer.error || "no answer",
-        FAIL);
+  function showRead(answer) {
+    if (answer.error) {
+      show("redeem-detail", answer.error, FAIL);
       show("redeem-level", "no level", NONE);
+      return;
     }
+    show("redeem-detail", answer.source || "not returned", NONE);
+    show("redeem-level", answer.humanConfidence,
+      levelClass(answer.humanConfidence));
   }
 
   // Step 2. The client script runs the browser tests, sends the answers,
   // and calls back through its complete function with the final result.
   var script = document.createElement("script");
   script.async = true;
-  script.src = API + RESOURCE + ".js";
+  script.src = SCRIPT_URL;
   script.onerror = function () {
     show("active-source", "the 51Degrees script didn't load", FAIL);
   };
@@ -197,24 +180,26 @@
         show("active-source", (source || "not returned") + " after "
           + seconds(), NONE);
         show("active-value", value || "not returned", levelClass(value));
-        show("redeem-detail", "nothing to redeem", NONE);
+        show("redeem-detail", "nothing sealed to send", NONE);
         show("redeem-level", "", NONE);
         document.getElementById("note").textContent = "The source isn't "
-          + "Active, so there's no sealed value to redeem.";
+          + "Active, so there's no sealed value to send.";
         return;
       }
       show("active-source", "Active after " + seconds(), PASS);
       show("active-value", "sealed value, " + String(value).length
         + " characters, unreadable here", NONE);
-      redeem(value).then(function (answer) {
-        showRedeemed(answer);
+      send(value).then(function (answer) {
+        showRead(answer);
         var again = document.getElementById("again");
         again.style.display = "";
         again.onclick = function () {
-          redeem(value).then(function (second) {
+          // A sealed result redeems once, so the package can't redeem it
+          // a second time.
+          send(value).then(function (second) {
             document.getElementById("again-result").textContent =
-              " Second redeem: " + (redeemed(second)
-                ? second.humanConfidence : outcome(second) || second.error);
+              " Second time: " + (second.humanConfidence
+                || second.humanConfidenceNullReason || second.error);
           });
         };
       }).catch(function (error) {
