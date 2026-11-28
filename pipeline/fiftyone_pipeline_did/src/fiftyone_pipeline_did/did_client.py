@@ -571,12 +571,15 @@ class RedeemResult:
 
     @classmethod
     def from_response(cls, status_code: int, raw: str) -> "RedeemResult":
-        """Builds a result from a redeem response body, raising
-        :class:`DidClientError` when the body is not a JSON object. A 503
-        is :attr:`RedeemStatus.UNCONFIRMED`, with ``unconfirmed`` as both
-        the raw status and the context, whatever its body, and nothing else
-        is read from it, so an
-        empty body or one that is not JSON raises nothing."""
+        """Builds a result from a redeem response body. A 503 is
+        :attr:`RedeemStatus.UNCONFIRMED`, with ``unconfirmed`` as both the
+        raw status and the context, whatever its body, and nothing else is
+        read from it. A body that is not a JSON object, or one holding
+        neither ``status`` nor ``context``, is
+        :attr:`RedeemStatus.UNREADABLE`, with ``unreadable`` as both the raw
+        status and the context and the signature
+        :attr:`SignatureResult.UNKNOWN`, and nothing else is read from it.
+        Neither raises."""
         if status_code == 503:
             # First use could not be confirmed. The body is kept in raw but
             # never read, so a body shaped like a redeemed result gives no
@@ -584,10 +587,13 @@ class RedeemResult:
             return cls(status_code, raw,
                        {"status": "unconfirmed", "context": "unconfirmed"})
         parsed = _try_parse_json(raw)
-        if not isinstance(parsed, dict):
-            raise DidClientError(
-                "Redeem answered HTTP {0} with a body that is not a JSON "
-                "object: {1}".format(status_code, raw), status_code, raw)
+        if not isinstance(parsed, dict) or not (
+                isinstance(parsed.get("status"), str)
+                or isinstance(parsed.get("context"), str)):
+            # Nothing says what happened, so no member of the body is
+            # trusted, a signature included, and nothing reads as a pass.
+            return cls(status_code, raw,
+                       {"status": "unreadable", "context": "unreadable"})
         return cls(status_code, raw, parsed)
 
     def to_dict(self) -> Dict[str, Any]:

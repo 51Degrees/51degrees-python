@@ -1547,9 +1547,29 @@ class RedeemTests(unittest.TestCase):
         self.assertNotIsInstance(raised.exception, DidNotSupportedError)
         self.assertNotIsInstance(raised.exception, DidArgumentError)
 
-    def test_200_that_is_not_a_json_object_raises(self):
-        with self.assertRaises(DidClientError):
-            self.redeem(200, "<html>")
+    def test_200_that_is_not_a_json_object_reads_as_unreadable(self):
+        # Neither raised nor read as a pass: the redemption and the context
+        # are unreadable and the signature unknown.
+        for body in ("<html>", "", "null", "[]", '"verified"', "7"):
+            with self.subTest(body=body):
+                result = self.redeem(200, body)
+                self.assertIs(RedeemStatus.UNREADABLE, result.status)
+                self.assertEqual(ContextResult("unreadable"), result.context)
+                self.assertIs(SignatureResult.UNKNOWN, result.signature)
+                self.assertEqual(body, result.raw)
+                self.assertEqual(200, result.status_code)
+
+    def test_200_with_neither_status_nor_context_reads_as_unreadable(self):
+        # A signature member in such an answer is not read.
+        for body in ('{"signature":"verified"}',
+                     '{"signature":"invalid","humanConfidence":"High"}',
+                     '{"status":null,"context":null,'
+                     '"signature":"verified"}', '{}'):
+            with self.subTest(body=body):
+                result = self.redeem(200, body)
+                self.assertIs(RedeemStatus.UNREADABLE, result.status)
+                self.assertEqual(ContextResult("unreadable"), result.context)
+                self.assertIs(SignatureResult.UNKNOWN, result.signature)
 
     def test_transport_failure_propagates_as_the_io_error(self):
         self.transport.answers["id/redeem"] = urllib.error.URLError(
