@@ -242,6 +242,42 @@ class HumanConfidenceTests(unittest.TestCase):
                 self.assert_not_redeemed(data)
                 self.assertEqual({}, dict(data.errors))
 
+    def test_no_request_for_the_flow_data_gives_medium(self):
+        # Discovery fails when the engine is built, and again while
+        # processing, so the engine makes no request for the Flow Data.
+        down = requests.exceptions.ConnectionError("unreachable")
+        answer = self.cloud.request
+        self.cloud.request = Mock(side_effect=down)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            pipeline = self.pipeline()
+            data = self.process(pipeline)
+        self.assertEqual([], self.cloud.data_requests)
+        self.assert_not_redeemed(data)
+        # The failure is the Cloud Request Engine's own error.
+        self.assertIn("cloud", data.errors)
+        self.cloud.request = answer
+
+    def test_no_cloud_request_engine_gives_no_value_but_never_high_or_low(
+            self):
+        # DerivedCloud is refused in a pipeline with no Cloud Request
+        # Engine, so no such pipeline can give a High or Low for a sealed
+        # result, and nothing in one redeems or reads it.
+        with self.assertRaisesRegex(
+                Exception, "CloudRequestEngine needs to be placed before"):
+            PipelineBuilder({"suppress_process_exceptions": True}) \
+                .add(DerivedCloud()).build()
+        pipeline = PipelineBuilder({
+            "suppress_process_exceptions": True}).build()
+        self.addCleanup(pipeline.close)
+        data = pipeline.create_flowdata()
+        data.evidence.add("query.humanconfidence", SEALED)
+        data.evidence.add("query.humanconfidencepage",
+                          self.transactions.issue().id)
+        data.process()
+        self.assertEqual({}, dict(data.errors))
+        self.assertNotIn("derived", data.data)
+
     # Reads, the cache and messages.
 
     def test_two_reads_make_one_request(self):
