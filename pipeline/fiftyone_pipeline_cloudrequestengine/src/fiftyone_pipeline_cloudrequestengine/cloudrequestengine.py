@@ -35,7 +35,6 @@ from json import JSONDecodeError
 import requests
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.evidence import HTTP_REQUEST_KEY
-from fiftyone_pipeline_core.keymask import mask_licence_key
 from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
@@ -43,6 +42,7 @@ from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
 from .requestclient import RequestClient
 from .cloudrequestexception import CloudRequestException
 from .constants import Constants
+from . import humanconfidence
 
 try:
     #python2
@@ -109,6 +109,11 @@ class CloudRequestEngine(Engine):
         the same credentials, as its discovery_state() gives it, either
         the JSON text or the dictionary it holds. The engine then makes
         no discovery request when it is built.
+        7) human_confidence_transactions, the HumanConfidenceTransactions
+        that issues the transaction of each page asking for Human
+        Confidence. The engine makes its own when this is missing. Either
+        way it's available as human_confidence_transactions, which offers
+        issue and no way to read a transaction back.
 
         See the Credentials section of the cloud request engine
         specification for the combinations that are accepted:
@@ -200,6 +205,17 @@ class CloudRequestEngine(Engine):
             self.cloud_request_origin = None
 
         self.exclude_from_messages = True
+
+        # Issues and keeps the transaction of each page that asks for Human
+        # Confidence, so a sealed result is redeemed only with the
+        # transaction kept for its page.
+        self.human_confidence_transactions = settings.get(
+            "human_confidence_transactions") \
+            or humanconfidence.HumanConfidenceTransactions()
+
+        # The sealed result and transaction of the request this thread is
+        # redeeming, which masked() leaves out of every message.
+        self._hidden = threading.local()
 
         # The evidence key filter, with the key list it was made from. See
         # get_evidence_key_filter.
@@ -474,7 +490,7 @@ class CloudRequestEngine(Engine):
 
     def _describe(self, error):
         """!
-        An error as text for a warning, with the licence key masked. The
+        An error as text for a warning, with the licence key hidden. The
         text of an error for several answered by the cloud service gives
         each of them.
         """
@@ -594,7 +610,7 @@ class CloudRequestEngine(Engine):
         """!
         Validate the JSON response from the cloud service. Each entry in
         the warnings list of the response is given as a warning, with the
-        licence key masked, and does not fail the request.
+        licence key hidden, and does not fail the request.
 
         @type: Response
         @param: Response returned from the cloud service.
@@ -637,7 +653,7 @@ class CloudRequestEngine(Engine):
         # messages.
         if not messages and not has_data:
             message = Constants.MESSAGE_NO_DATA_IN_RESPONSE.format(
-                mask_licence_keys_in_text(cloud_response.url))
+                self.masked(cloud_response.url))
             messages.append(message)
 
         # If there were no errors returned but the response code was non
@@ -676,22 +692,32 @@ class CloudRequestEngine(Engine):
     def masked(self, text):
 
         """!
-        Text from or about a cloud answer with the licence key in use shown
-        only as its last four characters. The cloud service names the key in
-        some of its errors, and a URL may carry it in its query.
+        Text from or about a cloud answer with the licence key in use left
+        out whole, and while this thread redeems a sealed result, the sealed
+        result and the transaction too. No part of any of them is kept, as
+        the Human Confidence page of the specification asks for every
+        message the engine builds:
+        https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#what-a-package-never-exposes
+
+        The longest value goes first, so a short one that is part of a
+        longer one can't break it up before it's found. Any other key a
+        licence parameter in the text names keeps its last four characters.
         """
 
-        text = mask_licence_keys_in_text(text)
+        text = str(text)
+        hidden = [value for value in getattr(self._hidden, "values", ())
+                  if value]
         if self.license_key != "":
-            text = text.replace(
-                self.license_key, mask_licence_key(self.license_key))
-        return text
+            hidden.append(self.license_key)
+        for value in sorted(set(hidden), key=len, reverse=True):
+            text = text.replace(value, Constants.HIDDEN_VALUE)
+        return mask_licence_keys_in_text(text)
 
     def _warn_response_warnings(self, json_response):
 
         """!
         Give each entry in the warnings list of a cloud answer as a
-        warning, with the licence key masked. An answer with no such list
+        warning, with the licence key hidden. An answer with no such list
         gives none.
         """
 
@@ -754,18 +780,63 @@ class CloudRequestEngine(Engine):
         else:
             url = self.baseURL + Constants.LICENSE_DATA_PATH
 
-        content = self.get_content(flowdata)
-        content.update(self.get_credentials())
-        if len(self.requested_properties) > 0:
-            content[Constants.VALUES_PARAMETER] = ",".join(
-                self.requested_properties)
+        # A request that carries a sealed result redeems it through this
+        # call, with the transaction kept for its page, and only with a
+        # licence key. Otherwise the sealed result is not sent, and
+        # DerivedCloud gives Medium. See
+        # https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#redeeming-through-the-json-call
+        sealed = humanconfidence.sealed_result_of(flowdata.evidence)
+        transaction = None
+        left_out = {
+            humanconfidence.evidence_name(humanconfidence.PAGE_EVIDENCE)}
+        if sealed is not None:
+            # Taken whether or not it is used, so it is used once.
+            transaction = self.human_confidence_transactions._take(
+                humanconfidence.evidence_value(
+                    flowdata.evidence, humanconfidence.PAGE_EVIDENCE))
+            left_out |= humanconfidence.TRANSACTION_SUFFIXES
+            if transaction is None or self.license_key == "":
+                transaction = None
+                left_out.add(humanconfidence.evidence_name(
+                    humanconfidence.SEALED_RESULT_EVIDENCE))
+            self._hidden.values = [
+                value for value in (sealed, transaction, self.license_key)
+                if value]
+        elif any(humanconfidence.evidence_name(key)
+                 == humanconfidence.SEALED_RESULT_NAME and str(value) != ""
+                 for key, value in self.sendable_evidence(
+                     flowdata.evidence).items()):
+            # Only a non-empty query.humanconfidence is the sealed result.
+            # A value under a header, a cookie or any other key is not
+            # sent, nor is a transaction or challenge from the request, so
+            # the service can't redeem it with a transaction the request
+            # chose. An empty value is no sealed result and changes nothing.
+            left_out |= humanconfidence.TRANSACTION_SUFFIXES
+            left_out.add(humanconfidence.SEALED_RESULT_NAME)
 
-        result = self.make_cloud_request('POST', url, content)
+        try:
+            content = self.get_content(flowdata, left_out)
+            content.update(self.get_credentials())
+            values = list(self.requested_properties)
+            if transaction is not None:
+                content[humanconfidence.TRANSACTION_PARAMETER] = transaction
+                if humanconfidence.HUMAN_CONFIDENCE_PROPERTY not in values:
+                    values.append(humanconfidence.HUMAN_CONFIDENCE_PROPERTY)
+            if len(values) > 0:
+                content[Constants.VALUES_PARAMETER] = ",".join(values)
 
+            result = self.make_cloud_request('POST', url, content)
+        finally:
+            self._hidden.values = ()
+
+        # The report is made for the configured list alone, so a name added
+        # to redeem changes nothing in it.
         if len(self.requested_properties) > 0:
             self.report_properties_not_covered(result)
 
         data = AspectDataDictionary(self, {"cloud" : result})
+        # Read by DerivedCloud. Never the sealed result itself.
+        data._human_confidence_redeemed = transaction is not None
 
         flowdata.set_element_data(data)
 
@@ -785,7 +856,14 @@ class CloudRequestEngine(Engine):
         @param flowdata: the FlowData to process
         """
 
-        result = super(CloudRequestEngine, self).process(flowdata)
+        # A sealed result redeems once, so a request that carries one is
+        # neither served from the cache nor stored in it.
+        if (hasattr(self, "cache") and humanconfidence.sealed_result_of(
+                flowdata.evidence) is not None):
+            self.process_internal(flowdata)
+            result = None
+        else:
+            result = super(CloudRequestEngine, self).process(flowdata)
 
         # FlowData keeps each element's data under its datakey in lower case.
         data = flowdata.data.get(self.datakey.lower())
@@ -876,7 +954,7 @@ class CloudRequestEngine(Engine):
                        else Constants.MESSAGE_PROPERTIES_NOT_KNOWN)
             warnings.warn(message.format(", ".join(not_covered)))
 
-    def get_content(self, flowData):
+    def get_content(self, flowData, left_out=()):
 
         """!
         Generate the Content to send in the POST request. One name under
@@ -894,12 +972,18 @@ class CloudRequestEngine(Engine):
         and the web request view are left out.
 
         @param: flowData: FlowData
+        @param left_out: names, in lower case, whose evidence is left out
+        under any prefix, without a warning
         @return: Evidence Dictionary
         """
 
         queryData = {}
 
-        evidence = self.sendable_evidence(flowData.evidence)
+        evidence = {
+            key: value
+            for key, value in self.sendable_evidence(
+                flowData.evidence).items()
+            if humanconfidence.evidence_name(key) not in left_out}
         # Add the other evidence lowest precedence first.
         self.add_query_data(queryData, evidence, self.get_selected_evidence(evidence, Constants.EVIDENCE_OTHER))
         # Add cookie evidence.
@@ -994,7 +1078,10 @@ class CloudRequestEngine(Engine):
                                 for key, value in conflicts.items())
                     
                     if conflictStr:
-                        warnings.warn(warningMessage + conflictStr)
+                        # The values may hold the licence key, or a sealed
+                        # result being redeemed, which no message holds.
+                        warnings.warn(
+                            self.masked(warningMessage + conflictStr))
                     
                 # Overwrite the existing queryParameter value.
                 del query_data[existing]

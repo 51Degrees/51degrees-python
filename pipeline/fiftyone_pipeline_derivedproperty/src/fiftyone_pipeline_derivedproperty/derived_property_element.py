@@ -62,6 +62,17 @@ _OUTPUT_METADATA = [
 # What a read gives where the request carried no element data at all.
 _NO_ELEMENT_DATA = object()
 
+# A request whose evidence holds a non-empty query.humanconfidence carries a
+# sealed Human Confidence result. This element can't redeem one, so on such
+# a request HumanConfidence is Medium and HumanConfidenceSource Active, and
+# never a value worked out from other properties. See
+# https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#where-the-sealed-result-is-not-redeemed
+_SEALED_RESULT_EVIDENCE = "query.humanconfidence"
+_HUMAN_CONFIDENCE = "HumanConfidence"
+_HUMAN_CONFIDENCE_SOURCE = "HumanConfidenceSource"
+_NOT_REDEEMED = "Medium"
+_ACTIVE = "Active"
+
 # Why a second pipeline is refused.
 _ONE_PIPELINE = (
     "This derived property element is already in a pipeline. An element "
@@ -77,8 +88,11 @@ class DerivedPropertyElement(FlowElement):
     the derived-properties repository. Every script writes one property
     under the element data key derived.
 
-    The element holds no data file, sends no request and reads no
-    evidence, so it accepts no evidence.
+    The element holds no data file, sends no request and accepts no
+    evidence. The one evidence it reads is query.humanconfidence: on a
+    request carrying a sealed Human Confidence result, an element that
+    writes HumanConfidence gives Medium, with HumanConfidenceSource Active,
+    because it can't redeem the sealed result.
     """
 
     def __init__(self, compiled=None, **settings):
@@ -173,6 +187,12 @@ class DerivedPropertyElement(FlowElement):
                 script.output["Name"],
                 AspectPropertyValue(None, result.value) if result.has_value
                 else AspectPropertyValue(result.message))
+        if (_HUMAN_CONFIDENCE.lower() in self.script_properties and
+                _carries_sealed_result(flowdata.evidence)):
+            data.set_value(_HUMAN_CONFIDENCE,
+                           AspectPropertyValue(None, _NOT_REDEEMED))
+            data.set_value(_HUMAN_CONFIDENCE_SOURCE,
+                           AspectPropertyValue(None, _ACTIVE))
 
     # -------------------------------------------------------------------
     # Reading source properties.
@@ -407,6 +427,20 @@ def _metadata(script):
 # ---------------------------------------------------------------------
 # Helpers.
 # ---------------------------------------------------------------------
+
+def _carries_sealed_result(evidence):
+    """!
+    Whether a request's evidence holds a non-empty query.humanconfidence,
+    matched without regard to case. No element need accept it, so the
+    evidence set aside is read too.
+    """
+    unaccepted = getattr(evidence, "get_unaccepted", dict)()
+    for source in (evidence.get_all(), unaccepted):
+        for key, value in source.items():
+            if str(key).lower() == _SEALED_RESULT_EVIDENCE:
+                return value is not None and str(value) != ""
+    return False
+
 
 def _is_derived_element(element):
     return (_same_key(getattr(element, "datakey", None), DATA_KEY) and

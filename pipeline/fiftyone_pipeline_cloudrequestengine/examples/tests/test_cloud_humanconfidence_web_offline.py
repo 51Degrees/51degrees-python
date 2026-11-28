@@ -28,7 +28,11 @@ was sent, so the tests see what the example passed on.
 """
 
 import json
+import os
 import re
+import shutil
+import subprocess
+import urllib.parse
 
 import pytest
 import requests
@@ -86,8 +90,12 @@ class StubCloud:
     def __init__(self, properties):
         self.properties = properties
         self.requests = []
-        # The sealed values already redeemed, as each redeems once.
+        # The sealed results already sent in a JSON call.
         self.redeemed = set()
+        # The derived section answered for a sealed result sent the first
+        # time.
+        self.sealed_answer = {
+            "humanconfidence": "High", "humanconfidencesource": "Active"}
         # An answer to give in place of the usual one, by the end of the
         # address, as a StubResponse or an exception to raise.
         self.instead = {}
@@ -108,7 +116,9 @@ class StubCloud:
                     raise answer
                 return answer
 
-        if path.startswith("accessibleproperties"):
+        # The example asks with a GET and the Cloud Request Engine, which
+        # holds a License Key, with a POST that spells it accessibleProperties.
+        if path.lower().startswith("accessibleproperties"):
             return StubResponse({"Products": {"derived": {"Properties": [
                 {"Name": name, "Type": "String"}
                 for name in self.properties]}}})
@@ -117,17 +127,16 @@ class StubCloud:
             return StubResponse([
                 "header.user-agent", "header.sec-ch-ua", "query.client-ip"])
 
-        if path == RESOURCE_KEY + ".json":
+        if path.split("?")[0] == RESOURCE_KEY + ".json":
+            # A JSON call that carries a sealed result is answered with
+            # sealed_answer, the first time that sealed result is sent.
+            if "humanconfidence" in data and \
+                    data["humanconfidence"] not in self.redeemed:
+                self.redeemed.add(data["humanconfidence"])
+                return StubResponse({"derived": self.sealed_answer})
             return StubResponse({"derived": {
                 "humanconfidence": "Medium",
                 "humanconfidencesource": "Passive"}})
-
-        if path == "hc/redeem":
-            if data.get("value") in self.redeemed:
-                return StubResponse({"result": "replayed"})
-            self.redeemed.add(data.get("value"))
-            return StubResponse({
-                "humanConfidence": "High", "secondsSinceVerified": 2})
 
         return StubResponse("Not Found", 404)
 
@@ -150,7 +159,22 @@ def client_for(license_key=LICENCE_KEY):
 
 # The page.
 
-def test_page_carries_the_resource_key_and_the_cloud_address(cloud):
+SCRIPT_URL = re.compile(r'var SCRIPT_URL = "([^"]+)";')
+PAGE_ID = re.compile(r'var PAGE = "([^"]+)";')
+
+
+def page_of(client):
+    """The script address and the page id a page load gives."""
+    html = client.get("/").get_data(as_text=True)
+    return SCRIPT_URL.search(html).group(1), PAGE_ID.search(html).group(1)
+
+
+def transaction_of(script_url):
+    query = urllib.parse.urlparse(script_url).query
+    return urllib.parse.parse_qs(query)["transaction"][0]
+
+
+def test_page_carries_the_script_address_the_package_gives(cloud):
     cloud()
     client = client_for()
     response = client.get("/")
@@ -158,10 +182,24 @@ def test_page_carries_the_resource_key_and_the_cloud_address(cloud):
 
     assert response.status_code == 200
     assert "Human Confidence demo" in html
-    assert f'var RESOURCE = "{RESOURCE_KEY}";' in html
-    assert f'var API = "{API}";' in html
+    script_url, page_id = page_of(client)
+    # The address of the cloud's client script for the Resource Key, with
+    # the transaction the package issued for the page.
+    assert script_url.startswith(
+        API + RESOURCE_KEY + ".js?transaction=")
+    assert transaction_of(script_url)
+    assert page_id
+    assert transaction_of(script_url) not in page_id
     assert '<link rel="stylesheet" href="/css/examples-main.min.css">' in html
     assert client.get("/css/examples-main.min.css").status_code == 200
+
+
+def test_each_page_load_gets_its_own_transaction(cloud):
+    cloud()
+    client = client_for()
+    first, second = page_of(client), page_of(client)
+    assert transaction_of(first[0]) != transaction_of(second[0])
+    assert first[1] != second[1]
 
 
 def test_page_is_never_kept_by_a_cache(cloud):
@@ -315,66 +353,187 @@ def test_passive_answers_when_the_cloud_cannot_be_reached(cloud):
     assert "cannot be reached" in response.get_json()["error"]
 
 
-# Step 3, redeem.
+# Step 3, read on the server. The page sends the sealed result back, and the
+# example reads the two properties through its pipeline, whose Cloud
+# Request Engine redeems it. The example never redeems a sealed result
+# itself.
 
-def test_redeem_sends_the_sealed_value_with_the_licence_key(cloud):
-    stub = cloud()
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
+EXAMPLE_FILES = [
+    example.__file__,
+    os.path.join(os.path.dirname(example.__file__), "templates",
+                 "index.html")]
 
+
+def send(client, sealed="a-sealed-value", page_id=None):
+    """Loads the page, then sends the sealed result with its page id, as
+    the page does. Gives the answer and the page's script address."""
+    script_url, issued = page_of(client)
+    response = client.post("/humanconfidence", data={
+        "humanconfidence": sealed,
+        "humanconfidencepage": issued if page_id is None else page_id})
     assert response.status_code == 200
-    assert response.headers["Content-Type"].startswith("application/json")
-    assert response.get_json() == {
-        "humanConfidence": "High", "secondsSinceVerified": 2}
-    method, url, data = stub.requests[-1]
+    return response.get_json(), script_url
+
+
+def test_the_example_never_redeems_a_sealed_result_itself():
+    for path in EXAMPLE_FILES:
+        with open(path, encoding="utf-8") as handle:
+            text = handle.read()
+        assert "hc/redeem" not in text, path
+        assert "sealedResult" not in text, path
+
+
+def test_the_package_redeems_through_the_json_call(cloud):
+    stub = cloud()
+    answer, script_url = send(client_for())
+
+    assert answer == {"source": "Active", "humanConfidence": "High",
+                      "humanConfidenceNullReason": None}
+    assert stub.sent_to("hc/redeem") == []
+    method, url, data = stub.sent_to(".json?")[-1]
     assert method == "POST"
-    assert url == API + "hc/redeem"
-    assert data == {"value": "a-sealed-value", "license": LICENCE_KEY}
+    assert url == API + RESOURCE_KEY + ".json?"
+    # The sealed result as the page sent it, the transaction the package
+    # kept for the page, and the License Key, which only this server holds.
+    assert data["humanconfidence"] == "a-sealed-value"
+    assert data["transaction"] == transaction_of(script_url)
+    assert data["license"] == LICENCE_KEY
+    assert "humanconfidencepage" not in data
 
 
-def test_second_redeem_of_the_same_value_is_replayed(cloud):
+def test_the_example_shows_the_value_the_package_gives(cloud):
+    stub = cloud()
+    stub.sealed_answer = {
+        "humanconfidence": "Low", "humanconfidencesource": "Active"}
+
+    assert send(client_for())[0]["humanConfidence"] == "Low"
+
+
+def test_a_sealed_result_sent_again_is_not_redeemed_again(cloud):
+    stub = cloud()
+    client = client_for()
+    script_url, page_id = page_of(client)
+    form = {"humanconfidence": "a-sealed-value",
+            "humanconfidencepage": page_id}
+    first = client.post("/humanconfidence", data=form).get_json()
+    second = client.post("/humanconfidence", data=form).get_json()
+
+    assert first["humanConfidence"] == "High"
+    assert second == {"source": "Active", "humanConfidence": "Medium",
+                      "humanConfidenceNullReason": None}
+    # The transaction was used, so the package did not send the sealed
+    # result again.
+    assert "humanconfidence" not in stub.sent_to(".json?")[-1][2]
+
+
+def test_a_page_the_package_did_not_serve_is_not_redeemed(cloud):
+    stub = cloud()
+    answer, _ = send(client_for(), page_id="a-page-never-served")
+
+    assert answer["source"] == "Active"
+    assert answer["humanConfidence"] == "Medium"
+    assert "humanconfidence" not in stub.sent_to(".json?")[-1][2]
+
+
+def test_without_a_licence_key_nothing_is_redeemed(cloud):
+    stub = cloud()
+    answer, _ = send(client_for(license_key=""))
+
+    assert answer["humanConfidence"] == "Medium"
+    sent = stub.sent_to(".json?")[-1][2]
+    assert "humanconfidence" not in sent
+    assert "license" not in sent
+
+
+def test_a_cloud_that_cannot_be_reached_gives_medium(cloud):
+    stub = cloud()
+    client = client_for()
+    # The pipeline is built on the first request, so the failure is put in
+    # place after that.
+    send(client)
+    stub.instead[".json?"] = requests.exceptions.ConnectionError(
+        "The stand-in service cannot be reached.")
+    answer, _ = send(client, sealed="another-sealed-value")
+
+    assert answer["source"] == "Active"
+    assert answer["humanConfidence"] == "Medium"
+
+
+# Each answer the server can give the page, with the text the page shows
+# for the level. With no level the page shows why, as the null reason.
+READ_ANSWERS = [
+    ({"source": "Active", "humanConfidence": "High",
+      "humanConfidenceNullReason": None}, "High"),
+    ({"source": "Active", "humanConfidence": "Medium",
+      "humanConfidenceNullReason": None}, "Medium"),
+    ({"source": None, "humanConfidence": None,
+      "humanConfidenceNullReason": "The key does not carry this property."},
+     "The key does not carry this property."),
+    ({"source": "Active"}, "no level"),
+    ({"error": "HTTP 502"}, "no level"),
+]
+
+
+@pytest.mark.skipif(shutil.which("node") is None,
+                    reason="Node is not on the path")
+def test_page_shows_the_null_reason_where_there_is_no_level():
+    template = os.path.join(
+        os.path.dirname(example.__file__), "templates", "index.html")
+    with open(template, encoding="utf-8") as handle:
+        page = handle.read()
+    functions = []
+    for name in ("levelClass", "showRead"):
+        found = re.search(
+            r"function " + name + r"\(.*?\n  \}", page, re.S)
+        assert found is not None, "the page has a " + name + " function"
+        functions.append(found.group(0))
+    script = (
+        "var PASS = 'pass', FAIL = 'fail', PART = 'part', NONE = 'none';\n"
+        "var shown = {};\n"
+        "function show(id, text, cls) { shown[id] = text; }\n"
+        + "\n".join(functions)
+        + "\nconsole.log(JSON.stringify("
+        + json.dumps([answer for answer, _ in READ_ANSWERS])
+        + ".map(function (answer) { shown = {}; showRead(answer); "
+        "return shown['redeem-level']; })));\n")
+    finished = subprocess.run(
+        [shutil.which("node"), "-e", script], capture_output=True,
+        text=True, timeout=60)
+    assert finished.returncode == 0, finished.stderr
+
+    assert json.loads(finished.stdout) == [
+        expected for _, expected in READ_ANSWERS]
+
+
+def test_the_licence_key_never_reaches_the_page_after_a_read(cloud):
     cloud()
     client = client_for()
-    first = client.post("/redeem", data={"value": "a-sealed-value"})
-    second = client.post("/redeem", data={"value": "a-sealed-value"})
-
-    assert first.get_json()["humanConfidence"] == "High"
-    assert second.get_json() == {"result": "replayed"}
+    response = client.post("/humanconfidence", data={
+        "humanconfidence": "a-sealed-value"})
+    assert LICENCE_KEY not in response.get_data(as_text=True)
 
 
-def test_redeem_without_a_licence_key_sends_none(cloud):
+def test_no_part_of_the_licence_key_reaches_the_page_when_building_fails(
+        cloud, caplog):
     stub = cloud()
-    client_for(license_key="").post(
-        "/redeem", data={"value": "a-sealed-value"})
+    key = "LK-0123456789-WXYZ"
+    # The cloud refuses the key and names it, so the pipeline isn't built.
+    refusal = StubResponse(
+        {"errors": ["The license key " + key + " is not valid."]}, 403)
+    refusal.headers = {}
+    refusal.url = API + "accessibleProperties"
+    stub.instead["accessibleProperties"] = refusal
+    with caplog.at_level("ERROR"):
+        response = client_for(license_key=key).post(
+            "/humanconfidence", data={"humanconfidence": "a-sealed-value"})
+    page = response.get_data(as_text=True)
 
-    assert stub.requests[-1][2] == {"value": "a-sealed-value"}
-
-
-def test_redeem_gives_the_answer_as_the_cloud_gave_it(cloud):
-    stub = cloud()
-    stub.instead["hc/redeem"] = StubResponse('{"result":"expired"}', 400)
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
-
-    assert response.status_code == 400
-    assert response.get_data(as_text=True) == '{"result":"expired"}'
-
-
-def test_redeem_says_when_the_service_does_not_redeem(cloud):
-    stub = cloud()
-    stub.instead["hc/redeem"] = StubResponse("Not Found", 404)
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
-
-    assert response.get_json() == {
-        "error": f"The service at {API} doesn't redeem Human Confidence."}
-
-
-def test_redeem_answers_502_when_the_cloud_cannot_be_reached(cloud):
-    stub = cloud()
-    stub.instead["hc/redeem"] = requests.exceptions.ConnectionError(
-        "The stand-in service cannot be reached.")
-    response = client_for().post("/redeem", data={"value": "a-sealed-value"})
-
-    assert response.status_code == 502
-    assert "cannot be reached" in response.get_json()["error"]
+    parts = {key[i:i + 4] for i in range(len(key) - 3)}
+    assert [part for part in parts if part in page] == []
+    assert "not valid" not in page
+    # The details go to the server's log, still without the key.
+    assert caplog.records
+    assert [part for part in parts if part in caplog.text] == []
 
 
 # The cloud address.

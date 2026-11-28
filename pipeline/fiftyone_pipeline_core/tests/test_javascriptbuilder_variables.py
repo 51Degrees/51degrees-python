@@ -134,6 +134,22 @@ class JavaScriptBuilderVariablesTests(unittest.TestCase):
         self.assertEqual(
             {"mark": "kept"}, json.loads(variables["_parameters"]))
 
+    def test_parameters_leave_out_the_sealed_human_confidence(self):
+        """A sealed result is never in the JavaScript Builder's output, nor
+        is the page id it came with."""
+
+        variables = _render_variables({
+            "header.host": "example.com",
+            "query.humanconfidence": "a-sealed-result",
+            "query.HumanConfidencePage": "a-page-id",
+            "query.mark": "kept",
+        })
+
+        self.assertEqual(
+            {"mark": "kept"}, json.loads(variables["_parameters"]))
+        self.assertNotIn("a-sealed-result", json.dumps(variables))
+        self.assertNotIn("a-page-id", json.dumps(variables))
+
     def test_url_carries_no_query_string(self):
         """The callback URL is the protocol, the host and the endpoint and
         nothing more, as in the .NET builder. The query values reach the

@@ -39,12 +39,16 @@
 # 2. Active. The page loads the 51Degrees client script, which runs the
 #    browser tests and sends the answers to the cloud. When the script
 #    completes, HumanConfidenceSource is Active and HumanConfidence holds
-#    a sealed value the browser can't read or change.
-# 3. Redeem. The page hands the sealed value to this server, which calls
-#    hc/redeem with it and the account's License Key, and gets the true
-#    level back. A sealed value redeems once, within ten seconds. This
-#    server is the only party holding the License Key, which the browser
-#    never sees.
+#    a sealed result the browser can't read or change. The package gives
+#    each page its own script address, which binds the sealed result to
+#    that page.
+# 3. Read on the server. The page sends the sealed result back to this
+#    server as humanconfidence. The server adds it to the evidence of a
+#    pipeline holding the Cloud Request Engine, and reads the two
+#    properties from flowdata.derived. The package redeems the sealed
+#    result itself, with the License Key, so this server never redeems it
+#    and the browser never sees the License Key. A sealed result redeems
+#    once, so sending it again gives Medium.
 #
 # This example is available in full on [GitHub](https://github.com/51Degrees/51degrees-python/blob/main/pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/humanconfidence_web/app.py).
 #
@@ -63,14 +67,21 @@
 # - [requests](https://pypi.org/project/requests/)
 
 import ipaddress
+import logging
 import os
 import sys
+import threading
 import urllib.parse
 
 import requests
-from flask import Flask, Response, jsonify, make_response, render_template
+from flask import Flask, jsonify, make_response, render_template
 from flask import request
 
+from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
+    CloudRequestEngine
+from fiftyone_pipeline_cloudrequestengine.humanconfidence import \
+    DerivedCloud, HumanConfidenceTransactions
+from fiftyone_pipeline_core.pipelinebuilder import PipelineBuilder
 from fiftyone_pipeline_examples.example_utils import ExampleUtils
 
 DEFAULT_API = "https://cloud.51degrees.com/api/v4/"
@@ -80,6 +91,14 @@ PROPERTY = "HumanConfidence"
 
 # A short limit, in seconds, so a slow cloud can't hang the demo.
 TIMEOUT = 10
+
+# What the page is told when the pipeline can't be built or a property
+# can't be read. The details go to the server's log instead, because an
+# error's text can name the License Key, which no page may receive.
+BUILD_FAILED = "The pipeline could not be built. See the server's log."
+READ_FAILED = "The property could not be read. See the server's log."
+
+LOGGER = logging.getLogger(__name__)
 
 # Where to go next. The page ends with these links, and the example prints
 # them when it stops before the page is served.
@@ -148,12 +167,42 @@ def create_app(resource_key, license_key, api):
 
     """!
     Create the Flask application that serves the page, asks the cloud for
-    the passive level, and redeems the sealed active level.
+    the passive level, and reads the active level through a pipeline,
+    whose Cloud Request Engine redeems the sealed result.
     """
 
     # Serve the files in the static folder from the root, so the stylesheet
     # is at /css, as in the other web examples.
     app = Flask(__name__, static_url_path="")
+
+    # Issues each page its transaction and keeps it here, on the server.
+    transactions = HumanConfidenceTransactions()
+
+    # The pipeline, built on first use, so the page is served without
+    # asking the cloud anything.
+    built = []
+    building = threading.Lock()
+
+    def pipeline():
+        with building:
+            if not built:
+                settings = {
+                    "resource_key": resource_key,
+                    "cloud_endpoint": api,
+                    "timeout_seconds": TIMEOUT,
+                    "human_confidence_transactions": transactions}
+                if license_key:
+                    settings["license_key"] = license_key
+                built.append(PipelineBuilder({
+                    "add_javascript_builder": False,
+                    "use_setheader_properties": False,
+                    # A failed cloud request still gives the two
+                    # properties, so it is recorded rather than raised.
+                    "suppress_process_exceptions": True})
+                    .add(CloudRequestEngine(settings))
+                    .add(DerivedCloud())
+                    .build())
+        return built[0]
 
     # The request headers the cloud reads, from its own list, fetched once.
     # Only these are passed on, so headers such as Authorization stay here.
@@ -174,8 +223,12 @@ def create_app(resource_key, license_key, api):
     @app.route("/")
     def index():
 
+        # A new transaction for each page. The page loads the client script
+        # from the address the package gives, and sends back the page id.
+        page = transactions.issue()
         response = make_response(render_template(
-            "index.html", resource_key=resource_key, api=api))
+            "index.html", script_url=page.script_url(api, resource_key),
+            page_id=page.id))
         # The page must never come from a cache, as each load runs the
         # tests.
         response.headers["Cache-Control"] = "no-store"
@@ -210,29 +263,54 @@ def create_app(resource_key, license_key, api):
         except (requests.RequestException, ValueError) as error:
             return jsonify(error=str(error))
 
-    # Redeem: the page sends the sealed value, and this server redeems it
-    # with the License Key. The answer goes back to the page as the cloud
-    # gave it.
-    @app.route("/redeem", methods=["POST"])
-    def redeem():
+    # Active: the page sends the sealed result and its page id. They go
+    # into the evidence, and the two properties are read from the derived
+    # data. The package redeems the sealed result while processing.
+    @app.route("/humanconfidence", methods=["POST"])
+    def human_confidence():
 
-        fields = {"value": request.form.get("value", "")}
-        if license_key:
-            fields["license"] = license_key
         try:
-            answer = requests.request(
-                "POST", api + "hc/redeem", data=fields, timeout=TIMEOUT)
-        except requests.RequestException as error:
-            return jsonify(error=str(error)), 502
-        if answer.status_code == 404:
-            return jsonify(
-                error=f"The service at {api} doesn't redeem Human "
-                      "Confidence.")
-        return Response(
-            answer.text, status=answer.status_code,
-            content_type="application/json")
+            flowdata = pipeline().create_flowdata()
+        except Exception as error:
+            LOGGER.error("Building the pipeline failed: %s",
+                         hide(str(error), license_key))
+            return jsonify(error=BUILD_FAILED)
+        for name in ("humanconfidence", "humanconfidencepage"):
+            flowdata.evidence.add(
+                "query." + name, request.form.get(name, ""))
+        flowdata.process()
+        source, _ = property_of(flowdata, "humanconfidencesource")
+        value, reason = property_of(flowdata, "humanconfidence")
+        return jsonify(source=source, humanConfidence=value,
+                       humanConfidenceNullReason=reason)
 
     return app
+
+
+def property_of(flowdata, name):
+
+    """!
+    A property of the derived data as its value and the reason it has none,
+    one of them None.
+    """
+
+    try:
+        value = flowdata.derived.get(name)
+    except Exception as error:
+        LOGGER.error("Reading %s failed: %s", name, error)
+        return None, READ_FAILED
+    if value.has_value():
+        return value.value(), None
+    return None, value.no_value_message()
+
+
+def hide(text, license_key):
+
+    """!
+    The text with the License Key left out, for the server's log.
+    """
+
+    return text.replace(license_key, "(hidden)") if license_key else text
 
 
 def client_ip(address):
@@ -295,9 +373,9 @@ def main(argv):
 
     if not license_key.strip():
         print(f"No {ExampleUtils.LICENSE_KEY_ENV_VAR} set. The page still "
-              "shows Passive and Active, but an account that holds License "
-              "Keys can't redeem without one, so the redeemed level will be "
-              "unreadable.")
+              "shows Passive and Active, but the package redeems a sealed "
+              "result only with one, so the level after the browser tests "
+              "will be Medium.")
 
     app = create_app(resource_key, license_key, api)
     port = os.environ.get("_51DEGREES_EXAMPLE_HTTP_PORTS", 5151)

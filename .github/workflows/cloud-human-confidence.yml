@@ -33,6 +33,8 @@ on:
     paths:
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/cloud/humanconfidence_web/**'
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/src/fiftyone_pipeline_examples/example_utils.py'
+      # The package that redeems the sealed result for the example.
+      - 'pipeline/fiftyone_pipeline_cloudrequestengine/src/**'
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/conftest.py'
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/live_cloud.py'
       - 'pipeline/fiftyone_pipeline_cloudrequestengine/examples/tests/test_cloud_humanconfidence_web.py'

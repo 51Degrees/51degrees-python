@@ -128,6 +128,8 @@ class CreatorContextServerTests(unittest.TestCase):
         self.assertEqual("POST", redeem.get_method())
         form = {k: v[0] for k, v in urllib.parse.parse_qs(
             redeem.data.decode("ascii")).items()}
+        self.assertEqual("sealed", form["sealedResult"])
+        self.assertEqual("abc", form["transaction"])
         self.assertEqual("sealed", form["result"])
         self.assertEqual("abc", form["challenge"])
         self.assertEqual("test-licence-key", form["license"])

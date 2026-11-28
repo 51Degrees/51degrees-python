@@ -37,6 +37,8 @@ import fiftyone_pipeline_cloudrequestengine
 from fiftyone_pipeline_cloudrequestengine.cloudengine import CloudEngine
 from fiftyone_pipeline_cloudrequestengine.cloudrequestengine import \
     CloudRequestEngine
+from fiftyone_pipeline_cloudrequestengine.humanconfidence import \
+    DerivedCloud
 from fiftyone_pipeline_core.elementdata_dictionary import \
     ElementDataDictionary
 from fiftyone_pipeline_core.flowelement import FlowElement
@@ -115,14 +117,21 @@ class FinishedWritesTests(CloudRequestEngineTestsBase):
         })
         engine = CloudEngine()
         engine.datakey = "device"
-        flowdata = PipelineBuilder().add(cloud).add(engine).build() \
-            .create_flowdata()
-        flowdata.evidence.add("query.User-Agent", "iPhone")
-        flowdata.process()
-        self.assert_writes_fail(flowdata, "cloud")
-        self.assert_writes_fail(flowdata, "device")
+        pipeline = PipelineBuilder().add(cloud).add(engine) \
+            .add(DerivedCloud()).build()
+        # With and without a sealed result, as DerivedCloud writes its own
+        # values on a request that carries one.
+        for sealed in (None, "a-sealed-result"):
+            flowdata = pipeline.create_flowdata()
+            flowdata.evidence.add("query.User-Agent", "iPhone")
+            if sealed is not None:
+                flowdata.evidence.add("query.humanconfidence", sealed)
+            flowdata.process()
+            self.assert_writes_fail(flowdata, "cloud")
+            self.assert_writes_fail(flowdata, "device")
+            self.assert_writes_fail(flowdata, "derived")
         self.assertEqual(
-            {CloudEngine, CloudRequestEngine},
+            {CloudEngine, CloudRequestEngine, DerivedCloud},
             defined_flow_elements(fiftyone_pipeline_cloudrequestengine))
 
     def test_every_example_flow_element_refuses_writes_once_finished(self):

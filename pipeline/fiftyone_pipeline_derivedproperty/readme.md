@@ -14,7 +14,9 @@ The Pipeline is a generic web request intelligence and data processing solution 
 
 ## This package fiftyone_pipeline_derivedproperty
 
-This package adds the derived property flow element to the pipeline. It computes new properties from properties other elements have already put into the flow data, such as HumanConfidence from Device Detection and IP Intelligence properties, and IsGdpr from the country of an IP address. It holds no data file, sends no request and reads no evidence.
+This package adds the derived property flow element to the pipeline. It computes new properties from properties other elements have already put into the flow data, such as HumanConfidence from Device Detection and IP Intelligence properties, and IsGdpr from the country of an IP address. It holds no data file, sends no request and accepts no evidence.
+
+The one evidence it reads is `query.humanconfidence`. A request where that's not empty carries a sealed Human Confidence result, which this element can't redeem. So on such a request, an element that writes HumanConfidence gives `Medium` in place of the value its script works out, and adds HumanConfidenceSource `Active`, as the [Human Confidence page of the pipeline specification](https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#where-the-sealed-result-is-not-redeemed) asks. Every other request is unchanged.
 
 Each property is defined by a script in the format the [derived-properties](https://github.com/51Degrees/derived-properties) repository describes, written in YAML or JSON. The scripts that repository holds are built into this package, and the same scripts give the same answers in every 51Degrees language, which the case files in that repository prove. Every script writes one property under the element data key `derived`.
 

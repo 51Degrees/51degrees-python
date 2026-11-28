@@ -59,7 +59,8 @@ DATA = "data"
 
 RESOURCE_KEY = "resource_key"
 LICENSE_KEY = "ABCDEFGHIJKL"
-MASKED_LICENSE_KEY = "********IJKL"
+# The licence key is hidden whole in every message.
+HIDDEN_LICENSE_KEY = "(hidden)"
 
 # What the stand-in answers when it refuses a discovery request, in the
 # form the cloud service uses.
@@ -499,7 +500,7 @@ class ResponseWarningsTests(CloudRequestEngineTestsBase):
                 1, len([message for message in messages
                         if warning in message]), messages)
 
-    def test_a_licence_key_in_a_warning_is_masked(self):
+    def test_a_licence_key_in_a_warning_is_hidden(self):
         response = json.dumps({
             "device": {"value": 1},
             "warnings": ["The licence key " + LICENSE_KEY + " expires soon."]})
@@ -512,5 +513,5 @@ class ResponseWarningsTests(CloudRequestEngineTestsBase):
 
         self.assertEqual({}, data.errors)
         logged = "\n".join(messages)
-        self.assertIn(MASKED_LICENSE_KEY, logged)
-        self.assertNotIn(LICENSE_KEY, logged)
+        self.assertIn(HIDDEN_LICENSE_KEY, logged)
+        self.assertNotIn(LICENSE_KEY[-4:], logged)
