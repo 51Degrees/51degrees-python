@@ -37,7 +37,9 @@ from fiftyone_pipeline_cloudrequestengine.constants import Constants
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 
 KEY = "ABCDEFGHIJKL"
-MASKED = "********IJKL"
+# The licence key is hidden whole, so not even its last four characters
+# are kept.
+HIDDEN = "(hidden)"
 
 
 def answer(status, errors):
@@ -102,7 +104,7 @@ class CloudErrorsTests(CloudRequestEngineTestsBase):
         self.assertIn(error_text("First problem."), text)
         self.assertIn(error_text("Second problem."), text)
 
-    def test_each_entry_shows_only_the_masked_key(self):
+    def test_each_entry_hides_the_whole_key(self):
         exception = self.raised(400, [
             "The license key is not valid. License key(s): '" + KEY + "'",
             "Again '" + KEY + "'"])
@@ -110,7 +112,8 @@ class CloudErrorsTests(CloudRequestEngineTestsBase):
         self.assertEqual(2, len(exception.exceptions))
         for inner in exception.exceptions:
             self.assertNotIn(KEY[:8], inner.message)
-            self.assertIn(MASKED, inner.message)
+            self.assertNotIn(KEY[-4:], inner.message)
+            self.assertIn(HIDDEN, inner.message)
         self.assertNotIn(KEY[:8], str(exception))
 
 

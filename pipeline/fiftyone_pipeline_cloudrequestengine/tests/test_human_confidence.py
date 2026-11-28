@@ -289,6 +289,51 @@ class HumanConfidenceTests(unittest.TestCase):
             for secret in secrets:
                 self.assertNotIn(secret, message)
 
+    def assert_no_part_of_the_key(self, messages):
+        # Any run of four characters from the key counts as a part of it.
+        parts = {LICENCE[i:i + 4] for i in range(len(LICENCE) - 3)}
+        for message in messages:
+            for part in parts:
+                self.assertNotIn(part, message)
+
+    def test_no_message_holds_any_part_of_the_licence_key(self):
+        echo = "Not valid: license=" + LICENCE + " key " + LICENCE
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.cloud.answer = reply(
+                {"errors": [echo], "warnings": [echo]}, 400)
+            data = self.process(self.pipeline(), sealed=None, page=None)
+        messages = [str(w.message) for w in caught]
+        messages += [str(error.exception_instance)
+                     for error in data.errors.values()]
+        self.assertTrue(data.errors)
+        self.assert_no_part_of_the_key(messages)
+
+    def test_a_refused_licence_key_is_hidden_whole_in_the_error(self):
+        refusal = reply({"errors": ["The license key " + LICENCE
+                                    + " is not valid."]}, 403)
+        cloud = Mock()
+        cloud.request = lambda *arguments: refusal
+        with self.assertRaises(Exception) as raised:
+            CloudRequestEngine({
+                "resource_key": RESOURCE, "license_key": LICENCE,
+                "http_client": cloud, "cloud_endpoint": API})
+        self.assert_no_part_of_the_key([str(raised.exception)])
+
+    def test_a_sealed_result_that_is_part_of_the_key_hides_the_key(self):
+        sealed = LICENCE[:4]
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            self.cloud.answer = reply({
+                "errors": ["Not valid: " + LICENCE],
+                "warnings": ["Echo " + LICENCE]}, 400)
+            data = self.process(self.pipeline(), sealed=sealed)
+        messages = [str(w.message) for w in caught]
+        messages += [str(error.exception_instance)
+                     for error in data.errors.values()]
+        self.assertTrue(data.errors)
+        self.assert_no_part_of_the_key(messages)
+
     # A sealed result anywhere but a non-empty query.humanconfidence.
 
     def test_a_sealed_result_under_another_key_is_not_sent(self):

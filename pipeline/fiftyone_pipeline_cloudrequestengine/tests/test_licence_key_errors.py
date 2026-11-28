@@ -34,7 +34,9 @@ from fiftyone_pipeline_cloudrequestengine.cloudrequestexception import \
 from .classes.cloudrequestengine_testbase import CloudRequestEngineTestsBase
 
 KEY = "ABCDEFGHIJKL"
-MASKED = "********IJKL"
+# The licence key is hidden whole, so not even its last four characters
+# are kept.
+HIDDEN = "(hidden)"
 
 
 def answer(status, text):
@@ -56,17 +58,19 @@ class LicenceKeyErrorTests(CloudRequestEngineTestsBase):
             "http_client": self.mock_http(),
         })
 
-    def test_the_errors_text_shows_only_the_masked_key(self):
+    def test_the_errors_text_hides_the_whole_key(self):
         text = json.dumps({"errors": [
             "The license key is not valid. License key(s): '" + KEY + "'"]})
         with self.assertRaises(CloudRequestException) as caught:
             self.engine().validate_response(answer(400, text))
         self.assertNotIn(KEY[:8], str(caught.exception))
-        self.assertIn(MASKED, str(caught.exception))
+        self.assertNotIn(KEY[-4:], str(caught.exception))
+        self.assertIn(HIDDEN, str(caught.exception))
 
-    def test_content_that_is_not_json_shows_only_the_masked_key(self):
+    def test_content_that_is_not_json_hides_the_whole_key(self):
         with self.assertRaises(CloudRequestException) as caught:
             self.engine().validate_response(
                 answer(500, "Licence " + KEY + " refused"))
         self.assertNotIn(KEY[:8], str(caught.exception))
-        self.assertIn(MASKED, str(caught.exception))
+        self.assertNotIn(KEY[-4:], str(caught.exception))
+        self.assertIn(HIDDEN, str(caught.exception))

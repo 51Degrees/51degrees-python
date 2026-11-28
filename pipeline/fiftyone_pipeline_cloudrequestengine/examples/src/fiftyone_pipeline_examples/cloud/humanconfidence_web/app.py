@@ -67,6 +67,7 @@
 # - [requests](https://pypi.org/project/requests/)
 
 import ipaddress
+import logging
 import os
 import sys
 import threading
@@ -90,6 +91,14 @@ PROPERTY = "HumanConfidence"
 
 # A short limit, in seconds, so a slow cloud can't hang the demo.
 TIMEOUT = 10
+
+# What the page is told when the pipeline can't be built or a property
+# can't be read. The details go to the server's log instead, because an
+# error's text can name the License Key, which no page may receive.
+BUILD_FAILED = "The pipeline could not be built. See the server's log."
+READ_FAILED = "The property could not be read. See the server's log."
+
+LOGGER = logging.getLogger(__name__)
 
 # Where to go next. The page ends with these links, and the example prints
 # them when it stops before the page is served.
@@ -263,7 +272,9 @@ def create_app(resource_key, license_key, api):
         try:
             flowdata = pipeline().create_flowdata()
         except Exception as error:
-            return jsonify(error=str(error))
+            LOGGER.error("Building the pipeline failed: %s",
+                         hide(str(error), license_key))
+            return jsonify(error=BUILD_FAILED)
         for name in ("humanconfidence", "humanconfidencepage"):
             flowdata.evidence.add(
                 "query." + name, request.form.get(name, ""))
@@ -286,10 +297,20 @@ def property_of(flowdata, name):
     try:
         value = flowdata.derived.get(name)
     except Exception as error:
-        return None, str(error)
+        LOGGER.error("Reading %s failed: %s", name, error)
+        return None, READ_FAILED
     if value.has_value():
         return value.value(), None
     return None, value.no_value_message()
+
+
+def hide(text, license_key):
+
+    """!
+    The text with the License Key left out, for the server's log.
+    """
+
+    return text.replace(license_key, "(hidden)") if license_key else text
 
 
 def client_ip(address):

@@ -137,8 +137,9 @@ class Constants:
         RESOURCE_PARAMETER, LICENSE_PARAMETER, LICENCE_SPELLING,
         VALUES_PARAMETER)
 
-    # Takes the place of the sealed result, the transaction and the licence
-    # key in a message made while a sealed result is redeemed.
+    # Takes the place of the licence key in every message the engine
+    # builds, and of the sealed result and the transaction in a message made
+    # while a sealed result is redeemed.
     HIDDEN_VALUE = "(hidden)"
 
     # The path, below the base URL, of the data endpoint that takes no

@@ -513,6 +513,29 @@ def test_the_licence_key_never_reaches_the_page_after_a_read(cloud):
     assert LICENCE_KEY not in response.get_data(as_text=True)
 
 
+def test_no_part_of_the_licence_key_reaches_the_page_when_building_fails(
+        cloud, caplog):
+    stub = cloud()
+    key = "LK-0123456789-WXYZ"
+    # The cloud refuses the key and names it, so the pipeline isn't built.
+    refusal = StubResponse(
+        {"errors": ["The license key " + key + " is not valid."]}, 403)
+    refusal.headers = {}
+    refusal.url = API + "accessibleProperties"
+    stub.instead["accessibleProperties"] = refusal
+    with caplog.at_level("ERROR"):
+        response = client_for(license_key=key).post(
+            "/humanconfidence", data={"humanconfidence": "a-sealed-value"})
+    page = response.get_data(as_text=True)
+
+    parts = {key[i:i + 4] for i in range(len(key) - 3)}
+    assert [part for part in parts if part in page] == []
+    assert "not valid" not in page
+    # The details go to the server's log, still without the key.
+    assert caplog.records
+    assert [part for part in parts if part in caplog.text] == []
+
+
 # The cloud address.
 
 def test_cloud_address_defaults_to_the_public_cloud():

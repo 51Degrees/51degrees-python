@@ -35,7 +35,6 @@ from json import JSONDecodeError
 import requests
 from fiftyone_pipeline_core.basiclist_evidence_keyfilter import BasicListEvidenceKeyFilter
 from fiftyone_pipeline_core.evidence import HTTP_REQUEST_KEY
-from fiftyone_pipeline_core.keymask import mask_licence_key
 from fiftyone_pipeline_core.keymask import mask_licence_keys_in_text
 from fiftyone_pipeline_engines.engine import Engine
 from fiftyone_pipeline_engines.aspectdata_dictionary import AspectDataDictionary
@@ -491,7 +490,7 @@ class CloudRequestEngine(Engine):
 
     def _describe(self, error):
         """!
-        An error as text for a warning, with the licence key masked. The
+        An error as text for a warning, with the licence key hidden. The
         text of an error for several answered by the cloud service gives
         each of them.
         """
@@ -611,7 +610,7 @@ class CloudRequestEngine(Engine):
         """!
         Validate the JSON response from the cloud service. Each entry in
         the warnings list of the response is given as a warning, with the
-        licence key masked, and does not fail the request.
+        licence key hidden, and does not fail the request.
 
         @type: Response
         @param: Response returned from the cloud service.
@@ -654,7 +653,7 @@ class CloudRequestEngine(Engine):
         # messages.
         if not messages and not has_data:
             message = Constants.MESSAGE_NO_DATA_IN_RESPONSE.format(
-                mask_licence_keys_in_text(cloud_response.url))
+                self.masked(cloud_response.url))
             messages.append(message)
 
         # If there were no errors returned but the response code was non
@@ -693,30 +692,32 @@ class CloudRequestEngine(Engine):
     def masked(self, text):
 
         """!
-        Text from or about a cloud answer with the licence key in use shown
-        only as its last four characters. The cloud service names the key in
-        some of its errors, and a URL may carry it in its query.
+        Text from or about a cloud answer with the licence key in use left
+        out whole, and while this thread redeems a sealed result, the sealed
+        result and the transaction too. No part of any of them is kept, as
+        the Human Confidence page of the specification asks for every
+        message the engine builds:
+        https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#what-a-package-never-exposes
 
-        While this thread redeems a sealed result, the sealed result, the
-        transaction and the licence key are left out whole, as the Human
-        Confidence page of the specification asks.
+        The longest value goes first, so a short one that is part of a
+        longer one can't break it up before it's found. Any other key a
+        licence parameter in the text names keeps its last four characters.
         """
 
         text = str(text)
-        for value in getattr(self._hidden, "values", ()):
-            if value:
-                text = text.replace(value, Constants.HIDDEN_VALUE)
-        text = mask_licence_keys_in_text(text)
+        hidden = [value for value in getattr(self._hidden, "values", ())
+                  if value]
         if self.license_key != "":
-            text = text.replace(
-                self.license_key, mask_licence_key(self.license_key))
-        return text
+            hidden.append(self.license_key)
+        for value in sorted(set(hidden), key=len, reverse=True):
+            text = text.replace(value, Constants.HIDDEN_VALUE)
+        return mask_licence_keys_in_text(text)
 
     def _warn_response_warnings(self, json_response):
 
         """!
         Give each entry in the warnings list of a cloud answer as a
-        warning, with the licence key masked. An answer with no such list
+        warning, with the licence key hidden. An answer with no such list
         gives none.
         """
 
@@ -1077,12 +1078,10 @@ class CloudRequestEngine(Engine):
                                 for key, value in conflicts.items())
                     
                     if conflictStr:
-                        message = warningMessage + conflictStr
-                        # The values may hold a sealed result being
-                        # redeemed, which no message holds.
-                        if getattr(self._hidden, "values", ()):
-                            message = self.masked(message)
-                        warnings.warn(message)
+                        # The values may hold the licence key, or a sealed
+                        # result being redeemed, which no message holds.
+                        warnings.warn(
+                            self.masked(warningMessage + conflictStr))
                     
                 # Overwrite the existing queryParameter value.
                 del query_data[existing]
