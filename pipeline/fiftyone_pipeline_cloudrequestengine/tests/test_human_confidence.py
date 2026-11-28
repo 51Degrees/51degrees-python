@@ -244,19 +244,24 @@ class HumanConfidenceTests(unittest.TestCase):
 
     def test_no_request_for_the_flow_data_gives_medium(self):
         # Discovery fails when the engine is built, and again while
-        # processing, so the engine makes no request for the Flow Data.
-        down = requests.exceptions.ConnectionError("unreachable")
+        # processing, so the engine makes no request for the Flow Data. A
+        # request for the Flow Data still reaches the stand-in, which keeps
+        # it and would redeem the sealed result as High.
         answer = self.cloud.request
-        self.cloud.request = Mock(side_effect=down)
+
+        def discovery_fails(type, url, content, origin):
+            if "accessibleProperties" in url or url.endswith("evidencekeys"):
+                raise requests.exceptions.ConnectionError("unreachable")
+            return answer(type, url, content, origin)
+
+        self.cloud.request = discovery_fails
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            pipeline = self.pipeline()
-            data = self.process(pipeline)
+            data = self.process(self.pipeline())
         self.assertEqual([], self.cloud.data_requests)
         self.assert_not_redeemed(data)
         # The failure is the Cloud Request Engine's own error.
         self.assertIn("cloud", data.errors)
-        self.cloud.request = answer
 
     def test_no_cloud_request_engine_gives_no_value_but_never_high_or_low(
             self):
