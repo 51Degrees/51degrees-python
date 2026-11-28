@@ -50,7 +50,15 @@ from .callback_url import callback_url, is_scheme
 # and a session id changes on every page view, so a record holding one could
 # never match. The same two are excluded by the .NET builder, which is the
 # reference for this behaviour.
-EXCLUDED_PARAMETERS = ["query.session-id", "query.sequence"]
+#
+# The sealed Human Confidence result and the page id sent beside it are left
+# out too. The specification says a package must never put the sealed result
+# into the JavaScript Builder's output, and the page id only names the page
+# the sealed result came from, so it has no use in the script. See
+# https://github.com/51Degrees/specifications/blob/main/pipeline-specification/features/human-confidence.md#what-a-package-never-exposes
+EXCLUDED_PARAMETERS = [
+    "query.session-id", "query.sequence", "query.humanconfidence",
+    "query.humanconfidencepage"]
 
 # The data key of the SequenceElement, which is the element that produces the
 # session id and the sequence, and the two names its Element Data holds them
@@ -453,7 +461,8 @@ class JavascriptBuilderElement(FlowElement):
         # record, so the record could never match the next page view's, the
         # cached response would be thrown away and the snippets would run
         # again on every page. A visitor moving through a site would pay a
-        # request per page for the life of the tab.
+        # request per page for the life of the tab. The other names in
+        # EXCLUDED_PARAMETERS are left out for the reasons given there.
         # Each key and value is encoded here because the script joins them
         # into its request body as they are. The key is everything after the
         # first dot, so a name that itself holds a dot is kept whole.
